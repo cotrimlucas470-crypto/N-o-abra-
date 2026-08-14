@@ -19680,6 +19680,100 @@ window.testarSom=function(qual){
   }
 };
 
+/* =====================================================
+   PARTE C — CORREÇÕES E PAINEL
+   ===================================================== */
+
+/* ---------- 1. o alarme falso de "o jogo travou" ----------
+   O vigia acusa travamento depois de 14s sem nenhum botão na tela.
+   A abertura do dia 1 fica 13,1s sem botão — a 0,9s do limite. Num
+   aparelho mais lento, ou com as fontes vindo da rede, ela passa dos
+   14s e o jogo se acusa de travar sem ter travado.
+   (Medido: v47 e v48 dão os mesmos 13132 ms; não é coisa da v48.)
+
+   Em vez de afrouxar o limite — que enfraqueceria a rede de segurança
+   — o vigia passa a saber a diferença entre estar parado e estar
+   esperando: toda pausa deliberada renova o relógio dele. Se o jogo
+   travar de verdade, ninguém chama pausa() e o alarme dispara igual. */
+if(typeof pausa==='function'){
+  const _pausaOrig=pausa;
+  window.pausa=function(ms){
+    try{ if(typeof _wdUlt!=='undefined')_wdUlt=Date.now(); }catch(e){}
+    return _pausaOrig(ms);
+  };
+}
+
+/* ---------- 2. o piso de tensão da sanidade ----------
+   mexerSan levantava A.tensao quando a cabeça piorava, mas
+   atualizarPainel chama tensao() com uma conta que só olha ruído,
+   diesel e moral — e apagava o piso no quadro seguinte. */
+if(typeof tensao==='function'){
+  const _tensaoOrig=tensao;
+  window.tensao=function(v){
+    let piso=0;
+    try{ piso=trava((100-san())/100*.45,0,.45); }catch(e){}
+    return _tensaoOrig(Math.max(v,piso));
+  };
+}
+
+/* ---------- 3. a barra da cabeça no painel ---------- */
+function montarBarraSanidade(){
+  if(document.getElementById('b-san'))return;
+  const painel=document.getElementById('painel');
+  const extras=document.getElementById('extras');
+  if(!painel||!extras)return;
+
+  const st=document.createElement('style');
+  st.textContent=
+    '#b-san i{background:linear-gradient(90deg,#3A4A3E,#7A8B7F)}'+
+    '#painel.san-tenso     #b-san i{background:linear-gradient(90deg,#4A4A32,#A39A5E)}'+
+    '#painel.san-fissurado #b-san i{background:linear-gradient(90deg,#5E4810,#C9A227)}'+
+    '#painel.san-rachado   #b-san i{background:linear-gradient(90deg,#6B3A18,#E0703F)}'+
+    '#painel.san-desfeito  #b-san i,'+
+    '#painel.san-ruptura   #b-san i{background:linear-gradient(90deg,#3A1610,#8C2F1E)}'+
+    /* O relógio tinha grid-row definido e coluna automática. Pelas regras
+       de posicionamento do grid isso o coloca ANTES dos itens totalmente
+       automáticos — ele ficava com a coluna de 254px e os medidores se
+       espremiam nos 98px restantes. Como rótulo (48) + valor (30) + vãos
+       (18) já somam 96, sobravam 2px de barra: nenhuma delas jamais
+       apareceu, nem a do diesel. Coluna explícita resolve as quatro. */
+    '#relogio{grid-row:1/6;grid-column:2}'+
+    '#painel .med{min-width:0}'+
+    '#painel .barra{min-width:42px}';
+  document.head.appendChild(st);
+
+  const med=document.createElement('div');
+  med.className='med';
+  med.innerHTML='<span class="rot">Cabeça</span>'+
+    '<div class="barra" id="b-san"><i style="width:100%"></i></div>'+
+    '<span class="val" id="v-san">100</span>';
+  painel.insertBefore(med,extras);
+}
+
+const CLASSES_SAN=['san-lúcido','san-tenso','san-fissurado','san-rachado','san-desfeito','san-ruptura'];
+function atualizarBarraSanidade(){
+  const barra=document.getElementById('b-san');
+  if(!barra)return;
+  const v=san(), e=estagio();
+  barra.firstElementChild.style.width=v+'%';
+  const val=document.getElementById('v-san');
+  if(val)val.textContent=Math.round(v);
+  const painel=document.getElementById('painel');
+  if(painel){
+    painel.classList.remove(...CLASSES_SAN);
+    painel.classList.add('san-'+e.n);
+  }
+}
+
+if(typeof atualizarPainel==='function'){
+  const _painelOrig=atualizarPainel;
+  window.atualizarPainel=function(){
+    const r=_painelOrig.apply(null,arguments);
+    try{ montarBarraSanidade(); atualizarBarraSanidade(); }catch(e){}
+    return r;
+  };
+}
+
 </script>
 <!-- v48:fim -->
 </body>

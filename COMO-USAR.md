@@ -105,9 +105,37 @@ sombra". Lúcido, dá +2 de sanidade (uma vez por dia) e você pode confiar no
 que ouviu. Fissurado pra baixo, a casa insere uma linha falsa no meio de
 coisas verdadeiras — e o texto não te conta qual era.
 
+### Barra da cabeça no painel
+Quarto medidor, junto de Diesel/Ruído/Porta, com a cor mudando por estágio
+(verde → âmbar → laranja → ferrugem). Mostra o valor real: `menuRealidade`
+já era honesto sobre a sanidade, então a barra também é.
+
 ### O eco ficou audível
 A sequela `eco` já repetia linha no log. Agora a fala volta atrasada, mais
 baixa e mais grave.
+
+---
+
+## Dois bugs do jogo, anteriores à v48
+
+**O alarme falso de travamento.** O vigia acusa travamento depois de 14 s
+sem nenhum botão na tela. A abertura do dia 1 fica **13,1 s** sem botão — a
+0,9 s do limite. Num aparelho mais lento, ou com as fontes vindo da rede,
+ela passa e o jogo se acusa de travar sem ter travado. Medido: v47 e v48
+dão os mesmos 13132 ms, não era coisa da v48.
+
+Em vez de afrouxar o limite, que enfraqueceria a rede de segurança, o vigia
+passou a saber a diferença entre estar parado e estar esperando: toda pausa
+deliberada renova o relógio dele. Travamento de verdade — em que ninguém
+chama `pausa()` — continua disparando o socorro, e isso está no teste.
+
+**As barras nunca apareceram.** Nenhuma delas, nem a do diesel: tinham 2 px
+de largura. `#relogio` tinha `grid-row` definido e coluna automática, e pelas
+regras de posicionamento do grid isso o coloca antes dos itens totalmente
+automáticos — ele ficava com a coluna de 254 px e os quatro medidores se
+espremiam nos 98 px restantes, onde rótulo (48) + valor (30) + vãos (18) já
+somam 96. Coluna explícita para o relógio: as barras foram de 2 px para
+182 px.
 
 ---
 
