@@ -14,6 +14,14 @@ Duas coisas: o motor de áudio novo e a sanidade que passa a mentir no ouvido.
 Mexeu no `v48-som-e-sanidade.js`? Rode `node montar.js` de novo — ele
 substitui a injeção anterior e sobe a versão do cache sozinho.
 
+Pra gerar o pacote do Netlify Drop (o zip não fica no repositório porque é
+derivado — refaça sempre que mudar o jogo):
+
+```
+node montar.js
+zip -r naoabra-v48.zip index.html manifest.json sw.js icon-*.png
+```
+
 ---
 
 ## Parte A — o som
