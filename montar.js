@@ -9,9 +9,15 @@ const MARCA_FIM='<!-- v48:fim -->';
 let html=fs.readFileSync('index.html','utf8');
 const bloco=fs.readFileSync('v48-som-e-sanidade.js','utf8');
 
-// remove uma injeção anterior, se houver — assim dá pra rodar de novo
+/* Remove uma injeção anterior, se houver, pra dar pra rodar de novo.
+   Consome também a quebra de linha que a injeção põe depois da marca
+   final — sem isso cada execução deixava uma linha em branco a mais. */
 const ini=html.indexOf(MARCA_INI), fim=html.indexOf(MARCA_FIM);
-if(ini>=0&&fim>ini) html=html.slice(0,ini)+html.slice(fim+MARCA_FIM.length);
+if(ini>=0&&fim>ini){
+  let corte=fim+MARCA_FIM.length;
+  if(html[corte]==='\n')corte++;
+  html=html.slice(0,ini)+html.slice(corte);
+}
 
 const alvo='</body>';
 const pos=html.lastIndexOf(alvo);
