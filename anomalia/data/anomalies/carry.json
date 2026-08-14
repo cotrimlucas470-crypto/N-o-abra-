@@ -52,6 +52,13 @@
     { "id": "MOD_COMPARTIMENTO_OCULTO", "name": "Compartimento oculto", "compartimentoOculto": 2,
       "quickSlots": -1, "in": ["tecido", "tinta"], "risco": "Perde 1 quick" }
   ],
+  "volume": {
+    "_fonte": "projetado. §14 abre dizendo que o inventário é 'peso + volume + ruído, três limites que brigam entre si', mas só dá números para peso e para ruído. Estes são os do volume.",
+    "slotsPorLamina": 1,
+    "apertadoAPartirDe": 14,
+    "penalidadeDeDutoPadrao": -10,
+    "_nota": "14 é o volume da mochila de trilha, que é a que o documento penaliza em duto. A regra é volumétrica: quem chega nesse tamanho não passa bem por lugar apertado, mesmo que a tabela não repita o custo linha por linha."
+  },
   "sobrecarga": {
     "descarteAcimaDe": 0.90,
     "recuperacaoNoDiaSeguinte": 0.55,

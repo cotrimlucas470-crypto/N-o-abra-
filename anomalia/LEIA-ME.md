@@ -6,10 +6,10 @@ apresentação não é tocada por módulo nenhum daqui.
 | | |
 |---|---|
 | `core/sanity/` + `data/sanity/` | **SANITY (V7)** — 27 testes |
-| `core/anomaly/` + `data/anomalies/` | **ANOMALY (V8)** — 88 testes |
+| `core/anomaly/` + `data/anomalies/` | **ANOMALY (V8)** — 109 testes |
 
 ```
-npm test            # 115 testes
+npm test            # 136 testes
 npm run check       # tsc strict, noUncheckedIndexedAccess, exactOptionalPropertyTypes
 ```
 
@@ -108,6 +108,48 @@ carrega os dois.
 deriva o atraso da classe (3/4/6), §13 dá um por arma (estilete 2, faca 3, as
 duas LEVE) — o da arma vence, que é o dado mais específico; a fórmula em volta
 é a de §7, intacta.
+
+**8. §14 cobra "-10 de furtividade em duto" da mochila de trilha, de 14 slots,
+e não repete a linha para a tática (18), o cargueiro (24) e a costurada (20).**
+Ao pé da letra, o cargueiro passaria por um duto melhor que a trilha, o que
+inverte o dilema da própria seção. `penalidadeDeDuto` é volumétrica: quem chega
+ao volume da trilha paga o que a trilha paga, e o número continua sendo o do
+documento. Como vale o volume **depois** dos módulos, o forro de espuma — que
+custa 2 slots — passou a ser o que faz uma trilha caber no duto.
+
+## §14 inteira, não só a planilha
+
+O peso e o ruído já eram consequência. O **volume** não era: `slots` estava na
+tabela e não era teto de nada, e quatro dos seis módulos eram linha morta —
+declarados no JSON, tipados, e lidos por ninguém. `tests/anomaly/mochilas.spec.ts`
+são 21 testes, um por custo oculto:
+
+- **volume é teto.** A lâmina ocupa slot, e a sucata de §13 também — é o que dá
+  peso àquela regra: o cabo quebrado te custa espaço até você largá-lo.
+- **coldre.** Tira a lâmina do volume e a põe à mostra. Os `+15 visual` entram
+  no canal de luz, então a arma pendurada dá o que ler para a A04 — apagar a
+  lanterna deixa de bastar. Espaço trocado por visibilidade, que é o que a
+  tabela cobra.
+- **compartimento oculto.** Dois slots que a revista humana não acha, e o que
+  está no coldre ela sempre acha. Custa 1 quick — e numa escolar, que tem 1,
+  esconder tão bem significa não alcançar mais nada no encontro.
+- **quickSlots decide a tela.** "Acesso em encontro (1 rolagem = 1 item)": com
+  zero deles a faca existe e não serve. A sacola de pano é a mochila que te
+  deixa sem Cortar passagem e sem Arremessar justamente na tela em que a
+  escolha decide tudo — e quem não alcança a lâmina recebe Empurrar, então
+  §6 continua entregando de 3 a 5 opções, sempre.
+- **largar a mochila.** §14 diz que a opção aparece "com sobrecarga acima de
+  0.90"; o pool a oferecia a quem tivesse qualquer loot. Agora é o preço de
+  ter carregado demais, e os `+3` de velocidade da seção são os `+3` do dado.
+- **rasgo e queda.** Os 4% da sacola por saída, a alça reforçada que os zera, e
+  os 20% de `dropChance` da sobrecarga estourada — que existiam como número e
+  não como evento.
+
+E dois testes de coerência da tabela inteira: todo módulo tem de mudar algum
+número que alguém lê, e a fila "mais espaço = mais ruído" tem de valer de 6 a
+24 slots. Quem sai da fila é a costurada à mão — 20 slots com ruído zero — e o
+teste exige que quem sai pague em outra moeda: ela é âncora, e perdê-la custa
+30 de sanidade. Uma exceção é design; duas seriam a seção se desmentindo.
 
 ## Duas decisões que não são reconciliação, são projeto
 

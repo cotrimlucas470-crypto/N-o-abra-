@@ -57,6 +57,8 @@ export const MODULES: readonly ModuleDef[] =
 
 export const SOBRECARGA = carryData.sobrecarga;
 
+export const VOLUME = carryData.volume;
+
 const byId = <T extends { id: string }>(xs: readonly T[]): ReadonlyMap<string, T> => {
   const m = new Map<string, T>();
   for (const x of xs) m.set(x.id, x);

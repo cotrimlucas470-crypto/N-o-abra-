@@ -347,6 +347,31 @@ export interface ModuleDef {
   risco: string;
 }
 
+/** A mochila depois que os módulos entraram. */
+export interface SistemaDeCarga extends CarrySystem {
+  metalNoise: number;
+  /** slots que uma revista humana não encontra — MOD_COMPARTIMENTO_OCULTO */
+  compartimentoOculto: number;
+  /** quantas lâminas saem do volume por estarem no coldre — e ficam à mostra */
+  laminasForaDoSlot: number;
+  /** o preço do coldre: arma exposta */
+  visual: number;
+}
+
+/** O que um humano acha em você, e o que ele não acha. */
+export interface RevistaHumana {
+  visiveis: number;
+  ocultos: number;
+}
+
+/** O rastro que o inventário produz sozinho, antes de qualquer ação. */
+export interface RuidoCarregado {
+  som: number;
+  metal: number;
+  /** a lâmina no coldre reflete o que houver de luz */
+  luz: number;
+}
+
 export interface OverloadPenalty {
   speed: number;
   fatigue: number;

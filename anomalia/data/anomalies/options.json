@@ -59,7 +59,7 @@
       "sanityCost": 8,
       "noiseGenerated": 15,
       "traceDelta": { "som": -20, "metal": -15 },
-      "distanceDelta": 2,
+      "distanceDelta": 3,
       "perdeMochila": true,
       "texto": "A alça sai do ombro e o peso vai embora junto com o dia inteiro de trabalho."
     },

@@ -12,6 +12,10 @@
  *
  * §0 regra 4: nada aqui espera turno, alvo ou segunda rodada. A opção é
  * resolvida na hora e a tela fecha.
+ *
+ * Três das condições do pool vêm de §14, não de §6: sacar exige `quickSlots`,
+ * e largar a mochila exige a sobrecarga acima de 0.90 que a seção pede. É
+ * aqui que a escolha de mochila deixa de ser planilha e vira consequência.
  */
 
 import type {
@@ -22,6 +26,7 @@ import type { SanityState } from '../sanity/types.ts';
 import { OPTIONS, PHANTOM_OPTIONS, OPTION_BY_ID } from './catalog.ts';
 import { clamp, roll, type Rng } from './rng.ts';
 import { resolveBladeDelay, invisivelPara } from './delay.ts';
+import { ofereceDescarte, podeSacarNoEncontro } from './carry.ts';
 import { avisouAsTresCamadas } from './stateMachine.ts';
 import {
   ehRuptura, erroDeDistancia, permitePhantom,
@@ -52,6 +57,28 @@ export function temArremessavel(inv: Inventory): boolean {
   return inv.throwables > 0;
 }
 
+/**
+ * §14 — ter a lâmina não é o mesmo que alcançá-la. `quickSlots` é o "acesso
+ * em encontro" da seção, e quem carrega sacola de pano tem zero: a arma está
+ * no fundo, e a tela dura uma escolha só.
+ */
+export function podeCortar(inv: Inventory): boolean {
+  return temLamina(inv) && podeSacarNoEncontro(inv);
+}
+
+export function podeArremessar(inv: Inventory): boolean {
+  return temArremessavel(inv) && podeSacarNoEncontro(inv);
+}
+
+/**
+ * §14 — "na tela de encontro, com sobrecarga acima de 0.90, aparece a opção".
+ * Largar a mochila é o que a sobrecarga cobra, não um botão de sempre: quem
+ * saiu leve não tem esse arrependimento para vender.
+ */
+export function podeLargarAMochila(inv: Inventory): boolean {
+  return inv.backpackValue > 0 && ofereceDescarte(inv);
+}
+
 export function makePhantomOption(rng: Rng): EncounterOption {
   return rng.pick(PHANTOM_OPTIONS);
 }
@@ -72,11 +99,11 @@ export function buildEncounter(
 
   pool.push(OPT_IMOVEL());                       // sempre disponível
   pool.push(OPT_CORRER());                       // sempre disponível
-  if (temArremessavel(inv))    pool.push(OPT_ARREMESSAR());
-  if (temLamina(inv))          pool.push(OPT_CORTAR_PASSAGEM());
-  if (inv.backpackValue > 0)   pool.push(OPT_LARGAR_MOCHILA());
+  if (podeArremessar(inv))     pool.push(OPT_ARREMESSAR());
+  if (podeCortar(inv))         pool.push(OPT_CORTAR_PASSAGEM());
+  if (podeLargarAMochila(inv)) pool.push(OPT_LARGAR_MOCHILA());
   if (ctx.hasLockableRoom)     pool.push(OPT_TRANCAR());
-  if (!temLamina(inv))         pool.push(OPT_EMPURRAR());
+  if (!podeCortar(inv))        pool.push(OPT_EMPURRAR());
 
   // sanidade baixa injeta uma opção FALSA que parece boa
   if (permitePhantom(sanity.stage) && def.canBeFaked) {
