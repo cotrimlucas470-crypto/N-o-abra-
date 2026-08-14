@@ -6,13 +6,19 @@ Duas coisas: o motor de áudio novo e a sanidade que passa a mentir no ouvido.
 
 | arquivo | o que é |
 |---|---|
-| `index.html` | **o jogo.** É só isso que você publica. Já está com a v48 dentro. |
-| `v48-som-e-sanidade.js` | o bloco novo, em arquivo separado pra dar pra ler |
-| `montar.js` | injeta o bloco no `index.html`. `node montar.js` |
+| `index.html` | **o jogo.** É só isso que você publica. Já está com tudo dentro. |
+| `v48-som-e-sanidade.js` | o bloco do som e da sanidade, separado pra dar pra ler |
+| `s14-mochilas.js` | o bloco de §14: sobrecarga, módulos, acesso rápido, descarte em fuga |
+| `montar.js` | injeta os blocos no `index.html`. `node montar.js` |
 | `sw.js` | service worker (cache `v48-`, senão o celular serve a versão velha) |
 
-Mexeu no `v48-som-e-sanidade.js`? Rode `node montar.js` de novo — ele
-substitui a injeção anterior e sobe a versão do cache sozinho.
+Mexeu num dos blocos? Rode `node montar.js` de novo — ele substitui as
+injeções anteriores e sobe a versão do cache sozinho.
+
+A **ordem da lista dentro do `montar.js` é a ordem de execução**, e ela
+importa: cada bloco embrulha funções que o anterior já embrulhou. §14 lê o
+peso verdadeiro por baixo da mentira de sanidade que o v48 instala, então
+tem de vir depois dele.
 
 Pra gerar o pacote do Netlify Drop (o zip não fica no repositório porque é
 derivado — refaça sempre que mudar o jogo):
@@ -21,6 +27,54 @@ derivado — refaça sempre que mudar o jogo):
 node montar.js
 zip -r naoabra-v48.zip index.html manifest.json sw.js icon-*.png
 ```
+
+---
+
+## Parte C — as mochilas (§14)
+
+O jogo já tinha as 7 mochilas com tier, ruído, furtividade e lentidão. O que
+faltava de §14, e agora está em `s14-mochilas.js`:
+
+**Sobrecarga.** Era o buraco principal: `cabe()` era sim/não, então passar do
+teto era impossível e o dilema central da seção — *voltar rico e devagar ou
+leve e com fome* — não podia acontecer. Agora o **peso é limite mole** e o
+**volume continua duro**: espaço físico não dobra, ombro dobra. A escada é a
+da tabela, sem conversão:
+
+| carga | preço |
+|---|---|
+| até 70% | nada |
+| 70–90% | `-1` velocidade, `+10` de ruído |
+| 90–100% | `-2` velocidade, `+25` de ruído, `-1` de sanidade por saída |
+| acima de 100% | `-4` velocidade, `+45` de ruído, 20% de deixar cair alguma coisa |
+
+A alça arrebenta de vez em 135%.
+
+**Os 6 módulos**, costurados na bancada. O jogo não tem tecido, couro, espuma
+nem tinta — tem lona, fio, arame e vedante, que é fita. A receita é a mesma
+coisa dita no vocabulário deste mundo. Bolso lateral `+2` de espaço, cinto
+`+4 kg` e `+1` de acesso rápido, coldre tira a maior lâmina do volume e a
+deixa à vista, forro corta metade do ruído e come 2 de espaço, alça reforçada
+mata o rasgo, compartimento oculto esconde 2 armas e custa 1 acesso rápido.
+
+**Acesso rápido virou número de verdade.** A tela mostrava "3 bolsos de acesso
+rápido" e não contava nenhum. Agora é 1 rolagem = 1 item, e o contador zera a
+cada encontro.
+
+**Descarte em fuga.** Correndo com mais de 90% de carga, aparece a escolha:
+largar a mochila e ganhar um degrau inteiro de chance, ou segurar tudo. A
+mochila fica no local e volta em 55% das vezes se você buscar no dia seguinte.
+Quando não volta, dias depois o rádio descreve ela na mão de outra pessoa.
+
+**A sacola de pano rasga** em 4% das saídas, e a alça reforçada tira isso.
+
+**A costurada à mão** existe: 26 kg, ruído zero, 4 bolsos rápidos. Só dá pra
+costurar ela se você perdeu alguém — é a lona que a pessoa guardava. É âncora:
+largá-la na fuga custa 30 de sanidade.
+
+**O compartimento oculto** tem consequência real porque a revista humana deste
+jogo são os saqueadores, que levam tudo que é de ferro. O que está costurado
+entre o forro e o fundo eles não acham.
 
 ---
 
