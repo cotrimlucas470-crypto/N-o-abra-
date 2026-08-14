@@ -1,0 +1,181 @@
+NÃO ABRA — v47
+===============
+
+  Chrome > app.netlify.com/drop > ⋮ > "Instalar app"
+  CONFIRA O "v47" NO CANTO SUPERIOR ESQUERDO.
+
+Dois documentos de uma vez: o de porta/defesa e o V5.
+
+
+═══════════════════════════════════════
+  1. A GRAMÁTICA DAS BATIDAS
+═══════════════════════════════════════
+A melhor coisa dos dois documentos, e agora ela é a primeira
+coisa que acontece na porta. Toda batida tem SOM PRÓPRIO,
+sintetizado, antes de qualquer texto:
+
+  três batidas curtas ... "Ritmo educado e pausado."
+                          → comerciante ou alguém neutro
+  batidas irregulares ... "Som de alguém se escorando na
+                           madeira." → ferido, criança, exausto
+  punho fechado ......... "Rápidas, sem pausa pra resposta."
+                          → saqueadores ou os Três Caras
+  palma aberta .......... "Três fortes e secas. Autoridade."
+                          → patrulha estatal — OU quem imita
+  batida única e alta ... "Um estrondo seco, seguido de
+                           silêncio." → reconhecimento: alguma
+                           coisa testando a estrutura
+  ritmo de metrônomo .... "Perfeição desumana na repetição."
+                          → ANOMALIA. Gente nunca mantém o
+                            tempo exato
+  unhas arranhando ...... "Procura constante por frestas."
+                          → anomalia tátil
+
+E DÁ PRA APRENDER: medido em 2000 visitantes,
+  gente ..... punho 31% · educada 26% · irregular 21%
+  ANOMALIA .. unhas 26% · metrônomo 26% · única e alta 21%
+
+A palma aberta é a mais cruel: 45% das vezes é anomalia
+imitando autoridade.
+
+Na SEGUNDA vez que você ouve um padrão, o jogo te diz a
+origem provável — e se for de anomalia, isso vira sinal na
+barra de certeza.
+
+
+═══════════════════════════════════════
+  2. OBSERVAR A SOMBRA (ação grátis)
+═══════════════════════════════════════
+A única ferramenta de leitura que não custa NADA e não faz
+barulho. Medido em 1000 casos:
+
+  anomalia ... 63% "Tem luz batendo do poste, e não tem
+                    sombra debaixo da porta. Nenhuma."
+  gente ...... 84% "A sombra dela corta a fresta de baixo, e
+                    se mexe quando ela se mexe."
+  duvidoso ... "A sombra está lá, mas não se mexe junto. Ou
+                você imaginou."
+
+De madrugada com o gerador parado não dá pra ver nada — e é
+justamente quando você mais precisa.
+
+
+═══════════════════════════════════════
+  3. A PORTA VIROU RECURSO
+═══════════════════════════════════════
+Resistência de 0 a 100, calculada de dano, reforço e tranca:
+
+  nova ...................... 100/100
+  dano 15, reforço 3 .........  90/100
+  dano 30, sem reforço .......  28/100 ← RANGE A NOITE
+
+Abaixo de 30 ela range com o vento a noite inteira: **−2 de
+sanidade por dia**, e chama atenção.
+
+  reparo simples ... 2h · 1 tábua · +24 de resistência
+  LUBRIFICAR ....... 1h · 1 óleo (raro) · 3 dias sem rangido
+                     e +4 de sanidade na hora
+
+
+═══════════════════════════════════════
+  4. TRILHOS DE LOUCURA
+═══════════════════════════════════════
+A sanidade deixou de ser um número só. Três vetores decidem
+QUE TIPO de ilusão você tem:
+
+  PARANOIA ..... sobe com emboscada e falso alerta
+                 "Você olha pras pessoas da casa e não sabe
+                  mais quem é quem."
+  CULPA ........ sobe 9 por morador morto
+                 "Os que morreram voltam quando você está
+                  sozinho."
+  DISSOCIAÇÃO .. sobe com insônia, fome e escuro
+                 "O mapa, o relógio e a mochila param de dizer
+                  a verdade."
+
+
+═══════════════════════════════════════
+  5. SEQUELAS PERMANENTES
+═══════════════════════════════════════
+Colapsar abaixo de 40 pode deixar marca. Não cura:
+
+  tremor nas mãos .... arma pesada fica pior
+  hipervigilância .... +percepção, −4 de sanidade TODA NOITE
+  mutismo ............ você para de conseguir falar com a casa
+  ECO ................ 10% de chance de o log REPETIR UMA
+                       LINHA que não aconteceu
+
+O eco é o pior: ele mente no texto, não no número.
+
+Teto de 2 por partida, 17% de chance por colapso.
+
+
+═══════════════════════════════════════
+  6. ÂNCORAS PESSOAIS
+═══════════════════════════════════════
+De 2 a 4 sorteadas no começo. Coisas que a sua cabeça usa como
+porto seguro:
+
+  uma foto dobrada no bolso
+  o relógio de pulso que não anda
+  uma música que você lembra inteira
+  a chave de uma casa que não existe mais
+  a letra de alguém num caderno
+  o cheiro do sabão que ela usava
+
+Cada uma dá +5 de sanidade, a cada 3 dias. MAS SÓ TRÊS VEZES.
+Depois ela contamina e vira ilusão recorrente:
+
+  "Na foto tem uma pessoa a mais do que tinha ontem."
+  "Ele andou a noite inteira. Está na hora certa."
+  "Você canta e alguém do outro cômodo continua de onde você
+   parou."
+  "A chave está quente. Chave não fica quente."
+
+Destruir custa −12 na hora e tira aquela linha de ilusão PRA
+SEMPRE:
+  "Você arranca a página e queima no fogão."
+
+
+═══════════════════════════════════════
+  7. O LEITO DE MORTE
+═══════════════════════════════════════
+Morrer devagar deixou de ser tela de fim. Virou a última cena
+jogável.
+
+A RETROSPECTIVA — o jogo revisita 3 decisões da sua run:
+  "Kelly te pediu uma coisa e você prometeu."
+  "Tem 1 coisa trancada no porão que você não teve coragem de
+   matar."
+  "Você enterrou 2. Sabe o nome de todos."
+
+O ÚLTIMO ATO — você gasta o tempo que sobrou com uma coisa:
+  escrever uma carta
+  quebrar o rádio
+  dividir a última comida
+  contar como funciona a porta
+  ficar sozinho e ouvir a casa
+
+E O LEGADO, DEZ ANOS DEPOIS:
+  contar como funciona a porta →
+    "Dez anos depois a casa ainda está de pé. Eles conferem a
+     sombra por baixo da porta antes de abrir. Todo mundo faz
+     isso, e ninguém sabe quem começou."
+  quebrar o rádio →
+    "Dez anos depois ninguém naquela rua liga rádio. Não sabem
+     explicar o motivo. É costume."
+  dividir a comida →
+    "Dez anos depois eles ainda dividem tudo em partes iguais
+     antes de comer. Ninguém lembra por quê."
+
+
+═══════════════════════════════════════
+  AUDITORIA
+═══════════════════════════════════════
+  7 batidas × som próprio · 2000 visitantes medidos
+  1000 leituras de sombra · 4 estados de porta
+  3 níveis de sanidade × 3 telas · âncoras · leito
+  estado todo nulo · save
+
+  ERROS: nenhum · duplicadas: nenhuma · código morto: nenhum
+  796 KB · 83 arquivos-fonte · um HTML só

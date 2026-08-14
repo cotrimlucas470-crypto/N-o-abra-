@@ -1,115 +1,143 @@
-# Melhorias de áudio — NÃO ABRA
+# NÃO ABRA — v48
 
-O repositório estava vazio e o código que você colou veio cortado no meio (parou
-dentro de `estalo()`). Por isso as melhorias vieram como **arquivo aditivo**: ele
-redefine as funções de som por cima das originais em vez de editar o `index.html`.
+Duas coisas: o motor de áudio novo e a sanidade que passa a mentir no ouvido.
 
-## Instalação
+## Arquivos
 
-Coloque `audio-melhorias.js` na mesma pasta do `index.html` e adicione **uma linha**,
-logo antes de `</body>` — precisa ser **depois** do `<script>` principal do jogo:
-
-```html
-  <script src="audio-melhorias.js"></script>
-</body>
-```
-
-Se você distribui o jogo como arquivo único, cole o conteúdo do `.js` dentro de um
-segundo `<script>` no fim do `<body>`. Não apague nada do que já existe.
-
-## O que foi trocado
-
-Estas funções passam a ter a versão nova (as originais continuam no arquivo, só
-deixam de ser usadas):
-
-| Função | Mudança |
+| arquivo | o que é |
 |---|---|
-| `ligarGerador()` | motor diesel novo, com partida |
-| `ajustarGerador(pct)` | rotação e timbre respondem ao diesel |
-| `desligarGerador()` | o motor morre em vez de sumir |
-| `ligarAmbiente()` | vento quase inaudível |
-| `agendarInquietacao()` | a casa cala a boca |
+| `index.html` | **o jogo.** É só isso que você publica. Já está com a v48 dentro. |
+| `v48-som-e-sanidade.js` | o bloco novo, em arquivo separado pra dar pra ler |
+| `montar.js` | injeta o bloco no `index.html`. `node montar.js` |
+| `sw.js` | service worker (cache `v48-`, senão o celular serve a versão velha) |
 
-`estalo`, `grilo`, `gotejo`, `passoDistante` e `rocado` deixam de ser chamados.
+Mexeu no `v48-som-e-sanidade.js`? Rode `node montar.js` de novo — ele
+substitui a injeção anterior e sobe a versão do cache sozinho.
 
-## Funções novas
+---
+
+## Parte A — o som
+
+**O gerador não estoura mais.** O som antigo tinha três defeitos:
+
+1. Dente-de-serra de 42 Hz indo direto pra saída, sem filtro. Harmônicos
+   até o topo da banda: zumbido, não motor.
+2. Vibrato de ±10 Hz sobre 42 Hz — um quarto da fundamental. Isso é
+   sintetizador desafinado.
+3. **A causa do estouro:** onda quadrada de 9,6 Hz no "pistão". Abaixo da
+   faixa audível, uma quadrada não é som — é um degrau de tensão que joga
+   o cone do alto-falante de um extremo ao outro.
+
+Agora é fundamental triangular + segunda ordem + zumbido de alternador,
+com a combustão feita por ruído de banda modulado por um pulso arredondado
+(o "tuc-tuc" do diesel, sem degraus), tudo passando por corte de subgraves
+em 26 Hz, passa-baixa em 430 Hz, saturação suave e limitador. Tem partida
+(pega, acelera demais, assenta), parada, e engasgo quando o diesel acaba.
+
+**Porta:** ferrolho, rangido de dobradiça com envelope que prende e solta,
+arrasto da madeira, lufada de fora e batente.
+
+**Passos:** quatro superfícies (madeira, escada, concreto, terra), marcha
+irregular, panorâmica alternada, modos aproximando/afastando — e
+`desumano: true`, que tira toda a variação de tempo e força. É o mesmo tell
+do ritmo de metrônomo nas batidas: gente nunca mantém o tempo exato.
+
+**A casa ficou quieta.** Sem grilo, sem gotejo, sem roçado. Sobra o gerador
+ao fundo e, raramente e só sob tensão alta, um estalo.
 
 ```js
-somPortaAbrindo()      // ferrolho, rangido de dobradiça, lufada de fora, batente
-somPortaFechando()     // rangido + baque + tranca
-somPassos({...})       // pisadas
-transicaoPassos({...}) // tela preta + passos  (devolve uma Promise)
-acalmarCasa()          // baixa o ambiente em cena
-testarSom('porta')     // atalho de teste pelo console
+transicaoPassos({ texto:'Passos no corredor.', aproximando:true,
+                  superficie:'madeira', aoFim:()=>desenharCena() });
 ```
+Escurece → 1 s de breu → passos → `aoFim()` ainda no escuro → revela.
 
-### A transição que você pediu
+---
 
-```js
-transicaoPassos({
-  texto: 'Passos no corredor.',   // opcional, aparece no escuro
-  aproximando: true,              // vêm chegando: mais alto, menos eco
-  passos: 6,
-  superficie: 'madeira',          // madeira | escada | concreto | terra
-  aoFim: () => desenharCena()     // roda ainda no escuro, antes de revelar
-});
-```
+## Parte B — a sanidade mente no ouvido
 
-Sequência: escurece (0,3 s) → **1 segundo de breu** → os passos → `aoFim()` → volta.
-Com 6 passos dá ~4,9 s no total. Para encurtar, use menos passos ou
-`escuro: 600`. Durante o escuro o toque na tela fica bloqueado.
+O jogo inteiro é sobre vozes imitadas, mas a loucura só acontecia em número
+e em letra dobrada. Agora ela acontece onde dói.
 
-Outras opções: `afastando: true`, `ritmo` (segundos entre passos, padrão `.46`),
-`forca`, `pan`, `sobra` (ms de silêncio depois do último passo).
+### O leito mental
+Zumbido de ouvido, pressão de sub e um sopro sem direção, que crescem com o
+estágio. Nunca é anunciado no texto — a pessoa só percebe quando some.
+
+### Ilusões sonoras
+São 10, e a diferença pro catálogo antigo é que **o som toca e o log não diz
+nada**. Não existe frase confirmando que você ouviu. Ir conferir gasta ruído;
+ignorar deixa a dúvida. É o único lugar do jogo onde a informação chega só
+pelo ouvido.
+
+E o ouvido apodrece junto: quanto pior a cabeça, menor a chance de o som ser
+real. É exatamente quando você mais precisa dele que ele para de servir.
+
+### Os trilhos passaram a valer
+`trilhoDominante()` era usado numa linha só do colapso. Agora ele escolhe as
+ilusões — o trilho dominante pesa 3× no sorteio:
+
+| dominante | paranoia | culpa | dissociação |
+|---|---|---|---|
+| nenhum | 40% | 30% | 31% |
+| paranoia | **69%** | 16% | 16% |
+| culpa | 26% | **55%** | 19% |
+| dissociação | 26% | 18% | **55%** |
+
+Culpa tinha uma ilusão só (a voz do morto) — e é o trilho que mais sobe, 9
+por morador enterrado. Ganhou mais duas: a terra sendo remexida no quintal e
+a cadeira arrastando no cômodo onde alguém morreu.
+
+### A voz de quem morreu
+Usa a síntese de fala que o jogo já carrega, com o timbre puxado pra baixo,
+um sopro subindo antes e sussurro por baixo — o mesmo truque do mímico,
+aplicado à própria cabeça do jogador.
+
+### Escutar a casa
+Ação nova em "Conferir o que é real": 1 hora, o par auditivo do "observar a
+sombra". Lúcido, dá +2 de sanidade (uma vez por dia) e você pode confiar no
+que ouviu. Fissurado pra baixo, a casa insere uma linha falsa no meio de
+coisas verdadeiras — e o texto não te conta qual era.
+
+### O eco ficou audível
+A sequela `eco` já repetia linha no log. Agora a fala volta atrasada, mais
+baixa e mais grave.
+
+---
 
 ## Ajuste fino
 
-Tudo que é volume está no objeto `SOM`, no topo do arquivo:
+Tudo que é volume está no objeto `SOM`, no topo do bloco, e dá pra mexer
+pelo console durante o jogo:
 
 ```js
-SOM.gerador.vol   // .085  — o motor ao fundo
-SOM.casa.vento    // .045  — o leito de ar da casa
-SOM.casa.inquietacao // .25 — chance de um estalo; 0 desliga de vez
-SOM.porta.vol     // .9
-SOM.passos.vol    // 1.30
+SOM.gerador.vol  // .085  o motor ao fundo
+SOM.mental.vol   // 1     o leito de sanidade
+SOM.casa.vento   // .045
+SOM.porta.vol    // .9
+SOM.passos.vol   // 1.30
 ```
 
-Dá para mexer em tempo real pelo console durante o jogo.
+Teste rápido: `testarSom('morto')`, `'anomalo'`, `'porta'`, `'mental'`.
 
-## Por que o gerador estourava
+---
 
-Três causas no som antigo, todas resolvidas:
+## O que foi medido
 
-1. **Dente-de-serra de 42 Hz indo direto para a saída.** Essa forma de onda tem
-   harmônicos até o topo da banda; sem filtro depois dela, o que se ouvia era
-   zumbido áspero, não motor.
-2. **Vibrato de ±10 Hz sobre 42 Hz.** Isso é um quarto da fundamental — soa como
-   sintetizador desafinado, não como rotação.
-3. **Onda quadrada de 9,6 Hz no "pistão".** Abaixo da faixa audível, uma quadrada
-   não é som: é um degrau de tensão que empurra o cone do alto-falante para os
-   extremos. É daí que vinha o estouro no celular.
+Renderizado em `OfflineAudioContext`, medido na saída final:
 
-O motor novo é fundamental triangular + segunda ordem + um zumbido fino de
-alternador, com a combustão feita por ruído de banda modulado em amplitude por um
-pulso arredondado e limitado em banda (o "tuc-tuc" do diesel, sem os degraus). Todo
-o conjunto passa por um barramento com corte de subgraves em 26 Hz, passa-baixa em
-430 Hz, saturação suave e limitador.
-
-## Medições
-
-Renderizado em `OfflineAudioContext` e medido na saída final (pico de amostra e RMS):
-
-| caso | pico | RMS | amostras estouradas |
+| caso | pico | RMS | estouros |
 |---|---|---|---|
 | gerador antigo | 0,165 | 0,038 | 0 |
-| **gerador novo** | 0,252 | 0,093 | 0 |
-| desligando | 0,205 | 0,012 | 0 |
-| porta abrindo | 0,217 | 0,030 | 0 |
-| porta fechando | 0,474 | 0,031 | 0 |
-| passos (chegando) | 0,383 | 0,019 | 0 |
-| casa parada | 0,033 | **0,007** | 0 |
-| **tudo junto** | 0,479 | 0,100 | 0 |
+| **gerador novo** | 0,257 | 0,092 | 0 |
+| porta abrindo | 0,292 | 0,027 | 0 |
+| passos | 0,374 | 0,019 | 0 |
+| cova | 0,068 | 0,005 | 0 |
+| cadeira | 0,325 | 0,034 | 0 |
+| relógio | 0,039 | 0,002 | 0 |
+| leito mental (ruptura) | 0,056 | 0,018 | 0 |
+| **tudo junto** | 0,493 | 0,096 | 0 |
 
-A casa parada em RMS 0,007 é o "mais quieta" que você pediu: sobra o gerador e
-mais nada. O pior caso (gerador + ambiente + porta + passos ao mesmo tempo) fica em
-pico 0,48, com folga de mais de 6 dB até o teto.
+Zero amostras estouradas em todos os casos. O leito mental fica em RMS
+0,018, bem abaixo do gerador — subliminar, que é a intenção.
+
+No jogo rodando: as 10 ilusões abrem e resolvem nos dois caminhos, a
+ponderação de trilho confere com a tabela acima, e o console fica limpo.
