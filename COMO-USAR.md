@@ -139,15 +139,39 @@ somam 96. Coluna explícita para o relógio: as barras foram de 2 px para
 
 ---
 
+## O mix estava baixo demais
+
+O som mais alto do jogo — a batida na porta — chegava a **0,46 de pico**:
+metade do teto disponível. A causa não era ganho, era o compressor da saída,
+com `threshold -14 dB` e `knee` no padrão de **30 dB**. Isso faz a compressão
+começar em -29 dB (0,035 linear), então ele nivelava o mix inteiro o tempo
+todo em vez de só segurar pico — por isso subir o volume mestre rendia quase
+nada.
+
+A saída virou o que devia ser: ganho de compensação de 2,4×, um limitador que
+só age perto do teto, e um **teto matemático** — uma curva `tanh` que satura
+em 0,95 e não passa disso para nenhuma entrada. O limitador sozinho não
+bastava: com ataque de 2 ms o transiente da batida passava por baixo dele e o
+mix chegava a 1,002, com 29 amostras estouradas. A garantia agora não depende
+de tempo de reação.
+
+O gerador desceu de `.085` para `.055` no mesmo movimento: ele toca o tempo
+todo, e num mix mais alto engoliria as pistas das ilusões.
+
+Volume geral ajustável em tempo real pelo console: `volumeGeral(2.8)`.
+
+---
+
 ## Ajuste fino
 
 Tudo que é volume está no objeto `SOM`, no topo do bloco, e dá pra mexer
 pelo console durante o jogo:
 
 ```js
-SOM.gerador.vol  // .085  o motor ao fundo
+SOM.mestre.vol   // 2.4   ganho geral (ou volumeGeral(x))
+SOM.gerador.vol  // .055  o motor ao fundo
 SOM.mental.vol   // 1     o leito de sanidade
-SOM.casa.vento   // .045
+SOM.casa.vento   // .070
 SOM.porta.vol    // .9
 SOM.passos.vol   // 1.30
 ```
@@ -160,20 +184,23 @@ Teste rápido: `testarSom('morto')`, `'anomalo'`, `'porta'`, `'mental'`.
 
 Renderizado em `OfflineAudioContext`, medido na saída final:
 
-| caso | pico | RMS | estouros |
-|---|---|---|---|
-| gerador antigo | 0,165 | 0,038 | 0 |
-| **gerador novo** | 0,257 | 0,092 | 0 |
-| porta abrindo | 0,292 | 0,027 | 0 |
-| passos | 0,374 | 0,019 | 0 |
-| cova | 0,068 | 0,005 | 0 |
-| cadeira | 0,325 | 0,034 | 0 |
-| relógio | 0,039 | 0,002 | 0 |
-| leito mental (ruptura) | 0,056 | 0,018 | 0 |
-| **tudo junto** | 0,493 | 0,096 | 0 |
+Pico e RMS na saída final, antes e depois do conserto do mix:
 
-Zero amostras estouradas em todos os casos. O leito mental fica em RMS
-0,018, bem abaixo do gerador — subliminar, que é a intenção.
+| caso | antes | depois | estouros |
+|---|---|---|---|
+| batida na porta | 0,462 / 0,030 | **0,890 / 0,089** | 0 |
+| gerador | 0,256 / 0,093 | 0,648 / 0,214 | 0 |
+| porta abrindo | 0,215 / 0,028 | 0,749 / 0,097 | 0 |
+| passos | 0,340 / 0,018 | 0,829 / 0,063 | 0 |
+| cova | 0,044 / 0,004 | 0,344 / 0,027 | 0 |
+| relógio | 0,039 / 0,002 | 0,322 / 0,013 | 0 |
+| casa parada | 0,037 / 0,007 | 0,194 / 0,038 | 0 |
+| leito mental | — | 0,194 / 0,063 | 0 |
+| **tudo junto** | 0,552 / 0,099 | **0,889 / 0,237** | 0 |
+
+Zero amostras estouradas em todos os casos, incluindo cinco batidas a plena
+força somadas à porta abrindo — que era exatamente o caso que estourava antes
+do teto entrar.
 
 No jogo rodando: as 10 ilusões abrem e resolvem nos dois caminhos, a
 ponderação de trilho confere com a tabela acima, e o console fica limpo.

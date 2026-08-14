@@ -18676,8 +18676,8 @@ async function leitoLongo(){
    ===================================================== */
 
 const SOM = window.SOM = {
-  gerador  : { vol:.085, pan:-.22, rev:.26, rpm:29, engasgo:true },
-  casa     : { vento:.045, inquietacao:.25 },
+  gerador  : { vol:.055, pan:-.22, rev:.26, rpm:29, engasgo:true },
+  casa     : { vento:.070, inquietacao:.25 },
   porta    : { vol:.9 },
   passos   : { vol:1.30, superficie:'madeira' },
   transicao: { escuro:1000, fade:280 },
@@ -18689,6 +18689,7 @@ function somOk(){
   if(A.ctx.state==='suspended'){
     try{ const r=A.ctx.resume(); if(r&&r.catch) r.catch(()=>{}); }catch(e){}
   }
+  try{ reforcarSaida(); }catch(e){}
   return true;
 }
 function agoraS(){ return A.ctx.currentTime; }
@@ -19212,9 +19213,10 @@ window.acalmarCasa = function(){
    Zumbido de ouvido e pressão de sub que crescem com o estágio.
    Nunca é anunciado no texto. A pessoa só percebe quando some. */
 
-const MENTAL={nos:null};
+const MENTAL={nos:null,ctx:null};
 function leitoMental(){
-  if(!somOk()||MENTAL.nos)return;
+  if(!somOk())return;
+  if(MENTAL.nos&&MENTAL.ctx===A.ctx)return;   // nós de outro contexto não servem
   const t=agoraS();
 
   // zumbido agudo, com deriva pra não virar tom de teste
@@ -19241,7 +19243,7 @@ function leitoMental(){
   sv.connect(fv); fv.connect(gv); saida(gv,{rev:.65});
 
   oz.start(t); os.start(t); sv.start(t);
-  MENTAL.nos={gz,gs,gv};
+  MENTAL.nos={gz,gs,gv}; MENTAL.ctx=A.ctx;
   atualizarMental();
 }
 
@@ -19388,7 +19390,7 @@ function somCova(n){
     const s=ruidoS(),f=A.ctx.createBiquadFilter(),g=A.ctx.createGain();
     f.type='bandpass'; f.frequency.value=800+Math.random()*500; f.Q.value=1.6;
     g.gain.setValueAtTime(0,t);
-    g.gain.linearRampToValueAtTime(.10,t+.02);
+    g.gain.linearRampToValueAtTime(.20,t+.02);
     g.gain.exponentialRampToValueAtTime(.0008,t+.22);
     s.connect(f); f.connect(g); saida(g,{pan,rev:.75}); s.start(t); s.stop(t+.24);
     // a terra caindo de volta
@@ -19396,7 +19398,7 @@ function somCova(n){
     const s2=ruidoS(),f2=A.ctx.createBiquadFilter(),g2=A.ctx.createGain();
     f2.type='lowpass'; f2.frequency.value=420; f2.Q.value=.7;
     g2.gain.setValueAtTime(0,t2);
-    g2.gain.linearRampToValueAtTime(.075,t2+.03);
+    g2.gain.linearRampToValueAtTime(.15,t2+.03);
     g2.gain.exponentialRampToValueAtTime(.0008,t2+.30);
     s2.connect(f2); f2.connect(g2); saida(g2,{pan,rev:.8}); s2.start(t2); s2.stop(t2+.32);
     t += .95+Math.random()*.35;
@@ -19420,7 +19422,7 @@ function somRelogio(n){
     o.type='triangle';
     o.frequency.setValueAtTime(2200+Math.random()*700,t);
     o.frequency.exponentialRampToValueAtTime(900,t+.02);
-    g.gain.setValueAtTime(.055,t);
+    g.gain.setValueAtTime(.13,t);
     g.gain.exponentialRampToValueAtTime(.0006,t+.055);
     o.connect(g); saida(g,{pan:-.15,rev:.45}); o.start(t); o.stop(t+.07);
     /* o intervalo desliza: é o tempo que não bate, não o som */
@@ -19773,6 +19775,68 @@ if(typeof atualizarPainel==='function'){
     return r;
   };
 }
+
+/* =====================================================
+   PARTE D — O MIX ESTAVA BAIXO DEMAIS
+
+   O som mais alto do jogo (a batida na porta) chegava a 0,46 de pico:
+   metade do teto. A causa não era ganho e sim o compressor da saída,
+   com threshold -14 dB e knee no padrão de 30 dB — a compressão
+   começava em -29 dB (0,035 linear), então ele nivelava o mix inteiro
+   o tempo todo em vez de só segurar pico. Era por isso que subir o
+   volume mestre rendia quase nada.
+
+   Aqui a saída vira o que ela deveria ser: ganho de compensação e um
+   limitador que só age perto do teto, transparente abaixo dele.
+   ===================================================== */
+
+SOM.mestre = { vol:2.4 };
+
+/* Teto matemático: tanh que satura em 0.95 e nunca passa disso, para
+   qualquer entrada. O limitador sozinho não bastava — com ataque de 2 ms
+   o transiente da batida na porta passava por baixo dele e o mix chegava
+   a 1,002. Aqui a garantia não depende de tempo de reação. */
+function curvaTeto(k,teto){
+  const n=2048,c=new Float32Array(n),d=Math.tanh(k);
+  for(let i=0;i<n;i++){ const x=i/(n-1)*2-1; c[i]=teto*Math.tanh(x*k)/d; }
+  return c;
+}
+
+function reforcarSaida(){
+  if(!A.ctx||!A.master)return;
+  if(A._saidaV48&&A._saidaV48.ctx===A.ctx)return;   // já feito neste contexto
+
+  A.master.disconnect();                            // solta o compressor antigo
+  const ganho=A.ctx.createGain(); ganho.gain.value=SOM.mestre.vol;
+  const lim=A.ctx.createDynamicsCompressor();
+  lim.threshold.value=-5;  lim.knee.value=4;   lim.ratio.value=20;
+  lim.attack.value=.001;   lim.release.value=.12;
+  const teto=A.ctx.createWaveShaper();
+  teto.curve=curvaTeto(1.0,.95); teto.oversample='4x';
+  A.master.connect(ganho); ganho.connect(lim); lim.connect(teto);
+  teto.connect(A.ctx.destination);
+  A._saidaV48={ctx:A.ctx,ganho,lim,teto};
+}
+
+/* somOk() cobre os sons da v48, mas os do jogo (batida, martelada,
+   criaturas) não passam por ele — a saída tem que estar pronta desde
+   que o áudio liga, senão a primeira batida sai no mix antigo. */
+if(typeof iniciarAudio==='function'){
+  const _iniciarOrig=iniciarAudio;
+  window.iniciarAudio=function(){
+    const r=_iniciarOrig.apply(null,arguments);
+    try{ reforcarSaida(); }catch(e){}
+    return r;
+  };
+}
+
+/* deixa o volume geral ajustável em tempo real pelo console */
+window.volumeGeral=function(v){
+  if(v==null)return SOM.mestre.vol;
+  SOM.mestre.vol=v;
+  if(A._saidaV48)A._saidaV48.ganho.gain.linearRampToValueAtTime(v,A.ctx.currentTime+.3);
+  return v;
+};
 
 </script>
 <!-- v48:fim -->
