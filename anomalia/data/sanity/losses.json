@@ -1,0 +1,55 @@
+{
+  "_fonte": "§3.1 e §3.2 do PROMPT MESTRE V7, transcritos sem alteração. A §3.3 chegou cortada em 'Morador do ab' — as entradas marcadas com fonte 'projetado' são minhas e precisam da sua conferência.",
+  "_campos": {
+    "id": "chave estável usada no código e no log",
+    "amount": "perda bruta, antes do stressBuffer",
+    "cadence": "PERIODO | DIA | CINCO_MIN | UNICO_RUN | EVENTO",
+    "paranoia": "acréscimo em paranoia",
+    "realityDebt": "acréscimo em realityDebt",
+    "delayPeriods": "aplica a perda N períodos depois",
+    "modifier": "condição textual do documento, resolvida em loss.ts",
+    "fonte": "spec | projetado"
+  },
+
+  "exposicao": [
+    { "id": "FORA_ABRIGO",        "rotulo": "Cada período fora do abrigo",    "amount": 1,  "cadence": "PERIODO",   "fonte": "spec" },
+    { "id": "FORA_NOITE",         "rotulo": "Período noturno fora",           "amount": 3,  "cadence": "PERIODO",   "fonte": "spec" },
+    { "id": "ESCURIDAO_TOTAL",    "rotulo": "Escuridão total sem lanterna",   "amount": 2,  "cadence": "CINCO_MIN", "fonte": "spec" },
+    { "id": "CHUVA_FORTE",        "rotulo": "Chuva forte prolongada",         "amount": 1,  "cadence": "PERIODO",   "fonte": "spec" },
+    { "id": "BLECAUTE",           "rotulo": "Blecaute total",                 "amount": 4,  "cadence": "UNICO_RUN", "fonte": "spec" },
+    { "id": "NEBLINA_DENSA",      "rotulo": "Neblina densa",                  "amount": 2,  "cadence": "PERIODO",   "fonte": "spec" },
+    { "id": "FOME_CRITICA",       "rotulo": "Fome crítica",                   "amount": 2,  "cadence": "PERIODO",   "fonte": "spec" },
+    { "id": "SEDE_CRITICA",       "rotulo": "Sede crítica",                   "amount": 3,  "cadence": "PERIODO",   "fonte": "spec" },
+    { "id": "INSONIA_24H",        "rotulo": "Insônia (24h sem dormir)",       "amount": 5,  "cadence": "DIA",       "fonte": "spec" },
+    { "id": "INSONIA_48H",        "rotulo": "Insônia (48h)",                  "amount": 12, "cadence": "DIA",       "fonte": "spec" },
+    { "id": "FERIMENTO_ABERTO",   "rotulo": "Ferimento não tratado",          "amount": 1,  "cadence": "PERIODO",   "fonte": "spec" },
+    { "id": "INFECCAO_ATIVA",     "rotulo": "Infecção ativa",                 "amount": 3,  "cadence": "PERIODO",   "fonte": "spec" },
+    { "id": "SOBREPESO",          "rotulo": "Peso acima de 100%",             "amount": 1,  "cadence": "PERIODO",   "fonte": "spec" }
+  ],
+
+  "encontro": [
+    { "id": "ANOMALIA_DISTANCIA", "rotulo": "Avistar anomalia à distância",        "amount": 4,  "cadence": "EVENTO", "modifier": "HIPERVIGILANCIA_META", "fonte": "spec" },
+    { "id": "ANOMALIA_BLOQUEIA",  "rotulo": "Anomalia bloqueia a saída",           "amount": 9,  "cadence": "EVENTO", "modifier": "SOZINHO_VEZ_MEIO",     "fonte": "spec" },
+    { "id": "ANOMALIA_CONTATO",   "rotulo": "Contato físico com anomalia",         "amount": 18, "cadence": "EVENTO", "fonte": "spec" },
+    { "id": "ANOMALIA_SO_OUVIDA", "rotulo": "Ouvir anomalia sem ver",              "amount": 6,  "cadence": "EVENTO", "paranoia": 8, "fonte": "spec" },
+    { "id": "ALIVIO_TARDIO",      "rotulo": "Fugir com sucesso (alívio tardio)",   "amount": 3,  "cadence": "EVENTO", "delayPeriods": 1, "fonte": "spec" },
+    { "id": "PERDEU_ARMA",        "rotulo": "Perder a arma na fuga",               "amount": 5,  "cadence": "EVENTO", "fonte": "spec" },
+    { "id": "EMBOSCADA",          "rotulo": "Emboscada de saqueadores",            "amount": 7,  "cadence": "EVENTO", "fonte": "spec" },
+    { "id": "MATOU_HUMANO",       "rotulo": "Matar um NPC humano",                 "amount": 14, "cadence": "EVENTO", "paranoia": 15, "realityDebt": 10, "fonte": "spec" },
+    { "id": "VIU_MORRER",         "rotulo": "Ver NPC morrer sem intervir",         "amount": 10, "cadence": "EVENTO", "realityDebt": 12, "fonte": "spec" },
+    { "id": "RECUSOU_AJUDA",      "rotulo": "Recusar ajuda a sobrevivente ferido", "amount": 8,  "cadence": "EVENTO", "realityDebt": 8, "fonte": "spec" },
+    { "id": "AJUDADO_MORREU",     "rotulo": "Sobrevivente que você ajudou morre",  "amount": 12, "cadence": "EVENTO", "fonte": "spec" },
+    { "id": "CADAVER_CRIANCA",    "rotulo": "Cadáver de criança",                  "amount": 15, "cadence": "UNICO_RUN", "fonte": "spec" },
+    { "id": "HORDA_ATRAIDA",      "rotulo": "Horda atraída por você",              "amount": 11, "cadence": "EVENTO", "fonte": "spec" }
+  ],
+
+  "abrigoEVinculo": [
+    { "id": "MORADOR_MORREU",     "rotulo": "Morador do abrigo morre",             "amount": 12, "cadence": "EVENTO", "realityDebt": 6, "fonte": "projetado" },
+    { "id": "MORADOR_PARTIU",     "rotulo": "Morador vai embora do abrigo",        "amount": 6,  "cadence": "EVENTO", "fonte": "projetado" },
+    { "id": "ABRIGO_INVADIDO",    "rotulo": "Abrigo invadido",                     "amount": 10, "cadence": "EVENTO", "paranoia": 12, "fonte": "projetado" },
+    { "id": "ABRIGO_PERDIDO",     "rotulo": "Perder o abrigo de vez",              "amount": 16, "cadence": "EVENTO", "paranoia": 10, "fonte": "projetado" },
+    { "id": "TRAICAO_INTERNA",    "rotulo": "Ser traído por alguém de dentro",     "amount": 13, "cadence": "EVENTO", "paranoia": 20, "realityDebt": 8, "fonte": "projetado" },
+    { "id": "ANCORA_PERDIDA",     "rotulo": "Perder uma âncora",                   "amount": 9,  "cadence": "EVENTO", "fonte": "projetado" },
+    { "id": "PROMESSA_QUEBRADA",  "rotulo": "Quebrar promessa feita a alguém",     "amount": 7,  "cadence": "EVENTO", "realityDebt": 10, "fonte": "projetado" }
+  ]
+}

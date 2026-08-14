@@ -1,0 +1,53 @@
+{
+  "_fonte": "§2 do PROMPT MESTRE V7, tabela canônica e bloco de efeitos, transcritos sem alteração",
+  "estagios": [
+    {
+      "id": "LUCIDO",
+      "min": 85, "max": 100,
+      "illusionChance": 0.02,
+      "uiReliability": 1.00,
+      "voz": "Seca, precisa, curta",
+      "efeitos": { "noise": 0.00, "stamina": 0.00, "lootRead": 1.00, "uiLie": 0.00 }
+    },
+    {
+      "id": "TENSO",
+      "min": 65, "max": 84,
+      "illusionChance": 0.08,
+      "uiReliability": 0.98,
+      "voz": "Frases mais longas, adjetivos de peso",
+      "efeitos": { "noise": 0.05, "stamina": -0.05, "lootRead": 0.98, "uiLie": 0.02 }
+    },
+    {
+      "id": "FISSURADO",
+      "min": 45, "max": 64,
+      "illusionChance": 0.18,
+      "uiReliability": 0.92,
+      "voz": "Repete palavras, corrige a si mesma",
+      "efeitos": { "noise": 0.10, "stamina": -0.10, "lootRead": 0.92, "uiLie": 0.08 }
+    },
+    {
+      "id": "RACHADO",
+      "min": 25, "max": 44,
+      "illusionChance": 0.34,
+      "uiReliability": 0.80,
+      "voz": "Segunda pessoa invasiva",
+      "efeitos": { "noise": 0.18, "stamina": -0.18, "lootRead": 0.80, "uiLie": 0.20 }
+    },
+    {
+      "id": "DESFEITO",
+      "min": 10, "max": 24,
+      "illusionChance": 0.55,
+      "uiReliability": 0.62,
+      "voz": "Fragmentada, sem pontuação final",
+      "efeitos": { "noise": 0.28, "stamina": -0.28, "lootRead": 0.62, "uiLie": 0.38 }
+    },
+    {
+      "id": "RUPTURA",
+      "min": 0, "max": 9,
+      "illusionChance": 0.78,
+      "uiReliability": 0.40,
+      "voz": "Primeira pessoa alheia",
+      "efeitos": { "noise": 0.40, "stamina": -0.40, "lootRead": 0.40, "uiLie": 0.60 }
+    }
+  ]
+}

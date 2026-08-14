@@ -1,0 +1,51 @@
+{
+  "_fonte": "projetado. nightVoices.ts é entregável declarado em §0, mas a seção veio depois do corte.",
+  "_regra": "A voz nunca é rotulada como falsa no texto. O jogador decide por conta própria (§0 regra 2).",
+  "_campos": {
+    "tell": "obrigatório, por regra 4",
+    "answerable": "true = responder muda o estado; false = responder só custa",
+    "paranoiaMin": "paranoia mínima para entrar no sorteio",
+    "toneWeight": "peso quando o tom sorteado bate com o da voz"
+  },
+
+  "vozes": [
+    {
+      "id": "PEDE_ABRIGO", "tone": "MELANCOLICA", "paranoiaMin": 0,
+      "text": "Uma voz do outro lado da porta pede pra entrar. Diz o seu nome uma vez só.",
+      "tell": "Ela diz o seu nome antes de você ter falado. Ninguém lá fora deveria saber.",
+      "answerable": true,
+      "seResponder": { "sanity": -4, "paranoia": 6, "realityDebt": -4 },
+      "seIgnorar":   { "sanity": -2, "paranoia": 3, "realityDebt": 6 }
+    },
+    {
+      "id": "CHORO_DE_CRIANCA", "tone": "MELANCOLICA", "paranoiaMin": 0,
+      "text": "Choro de criança na rua, parando e recomeçando.",
+      "tell": "Recomeça sempre no mesmo ponto, com a mesma respiração. Choro de verdade cansa.",
+      "answerable": true,
+      "seResponder": { "sanity": -7, "paranoia": 10, "realityDebt": -6 },
+      "seIgnorar":   { "sanity": -5, "paranoia": 4, "realityDebt": 10 }
+    },
+    {
+      "id": "IMITA_MORADOR", "tone": "HOSTIL", "paranoiaMin": 25,
+      "text": "{morador} está chamando você do quintal. {morador} está dormindo lá dentro.",
+      "tell": "Duas fontes para a mesma voz. Só uma pode estar certa, e uma delas você pode conferir.",
+      "answerable": true,
+      "seResponder": { "sanity": -9, "paranoia": 14, "realityDebt": -8 },
+      "seIgnorar":   { "sanity": -3, "paranoia": 8, "realityDebt": 12 }
+    },
+    {
+      "id": "CONTAGEM", "tone": "HOSTIL", "paranoiaMin": 40,
+      "text": "Alguém contando devagar do lado de fora. Chega em nove e recomeça do um.",
+      "tell": "Nunca chega no dez. Contagem de gente chega no dez.",
+      "answerable": false,
+      "seIgnorar":   { "sanity": -4, "paranoia": 9, "realityDebt": 8 }
+    },
+    {
+      "id": "SUA_PROPRIA_VOZ", "tone": "HOSTIL", "paranoiaMin": 55,
+      "text": "A sua voz, do lado de fora, pedindo pra você abrir.",
+      "tell": "Você está com a boca fechada. Esse é o tell inteiro.",
+      "answerable": false,
+      "seIgnorar":   { "sanity": -8, "paranoia": 16, "realityDebt": 10 }
+    }
+  ]
+}

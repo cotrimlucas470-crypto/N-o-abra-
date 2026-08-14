@@ -1,0 +1,217 @@
+{
+  "_fonte": "projetado. O documento define a regra (§0 regra 4: ilusão sem tell é bug de design) e o eixo de tom (§1: paranoia decide hostil vs. melancólica), mas o catálogo em si veio depois do corte.",
+  "_campos": {
+    "minStage": "estágio mínimo em que entra no sorteio",
+    "tone": "HOSTIL | MELANCOLICA — paranoia pesa o sorteio entre os dois",
+    "text": "o que o jogo mostra. Nunca diz que é ilusão.",
+    "tell": "o detalhe verificável que denuncia. Obrigatório.",
+    "tellChannel": "onde o tell aparece: VISUAL | SOM | TEMPO | CONTAGEM | CHEIRO",
+    "verifyCost": "custo da verificação em minutos in-game e em ruído",
+    "whenFalse": "texto ao verificar e a coisa não existir",
+    "whenReal": "texto ao verificar e a coisa existir de verdade",
+    "onIgnore": "texto ao não verificar",
+    "ignoreDebt": "realityDebt acrescido por ignorar",
+    "ignoreSanity": "sanidade perdida por ignorar",
+    "canBeReal": "false = esta ilusão nunca tem contrapartida real"
+  },
+  "ilusoes": [
+    {
+      "id": "OLHOU_DUAS_VEZES",
+      "minStage": "LUCIDO",
+      "tone": "MELANCOLICA",
+      "tellChannel": "VISUAL",
+      "text": "Alguma coisa se mexeu no canto do olho. Do lado onde não tem nada.",
+      "tell": "Você olhou duas vezes. Na segunda já sabia o que ia encontrar, e encontrou.",
+      "verifyCost": {
+        "minutes": 5,
+        "noise": 0
+      },
+      "whenReal": "Era um bicho pequeno, saindo por baixo do armário.",
+      "whenFalse": "Nada. O canto está do mesmo jeito que estava de manhã.",
+      "onIgnore": "Você não olha de novo. Fica com a sensação, que é pior que olhar.",
+      "ignoreDebt": 5,
+      "ignoreSanity": 2,
+      "canBeReal": true
+    },
+    {
+      "id": "PASSOS_CORREDOR",
+      "minStage": "TENSO",
+      "tone": "HOSTIL",
+      "tellChannel": "SOM",
+      "text": "Passos no corredor. Não são seus, e não param na porta.",
+      "tell": "O intervalo entre um passo e o outro é sempre o mesmo. Gente cansada não anda no compasso.",
+      "verifyCost": {
+        "minutes": 5,
+        "noise": 3
+      },
+      "whenReal": "Tem alguém ali. Some pela porta dos fundos antes de você chegar.",
+      "whenFalse": "Corredor vazio. A poeira do chão está lisa — ninguém pisou aí hoje.",
+      "onIgnore": "Os passos continuam até você parar de contar. Depois param no meio de um.",
+      "ignoreDebt": 8,
+      "ignoreSanity": 4,
+      "canBeReal": true
+    },
+    {
+      "id": "LATA_FANTASMA",
+      "minStage": "FISSURADO",
+      "tone": "MELANCOLICA",
+      "tellChannel": "CONTAGEM",
+      "text": "Tem uma lata a mais na mochila. Você não lembra de ter pego.",
+      "tell": "O peso da mochila não mudou. Uma lata pesa, e essa não pesa nada.",
+      "verifyCost": {
+        "minutes": 5,
+        "noise": 0
+      },
+      "whenReal": "É uma lata mesmo. Você pegou e esqueceu — isso também acontece.",
+      "whenFalse": "É uma pedra embrulhada em papel, do tamanho certo de uma lata.",
+      "onIgnore": "Você conta a lata no total do dia. O total do dia fica errado a partir daí.",
+      "ignoreDebt": 10,
+      "ignoreSanity": 3,
+      "canBeReal": true
+    },
+    {
+      "id": "VULTO_JANELA",
+      "minStage": "FISSURADO",
+      "tone": "HOSTIL",
+      "tellChannel": "VISUAL",
+      "text": "Alguém parado do lado de fora da janela, de costas.",
+      "tell": "Tem luz de poste batendo nele e não tem sombra no chão. Nenhuma.",
+      "verifyCost": {
+        "minutes": 10,
+        "noise": 5
+      },
+      "whenReal": "Tem um sujeito ali mesmo. Ele vê você ver, e vai embora sem pressa.",
+      "whenFalse": "Não tem ninguém. A grama debaixo da janela está inteira, sem pisada.",
+      "onIgnore": "Você fecha a cortina. Quando abre de novo, continua lá, e mais perto.",
+      "ignoreDebt": 12,
+      "ignoreSanity": 7,
+      "canBeReal": true
+    },
+    {
+      "id": "VOZ_DE_QUEM_MORREU",
+      "minStage": "FISSURADO",
+      "tone": "MELANCOLICA",
+      "tellChannel": "SOM",
+      "text": "A voz de {morto} chamando você lá de fora. Pedindo pra abrir.",
+      "tell": "A voz não respira. Ela fala frases longas sem parar pra tomar ar.",
+      "verifyCost": {
+        "minutes": 10,
+        "noise": 4
+      },
+      "whenReal": null,
+      "whenFalse": "Você chega na porta e não tem ninguém. {morto} está enterrado desde o dia em que você enterrou.",
+      "onIgnore": "Chama mais duas vezes. Na terceira usa o seu nome, e acerta.",
+      "ignoreDebt": 14,
+      "ignoreSanity": 8,
+      "canBeReal": false
+    },
+    {
+      "id": "MAPA_INVENTADO",
+      "minStage": "RACHADO",
+      "tone": "MELANCOLICA",
+      "tellChannel": "TEMPO",
+      "text": "Você lembra de um depósito cheio, a duas ruas daqui.",
+      "tell": "Você lembra do caminho, mas não lembra de ter ido. Memória de lugar sem memória de trajeto.",
+      "verifyCost": {
+        "minutes": 15,
+        "noise": 0
+      },
+      "whenReal": "Está no seu caderno, com data. Existe mesmo.",
+      "whenFalse": "Você confere o caderno. Esse lugar não aparece em nenhuma página.",
+      "onIgnore": "Você anota o endereço e planeja o dia em cima dele. Vai perder o dia.",
+      "ignoreDebt": 12,
+      "ignoreSanity": 4,
+      "canBeReal": true
+    },
+    {
+      "id": "GENTE_A_MAIS",
+      "minStage": "RACHADO",
+      "tone": "HOSTIL",
+      "tellChannel": "CONTAGEM",
+      "text": "Você conta as pessoas do abrigo e dá uma a mais do que devia.",
+      "tell": "Conte de novo em voz alta, pelo nome. O que sobra não tem nome.",
+      "verifyCost": {
+        "minutes": 5,
+        "noise": 2
+      },
+      "whenReal": "Chegou alguém à noite e ninguém te avisou. Está tudo certo.",
+      "whenFalse": "Você conta pelo nome, um por um, e fecha. Sobrava na conta, não na casa.",
+      "onIgnore": "Você prefere não contar de novo. Divide a comida por um a mais.",
+      "ignoreDebt": 15,
+      "ignoreSanity": 6,
+      "canBeReal": true
+    },
+    {
+      "id": "PORTA_DESTRANCADA",
+      "minStage": "RACHADO",
+      "tone": "HOSTIL",
+      "tellChannel": "VISUAL",
+      "text": "A porta da frente está encostada. Você trancou ela.",
+      "tell": "O ferrolho de cima ainda está na posição de trancado. Uma porta aberta não deixa o ferrolho assim.",
+      "verifyCost": {
+        "minutes": 5,
+        "noise": 3
+      },
+      "whenReal": "Estava mesmo destrancada. Alguém da casa saiu e não avisou.",
+      "whenFalse": "Está trancada, os dois ferrolhos, do jeito que você deixou.",
+      "onIgnore": "Você não vai conferir a porta. Decide isso e não muda de ideia a noite inteira.",
+      "ignoreDebt": 16,
+      "ignoreSanity": 5,
+      "canBeReal": true
+    },
+    {
+      "id": "CHEIRO_DE_CASA",
+      "minStage": "DESFEITO",
+      "tone": "MELANCOLICA",
+      "tellChannel": "CHEIRO",
+      "text": "Cheiro de comida de domingo, vindo da cozinha.",
+      "tell": "Não tem fogo aceso, e o cheiro não fica mais forte quando você chega perto.",
+      "verifyCost": {
+        "minutes": 5,
+        "noise": 0
+      },
+      "whenReal": null,
+      "whenFalse": "A cozinha está fria. O fogão está frio. Você fica parado ali um tempo.",
+      "onIgnore": "Você deixa o cheiro ficar. É a melhor coisa que aconteceu essa semana.",
+      "ignoreDebt": 9,
+      "ignoreSanity": 2,
+      "canBeReal": false
+    },
+    {
+      "id": "RELOGIO_ERRADO",
+      "minStage": "DESFEITO",
+      "tone": "HOSTIL",
+      "tellChannel": "TEMPO",
+      "text": "O relógio marca uma hora que não bate com a luz lá fora.",
+      "tell": "Compare com a sombra do batente. A sombra não mente e o relógio está uma hora atrás.",
+      "verifyCost": {
+        "minutes": 5,
+        "noise": 0
+      },
+      "whenReal": "O relógio parou de verdade. Você dá corda e ele volta.",
+      "whenFalse": "O relógio está certo. Era você que estava contando errado desde de manhã.",
+      "onIgnore": "Você segue a hora do relógio. Anoitece uma hora antes do que você esperava.",
+      "ignoreDebt": 13,
+      "ignoreSanity": 5,
+      "canBeReal": true
+    },
+    {
+      "id": "EU_NAO_SOU_VOCE",
+      "minStage": "RUPTURA",
+      "tone": "HOSTIL",
+      "tellChannel": "VISUAL",
+      "text": "Tem alguém sentado do outro lado da mesa, esperando você falar primeiro.",
+      "tell": "Ele copia a sua postura com meio segundo de atraso. Sempre meio segundo.",
+      "verifyCost": {
+        "minutes": 10,
+        "noise": 6
+      },
+      "whenReal": null,
+      "whenFalse": "A cadeira está encostada na mesa. Ela nunca saiu do lugar.",
+      "onIgnore": "Você fala primeiro. Ele responde com a sua voz, e responde certo.",
+      "ignoreDebt": 20,
+      "ignoreSanity": 10,
+      "canBeReal": false
+    }
+  ]
+}

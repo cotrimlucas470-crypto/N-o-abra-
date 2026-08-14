@@ -1,2 +1,5 @@
 # pacote de deploy: derivado do index.html, refeito a cada build
 naoabra-*.zip
+
+# subsistema anomalia
+anomalia/node_modules/

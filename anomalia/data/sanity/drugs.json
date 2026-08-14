@@ -1,0 +1,77 @@
+{
+  "_fonte": "projetado. O documento declara drugState/drugs.ts como entregável mas a seção de fármacos veio depois do corte. Desenhado sob a regra 1: nada aqui pode matar o jogador direto, e o alívio sempre cobra depois.",
+  "_campos": {
+    "onset": "períodos até começar a agir",
+    "duration": "duração em períodos",
+    "illusionMult": "multiplica a chance de ilusão do estágio enquanto ativo",
+    "uiLieMult": "multiplica uiLie enquanto ativo",
+    "toleranceStep": "quanto a tolerância sobe por dose",
+    "withdrawal": "efeito quando a dependência está instalada e a dose falta"
+  },
+
+  "farmacos": [
+    {
+      "id": "ANSIOLITICO",
+      "rotulo": "Ansiolítico",
+      "descricao": "Tira a borda. Também tira o aviso.",
+      "onset": 1, "duration": 3,
+      "sanityImediata": 6,
+      "bufferImediato": 8,
+      "illusionMult": 0.45,
+      "uiLieMult": 1.0,
+      "paranoiaDelta": -10,
+      "noiseDelta": 0.10,
+      "toleranceStep": 18,
+      "dependenciaEm": 3,
+      "withdrawal": { "sanityPorPeriodo": 3, "paranoiaPorPeriodo": 6, "illusionMult": 1.35, "duracao": 4 },
+      "fonte": "projetado"
+    },
+    {
+      "id": "ESTIMULANTE",
+      "rotulo": "Estimulante",
+      "descricao": "Zera a insônia no papel. No corpo, adia.",
+      "onset": 0, "duration": 2,
+      "sanityImediata": 0,
+      "bufferImediato": 4,
+      "illusionMult": 1.25,
+      "uiLieMult": 1.15,
+      "paranoiaDelta": 14,
+      "insoniaSuprimida": true,
+      "toleranceStep": 22,
+      "dependenciaEm": 3,
+      "withdrawal": { "sanityPorPeriodo": 5, "paranoiaPorPeriodo": 4, "illusionMult": 1.20, "duracao": 3 },
+      "fonte": "projetado"
+    },
+    {
+      "id": "ANALGESICO",
+      "rotulo": "Analgésico",
+      "descricao": "A dor some e o ferimento continua.",
+      "onset": 0, "duration": 3,
+      "sanityImediata": 3,
+      "bufferImediato": 3,
+      "illusionMult": 1.0,
+      "uiLieMult": 1.0,
+      "suprimeFerimento": true,
+      "toleranceStep": 12,
+      "dependenciaEm": 4,
+      "withdrawal": { "sanityPorPeriodo": 2, "paranoiaPorPeriodo": 2, "illusionMult": 1.0, "duracao": 2 },
+      "fonte": "projetado"
+    },
+    {
+      "id": "DESTILADO",
+      "rotulo": "Destilado",
+      "descricao": "Barato, sempre tem, e cobra na manhã seguinte.",
+      "onset": 0, "duration": 2,
+      "sanityImediata": 5,
+      "bufferImediato": 5,
+      "illusionMult": 0.8,
+      "uiLieMult": 1.45,
+      "paranoiaDelta": -6,
+      "noiseDelta": 0.18,
+      "toleranceStep": 10,
+      "dependenciaEm": 5,
+      "withdrawal": { "sanityPorPeriodo": 4, "paranoiaPorPeriodo": 3, "illusionMult": 1.15, "duracao": 2 },
+      "fonte": "projetado"
+    }
+  ]
+}

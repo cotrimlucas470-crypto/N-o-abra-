@@ -1,0 +1,91 @@
+{
+  "_fonte": "projetado. O documento lista gain.ts como entregável e fixa a regra da regeneração do stressBuffer (§1: 2/hora dormindo), mas o catálogo de ganhos veio depois do corte.",
+  "_regraDoSpec": "stressBuffer regenera 2 por hora dormindo (§1, tabela dos quatro medidores)",
+  "bufferPorHoraDormindo": 2,
+  "ganhos": [
+    {
+      "id": "NOITE_INTEIRA",
+      "rotulo": "Dormir a noite inteira em abrigo seguro",
+      "sanity": 8,
+      "buffer": 0,
+      "cadence": "DIA",
+      "fonte": "projetado",
+      "_nota": "buffer vem da regra de §1 (2/hora dormindo), não daqui"
+    },
+    {
+      "id": "NOITE_PICADA",
+      "rotulo": "Dormir mal, acordando",
+      "sanity": 3,
+      "buffer": 0,
+      "cadence": "DIA",
+      "fonte": "projetado",
+      "_nota": "buffer vem da regra de §1 (2/hora dormindo), não daqui"
+    },
+    {
+      "id": "REFEICAO_QUENTE",
+      "rotulo": "Comida quente",
+      "sanity": 4,
+      "buffer": 2,
+      "cadence": "PERIODO",
+      "fonte": "projetado"
+    },
+    {
+      "id": "BANHO",
+      "rotulo": "Banho",
+      "sanity": 3,
+      "buffer": 2,
+      "cadence": "DIA",
+      "fonte": "projetado"
+    },
+    {
+      "id": "ANCORA",
+      "rotulo": "Ficar um tempo com uma âncora",
+      "sanity": 5,
+      "buffer": 3,
+      "cadence": "DIA",
+      "fonte": "projetado"
+    },
+    {
+      "id": "CONVERSA",
+      "rotulo": "Conversa longa com alguém do abrigo",
+      "sanity": 4,
+      "buffer": 2,
+      "cadence": "DIA",
+      "fonte": "projetado"
+    },
+    {
+      "id": "MUSICA",
+      "rotulo": "Ouvir música inteira, sem interrupção",
+      "sanity": 3,
+      "buffer": 2,
+      "cadence": "DIA",
+      "fonte": "projetado"
+    },
+    {
+      "id": "SALVOU_ALGUEM",
+      "rotulo": "Salvar um sobrevivente",
+      "sanity": 10,
+      "buffer": 4,
+      "cadence": "EVENTO",
+      "debtRelief": 8,
+      "fonte": "projetado"
+    },
+    {
+      "id": "ENTERRO",
+      "rotulo": "Enterrar alguém direito",
+      "sanity": 6,
+      "buffer": 2,
+      "cadence": "EVENTO",
+      "debtRelief": 5,
+      "fonte": "projetado"
+    },
+    {
+      "id": "ABRIGO_REFORCADO",
+      "rotulo": "Terminar um reforço no abrigo",
+      "sanity": 4,
+      "buffer": 3,
+      "cadence": "EVENTO",
+      "fonte": "projetado"
+    }
+  ]
+}
