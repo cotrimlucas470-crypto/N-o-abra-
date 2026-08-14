@@ -366,7 +366,31 @@ const SUP={
   terra   : {corte:480 ,q:.7 ,corpo:66,res:[110,160],resVol:.02,scuff:.055}
 };
 
-function passo(t,op){
+/* O jogo já chamava passo(proximidade, pan) em 13 lugares — do mímico no
+   corredor ao vizinho na rua. A assinatura nova é passo(instante, opções),
+   e ela engolia a antiga em silêncio: `op.forca` vinha undefined, o ganho
+   virava NaN, o navegador recusava o passo e sobrava um erro solto. Cada
+   passo do jogo antigo estava mudo. As duas formas entram pela mesma porta. */
+function passo(a,b){
+  if(b&&typeof b==='object')return passoEm(a,b);
+  const prox=a==null?1:a;
+  return passoEm(agoraS()+.02,{
+    forca     : trava(prox,.05,1.4)*SOM.passos.vol,
+    pan       : b||0,
+    rev       : trava(.9-prox*.55,.2,.9),   // perto ecoa menos
+    superficie: pisoDaCena()
+  });
+}
+function pisoDaCena(){
+  const m=(window.cena&&cena.modo)||'';
+  if(m==='rua'||m==='casafora'||m==='mapa')return 'concreto';
+  const c=(window.cena&&cena.casa)?cena.casa.voce:null;
+  if(c===10)return 'terra';       // quintal
+  if(c===0||c===9)return 'escada';// sótão e porão
+  return 'madeira';
+}
+
+function passoEm(t,op){
   const S2=SUP[op.superficie]||SUP.madeira;
   const f=op.forca, pan=op.pan, rev=op.rev;
 
@@ -429,7 +453,7 @@ window.somPassos = function(op){
     /* passo de anomalia: tempo exato demais, sem variação de força.
        É o mesmo tell do ritmo de metrônomo nas batidas. */
     const exato = !!op.desumano;
-    passo(t,{forca:exato?base:f,pan:pan0+(i%2?.13:-.13),rev,superficie:sup});
+    passoEm(t,{forca:exato?base:f,pan:pan0+(i%2?.13:-.13),rev,superficie:sup});
     const longo = exato ? 1 : ((i%2)?1.06:.94);
     t += ritmo*longo*(exato?1:(.94+Math.random()*.12));
   }

@@ -47,7 +47,7 @@ fs.writeFileSync('index.html',html);
 // continua servindo a versão velha
 let sw=fs.readFileSync('sw.js','utf8');
 sw=sw.replace(/const VERSAO = '[^']*' \+ '[^']*';/,
-  "const VERSAO = 'v48-' + '20260814b';");
+  "const VERSAO = 'v48-' + '20260814c';");
 fs.writeFileSync('sw.js',sw);
 
 console.log('index.html: '+(html.length/1024).toFixed(0)+' KB');

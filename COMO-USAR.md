@@ -170,6 +170,48 @@ baixa e mais grave.
 
 ---
 
+## O que a v48 tinha quebrado sem avisar
+
+A v48 trocou duas peças por baixo do jogo e não avisou os lugares que já
+usavam as peças velhas. Nos dois casos o sintoma não parecia som: parecia o
+jogo travando.
+
+**O gerador.** O motor novo é feito de outros nós — o volume virou `mestre`,
+a rotação virou `oRot`, o pulso da combustão virou `oAM`. Três lugares do
+jogo antigo continuavam abrindo a caixa velha (`g`, `o`, `pist_o`):
+
+- `somDoComodo` — **estourava em toda troca de cômodo**, e é daí que vinha o
+  "O jogo travou aqui" logo depois de clicar em *Ir para OFICINA*. Não era
+  travamento: o erro cortava `irPara` no meio, a barra de ações ficava vazia
+  por um instante e a rede de segurança acusava o que não tinha acontecido.
+  Alguns milissegundos depois o menu voltava sozinho — e a linha vermelha
+  ficava lá, mentindo.
+- `desgastarGerador` — estourava sempre que o motor se gastava.
+- `abaixarAmbiente` / `devolverAmbiente` — esse não estourava, só parava de
+  funcionar em silêncio: o gerador deixou de abaixar enquanto alguém fala.
+
+Agora quem mexe no motor de fora pergunta a `gerVolume()`, `gerRotacao()` e
+`gerPulso()` em vez de abrir a caixa, e não quebra na próxima vez que ela
+mudar.
+
+**Os passos.** A assinatura virou `passo(instante, opções)`, mas o jogo
+chamava `passo(proximidade, pan)` em **13 lugares** — do mímico no corredor
+ao vizinho na rua. A chamada antiga entrava na nova sem reclamar: `op.forca`
+vinha `undefined`, o ganho virava `NaN`, o navegador recusava o passo. Todo
+passo do jogo antigo estava mudo, cada um deixando um erro solto para trás.
+As duas formas entram pela mesma porta agora, e a antiga ainda ganhou o piso
+certo — concreto na rua, terra no quintal, escada no porão e no sótão.
+
+**A rede de segurança parou de gritar antes da hora.** Ela acusava travamento
+400 ms depois de qualquer erro solto, se a barra estivesse vazia naquele
+instante. Mas o jogo tem transições em que a barra fica vazia de propósito.
+Agora a suspeita espera 6 s e só vira acusação se, no fim da espera, continuar
+sem nenhuma ação na tela **e** ninguém tiver pedido pausa nesse meio-tempo.
+Travamento de verdade passa pelas duas peneiras e dispara igual — está no
+teste.
+
+---
+
 ## Dois bugs do jogo, anteriores à v48
 
 **O alarme falso de travamento.** O vigia acusa travamento depois de 14 s

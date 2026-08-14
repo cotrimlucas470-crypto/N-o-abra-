@@ -372,6 +372,17 @@ function desligarGerador(){
   setTimeout(()=>{[G.s,G.o,G.lfo,G.pist].forEach(x=>{try{x.stop()}catch(e){}})},2600);
 }
 
+/* ---- o motor visto de fora ----------------------------------------
+   A v48 refez o gerador com outros nós: o volume virou `mestre`, a
+   rotação virou `oRot` e o pulso da combustão virou `oAM`. Quem mexe
+   no motor de fora — o cômodo, o ducking, o desgaste — pergunta aqui
+   em vez de abrir a caixa, e não quebra na próxima vez que ela mudar. */
+function gerVolume() { return A.ger?(A.ger.mestre||A.ger.g)      :null; }
+function gerRotacao(){ return A.ger?(A.ger.oRot  ||A.ger.o)      :null; }
+function gerPulso()  { return A.ger?(A.ger.oAM   ||A.ger.pist_o) :null; }
+function gerVolBase(){ return (window.SOM&&SOM.gerador)?SOM.gerador.vol:.10; }
+function gerNominal(){ return (A.ger&&A.ger.f0)||42; }
+
 /* ambiente noturno em camadas */
 function ligarAmbiente(){
   if(!A.ctx||A.amb.on)return; A.amb.on=true;
@@ -655,7 +666,9 @@ function somDoComodo(id){
   }
   const cfg=SOM_COMODO[id];
   if(id===9)ambientePorao();else if(id===10)ambienteRua();else ambienteCasa();
-  if(A.ger)A.ger.g.gain.linearRampToValueAtTime(id===9?.22:(id===6||id===10?.06:.1),A.ctx.currentTime+.7);
+  /* o motor atravessa a casa: alto no porão, abafado na oficina e no quintal */
+  const gv=gerVolume();
+  if(gv)gv.gain.linearRampToValueAtTime(gerVolBase()*(id===9?2.2:(id===6||id===10?.6:1)),A.ctx.currentTime+.7);
   if(!cfg)return;
   const s=src(),f=A.ctx.createBiquadFilter(),g=A.ctx.createGain();
   f.type=cfg.f;f.frequency.value=cfg.fr;
@@ -1443,7 +1456,7 @@ function vozDe(p){
 function abaixarAmbiente(v,tempo){
   if(!A.ctx)return;
   const t=A.ctx.currentTime;
-  [A.amb.vento&&A.amb.vento.g,A.comodo&&A.comodo.g,A.chuva&&A.chuva.g,A.ger&&A.ger.g]
+  [A.amb.vento&&A.amb.vento.g,A.comodo&&A.comodo.g,A.chuva&&A.chuva.g,gerVolume()]
     .filter(Boolean).forEach(g=>{
       const atual=g.gain.value;
       g._cheio=g._cheio??atual;
@@ -1455,7 +1468,7 @@ function abaixarAmbiente(v,tempo){
 function devolverAmbiente(){
   if(!A.ctx)return;
   const t=A.ctx.currentTime;
-  [A.amb.vento&&A.amb.vento.g,A.comodo&&A.comodo.g,A.chuva&&A.chuva.g,A.ger&&A.ger.g]
+  [A.amb.vento&&A.amb.vento.g,A.comodo&&A.comodo.g,A.chuva&&A.chuva.g,gerVolume()]
     .filter(Boolean).forEach(g=>{
       if(g._cheio==null)return;
       g.gain.cancelScheduledValues(t);
@@ -1835,10 +1848,12 @@ function desgastarGerador(){
   if(S.rafaelGer&&S.abrigo.some(p=>p.n==='Rafael'))d*=.5;
   if(S.gerBaixo)d*=.7;
   S.gerSaude=Math.max(0,S.gerSaude-d);
-  if(A.ger){
-    const p=S.gerSaude/100;
-    A.ger.pist_o.frequency.linearRampToValueAtTime(trava(3+p*7,2,10),A.ctx.currentTime+2);
-    A.ger.o.frequency.linearRampToValueAtTime(trava(24+p*20,20,45),A.ctx.currentTime+2);
+  if(A.ger&&A.ctx){
+    /* motor gasto roda mais devagar e bate mais fundo */
+    const p=S.gerSaude/100,t=A.ctx.currentTime,f=gerNominal()*(.62+.38*p);
+    const rot=gerRotacao(),pul=gerPulso();
+    if(rot)rot.frequency.linearRampToValueAtTime(f,t+2);
+    if(pul)pul.frequency.linearRampToValueAtTime(f/2,t+2);
   }
   if(S.gerSaude<=0&&!S.gerQuebrado){S.gerQuebrado=true;return true;}
   return false;
@@ -14753,13 +14768,30 @@ function _botaoCru(txt,fn,op){
   AC.appendChild(b);return b;
 }
 
-/* qualquer erro solto vira aviso em vez de silêncio */
-addEventListener('error',e=>{
-  try{if(acoesNaTela()===0)setTimeout(socorro,400);}catch(x){}
-});
-addEventListener('unhandledrejection',e=>{
-  try{if(acoesNaTela()===0)setTimeout(socorro,400);}catch(x){}
-});
+/* Um erro solto não é um travamento, e 400 ms não são prova de nada.
+   O jogo tem transições em que a barra fica vazia de propósito por
+   alguns segundos; acusar dentro desse vão é mentir para quem está
+   jogando — pior, a linha vermelha fica no log mesmo depois de o menu
+   voltar sozinho, que é exatamente o que se via ao trocar de cômodo.
+
+   Então a suspeita espera antes de virar acusação, e só acusa se, no
+   fim da espera, continuar sem nenhuma ação na tela E ninguém tiver
+   pedido pausa nesse meio-tempo. Travamento de verdade — em que nada
+   se desenha e ninguém chama pausa() — passa pelas duas peneiras e
+   dispara o socorro igual. */
+let _susp=null;
+function suspeitar(){
+  if(_susp||acoesNaTela()>0)return;
+  const marca=_wdUlt;
+  _susp=setTimeout(()=>{
+    _susp=null;
+    if(acoesNaTela()>0)return;   // o menu voltou: não era travamento
+    if(_wdUlt!==marca)return;    // pediram pausa: está esperando, não parado
+    socorro();
+  },6000);
+}
+addEventListener('error',e=>{ try{suspeitar()}catch(x){} });
+addEventListener('unhandledrejection',e=>{ try{suspeitar()}catch(x){} });
 
 </script>
 <script>
@@ -19027,7 +19059,31 @@ const SUP={
   terra   : {corte:480 ,q:.7 ,corpo:66,res:[110,160],resVol:.02,scuff:.055}
 };
 
-function passo(t,op){
+/* O jogo já chamava passo(proximidade, pan) em 13 lugares — do mímico no
+   corredor ao vizinho na rua. A assinatura nova é passo(instante, opções),
+   e ela engolia a antiga em silêncio: `op.forca` vinha undefined, o ganho
+   virava NaN, o navegador recusava o passo e sobrava um erro solto. Cada
+   passo do jogo antigo estava mudo. As duas formas entram pela mesma porta. */
+function passo(a,b){
+  if(b&&typeof b==='object')return passoEm(a,b);
+  const prox=a==null?1:a;
+  return passoEm(agoraS()+.02,{
+    forca     : trava(prox,.05,1.4)*SOM.passos.vol,
+    pan       : b||0,
+    rev       : trava(.9-prox*.55,.2,.9),   // perto ecoa menos
+    superficie: pisoDaCena()
+  });
+}
+function pisoDaCena(){
+  const m=(window.cena&&cena.modo)||'';
+  if(m==='rua'||m==='casafora'||m==='mapa')return 'concreto';
+  const c=(window.cena&&cena.casa)?cena.casa.voce:null;
+  if(c===10)return 'terra';       // quintal
+  if(c===0||c===9)return 'escada';// sótão e porão
+  return 'madeira';
+}
+
+function passoEm(t,op){
   const S2=SUP[op.superficie]||SUP.madeira;
   const f=op.forca, pan=op.pan, rev=op.rev;
 
@@ -19090,7 +19146,7 @@ window.somPassos = function(op){
     /* passo de anomalia: tempo exato demais, sem variação de força.
        É o mesmo tell do ritmo de metrônomo nas batidas. */
     const exato = !!op.desumano;
-    passo(t,{forca:exato?base:f,pan:pan0+(i%2?.13:-.13),rev,superficie:sup});
+    passoEm(t,{forca:exato?base:f,pan:pan0+(i%2?.13:-.13),rev,superficie:sup});
     const longo = exato ? 1 : ((i%2)?1.06:.94);
     t += ritmo*longo*(exato?1:(.94+Math.random()*.12));
   }
