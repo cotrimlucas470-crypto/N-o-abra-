@@ -1,0 +1,174 @@
+{
+  "_fonte": "CT_LACERANTE é transcrita de §8, sem alteração. As outras seis seguem a mesma forma — rolagem única de 1 a 100, cinco faixas contíguas, MORTE na ponta — com pesos deslocados pelo tipo de dano de cada anomalia.",
+  "_regra": "§8 — contato não é combate. É UMA rolagem que decide o que você perde. Nenhuma tabela tem casa vazia nem faixa sobreposta; tests/anomaly/regras.spec.ts confere.",
+  "tabelas": [
+    {
+      "id": "CT_LACERANTE",
+      "roll": [
+        { "range": [1, 22],  "result": "ESCAPE_ARRASTADO",
+          "loot": -1.0, "blade": "PERDIDA", "sanity": -8, "wound": "CORTE_LEVE",
+          "text": "Você sai. Sem a mochila. Sem a manga esquerda. O braço esquenta depois." },
+
+        { "range": [23, 48], "result": "FERIDO_GRAVE",
+          "loot": -0.5, "blade": "DANIFICADA", "sanity": -14, "wound": "LACERACAO",
+          "text": "Alguma coisa abre você da costela ao quadril. Você corre assim mesmo." },
+
+        { "range": [49, 70], "result": "MARCADO",
+          "loot": -0.3, "sanity": -18, "wound": "SANGRAMENTO", "mark": true,
+          "text": "Ela solta. Não porque desistiu. Porque agora sabe seu cheiro." },
+
+        { "range": [71, 88], "result": "AGONIA",
+          "loot": -1.0, "sanity": -25, "wound": "CRITICO", "hpLock": 1,
+          "text": "Você acorda a duzentos metros dali. Não lembra de ter andado." },
+
+        { "range": [89, 100], "result": "MORTE",
+          "epilogue": "EP_LACERANTE",
+          "text": "O último som é metálico. Não vem dela." }
+      ]
+    },
+    {
+      "id": "CT_ESMAGA",
+      "roll": [
+        { "range": [1, 25],  "result": "ESCAPE_ARRASTADO",
+          "loot": -1.0, "blade": "PERDIDA", "sanity": -7, "wound": "CONTUSAO",
+          "text": "Você passa por baixo. A mochila fica presa e você deixa a mochila." },
+
+        { "range": [26, 52], "result": "FERIDO_GRAVE",
+          "loot": -0.5, "blade": "DANIFICADA", "sanity": -13, "wound": "COSTELA_QUEBRADA",
+          "text": "Duas costelas cedem juntas. Respirar vira uma decisão consciente." },
+
+        { "range": [53, 74], "result": "MARCADO",
+          "loot": -0.3, "sanity": -16, "wound": "CONTUSAO", "mark": true,
+          "text": "Ela encosta a mão inteira nas suas costas e solta. Só isso." },
+
+        { "range": [75, 90], "result": "AGONIA",
+          "loot": -1.0, "sanity": -24, "wound": "CRITICO", "hpLock": 1,
+          "text": "O teto está no lugar do chão. Depois volta. Você está do lado de fora." },
+
+        { "range": [91, 100], "result": "MORTE",
+          "epilogue": "EP_ESMAGA",
+          "text": "Não dói. Isso é o que tem de errado." }
+      ]
+    },
+    {
+      "id": "CT_SUFOCA",
+      "roll": [
+        { "range": [1, 28],  "result": "ESCAPE_ARRASTADO",
+          "loot": -0.6, "sanity": -9, "wound": "FALTA_DE_AR",
+          "text": "Você sai pela lateral. A garganta arde por dez minutos depois." },
+
+        { "range": [29, 55], "result": "FERIDO_GRAVE",
+          "loot": -0.4, "blade": "DANIFICADA", "sanity": -15, "wound": "GARGANTA",
+          "text": "Alguma coisa fecha em volta do pescoço e abre de novo. Você não sabe por quê." },
+
+        { "range": [56, 78], "result": "MARCADO",
+          "loot": -0.2, "sanity": -20, "wound": "FALTA_DE_AR", "mark": true,
+          "text": "Ela encosta o ouvido no seu peito. Escuta. Depois deixa você ir." },
+
+        { "range": [79, 92], "result": "AGONIA",
+          "loot": -1.0, "sanity": -26, "wound": "CRITICO", "hpLock": 1,
+          "text": "Você acorda sem voz. Fica assim por dois dias." },
+
+        { "range": [93, 100], "result": "MORTE",
+          "epilogue": "EP_SUFOCA",
+          "text": "A última coisa que você ouve é você mesmo, de longe." }
+      ]
+    },
+    {
+      "id": "CT_ESTILHACO",
+      "roll": [
+        { "range": [1, 24],  "result": "ESCAPE_ARRASTADO",
+          "loot": -0.8, "blade": "PERDIDA", "sanity": -8, "wound": "CORTE_LEVE",
+          "text": "Você atravessa e o vidro atravessa junto. Tira os cacos depois." },
+
+        { "range": [25, 50], "result": "FERIDO_GRAVE",
+          "loot": -0.5, "sanity": -14, "wound": "VIDRO_NO_ROSTO",
+          "text": "O lado esquerdo do rosto para de responder. Você não olha para conferir." },
+
+        { "range": [51, 72], "result": "MARCADO",
+          "loot": -0.3, "sanity": -17, "wound": "CORTE_LEVE", "mark": true,
+          "text": "Ela mostra você para você, do tamanho certo. Depois abre passagem." },
+
+        { "range": [73, 89], "result": "AGONIA",
+          "loot": -1.0, "sanity": -25, "wound": "CRITICO", "hpLock": 1,
+          "text": "Você acorda num cômodo com espelho. Não é o cômodo em que entrou." },
+
+        { "range": [90, 100], "result": "MORTE",
+          "epilogue": "EP_ESTILHACO",
+          "text": "O reflexo sai andando. Você não." }
+      ]
+    },
+    {
+      "id": "CT_ARRASTA",
+      "roll": [
+        { "range": [1, 30],  "result": "ESCAPE_ARRASTADO",
+          "loot": -1.0, "blade": "PERDIDA", "sanity": -6, "wound": "TORCAO",
+          "text": "Ela segura pelo tornozelo. Você deixa a bota e a mochila com ela." },
+
+        { "range": [31, 58], "result": "FERIDO_GRAVE",
+          "loot": -0.5, "blade": "DANIFICADA", "sanity": -12, "wound": "LACERACAO",
+          "text": "Vinte metros de asfalto passam por baixo de você antes de soltar." },
+
+        { "range": [59, 80], "result": "MARCADO",
+          "loot": -0.3, "sanity": -15, "wound": "TORCAO", "mark": true,
+          "text": "Ela pega o que é de ferro e deixa o resto. Deixa você." },
+
+        { "range": [81, 94], "result": "AGONIA",
+          "loot": -1.0, "sanity": -23, "wound": "CRITICO", "hpLock": 1,
+          "text": "Você acorda dentro de um vão, encaixado. Sai de costas, no escuro." },
+
+        { "range": [95, 100], "result": "MORTE",
+          "epilogue": "EP_ARRASTA",
+          "text": "O chão continua passando depois que você para de contar." }
+      ]
+    },
+    {
+      "id": "CT_ECO",
+      "roll": [
+        { "range": [1, 26],  "result": "ESCAPE_ARRASTADO",
+          "loot": -0.4, "sanity": -12, "wound": "SANGRAMENTO",
+          "text": "Você sai falando sozinho. Leva uma hora pra reparar nisso." },
+
+        { "range": [27, 54], "result": "FERIDO_GRAVE",
+          "loot": -0.3, "sanity": -20, "wound": "SANGRAMENTO",
+          "text": "Sai sangue do nariz e não para. Você lembra de um nome que não é seu." },
+
+        { "range": [55, 79], "result": "MARCADO",
+          "loot": -0.2, "sanity": -24, "mark": true,
+          "text": "Ela aprende a sua voz inteira. Vai usar depois, na porta." },
+
+        { "range": [80, 93], "result": "AGONIA",
+          "loot": -0.8, "sanity": -30, "wound": "CRITICO", "hpLock": 1,
+          "text": "Você acorda respondendo a uma pergunta que ninguém fez." },
+
+        { "range": [94, 100], "result": "MORTE",
+          "epilogue": "EP_ECO",
+          "text": "Alguém sai do cômodo com o seu passo. Você fica." }
+      ]
+    },
+    {
+      "id": "CT_PARADA",
+      "roll": [
+        { "range": [1, 40],  "result": "ESCAPE_ARRASTADO",
+          "loot": -0.2, "sanity": -10,
+          "text": "Você recua antes de encostar. O braço fica dormente até de noite." },
+
+        { "range": [41, 70], "result": "FERIDO_GRAVE",
+          "loot": -0.4, "sanity": -16, "wound": "QUEIMADURA_FRIA",
+          "text": "A mão que encostou fica branca. Continua branca no dia seguinte." },
+
+        { "range": [71, 88], "result": "MARCADO",
+          "loot": -0.2, "sanity": -22, "mark": true,
+          "text": "Você atravessa. Do outro lado, o caminho não é o mesmo que você via." },
+
+        { "range": [89, 97], "result": "AGONIA",
+          "loot": -0.6, "sanity": -28, "wound": "CRITICO", "hpLock": 1,
+          "text": "Você acorda no começo da rua. O dia inteiro passou." },
+
+        { "range": [98, 100], "result": "MORTE",
+          "epilogue": "EP_PARADA",
+          "text": "Você entra. A rua acaba onde a rua acabava." }
+      ]
+    }
+  ]
+}

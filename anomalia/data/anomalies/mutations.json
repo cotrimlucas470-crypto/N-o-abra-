@@ -1,0 +1,35 @@
+{
+  "_fonte": "§10, transcrito. As chaves e os valores são os do documento; o interpretador de patch está em core/anomaly/mutations.ts e falha no build se aparecer uma chave que ele não saiba aplicar.",
+  "_entrada": "§10 — a partir do dia 12, 18% de chance por instância, subindo 3% por dia até o teto de 45%.",
+  "diaInicial": 12,
+  "chanceInicial": 0.18,
+  "chancePorDia": 0.03,
+  "chanceMaxima": 0.45,
+  "mutacoes": [
+    {
+      "id": "MUT_SILENCIOSA",
+      "hint": "Você não ouve mais o arrastar.",
+      "patch": { "telegraphs.audio": "REMOVER", "sanityOnSight": "+6" }
+    },
+    {
+      "id": "MUT_DUPLA",
+      "hint": "Duas marcas paralelas. Depois quatro.",
+      "patch": { "spawnCount": 2, "speed": "-1" }
+    },
+    {
+      "id": "MUT_INSONE",
+      "hint": "Ela não para. Nem quando você para.",
+      "patch": { "persistence": "x2", "range": "+30%" }
+    },
+    {
+      "id": "MUT_CEGA",
+      "hint": "A lanterna não incomoda mais. Isso é pior.",
+      "patch": { "blindTo": "+LUZ", "senses.SOM.weight": "1.0" }
+    },
+    {
+      "id": "MUT_LENTA_FALSA",
+      "hint": "Ela anda devagar. Até não andar.",
+      "patch": { "speed": 1, "burstSpeed": 5 }
+    }
+  ]
+}

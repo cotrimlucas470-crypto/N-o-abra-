@@ -1,0 +1,499 @@
+{
+  "_fonte": "A03_FARO é a definição completa transcrita de §2. As outras onze vêm da tabela de §2 — id, apelido, o que percebe, para o que é cega e a fraqueza explorável são do documento; os números de cada SenseProfile e os telegraphs foram escritos para cumprir a linha da tabela e o contrato de §5.",
+  "_contrato_telegraph": "§5 — máximo 12 palavras, sem adjetivo emocional, descreve ausência ou erro no mundo, nunca nomeia a anomalia. tests/anomaly/regras.spec.ts quebra o build se alguma linha furar.",
+  "anomalias": [
+    {
+      "id": "A01_ESCUTA",
+      "name": "A que escuta",
+      "publicHint": "algo que vem quando você faz barulho",
+      "senses": [
+        { "stimulus": "VOZ", "weight": 1.0, "threshold": 3, "range": 35, "decay": 0.40 },
+        { "stimulus": "SOM", "weight": 1.0, "threshold": 5, "range": 30, "decay": 0.30 }
+      ],
+      "blindTo": ["MOVIMENTO", "LUZ"],
+      "speed": 3,
+      "persistence": 10,
+      "delayResistance": 0.25,
+      "contactTableId": "CT_SUFOCA",
+      "sanityOnSight": 5,
+      "sanityOnBlock": 9,
+      "canBeFaked": true,
+      "territory": {
+        "prefers": ["ESCOLA", "GALPAO", "MERCADO", "CASA"],
+        "avoids": ["ALAGADO"],
+        "migrationChance": 0.12
+      },
+      "mutationPool": ["MUT_SILENCIOSA", "MUT_INSONE", "MUT_CEGA"],
+      "telegraphs": {
+        "ambient": [
+          "Os cachorros da rua sumiram. Todos, na mesma semana.",
+          "Alguém empilhou latas na soleira. Empilhou com cuidado."
+        ],
+        "audio": [
+          "Um assobio de duas notas. Sempre as mesmas duas.",
+          "O rádio pega estática só quando você fala."
+        ],
+        "direct": [
+          "Ela vira a cabeça para o lado do seu pé."
+        ]
+      },
+      "encounterText": [
+        "Ela está entre você e a saída, parada, com o ouvido virado.",
+        "Nada nela olha para você. Tudo nela está apontado para você."
+      ],
+      "fonte": "projetado"
+    },
+    {
+      "id": "A02_LATEJO",
+      "name": "O latejo",
+      "publicHint": "algo que enxerga o que se mexe",
+      "senses": [
+        { "stimulus": "MOVIMENTO", "weight": 1.0, "threshold": 8, "range": 26, "decay": 0.25 },
+        { "stimulus": "CALOR", "weight": 0.6, "threshold": 45, "range": 12, "decay": 0.55 }
+      ],
+      "blindTo": ["SOM"],
+      "speed": 4,
+      "persistence": 8,
+      "delayResistance": 0.30,
+      "contactTableId": "CT_ESMAGA",
+      "sanityOnSight": 4,
+      "sanityOnBlock": 8,
+      "canBeFaked": true,
+      "territory": {
+        "prefers": ["ESTRADA", "POSTO", "GALPAO", "MERCADO"],
+        "avoids": ["QUEIMADA"],
+        "migrationChance": 0.20
+      },
+      "mutationPool": ["MUT_DUPLA", "MUT_INSONE", "MUT_LENTA_FALSA"],
+      "telegraphs": {
+        "ambient": [
+          "A poeira parou no ar. Toda ela.",
+          "As folhas do quintal não se mexem com o vento."
+        ],
+        "audio": [
+          "Um baque surdo, ritmado, embaixo do assoalho.",
+          "Batida dupla. Depois nada. Depois batida dupla."
+        ],
+        "direct": [
+          "O ar esquenta na sua nuca antes de qualquer coisa."
+        ]
+      },
+      "encounterText": [
+        "Você parou. Ela também. Nenhum dos dois pisca primeiro.",
+        "Está a poucos passos, esperando você decidir se mexe."
+      ],
+      "fonte": "projetado"
+    },
+    {
+      "id": "A03_FARO",
+      "name": "Cheiro-de-ferro",
+      "publicHint": "algo que segue sangue",
+      "senses": [
+        { "stimulus": "SANGUE", "weight": 1.0, "threshold": 5, "range": 40, "decay": 0.92 },
+        { "stimulus": "CHEIRO", "weight": 0.7, "threshold": 25, "range": 22, "decay": 0.85 },
+        { "stimulus": "CALOR", "weight": 0.2, "threshold": 60, "range": 8, "decay": 0.60 }
+      ],
+      "blindTo": ["SOM", "MOVIMENTO", "LUZ"],
+      "speed": 3,
+      "persistence": 14,
+      "delayResistance": 0.35,
+      "contactTableId": "CT_LACERANTE",
+      "sanityOnSight": 4,
+      "sanityOnBlock": 9,
+      "canBeFaked": true,
+      "territory": {
+        "prefers": ["HOSPITAL", "ACOUGUE", "CLINICA", "ESTRADA"],
+        "avoids": ["ALAGADO", "QUEIMADA"],
+        "migrationChance": 0.15
+      },
+      "mutationPool": ["MUT_SILENCIOSA", "MUT_DUPLA", "MUT_INSONE"],
+      "telegraphs": {
+        "ambient": [
+          "O chão tem marcas paralelas, finas, sempre na mesma direção.",
+          "Moscas paradas. Nenhuma voando."
+        ],
+        "audio": [
+          "Um arrastar molhado, longe, do lado errado do corredor.",
+          "Respiração curta. Duas por segundo. Não é sua."
+        ],
+        "direct": [
+          "Ela para. Ergue o rosto que não tem. Cheira o ar onde você está."
+        ]
+      },
+      "encounterText": [
+        "Ela chegou pelo cheiro e agora está perto demais para o cheiro importar.",
+        "O rosto que não tem está virado para o seu curativo."
+      ],
+      "fonte": "spec"
+    },
+    {
+      "id": "A04_VITRE",
+      "name": "A vítrea",
+      "publicHint": "algo que mora na luz",
+      "senses": [
+        { "stimulus": "LUZ", "weight": 1.0, "threshold": 4, "range": 34, "decay": 0.10 }
+      ],
+      "blindTo": ["CHEIRO", "SOM"],
+      "speed": 3,
+      "persistence": 9,
+      "delayResistance": 0.30,
+      "contactTableId": "CT_ESTILHACO",
+      "sanityOnSight": 5,
+      "sanityOnBlock": 10,
+      "canBeFaked": true,
+      "territory": {
+        "prefers": ["MERCADO", "CLINICA", "ESCOLA", "CASA"],
+        "avoids": ["QUEIMADA"],
+        "migrationChance": 0.18
+      },
+      "mutationPool": ["MUT_CEGA", "MUT_DUPLA", "MUT_INSONE"],
+      "telegraphs": {
+        "ambient": [
+          "Os cacos do chão estão virados todos para cima.",
+          "Alguém cobriu os espelhos da casa com lençol."
+        ],
+        "audio": [
+          "Um tinido fino, como copo trincando devagar.",
+          "Vidro se ajeitando sozinho, três cômodos adiante."
+        ],
+        "direct": [
+          "A luz da sua lanterna volta pra você com atraso."
+        ]
+      },
+      "encounterText": [
+        "Ela está de pé no meio do facho. O facho é que está errado.",
+        "Você vê a si mesmo nela, do tamanho certo, na hora errada."
+      ],
+      "fonte": "projetado"
+    },
+    {
+      "id": "A05_METALICA",
+      "name": "O ímã",
+      "publicHint": "algo que acha quem anda armado",
+      "senses": [
+        { "stimulus": "METAL", "weight": 1.0, "threshold": 6, "range": 30, "decay": 0.35 }
+      ],
+      "blindTo": ["VOZ", "CALOR"],
+      "speed": 2,
+      "persistence": 12,
+      "delayResistance": 0.10,
+      "contactTableId": "CT_ARRASTA",
+      "sanityOnSight": 4,
+      "sanityOnBlock": 7,
+      "canBeFaked": true,
+      "territory": {
+        "prefers": ["GALPAO", "POSTO", "ESTRADA", "MERCADO"],
+        "avoids": ["MATA"],
+        "migrationChance": 0.14
+      },
+      "mutationPool": ["MUT_SILENCIOSA", "MUT_INSONE", "MUT_LENTA_FALSA"],
+      "telegraphs": {
+        "ambient": [
+          "O corredor tem cheiro de moeda velha.",
+          "Pregos saíram da tábua e estão em pé."
+        ],
+        "audio": [
+          "Metal raspando metal, devagar, sem pressa nenhuma.",
+          "Sua fivela zumbe encostada no corpo."
+        ],
+        "direct": [
+          "A lâmina puxa na sua mão, na direção dela."
+        ]
+      },
+      "encounterText": [
+        "Ela veio atrás do que você carrega, e o que você carrega está na sua mão.",
+        "Tudo que é de ferro no cômodo aponta para o mesmo lugar."
+      ],
+      "fonte": "projetado"
+    },
+    {
+      "id": "A06_PARADA",
+      "name": "A parada",
+      "publicHint": "um lugar que não deixa passar",
+      "senses": [],
+      "blindTo": ["SOM", "MOVIMENTO", "CHEIRO", "LUZ", "CALOR", "METAL", "VOZ", "SANGUE", "MEMORIA"],
+      "speed": 1,
+      "persistence": 0,
+      "delayResistance": 1.0,
+      "contactTableId": "CT_PARADA",
+      "sanityOnSight": 8,
+      "sanityOnBlock": 14,
+      "canBeFaked": true,
+      "estatica": true,
+      "territory": {
+        "prefers": ["ESTRADA", "DUTO", "ESCOLA", "HOSPITAL", "GALPAO"],
+        "avoids": [],
+        "migrationChance": 0.0
+      },
+      "mutationPool": [],
+      "telegraphs": {
+        "ambient": [
+          "A rua acaba antes do fim da rua.",
+          "Ninguém passa por aqui. Nem os que não pensam."
+        ],
+        "audio": [
+          "Nenhum som vem daquela direção. Nem o seu.",
+          "O eco morre na metade do caminho."
+        ],
+        "direct": [
+          "Está no meio da porta. Não vai sair."
+        ]
+      },
+      "encounterText": [
+        "Ela ocupa a passagem inteira e não demonstra ter reparado em você.",
+        "Não vem. Não vai. O caminho é que acabou."
+      ],
+      "fonte": "projetado"
+    },
+    {
+      "id": "A07_ECO",
+      "name": "O eco",
+      "publicHint": "algo que aprende nome",
+      "senses": [
+        { "stimulus": "VOZ", "weight": 1.0, "threshold": 2, "range": 36, "decay": 0.60 },
+        { "stimulus": "MEMORIA", "weight": 0.8, "threshold": 20, "range": 40, "decay": 0.90 }
+      ],
+      "blindTo": ["MOVIMENTO"],
+      "speed": 3,
+      "persistence": 16,
+      "delayResistance": 0.40,
+      "contactTableId": "CT_ECO",
+      "sanityOnSight": 6,
+      "sanityOnBlock": 11,
+      "canBeFaked": true,
+      "territory": {
+        "prefers": ["CASA", "ESCOLA", "ABRIGO", "CLINICA"],
+        "avoids": ["QUEIMADA"],
+        "migrationChance": 0.10
+      },
+      "mutationPool": ["MUT_SILENCIOSA", "MUT_INSONE"],
+      "telegraphs": {
+        "ambient": [
+          "Bilhetes na parede, com nomes riscados por cima.",
+          "Alguém falou seu nome. Você está sozinho há dois dias."
+        ],
+        "audio": [
+          "Sua última frase volta, uma palavra fora de ordem.",
+          "Uma voz de criança repete a lista de compras."
+        ],
+        "direct": [
+          "Ela abre a boca e sai a sua voz."
+        ]
+      },
+      "encounterText": [
+        "Ela repete a última coisa que você disse em voz alta, e continua a frase.",
+        "Chama pelo nome de quem você enterrou. Chama com a voz certa."
+      ],
+      "fonte": "projetado"
+    },
+    {
+      "id": "A08_MARE",
+      "name": "A maré",
+      "publicHint": "algo que só vem quando chove",
+      "senses": [
+        { "stimulus": "MOVIMENTO", "weight": 0.9, "threshold": 10, "range": 24, "decay": 0.45 },
+        { "stimulus": "SOM", "weight": 0.8, "threshold": 12, "range": 28, "decay": 0.40 }
+      ],
+      "blindTo": ["LUZ"],
+      "speed": 4,
+      "persistence": 10,
+      "delayResistance": 0.30,
+      "contactTableId": "CT_ESMAGA",
+      "sanityOnSight": 5,
+      "sanityOnBlock": 9,
+      "canBeFaked": true,
+      "exigeClima": "CHUVA",
+      "territory": {
+        "prefers": ["ALAGADO", "DUTO", "ESTRADA", "GALPAO"],
+        "avoids": ["QUEIMADA"],
+        "migrationChance": 0.22
+      },
+      "mutationPool": ["MUT_INSONE", "MUT_DUPLA"],
+      "telegraphs": {
+        "ambient": [
+          "A água da poça sobe sem chuva nova.",
+          "As bocas de lobo estão engolindo ao contrário."
+        ],
+        "audio": [
+          "Chiado de água correndo dentro da parede seca.",
+          "A chuva bate no telhado fora do compasso."
+        ],
+        "direct": [
+          "A poça atravessa o corredor contra a inclinação do piso."
+        ]
+      },
+      "encounterText": [
+        "A água chegou primeiro. Ela vem logo atrás, na mesma velocidade.",
+        "O chão está molhado até onde ela está, e nem um palmo além."
+      ],
+      "fonte": "projetado"
+    },
+    {
+      "id": "A09_LENTA",
+      "name": "A lenta",
+      "publicHint": "algo que nunca corre",
+      "senses": [
+        { "stimulus": "CALOR", "weight": 1.0, "threshold": 18, "range": 20, "decay": 0.75 },
+        { "stimulus": "CHEIRO", "weight": 0.8, "threshold": 20, "range": 26, "decay": 0.80 }
+      ],
+      "blindTo": ["SOM", "LUZ"],
+      "speed": 1,
+      "persistence": 20,
+      "delayResistance": 0.05,
+      "contactTableId": "CT_ARRASTA",
+      "sanityOnSight": 3,
+      "sanityOnBlock": 6,
+      "canBeFaked": true,
+      "territory": {
+        "prefers": ["MATA", "CASA", "HOSPITAL", "ESTRADA"],
+        "avoids": [],
+        "migrationChance": 0.08
+      },
+      "mutationPool": ["MUT_LENTA_FALSA", "MUT_INSONE", "MUT_SILENCIOSA"],
+      "telegraphs": {
+        "ambient": [
+          "Marcas de arrasto no barro, secas há dias.",
+          "Um rastro morno atravessa o chão frio."
+        ],
+        "audio": [
+          "Uma respiração longa, com intervalo grande demais.",
+          "Passo. Conta até cinco. Outro passo."
+        ],
+        "direct": [
+          "Ela já está virada pra você. Faz tempo."
+        ]
+      },
+      "encounterText": [
+        "Ela vem há um tempo e vai continuar vindo depois que você sair.",
+        "Dá pra andar. Dá pra andar até em volta dela. Ela não acelera."
+      ],
+      "fonte": "projetado"
+    },
+    {
+      "id": "A10_GEMEA",
+      "name": "As gêmeas",
+      "publicHint": "duas coisas onde devia ter uma",
+      "senses": [
+        { "stimulus": "MOVIMENTO", "weight": 1.0, "threshold": 7, "range": 28, "decay": 0.35 }
+      ],
+      "blindTo": ["SOM"],
+      "speed": 3,
+      "persistence": 12,
+      "delayResistance": 0.35,
+      "contactTableId": "CT_ECO",
+      "sanityOnSight": 6,
+      "sanityOnBlock": 10,
+      "canBeFaked": true,
+      "spawnCount": 2,
+      "umaEhFalsa": true,
+      "territory": {
+        "prefers": ["CASA", "ESCOLA", "MERCADO", "ABRIGO"],
+        "avoids": ["ALAGADO"],
+        "migrationChance": 0.16
+      },
+      "mutationPool": ["MUT_SILENCIOSA", "MUT_INSONE"],
+      "telegraphs": {
+        "ambient": [
+          "Duas marcas paralelas no barro. Do mesmo pé.",
+          "Roupa no varal, dois vestidos iguais, um molhado."
+        ],
+        "audio": [
+          "Dois passos, um em cima do outro, quase juntos.",
+          "O mesmo riso, com meio segundo de diferença."
+        ],
+        "direct": [
+          "Uma anda. A outra copia com atraso."
+        ]
+      },
+      "encounterText": [
+        "São duas, lado a lado, e só uma levanta poeira ao andar.",
+        "Uma delas está exatamente onde a outra esteve."
+      ],
+      "fonte": "projetado"
+    },
+    {
+      "id": "A11_FOME",
+      "name": "A fome",
+      "publicHint": "aquilo de que não se escapa por esperteza",
+      "senses": [
+        { "stimulus": "SANGUE", "weight": 1.0, "threshold": 3, "range": 40, "decay": 0.95 },
+        { "stimulus": "CHEIRO", "weight": 0.9, "threshold": 12, "range": 30, "decay": 0.85 },
+        { "stimulus": "CALOR", "weight": 0.8, "threshold": 25, "range": 18, "decay": 0.70 }
+      ],
+      "blindTo": [],
+      "speed": 4,
+      "persistence": 24,
+      "delayResistance": 0.60,
+      "contactTableId": "CT_LACERANTE",
+      "sanityOnSight": 9,
+      "sanityOnBlock": 16,
+      "canBeFaked": true,
+      "territory": {
+        "prefers": ["ACOUGUE", "HOSPITAL", "ESTRADA", "MATA", "GALPAO"],
+        "avoids": [],
+        "migrationChance": 0.30
+      },
+      "mutationPool": ["MUT_INSONE", "MUT_SILENCIOSA", "MUT_DUPLA"],
+      "telegraphs": {
+        "ambient": [
+          "Os ossos do quintal estão limpos. Todos limpos.",
+          "Nenhum bicho morto na estrada. Nenhum."
+        ],
+        "audio": [
+          "Uma mastigação úmida, contínua, sem pausa pra engolir.",
+          "Barriga roncando. Não é a sua."
+        ],
+        "direct": [
+          "Ela já comeu hoje. Continua vindo."
+        ]
+      },
+      "encounterText": [
+        "Não tem truque aqui. Tem a porta dos fundos e o tempo que você comprar.",
+        "Ela já sabe tudo que dava pra saber sobre você."
+      ],
+      "fonte": "projetado"
+    },
+    {
+      "id": "A12_PORTA",
+      "name": "A que bate",
+      "publicHint": "o que bate na porta de noite",
+      "senses": [
+        { "stimulus": "VOZ", "weight": 1.0, "threshold": 3, "range": 16, "decay": 0.50 },
+        { "stimulus": "SOM", "weight": 0.9, "threshold": 6, "range": 14, "decay": 0.35 }
+      ],
+      "blindTo": ["MOVIMENTO"],
+      "speed": 2,
+      "persistence": 6,
+      "delayResistance": 0.50,
+      "contactTableId": "CT_SUFOCA",
+      "sanityOnSight": 7,
+      "sanityOnBlock": 12,
+      "canBeFaked": true,
+      "soNoAbrigo": true,
+      "territory": {
+        "prefers": ["ABRIGO"],
+        "avoids": [],
+        "migrationChance": 0.0
+      },
+      "mutationPool": ["MUT_INSONE", "MUT_SILENCIOSA"],
+      "telegraphs": {
+        "ambient": [
+          "O ferrolho de cima está fora da posição.",
+          "Alguém varreu a soleira por fora."
+        ],
+        "audio": [
+          "Três batidas. Pausa. Três batidas iguais.",
+          "Do outro lado alguém pigarreia como o seu pai."
+        ],
+        "direct": [
+          "A voz na porta usa o seu nome do meio."
+        ]
+      },
+      "encounterText": [
+        "Está do lado de fora, encostada na madeira, e sabe que você acordou.",
+        "Bate de novo. Espera o tempo exato de alguém atravessar a sala."
+      ],
+      "fonte": "projetado"
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "_fonte": "§14, transcrito. As duas tabelas — mochilas e módulos — são as do documento, campo por campo. A costurada à mão é âncora do V5: destruída, custa 30 de sanidade.",
+  "_regra": "§14 — a mochila grande é a que te mata. Mais espaço = mais peso = mais ruído = mais lento na fuga.",
+  "mochilas": [
+    {
+      "id": "BP_SACOLA", "name": "Sacola de pano", "rarity": "COMUM",
+      "slots": 6, "weightMax": 8, "noiseFloor": 5, "quickSlots": 0,
+      "tearChance": 0.04,
+      "custoOculto": "Rasga: 4% por saída"
+    },
+    {
+      "id": "BP_ESCOLAR", "name": "Mochila escolar", "rarity": "COMUM",
+      "slots": 10, "weightMax": 12, "noiseFloor": 10, "quickSlots": 1,
+      "custoOculto": "Nenhum"
+    },
+    {
+      "id": "BP_TRILHA", "name": "Mochila de trilha", "rarity": "INCOMUM",
+      "slots": 14, "weightMax": 18, "noiseFloor": 15, "quickSlots": 2,
+      "furtividadeEmDuto": -10,
+      "custoOculto": "Volume alto: -10 de furtividade em duto"
+    },
+    {
+      "id": "BP_TATICA", "name": "Mochila tática", "rarity": "RARO",
+      "slots": 18, "weightMax": 24, "noiseFloor": 25, "quickSlots": 3,
+      "metalNoise": 20,
+      "custoOculto": "Fivelas metálicas: metalNoise +20"
+    },
+    {
+      "id": "BP_CARGUEIRO", "name": "Cargueiro militar", "rarity": "EPICO",
+      "slots": 24, "weightMax": 32, "noiseFloor": 40, "quickSlots": 3,
+      "velocidadeFuga": -1,
+      "custoOculto": "-1 de velocidade de fuga, sempre"
+    },
+    {
+      "id": "BP_COSTURADA", "name": "Mochila costurada à mão", "rarity": "LENDARIO",
+      "slots": 20, "weightMax": 26, "noiseFloor": 0, "quickSlots": 4,
+      "ehAncora": true, "sanityOnDestroy": 30,
+      "custoOculto": "Feita pela pessoa que você perdeu. É âncora: destruída, -30 de sanidade"
+    }
+  ],
+  "modulos": [
+    { "id": "MOD_BOLSO_LATERAL", "name": "Bolso lateral", "slots": 2,
+      "in": ["tecido x3", "agulha"], "risco": "Nenhum" },
+    { "id": "MOD_CINTO_CARGA", "name": "Cinto de carga", "weightMax": 4, "quickSlots": 1,
+      "metalNoise": 10, "in": ["couro", "fivela"], "risco": "metalNoise +10" },
+    { "id": "MOD_COLDRE", "name": "Coldre de lâmina", "laminaForaDoSlot": true,
+      "visual": 15, "in": ["couro x2"], "risco": "Arma exposta: +15 visual" },
+    { "id": "MOD_FORRO_ESPUMA", "name": "Forro de espuma", "noiseFloorPct": -50, "slots": -2,
+      "in": ["espuma x2"], "risco": "-2 slots" },
+    { "id": "MOD_ALCA_REFORCADA", "name": "Alça reforçada", "removeRasgo": true,
+      "in": ["fita", "arame"], "risco": "Nenhum" },
+    { "id": "MOD_COMPARTIMENTO_OCULTO", "name": "Compartimento oculto", "compartimentoOculto": 2,
+      "quickSlots": -1, "in": ["tecido", "tinta"], "risco": "Perde 1 quick" }
+  ],
+  "sobrecarga": {
+    "descarteAcimaDe": 0.90,
+    "recuperacaoNoDiaSeguinte": 0.55,
+    "textoDescarte": "Largar a mochila — +3 velocidade imediata. Perde todo o loot. A mochila fica no local e pode ser recuperada no dia seguinte, se a anomalia não tiver migrado para cima dela.",
+    "textoFalhaRecuperacao": "Não está mais lá. Dias depois o rádio descreve o item nas mãos de outra pessoa."
+  }
+}

@@ -1,0 +1,147 @@
+{
+  "_fonte": "As 16 armas são a tabela de §13 — classe, raridade, atraso, ruído de metal e uso secundário são do documento. Durabilidade, peso e swingNoise foram escritos para cumprir as regras de manutenção do mesmo §13 (\"quebra em 4 usos\", \"quebra em 1 uso\", \"durability <= 2 emite som de rachadura\").",
+  "_regra": "§13 — nenhuma arma mata. Toda arma compra tempo ou muda o rastro. metalNoise alimenta trace.metal: quem anda armado até os dentes é o mais fácil de achar.",
+  "armas": [
+    {
+      "id": "BL_ESTILETE", "name": "Estilete", "class": "LEVE", "rarity": "COMUM",
+      "durability": 8, "maxDurability": 8, "delayTicks": 2,
+      "metalNoise": 10, "swingNoise": 5, "weightKg": 0.2,
+      "secondaryUse": "Abrir latas sem barulho",
+      "repairCost": { "recipe": "REPAIR_LEVE", "in": ["pedra de amolar"], "restore": 4, "time": 15 },
+      "flavor": "Cabe no bolso da camisa. É a única coisa que cabe."
+    },
+    {
+      "id": "BL_FACA_COZINHA", "name": "Faca de cozinha", "class": "LEVE", "rarity": "COMUM",
+      "durability": 10, "maxDurability": 10, "delayTicks": 3,
+      "metalNoise": 20, "swingNoise": 12, "weightKg": 0.4,
+      "secondaryUse": "Cozinhar — melhora a qualidade da refeição",
+      "repairCost": { "recipe": "REPAIR_LEVE", "in": ["pedra de amolar"], "restore": 4, "time": 15 },
+      "flavor": "Alguém usou isso pra fazer almoço durante quinze anos."
+    },
+    {
+      "id": "BL_CHAVE_FENDA", "name": "Chave de fenda longa", "class": "LEVE", "rarity": "COMUM",
+      "durability": 12, "maxDurability": 12, "delayTicks": 2,
+      "metalNoise": 25, "swingNoise": 10, "weightKg": 0.3,
+      "secondaryUse": "Abrir painéis, desmontar carro",
+      "repairCost": { "recipe": "REPAIR_LEVE", "in": ["pedra de amolar"], "restore": 4, "time": 15 },
+      "flavor": "Entra fundo e sai difícil. Serve pros dois usos."
+    },
+    {
+      "id": "BL_FACAO", "name": "Facão", "class": "MEDIA", "rarity": "INCOMUM",
+      "durability": 16, "maxDurability": 16, "delayTicks": 4,
+      "metalNoise": 40, "swingNoise": 30, "weightKg": 0.9,
+      "secondaryUse": "Cortar mato, abrir atalho no caminho",
+      "repairCost": { "recipe": "REPAIR_MEDIA", "in": ["lima", "óleo"], "restore": 6, "time": 25 },
+      "flavor": "O cabo tem marca de mão. Não é a sua mão."
+    },
+    {
+      "id": "BL_MACHADINHA", "name": "Machadinha", "class": "MEDIA", "rarity": "INCOMUM",
+      "durability": 18, "maxDurability": 18, "delayTicks": 4,
+      "metalNoise": 55, "swingNoise": 40, "weightKg": 1.2,
+      "secondaryUse": "Arrombar porta, lenha para o quintal",
+      "repairCost": { "recipe": "REPAIR_MEDIA", "in": ["lima", "óleo"], "restore": 6, "time": 25 },
+      "flavor": "Boa pra madeira. Foi feita pra madeira."
+    },
+    {
+      "id": "BL_BARRA_FERRO", "name": "Barra de ferro", "class": "MEDIA", "rarity": "INCOMUM",
+      "durability": 20, "maxDurability": 20, "delayTicks": 4,
+      "metalNoise": 70, "swingNoise": 45, "weightKg": 2.5,
+      "secondaryUse": "Alavanca — abre grades e portas travadas",
+      "repairCost": { "recipe": "REPAIR_MEDIA", "in": ["lima", "óleo"], "restore": 6, "time": 25 },
+      "flavor": "Não quebra. Só entorta, e entortada ainda serve."
+    },
+    {
+      "id": "BL_MARTELO", "name": "Martelo de unha", "class": "MEDIA", "rarity": "COMUM",
+      "durability": 15, "maxDurability": 15, "delayTicks": 3,
+      "metalNoise": 50, "swingNoise": 35, "weightKg": 0.8,
+      "secondaryUse": "Reforço de porta no abrigo",
+      "repairCost": { "recipe": "REPAIR_MEDIA", "in": ["lima", "óleo"], "restore": 6, "time": 25 },
+      "flavor": "Serve mais pra fechar a casa do que pra sair dela."
+    },
+    {
+      "id": "BL_CHAVE_INGLESA", "name": "Chave inglesa", "class": "MEDIA", "rarity": "INCOMUM",
+      "durability": 19, "maxDurability": 19, "delayTicks": 3,
+      "metalNoise": 65, "swingNoise": 40, "weightKg": 1.1,
+      "secondaryUse": "Consertar gerador do quintal",
+      "repairCost": { "recipe": "REPAIR_MEDIA", "in": ["lima", "óleo"], "restore": 6, "time": 25 },
+      "flavor": "Pesada do lado errado. Toda chave inglesa é."
+    },
+    {
+      "id": "BL_MARRETA", "name": "Marreta", "class": "PESADA", "rarity": "RARO",
+      "durability": 24, "maxDurability": 24, "delayTicks": 6,
+      "metalNoise": 90, "swingNoise": 60, "weightKg": 4.5,
+      "secondaryUse": "Derrubar parede, criar rota de fuga",
+      "repairCost": { "recipe": "REPAIR_PESADA", "in": ["solda", "sucata metálica x2"], "restore": 8, "time": 45 },
+      "flavor": "Carregar isso é carregar um farol pendurado no ombro."
+    },
+    {
+      "id": "BL_MACHADO_BOMBEIRO", "name": "Machado de bombeiro", "class": "PESADA", "rarity": "RARO",
+      "durability": 22, "maxDurability": 22, "delayTicks": 6,
+      "metalNoise": 85, "swingNoise": 55, "weightKg": 3.8,
+      "secondaryUse": "Arromba qualquer porta em um turno",
+      "repairCost": { "recipe": "REPAIR_PESADA", "in": ["solda", "sucata metálica x2"], "restore": 8, "time": 45 },
+      "flavor": "Vermelho descascado. Foi feito pra tirar gente de dentro."
+    },
+    {
+      "id": "BL_CANO_PREGO", "name": "Cano com prego", "class": "IMPROVISADA", "rarity": "COMUM",
+      "durability": 4, "maxDurability": 4, "delayTicks": 3,
+      "metalNoise": 45, "swingNoise": 35, "weightKg": 1.6,
+      "secondaryUse": "Nenhum",
+      "repairCost": { "recipe": "SEM_REPARO", "in": [], "restore": 0, "time": 0 },
+      "flavor": "Quatro usos. Você conta os quatro sem querer."
+    },
+    {
+      "id": "BL_PE_DE_CABRA", "name": "Pé de cabra", "class": "PESADA", "rarity": "RARO",
+      "durability": 23, "maxDurability": 23, "delayTicks": 5,
+      "metalNoise": 75, "swingNoise": 50, "weightKg": 2.8,
+      "secondaryUse": "Alavanca e arrombamento silencioso",
+      "repairCost": { "recipe": "REPAIR_PESADA", "in": ["solda", "sucata metálica x2"], "restore": 8, "time": 45 },
+      "flavor": "Abre tudo devagar. Devagar é o ponto."
+    },
+    {
+      "id": "BL_BISTURI", "name": "Bisturi", "class": "LEVE", "rarity": "RARO",
+      "durability": 6, "maxDurability": 6, "delayTicks": 2,
+      "metalNoise": 5, "swingNoise": 3, "weightKg": 0.1,
+      "secondaryUse": "Tratar ferimento — remove o rastro de SANGUE",
+      "repairCost": { "recipe": "REPAIR_LEVE", "in": ["pedra de amolar"], "restore": 4, "time": 15 },
+      "flavor": "Vale mais pelo que fecha do que pelo que abre."
+    },
+    {
+      "id": "BL_FOICE", "name": "Foice enferrujada", "class": "MEDIA", "rarity": "EPICO",
+      "durability": 20, "maxDurability": 20, "delayTicks": 5,
+      "metalNoise": 35, "swingNoise": 28, "weightKg": 1.4,
+      "secondaryUse": "Colheita rápida na horta",
+      "repairCost": { "recipe": "REPAIR_MEDIA", "in": ["lima", "óleo"], "restore": 6, "time": 25 },
+      "flavor": "A ferrugem não sai. A curva ainda pega tudo que passa."
+    },
+    {
+      "id": "BL_BAIONETA", "name": "Baioneta velha", "class": "MEDIA", "rarity": "EPICO",
+      "durability": 21, "maxDurability": 21, "delayTicks": 5,
+      "metalNoise": 30, "swingNoise": 22, "weightKg": 0.7,
+      "recuoExtra": 2,
+      "secondaryUse": "Único item que causa recuo real",
+      "repairCost": { "recipe": "REPAIR_MEDIA", "in": ["lima", "óleo"], "restore": 6, "time": 25 },
+      "flavor": "Feita pra ser usada por quem não queria estar lá."
+    },
+    {
+      "id": "BL_VIDRO_OSSO", "name": "Lâmina de vidro-osso", "class": "LEVE", "rarity": "LENDARIO",
+      "durability": 1, "maxDurability": 1, "delayTicks": 4,
+      "metalNoise": 0, "swingNoise": 8, "weightKg": 0.3,
+      "invisivelPara": ["A05_METALICA"],
+      "secondaryUse": "Nenhum — o ímã não a enxerga",
+      "repairCost": { "recipe": "SEM_REPARO", "in": [], "restore": 0, "time": 0 },
+      "flavor": "Um uso. Você vai passar a run inteira decidindo qual."
+    }
+  ],
+  "receitas": [
+    { "id": "CRAFT_CANO_PREGO", "in": ["cano", "prego x4", "fita"], "time": 20, "noise": 30 },
+    { "id": "CRAFT_LANCA", "in": ["faca", "cabo de vassoura", "arame"], "time": 35 },
+    { "id": "REPAIR_LEVE", "in": ["pedra de amolar"], "restore": 4, "time": 15 },
+    { "id": "REPAIR_MEDIA", "in": ["lima", "óleo"], "restore": 6, "time": 25 },
+    { "id": "REPAIR_PESADA", "in": ["solda", "sucata metálica x2"], "restore": 8, "time": 45 },
+    { "id": "SHARPEN_RITUAL", "in": ["pedra de amolar"], "time": 10, "sanity": 3,
+      "note": "Amolar acalma. É a única manutenção que devolve cabeça." },
+    { "id": "WRAP_CLOTH", "in": ["tecido x2"], "time": 10,
+      "note": "Enrolar a lâmina em pano abafa o metal e come a lâmina." }
+  ]
+}

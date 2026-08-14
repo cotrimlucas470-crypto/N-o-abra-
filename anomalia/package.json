@@ -1,11 +1,13 @@
 {
-  "name": "anomalia-sanity",
-  "version": "7.0.0",
+  "name": "anomalia-core",
+  "version": "8.0.0",
   "private": true,
   "type": "module",
-  "description": "Subsistema SANITY de A Anomalia — core em TypeScript puro, sem dependência de engine",
+  "description": "Subsistemas SANITY (V7) e ANOMALY (V8) de A Anomalia — core em TypeScript puro, sem dependência de engine",
   "scripts": {
     "check": "tsc --noEmit -p tsconfig.json",
-    "test": "node --experimental-strip-types --test tests/sanity/*.spec.ts"
+    "test": "node --experimental-strip-types --test tests/sanity/*.spec.ts tests/anomaly/*.spec.ts",
+    "test:sanity": "node --experimental-strip-types --test tests/sanity/*.spec.ts",
+    "test:anomaly": "node --experimental-strip-types --test tests/anomaly/*.spec.ts"
   }
 }
