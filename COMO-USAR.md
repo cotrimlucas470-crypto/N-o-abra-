@@ -13,6 +13,8 @@ Duas coisas: o motor de áudio novo e a sanidade que passa a mentir no ouvido.
 | `abertura.mp3` | a voz. O `montar.js` embute ela no `index.html` como `data:` |
 | `corte-comodo.js` | o corte de 0,98 s entre cômodos, preso aos passos da gravação |
 | `passos.mp3` | os passos. Também embutido pelo `montar.js` |
+| `s9-percepcao.js` | o V9 no jogo: os quatro medidores, o filtro, os remédios, o rastro |
+| `anomalia/core/v9/` | o núcleo do V9 em TypeScript, com 35 testes |
 | `montar.js` | injeta os blocos no `index.html`. `node montar.js` |
 | `sw.js` | service worker (cache `v48-`, senão o celular serve a versão velha) |
 
@@ -463,3 +465,79 @@ do teto entrar.
 
 No jogo rodando: as 10 ilusões abrem e resolvem nos dois caminhos, a
 ponderação de trilho confere com a tabela acima, e o console fica limpo.
+
+---
+
+## V9 — a sanidade vira filtro, a anomalia vira conta
+
+O núcleo em TypeScript está em `anomalia/core/v9/`, com **35 testes**, e o
+bloco que leva isso pro jogo é `s9-percepcao.js`, com **17 verificações no
+navegador**. Os números são os do documento, sem tradução.
+
+### Os quatro medidores
+
+Antes existia uma barra e uma função que sacudia número solto. Agora são
+quatro medidores, três deles ocultos:
+
+| medidor | o que é |
+|---|---|
+| sanidade | a verdade. Continua em `S.sanidade`, então o save antigo abre |
+| escudo | 0..30, absorve o golpe antes da verdade |
+| paranoia | 0..100, decide pra que lado o número mente |
+| dívida | 0..100, o que a mentira acumulou e cobra em cena |
+| abstinência | 0..100, o preço de ter se curado |
+
+**O estágio não olha a barra.** Olha `sanidade − dívida×0,3 − abstinência×0,2`.
+Medido no jogo: com a barra em 80, dívida 40 e abstinência 60, a leitura
+efetiva é 56 — a barra diz *tenso* e você está *fissurado*.
+
+**O escudo absorve, a paranoia não.** Um susto de 6 com escudo em 10 não move
+a barra um ponto, mas sobe 2,4 de paranoia. É a diferença entre aguentar o
+susto e não ter sentido ele. E só `ANOMALY_CONTACT` acumula dívida: susto
+comum não.
+
+### O filtro
+
+Nada chega ao jogador sem passar por `perceber()`. Medido: lúcido mente 0%,
+fissurado 12,2%, desfeito 49,5% — batendo com a tabela.
+
+O deslocamento é **proporcional ao valor**: 4 latas viram 3 ou 5, 40 latas
+viram 28 ou 52. O erro cresce junto com o que está em jogo e é sempre
+plausível — mentira implausível não engana ninguém.
+
+### Curar demais quebra você
+
+Cada dose vale menos que a anterior (`heal × (1 − abstinência/130)`) e empurra
+a abstinência pra cima. Medido com o chá: 8 → 7,82 → 7,63 → 7,45.
+
+O amarelo é o extremo. Três doses levam a abstinência a 100, e acima de 70 o
+corpo passa a somar dívida sozinho. Medido: **partindo de 95 de sanidade,
+seis doses deixam a barra em 100 e a leitura efetiva em 68** — de *lúcido*
+para *fissurado*, curando.
+
+### Sequelas
+
+Três noites com leitura abaixo de 20 travam uma sequela permanente, na ordem
+tremor → surdez parcial → cegueira noturna. Nada as remove. Uma noite acima
+zera a contagem. A surdez morde onde dói: a escuta na porta passa a perder
+uma camada em metade das vezes.
+
+### Você não é visto — você é somado
+
+Detecção deixa de ser linha de visão. Ruído, sangue, dias sem lavar, lanterna
+e ferro na mochila viram rastro, e o rastro entra numa conta que só desce
+quando você para de produzir. Não existe "sair do campo de visão": existe
+parar de emitir e esperar o esquecimento comer.
+
+**Não existe desaparecer.** Parado, limpo, no escuro e sem nada de ferro, você
+ainda emite `PRESENCA` 3. Medido: só sobra ela.
+
+**Cada noite a coisa que ronda tem um ponto cego** — som, cheiro, visão ou
+metal — e ele é absoluto: rastro que cai no ponto cego não soma nada, por
+mais forte que seja. O jogo nunca diz qual é.
+
+### A checagem de realidade
+
+8 minutos e 4 de estresse, e acerta 80% das vezes. Medido: 80,0%. Os 20%
+restantes **não devolvem "não sei"** — devolvem a resposta errada com a mesma
+cara de certeza. Uma checagem que avisasse quando falhou seria de 100%.
