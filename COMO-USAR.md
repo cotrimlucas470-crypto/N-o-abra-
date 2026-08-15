@@ -11,6 +11,7 @@ Duas coisas: o motor de áudio novo e a sanidade que passa a mentir no ouvido.
 | `s14-mochilas.js` | o bloco de §14: sobrecarga, módulos, acesso rápido, descarte em fuga |
 | `abertura-narrada.js` | a abertura contada em voz alta, com as marcas de tempo da narração |
 | `abertura.mp3` | a voz. O `montar.js` embute ela no `index.html` como `data:` |
+| `fundo-abertura.mp3` | a segunda gravação, que vira presença por baixo da narração |
 | `corte-comodo.js` | o corte de 0,98 s entre cômodos, preso aos passos da gravação |
 | `passos.mp3` | os passos. Também embutido pelo `montar.js` |
 | `s9-percepcao.js` | o V9 no jogo: os quatro medidores, o filtro, os remédios, o rastro |
@@ -63,6 +64,28 @@ rodando quando o jogo começar), a batida na porta cai logo depois de *"E de
 noite alguém bate"*, e os sussurros entram debaixo de *"uma coisa que
 aprendeu a voz de alguém que morreu"*. O leito mede pico 0,157 na saída do
 jogo, contra 0,405 da voz: o fundo nunca disputa com a narração.
+
+**A presença por baixo.** A segunda gravação foi medida antes de ser usada:
+41,22 s, mono, pico 0,291 e **15 blocos de fala separados por pausas de
+frase**. Não é ambiente — é outra narração. Tocada como está, por baixo da
+primeira, seriam duas pessoas falando ao mesmo tempo, que é a definição de
+ficar estranho.
+
+Então ela não entra como voz, entra como presença:
+
+- **passa-baixa em 320 Hz** mata a inteligibilidade. Medido no espectro da
+  saída: a faixa de 40–320 Hz domina a de 320 Hz–2 kHz em **26,3 dB**, então
+  sobram a cadência e o peso e nenhuma palavra disputa com o narrador
+- **0,84 de velocidade** desce cerca de três semitons e estica os 41,22 s
+  para **49,07 s** — o tamanho exato da narração. A coisa acompanha a
+  história do começo ao fim e cala junto com ela
+- corte de graves em 40 Hz, a mesma lição do gerador: sub solto não é som, é
+  o cone indo de um extremo ao outro
+- o leito próprio cedeu espaço (sub de 0,055 para 0,038, ar de 0,030 para
+  0,022) para a presença caber sem somar
+
+Medido: leito completo com a presença dentro dá pico **0,262** contra os
+**0,405** da voz. A narração continua liderando com folga.
 
 Na última frase a sala muda de cor — o lampião vira ferrugem.
 

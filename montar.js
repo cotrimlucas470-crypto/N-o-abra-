@@ -22,6 +22,7 @@ const BLOCOS=[
 const EMBUTIR={
   '@@VOZ_ABERTURA@@':{arq:'abertura.mp3', tipo:'audio/mpeg'},
   '@@PASSOS_CORTE@@':{arq:'passos.mp3',   tipo:'audio/mpeg'},
+  '@@FUNDO_ABERTURA@@':{arq:'fundo-abertura.mp3', tipo:'audio/mpeg'},
 };
 
 let html=fs.readFileSync('index.html','utf8');

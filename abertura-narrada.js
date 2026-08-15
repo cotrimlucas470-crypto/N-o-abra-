@@ -19,6 +19,22 @@
 
 const VOZ_ABERTURA='@@VOZ_ABERTURA@@';
 
+/* A segunda gravação. Medida: 41,22 s, mono, pico 0,291, e — isto importa —
+   15 blocos de fala separados por pausas de frase. Não é ambiente: é outra
+   narração. Tocada como está, por baixo da primeira, seriam duas pessoas
+   falando ao mesmo tempo, que é a definição de ficar estranho.
+
+   Então ela não entra como voz, entra como presença. Passa-baixa em 320 Hz
+   mata a inteligibilidade — sobram a cadência e o peso, e nenhuma palavra
+   disputa com o narrador. A 0,84 de velocidade ela desce cerca de três
+   semitons e passa a durar 49,07 s, que é o tamanho da narração: a coisa
+   acompanha a história do começo ao fim e cala junto com ela.
+
+   O corte de graves em 40 Hz é a mesma lição do gerador: sub solto não é
+   som, é o cone indo de um extremo ao outro. */
+const FUNDO_ABERTURA='@@FUNDO_ABERTURA@@';
+const FUNDO={rate:0.84, corte:320, sub:40, vol:0.46, rev:0.80};
+
 const HISTORIA=[
  {t:'Você trancou a porta faz três dias e não abriu mais.',
   b:[[0.10,2.06],[2.56,4.34]]},
@@ -81,6 +97,34 @@ function marcarPalavras(p){
    toca fora do grafo do jogo, e o que ela precisa é de espaço. */
 let _cineFundo=null;
 
+/* a presença: a segunda gravação, irreconhecível de propósito */
+function presencaAbertura(nos){
+  if(!A.ctx||!FUNDO_ABERTURA||FUNDO_ABERTURA.indexOf('base64')<0)return null;
+  try{
+    const b64=FUNDO_ABERTURA.slice(FUNDO_ABERTURA.indexOf(',')+1);
+    const bin=atob(b64), u8=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
+    const g=A.ctx.createGain(); g.gain.value=0;
+    const hp=A.ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=FUNDO.sub;
+    const lp=A.ctx.createBiquadFilter(); lp.type='lowpass';  lp.frequency.value=FUNDO.corte; lp.Q.value=.5;
+    hp.connect(lp); lp.connect(g); saida(g,{rev:FUNDO.rev});
+    A.ctx.decodeAudioData(u8.buffer,(buf)=>{
+      if(!A.ctx)return;
+      const t=A.ctx.currentTime+.05;
+      const s=A.ctx.createBufferSource();
+      s.buffer=buf; s.playbackRate.value=FUNDO.rate;
+      s.connect(hp); s.start(t);
+      const dur=buf.duration/FUNDO.rate;
+      g.gain.setValueAtTime(0,t);
+      g.gain.linearRampToValueAtTime(FUNDO.vol,t+3.5);       // entra sem ser notada
+      g.gain.setValueAtTime(FUNDO.vol,t+dur-4);
+      g.gain.linearRampToValueAtTime(0,t+dur-.2);            // e sai do mesmo jeito
+      nos.push(s);
+    },()=>{});
+    return g;
+  }catch(e){ return null; }
+}
+
 function fundoAbertura(){
   if(!A.ctx)return;
   const t=A.ctx.currentTime, nos=[];
@@ -90,14 +134,15 @@ function fundoAbertura(){
   sub.type='sine'; sub.frequency.setValueAtTime(38,t);
   sub.frequency.linearRampToValueAtTime(31,t+FIM_NARRACAO);
   subG.gain.setValueAtTime(0,t);
-  subG.gain.linearRampToValueAtTime(.055,t+4);
+  /* o leito cede espaço: agora tem uma presença ocupando essa faixa */
+  subG.gain.linearRampToValueAtTime(.038,t+4);
   sub.connect(subG); saida(subG,{rev:.2}); sub.start(t); nos.push(sub);
 
   /* ar parado: sopro largo, sem direção */
   const ar=src(),arF=A.ctx.createBiquadFilter(),arG=A.ctx.createGain();
   arF.type='bandpass'; arF.frequency.value=340; arF.Q.value=.55;
   arG.gain.setValueAtTime(0,t);
-  arG.gain.linearRampToValueAtTime(.030,t+5);
+  arG.gain.linearRampToValueAtTime(.022,t+5);
   ar.connect(arF); arF.connect(arG); saida(arG,{rev:.85}); ar.start(t); nos.push(ar);
 
   /* respiração lenta do ar, pra não virar chiado parado */
@@ -105,7 +150,8 @@ function fundoAbertura(){
   resp.type='sine'; resp.frequency.value=.075; respG.gain.value=.010;
   resp.connect(respG); respG.connect(arG.gain); resp.start(t); nos.push(resp);
 
-  _cineFundo={nos,sub:subG,ar:arG};
+  const pres=presencaAbertura(nos);
+  _cineFundo={nos,sub:subG,ar:arG,pres};
 }
 
 function calarFundo(){
@@ -115,6 +161,9 @@ function calarFundo(){
   F.sub.gain.linearRampToValueAtTime(0,t+1.6);
   F.ar.gain.cancelScheduledValues(t); F.ar.gain.setValueAtTime(F.ar.gain.value,t);
   F.ar.gain.linearRampToValueAtTime(0,t+1.6);
+  if(F.pres){ F.pres.gain.cancelScheduledValues(t);
+    F.pres.gain.setValueAtTime(F.pres.gain.value,t);
+    F.pres.gain.linearRampToValueAtTime(0,t+1.2); }
   setTimeout(()=>F.nos.forEach(n=>{try{n.stop()}catch(e){}}),1900);
 }
 

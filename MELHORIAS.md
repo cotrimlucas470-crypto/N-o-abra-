@@ -164,3 +164,28 @@ Suíte completa: **171 testes do núcleo**, 5 de áudio, 9 de travamento,
    mexido — foi o que fiz com `CHECAGEM`.
 5. **A fórmula de contato do V9** (relatada na entrega anterior): qualquer
    lâmina de `delaySec ≥ 2` torna a morte impossível. Está fixado em teste.
+
+---
+
+## Achado posterior — A08: a expedição inteira estava travada
+
+Reportado em jogo: sair para buscar coisas parava logo depois de *"Você
+atravessa o quintal e sai pelo portão"*.
+
+`expedicao()` usava `ctx` em duas linhas — `checarComboio(l,ctx)` e o ajuste
+de risco da isca — que estão **26 linhas acima da linha que cria `ctx`**.
+Como `ctx` é `const`, ler antes de existir não devolve `undefined`: devolve
+`ReferenceError`. A função morria ali, e como a barra de ações já tinha sido
+esvaziada para a cena da rua, o vigia acusava travamento logo em seguida.
+
+Isso matava **todas** as expedições — o caminho de conteúdo mais largo do
+jogo, com locais, casas, ameaças, criaturas e saque.
+
+As duas linhas foram movidas para logo depois da criação do `ctx`, que é
+onde sempre quiseram estar: as duas precisam do contexto de risco que elas
+mesmas ajustam. Verificado no navegador: a expedição parte, entra em modo
+`rua`, gera conteúdo real e continua jogável.
+
+O simulador não pegou este: ele exercita a camada de decisão (tabelas,
+filtros, pesos) e não executa as cenas assíncronas de expedição. Está
+registrado como limitação conhecida da ferramenta.
