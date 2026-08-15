@@ -4,7 +4,7 @@
    2. respondia SEMPRE do cache primeiro, sem checar a rede
    Resultado: deploy novo no Netlify não chegava no aparelho. */
 
-const VERSAO = 'v48-' + '20260814c';
+const VERSAO = 'v48-' + '20260815a';
 const CACHE  = 'nao-abra-' + VERSAO;
 const ARQUIVOS = ['./','./index.html','./manifest.json',
   './icon-192.png','./icon-512.png','./icon-mask.png'];

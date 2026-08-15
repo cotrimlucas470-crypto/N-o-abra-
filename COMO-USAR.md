@@ -9,6 +9,8 @@ Duas coisas: o motor de áudio novo e a sanidade que passa a mentir no ouvido.
 | `index.html` | **o jogo.** É só isso que você publica. Já está com tudo dentro. |
 | `v48-som-e-sanidade.js` | o bloco do som e da sanidade, separado pra dar pra ler |
 | `s14-mochilas.js` | o bloco de §14: sobrecarga, módulos, acesso rápido, descarte em fuga |
+| `abertura-narrada.js` | a abertura contada em voz alta, com as marcas de tempo da narração |
+| `abertura.mp3` | a voz. O `montar.js` embute ela no `index.html` como `data:` |
 | `montar.js` | injeta os blocos no `index.html`. `node montar.js` |
 | `sw.js` | service worker (cache `v48-`, senão o celular serve a versão velha) |
 
@@ -27,6 +29,47 @@ derivado — refaça sempre que mudar o jogo):
 node montar.js
 zip -r naoabra-v48.zip index.html manifest.json sw.js icon-*.png
 ```
+
+---
+
+## A abertura narrada
+
+O jogo começava no pedido de nome. Agora começa com a história sendo contada
+em voz alta, no escuro, e as palavras entrando no ritmo da voz.
+
+**As marcas de tempo não foram chutadas.** Saíram de medir o próprio arquivo:
+envelope RMS em janelas de 20 ms, corte de silêncio em 6% do pico. A medição
+acha **24 blocos de fala** separados por respiradas de 0,38 s a 0,80 s — e
+esses 24 blocos caem exatamente nos 8 parágrafos do texto, o que confirmou a
+divisão sem precisar de tentativa e erro. Cada parágrafo guarda a lista dos
+blocos em que é dito, então as palavras param nas respiradas do meio da frase
+junto com a narração, em vez de escorrer num ritmo constante por cima dela.
+
+**Quem manda no relógio é o áudio.** A cada quadro a tela pergunta a
+`currentTime` da voz. Num aparelho lento, ou se a decodificação engasgar, o
+texto anda com o que está de fato saindo pelo alto-falante em vez de
+desgarrar. Se o áudio não puder tocar, um relógio de parede assume e a
+história é contada muda — dá pra ler, que é o que importa.
+
+**O fundo** é construído no motor de áudio que o jogo já carrega, sem nenhum
+arquivo a mais: pressão de sub descendo de 38 pra 31 Hz, ar parado respirando
+a 0,075 Hz, e os toques casados com o que a voz está dizendo — **o gerador
+liga na frase que fala dele** (e continua ligado, é o mesmo motor que estará
+rodando quando o jogo começar), a batida na porta cai logo depois de *"E de
+noite alguém bate"*, e os sussurros entram debaixo de *"uma coisa que
+aprendeu a voz de alguém que morreu"*. O leito mede pico 0,157 na saída do
+jogo, contra 0,405 da voz: o fundo nunca disputa com a narração.
+
+Na última frase a sala muda de cor — o lampião vira ferrugem.
+
+**Pular** está sempre no canto. E quem volta pra uma casa que já existe não
+ouve de novo: a história só é contada em partida nova.
+
+**A voz vai embutida** no `index.html` como `data:` URI. O jogo é um arquivo
+só — é o que você publica e o que o celular guarda — então o `montar.js`
+converte o mp3 na hora da montagem e o bloco continua legível no
+repositório. Custa 1,01 MB, e é por isso que o `index.html` passou de 862 KB
+para 1,9 MB.
 
 ---
 

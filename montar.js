@@ -11,7 +11,13 @@ const fs=require('fs');
 const BLOCOS=[
   {arq:'v48-som-e-sanidade.js', ini:'<!-- v48:inicio -->', fim:'<!-- v48:fim -->'},
   {arq:'s14-mochilas.js',       ini:'<!-- s14:inicio -->', fim:'<!-- s14:fim -->'},
+  {arq:'abertura-narrada.js',   ini:'<!-- cine:inicio -->',fim:'<!-- cine:fim -->'},
 ];
+
+/* A voz da abertura entra embutida. O jogo é um arquivo só — é o que a
+   pessoa publica e o que o celular guarda — então o mp3 vira data: URI
+   aqui, na montagem, e o bloco continua legível no repositório. */
+const EMBUTIR={'@@VOZ_ABERTURA@@':{arq:'abertura.mp3', tipo:'audio/mpeg'}};
 
 let html=fs.readFileSync('index.html','utf8');
 
@@ -33,7 +39,13 @@ if(pos<0){ console.error('não achei </body>'); process.exit(1); }
 
 let injecao='';
 for(const b of BLOCOS){
-  const bloco=fs.readFileSync(b.arq,'utf8');
+  let bloco=fs.readFileSync(b.arq,'utf8');
+  for(const [marca,emb] of Object.entries(EMBUTIR)){
+    if(!bloco.includes(marca))continue;
+    const dados=fs.readFileSync(emb.arq).toString('base64');
+    bloco=bloco.replace(marca,'data:'+emb.tipo+';base64,'+dados);
+    b.embutiu=(b.embutiu||[]).concat(emb.arq+' ('+(dados.length/1024/1024).toFixed(2)+' MB em base64)');
+  }
   injecao+=b.ini+'\n<script>\n'+bloco+'\n</script>\n'+b.fim+'\n';
   b.kb=(bloco.length/1024).toFixed(0);
 }
@@ -47,8 +59,11 @@ fs.writeFileSync('index.html',html);
 // continua servindo a versão velha
 let sw=fs.readFileSync('sw.js','utf8');
 sw=sw.replace(/const VERSAO = '[^']*' \+ '[^']*';/,
-  "const VERSAO = 'v48-' + '20260814c';");
+  "const VERSAO = 'v48-' + '20260815a';");
 fs.writeFileSync('sw.js',sw);
 
 console.log('index.html: '+(html.length/1024).toFixed(0)+' KB');
-for(const b of BLOCOS)console.log('  '+b.arq+': '+b.kb+' KB');
+for(const b of BLOCOS){
+  console.log('  '+b.arq+': '+b.kb+' KB');
+  if(b.embutiu)for(const e of b.embutiu)console.log('      embutido: '+e);
+}
