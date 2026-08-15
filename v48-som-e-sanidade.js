@@ -37,7 +37,14 @@ function lfoS(f){ const o=A.ctx.createOscillator(); o.type='sine'; o.frequency.v
 function ligaS(fonte,destino,ganho){
   const g=A.ctx.createGain(); g.gain.value=ganho; fonte.connect(g); g.connect(destino); return g;
 }
-function esperaS(ms){ return new Promise(r=>setTimeout(r,ms)); }
+/* Espera de propósito, igual à pausa() do jogo — e, como ela, se declara
+   ao vigia. A transição de tela preta fica vários segundos sem botão
+   nenhum: sem isso, o vigia soma esse tempo ao vão da cena e acusa
+   travamento no meio de uma transição que está correndo bem. */
+function esperaS(ms){
+  const p=new Promise(r=>setTimeout(r,ms));
+  return (typeof esperando==='function')?esperando(p):p;
+}
 
 /* saturação suave: troca o corte duro por compressão de fita */
 function curvaSuave(k){
@@ -1058,13 +1065,15 @@ window.testarSom=function(qual){
 
    Em vez de afrouxar o limite — que enfraqueceria a rede de segurança
    — o vigia passa a saber a diferença entre estar parado e estar
-   esperando: toda pausa deliberada renova o relógio dele. Se o jogo
-   travar de verdade, ninguém chama pausa() e o alarme dispara igual. */
+   esperando: toda pausa deliberada se declara a ele enquanto corre. Se
+   o jogo travar de verdade, ninguém chama pausa() e o alarme dispara
+   igual. (Marcar só a hora em que a pausa começou não bastava: a
+   escuta na porta passa de 20 s numa pausa só.) */
 if(typeof pausa==='function'){
   const _pausaOrig=pausa;
   window.pausa=function(ms){
-    try{ if(typeof _wdUlt!=='undefined')_wdUlt=Date.now(); }catch(e){}
-    return _pausaOrig(ms);
+    const p=_pausaOrig(ms);
+    return (typeof esperando==='function')?esperando(p):p;
   };
 }
 

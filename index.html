@@ -811,8 +811,30 @@ function botao(txt,fn,{custo='',cls='',falta=''}={}){
       setTimeout(()=>b.classList.remove('negado'),400);
       return;
     }
-    [...AC.children].forEach(x=>x.disabled=true);
-    fn();
+    /* Botão sem ação era beco sem saída: o clique desabilitava a tela
+       inteira e aí estourava, então nada redesenhava e não sobrava
+       nem um botão vivo. Agora ele avisa e deixa a tela utilizável. */
+    if(typeof fn!=='function'){
+      diz('✕ '+txt+' — esse botão não leva a lugar nenhum. Bug meu, não é você.','perigo');
+      return;
+    }
+    /* O clique apaga a barra inteira antes de agir, pra ninguém clicar
+       duas vezes. Se a ação não trocar a tela — e algumas não trocam —
+       esses botões ficariam mortos para sempre e o jogo acabava ali,
+       sem saída a não ser recarregar. Então, quando a poeira baixa, se
+       não sobrou nenhuma ação viva, devolve as que ainda estão na tela.
+       Quem redesenhou já pôs botões novos e não é tocado por isso. */
+    const antes=[...AC.children];
+    const devolver=()=>{
+      if([...AC.children].some(x=>!x.disabled))return;
+      antes.forEach(x=>{ if(x.isConnected)x.disabled=false; });
+    };
+    let r;
+    try{ r=fn(); }
+    finally{
+      if(r&&typeof r.then==='function')r.then(devolver,devolver);
+      else queueMicrotask(devolver);
+    }
   };
   AC.appendChild(b);return b;
 }
@@ -4471,7 +4493,7 @@ function acoesQuintal(){
   const vs=Object.keys(veic());
   if(vs.length)botao('O que tem rodando',()=>menuVeiculos(),
     {custo:vs.filter(veicPronto).length?vs.filter(veicPronto).map(v=>VEIC[v].n).join(', '):'tudo quebrado'});
-  botao('O monte no canto',()=>menuAltar(),
+  botao('O monte no canto',()=>menuAltar(()=>menuComodo(8)),
     {cls:altar()>=18?'prim':'',custo:altar()?altar()+' peças · +'+Math.round(pesoAltar().risco*100)+'% invasão':'quase nada'});
   botao('O muro e a cerca',()=>menuMuro(),
     {custo:estadoMuro()});
@@ -7562,8 +7584,10 @@ async function encararOcupante(casa,voltar){
   AC.innerHTML='';
   const arma=melhorArma();
   if(arma)botao(`Enfrentar com ${arma.n.toLowerCase()}`,async()=>{
-    AC.innerHTML='';
+    /* mesma coisa: descobrir que a arma está descarregada não pode
+       apagar a escolha de sair de fininho */
     if(arma.municao&&!usarMunicao(arma))return diz('Está descarregada.','perigo');
+    AC.innerHTML='';
     if(arma.municao){S.ruido=trava(S.ruido+14,0,100);
       diz('O tiro dentro de casa ensurdece você por uns segundos.','alerta');}
     const p=trava(arma.dano/(arma.dano+b.forca*2.2),.15,.85);
@@ -10687,7 +10711,9 @@ const PERG={
  PERDA:{p:'Fala o nome de alguém que você perdeu.',
    ok:['Minha irmã. Ficou na rodoviária. Eu não voltei pra buscar.',
        'Meu filho. Seis anos. E eu não vou falar o nome dele em voz alta pra você.'],
-   ruim:[[()=>{const c=S.vozesRoubadas.length?sortear(S.vozesRoubadas).n:'você';
+   /* mesmo escorregão: o nome está em .p.n. Sem o .p a coisa do outro
+      lado da porta respondia "undefined. Eu perdi undefined." */
+   ruim:[[()=>{const c=S.vozesRoubadas.length?sortear(S.vozesRoubadas).p.n:'você';
         return `${c}. Eu perdi ${c}.`},'Ela falou o nome de alguém desta casa. Ela só conhece esse nome porque ouviu daqui de dentro.'],
          [()=>'Eu não perco. Eu guardo.','Isso não é resposta. É uma coisa se vangloriando.']],
    nerv:['Todo mundo. Essa é a resposta que você quer? Todo mundo.',
@@ -10891,7 +10917,11 @@ async function cenaPorta(){
   }else{
     const ab=v.tipo==='ferido'?sortear(ABERTURAS_FERIDO)
             :v.tipo==='crianca'?sortear(ABERTURAS_CRIANCA)
-            :(v.tipo==='ecoador'&&S.vozesRoubadas.length&&chance(.55))?sortear(S.vozesRoubadas).frase
+            /* S.vozesRoubadas guarda {p, noite, como}: a frase é da pessoa,
+               não do registro. Sem o .p vinha undefined, e a fala estourava
+               dentro da cena da porta — que já tinha limpado a barra, então
+               a noite acabava ali, sem botão nenhum. */
+            :(v.tipo==='ecoador'&&S.vozesRoubadas.length&&chance(.55))?sortear(S.vozesRoubadas).p.frase
             :sortear(ABERTURAS);
     fala(ab);
     await falarV5(ab,{vozIdx:v.vozIdx,pitch:v.pitch,rate:v.rate,dist:'porta',mimico:v.mimico,pessoa:v.pessoa});
@@ -12217,8 +12247,12 @@ function telaAjustes(volta){
   },{custo:'aproveita a tela toda'});
 
   botao('Salvar agora',()=>{
-    diz(salvarAgora()?'Salvo.':'Não deu pra salvar nesse aparelho.',
-      'bom');
+    const feito=salvarAgora();
+    /* todo botão daqui redesenha a tela no fim; esse não redesenhava, e
+       como o clique desabilita a barra inteira antes de agir, ele matava
+       os Ajustes junto — inclusive o Voltar */
+    telaAjustes(volta);
+    diz(feito?'Salvo.':'Não deu pra salvar nesse aparelho.','bom');
   },{custo:'o jogo já salva sozinho'});
 
   botao('Voltar',volta,{cls:'chave'});
@@ -14714,11 +14748,34 @@ falaDe=function(p){
    novo, seja qual for a causa. */
 
 let _wd=null,_wdUlt=0;
+
+/* Uma espera de propósito não é travamento — e não basta marcar a hora
+   em que ela começou. A escuta na porta passa de 20 s numa pausa só, e
+   o vigia disparava no meio dela, com o jogador de ouvido na madeira.
+   Enquanto houver espera em curso, o relógio dele anda junto. */
+let _esperas=[];
+function esperando(p){
+  const marca={t:Date.now()};
+  _esperas.push(marca);
+  const solta=()=>{ _esperas=_esperas.filter(x=>x!==marca); _wdUlt=Date.now(); };
+  try{ p.then(solta,solta); }catch(e){ solta(); }
+  return p;
+}
+function aguardando(){
+  /* espera que nunca acaba não conta: seria um jeito de desligar o vigia */
+  const agora=Date.now();
+  _esperas=_esperas.filter(x=>agora-x.t<60000);
+  return _esperas.length>0;
+}
+
 function acoesNaTela(){
   if(!AC||!AC.children)return 0;
   /* contar por tagName era frágil: qualquer coisa que não fosse
-     BUTTON zerava a conta e o vigia disparava à toa */
-  return AC.children.length;
+     BUTTON zerava a conta e o vigia disparava à toa.
+     Mas contar botão desabilitado também não serve: o clique desabilita
+     a tela toda antes de agir, e se a ação morre no meio sobra uma tela
+     cheia de botão morto — que para o vigia parecia jogo saudável. */
+  return [...AC.children].filter(x=>!x.disabled).length;
 }
 function ligarVigia(){
   if(_wd)return;
@@ -14727,7 +14784,7 @@ function ligarVigia(){
       if(document.visibilityState==='hidden')return;
       if(!AC||$('#boot'))return;
       if(cena&&['fim','mochila'].includes(cena.modo))return;
-      if(acoesNaTela()>0){_wdUlt=Date.now();return;}
+      if(acoesNaTela()>0||aguardando()){_wdUlt=Date.now();return;}
       if(!_wdUlt){_wdUlt=Date.now();return;}
       /* 14 segundos sem nenhuma ação e sem estar em cena de
          pausa longa: o jogo travou */
@@ -14786,7 +14843,8 @@ function suspeitar(){
   _susp=setTimeout(()=>{
     _susp=null;
     if(acoesNaTela()>0)return;   // o menu voltou: não era travamento
-    if(_wdUlt!==marca)return;    // pediram pausa: está esperando, não parado
+    if(aguardando())return;      // tem espera em curso: está esperando, não parado
+    if(_wdUlt!==marca)return;    // pediram pausa nesse meio-tempo
     socorro();
   },6000);
 }
@@ -17953,8 +18011,10 @@ function menuRealidade(volta){
   if(e.drift)diz(`A tela está errando até ${Math.round(e.drift*100)}% nos números que te mostra.`,'perigo');
 
   botao('Riscar um fósforo',()=>{
-    AC.innerHTML='';
+    /* a recusa vem antes de limpar a tela: limpando primeiro, quem não
+       tinha fósforo ficava olhando pra uma tela sem nenhum botão */
     if(!temMat('fosforo',1)&&!S.lanterna)return diz('Você não tem com o que iluminar.','perigo');
+    AC.innerHTML='';
     if(temMat('fosforo',1))gastarMat('fosforo',1);
     S.ilusaoLimpa=2;
     S.realDebt=Math.max(0,debito()-2);
@@ -18730,7 +18790,14 @@ function lfoS(f){ const o=A.ctx.createOscillator(); o.type='sine'; o.frequency.v
 function ligaS(fonte,destino,ganho){
   const g=A.ctx.createGain(); g.gain.value=ganho; fonte.connect(g); g.connect(destino); return g;
 }
-function esperaS(ms){ return new Promise(r=>setTimeout(r,ms)); }
+/* Espera de propósito, igual à pausa() do jogo — e, como ela, se declara
+   ao vigia. A transição de tela preta fica vários segundos sem botão
+   nenhum: sem isso, o vigia soma esse tempo ao vão da cena e acusa
+   travamento no meio de uma transição que está correndo bem. */
+function esperaS(ms){
+  const p=new Promise(r=>setTimeout(r,ms));
+  return (typeof esperando==='function')?esperando(p):p;
+}
 
 /* saturação suave: troca o corte duro por compressão de fita */
 function curvaSuave(k){
@@ -19751,13 +19818,15 @@ window.testarSom=function(qual){
 
    Em vez de afrouxar o limite — que enfraqueceria a rede de segurança
    — o vigia passa a saber a diferença entre estar parado e estar
-   esperando: toda pausa deliberada renova o relógio dele. Se o jogo
-   travar de verdade, ninguém chama pausa() e o alarme dispara igual. */
+   esperando: toda pausa deliberada se declara a ele enquanto corre. Se
+   o jogo travar de verdade, ninguém chama pausa() e o alarme dispara
+   igual. (Marcar só a hora em que a pausa começou não bastava: a
+   escuta na porta passa de 20 s numa pausa só.) */
 if(typeof pausa==='function'){
   const _pausaOrig=pausa;
   window.pausa=function(ms){
-    try{ if(typeof _wdUlt!=='undefined')_wdUlt=Date.now(); }catch(e){}
-    return _pausaOrig(ms);
+    const p=_pausaOrig(ms);
+    return (typeof esperando==='function')?esperando(p):p;
   };
 }
 

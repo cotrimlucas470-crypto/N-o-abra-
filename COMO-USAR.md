@@ -206,11 +206,75 @@ certo — concreto na rua, terra no quintal, escada no porão e no sótão.
 400 ms depois de qualquer erro solto, se a barra estivesse vazia naquele
 instante. Mas o jogo tem transições em que a barra fica vazia de propósito.
 Agora a suspeita espera 6 s e só vira acusação se, no fim da espera, continuar
-sem nenhuma ação na tela **e** ninguém tiver pedido pausa nesse meio-tempo.
-Travamento de verdade passa pelas duas peneiras e dispara igual — está no
-teste.
+sem nenhuma ação na tela **e** não houver espera em curso. Travamento de
+verdade passa pelas duas peneiras e dispara igual — está no teste.
+
+**E o vigia passou a saber quando a espera ainda está correndo.** A v48 já
+tinha ensinado a ele que pausa deliberada não é travamento, mas só marcava a
+*hora em que a pausa começou*. A escuta na porta passa de 20 s numa pausa só:
+o alarme disparava no meio dela, com o jogador de ouvido na madeira. Agora
+cada espera se declara enquanto corre — `pausa()` do jogo e `esperaS()` das
+transições de tela preta — e o relógio do vigia anda junto. Espera que nunca
+termina não conta, senão seria um jeito de desligar o vigia.
 
 ---
+
+## Quatro travamentos de verdade, que ninguém tinha achado
+
+Varrendo o jogo com cliques automáticos — umas duas mil escolhas ao acaso —
+apareceram quatro becos sem saída antigos, sem relação nenhuma com a v48.
+Todos têm a mesma raiz: **`botao()` desabilita a barra inteira antes de
+executar a ação**, pra ninguém clicar duas vezes. Se a ação não redesenha a
+tela, aqueles botões ficam mortos para sempre e não sobra saída a não ser
+recarregar.
+
+- **"O monte no canto"**, no quintal, abria com `menuAltar()` sem dizer para
+  onde voltar — e o *Voltar* dessa tela é justamente o argumento que faltava.
+  Clicar nele estourava, e o estouro impedia qualquer redesenho.
+- **"Salvar agora"**, nos Ajustes, escrevia *Salvo.* e mais nada. Todos os
+  outros botões daquela tela terminam redesenhando os Ajustes; esse não.
+  Salvar o jogo matava a tela de configurações junto, *Voltar* incluído.
+- **"Riscar um fósforo"**, em Conferir o que é real, limpava a tela *antes*
+  de conferir se você tinha fósforo. Sem fósforo e sem lanterna, sobrava uma
+  tela vazia.
+- **"Enfrentar com a arma"**, no encontro com bicho dentro de casa, fazia o
+  mesmo: limpava a tela e só então descobria que a arma estava descarregada.
+  A opção de sair de fininho ia junto.
+
+E o vigia não via nada de errado em nenhum deles, porque contava botões sem
+olhar se davam pra clicar.
+
+Cinco consertos, do específico ao geral:
+
+1. O monte abre com `menuAltar(()=>menuComodo(8))`. Uma varredura conferiu
+   que **nenhum outro menu do jogo** é chamado com argumentos de menos.
+2. *Salvar agora* redesenha os Ajustes, como os vizinhos dele.
+3. Nos dois casos de recusa, a checagem vem **antes** de limpar a tela.
+4. **A rede geral:** quando a poeira do clique baixa, se não sobrou nenhuma
+   ação viva na tela, `botao()` devolve as que ainda estão lá. Quem
+   redesenhou já pôs botões novos e não é tocado. Ação que não redesenha
+   deixou de poder travar o jogo — inclusive as que ninguém achou ainda.
+5. O vigia conta só as ações que dá pra usar. Tela cheia de botão morto e
+   parada agora é o que sempre foi: travamento.
+
+---
+
+## E as vozes roubadas, que estavam quebradas nos dois lugares
+
+`S.vozesRoubadas` guarda `{p, noite, como}` — a pessoa, a noite em que a voz
+foi levada, e como. Dois lugares esqueceram o `.p` e foram buscar o dado
+direto no registro:
+
+- **A abertura do ecoador**, na cena da porta, pegava `.frase` do registro em
+  vez de `.p.frase`. Vinha `undefined`, e a fala estourava **dentro da cena
+  da porta** — que já tinha limpado a barra de ações. A noite acabava ali,
+  sem botão nenhum. Era o travamento mais grave dos que apareceram, porque
+  cai justo na cena central do jogo.
+- **A resposta da pergunta "Fala o nome de alguém que você perdeu"** pegava
+  `.n` em vez de `.p.n`. A coisa do outro lado da porta respondia
+  *"undefined. Eu perdi undefined."* Agora responde *"Kelly. Eu perdi
+  Kelly."* — o nome de alguém de dentro da casa, que é exatamente o arrepio
+  que a cena foi escrita pra dar.
 
 ## Dois bugs do jogo, anteriores à v48
 
