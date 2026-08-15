@@ -383,6 +383,22 @@ function gerPulso()  { return A.ger?(A.ger.oAM   ||A.ger.pist_o) :null; }
 function gerVolBase(){ return (window.SOM&&SOM.gerador)?SOM.gerador.vol:.10; }
 function gerNominal(){ return (A.ger&&A.ger.f0)||42; }
 
+/* O cômodo muda o quanto do motor te alcança — mas quem manda no nível
+   é um lugar só: volume base da v48 × carga de diesel × cômodo.
+
+   Antes eram dois donos. `somDoComodo` escrevia um valor absoluto
+   herdado do gerador antigo (0,22 no porão, contra uma base que naquele
+   motor era 0,10) e `ajustarGerador` escrevia outro por cima na saída
+   seguinte. No barramento da v48 aquele 2,2× punha o mestre em 0,121
+   contra os 0,055 que a v48 mediu como teto do motor que toca o tempo
+   todo: era ele saturando de novo, e no porão o rms dobrava. */
+const GER_COMODO={9:1.5, 6:.6, 10:.6};   // porão perto, oficina e quintal abafados
+function gerFatorComodo(id){ return GER_COMODO[id]!=null?GER_COMODO[id]:1; }
+function nivelGerador(){
+  const G=A.ger; if(!G)return 0;
+  return gerVolBase()*(.72+.28*(G.carga!=null?G.carga:1))*(G.comodo!=null?G.comodo:1);
+}
+
 /* ambiente noturno em camadas */
 function ligarAmbiente(){
   if(!A.ctx||A.amb.on)return; A.amb.on=true;
@@ -666,9 +682,14 @@ function somDoComodo(id){
   }
   const cfg=SOM_COMODO[id];
   if(id===9)ambientePorao();else if(id===10)ambienteRua();else ambienteCasa();
-  /* o motor atravessa a casa: alto no porão, abafado na oficina e no quintal */
+  /* o motor atravessa a casa: perto no porão, abafado na oficina e no
+     quintal. Só anota o cômodo — o nível sai de nivelGerador(), que é
+     o mesmo que ajustarGerador usa, então os dois param de brigar. */
   const gv=gerVolume();
-  if(gv)gv.gain.linearRampToValueAtTime(gerVolBase()*(id===9?2.2:(id===6||id===10?.6:1)),A.ctx.currentTime+.7);
+  if(gv&&A.ger){
+    A.ger.comodo=gerFatorComodo(id);
+    gv.gain.linearRampToValueAtTime(nivelGerador(),A.ctx.currentTime+.7);
+  }
   if(!cfg)return;
   const s=src(),f=A.ctx.createBiquadFilter(),g=A.ctx.createGain();
   f.type=cfg.f;f.frequency.value=cfg.fr;
@@ -18925,7 +18946,7 @@ window.ligarGerador = function(){
   [oRot,oH,oAlt,oAM,dr1,dr2].forEach(o=>o.start(t));
   sN.start(t);
 
-  A.ger={t0:t,f0,fAtual:f0,carga:1,mestre,oRot,oH,oAlt,oAM,dr1,dr2,sN,gN,lp,engasgo:null};
+  A.ger={t0:t,f0,fAtual:f0,carga:1,comodo:1,mestre,oRot,oH,oAlt,oAM,dr1,dr2,sN,gN,lp,engasgo:null};
   if(SOM.gerador.engasgo) programarEngasgo();
 };
 
@@ -18940,7 +18961,11 @@ window.ajustarGerador = function(pct){
   G.oAlt.frequency.linearRampToValueAtTime(100+22*p,t+1.2);
   G.lp  .frequency.linearRampToValueAtTime(300+170*p,t+1.2);
   G.gN  .gain.linearRampToValueAtTime(.24+.12*p,t+1.2);
-  G.mestre.gain.linearRampToValueAtTime(SOM.gerador.vol*(.72+.28*p),t+1.2);
+  /* o cômodo em que você está entra na conta pelo mesmo lugar que o
+     resto: sem isso, andar pela casa e mexer no diesel escreviam níveis
+     diferentes no mesmo nó, um por cima do outro */
+  G.mestre.gain.linearRampToValueAtTime(
+    (typeof nivelGerador==='function')?nivelGerador():SOM.gerador.vol*(.72+.28*p), t+1.2);
 };
 
 /* falha de ignição quando o diesel está no fim */

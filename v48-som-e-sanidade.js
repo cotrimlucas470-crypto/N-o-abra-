@@ -172,7 +172,7 @@ window.ligarGerador = function(){
   [oRot,oH,oAlt,oAM,dr1,dr2].forEach(o=>o.start(t));
   sN.start(t);
 
-  A.ger={t0:t,f0,fAtual:f0,carga:1,mestre,oRot,oH,oAlt,oAM,dr1,dr2,sN,gN,lp,engasgo:null};
+  A.ger={t0:t,f0,fAtual:f0,carga:1,comodo:1,mestre,oRot,oH,oAlt,oAM,dr1,dr2,sN,gN,lp,engasgo:null};
   if(SOM.gerador.engasgo) programarEngasgo();
 };
 
@@ -187,7 +187,11 @@ window.ajustarGerador = function(pct){
   G.oAlt.frequency.linearRampToValueAtTime(100+22*p,t+1.2);
   G.lp  .frequency.linearRampToValueAtTime(300+170*p,t+1.2);
   G.gN  .gain.linearRampToValueAtTime(.24+.12*p,t+1.2);
-  G.mestre.gain.linearRampToValueAtTime(SOM.gerador.vol*(.72+.28*p),t+1.2);
+  /* o cômodo em que você está entra na conta pelo mesmo lugar que o
+     resto: sem isso, andar pela casa e mexer no diesel escreviam níveis
+     diferentes no mesmo nó, um por cima do outro */
+  G.mestre.gain.linearRampToValueAtTime(
+    (typeof nivelGerador==='function')?nivelGerador():SOM.gerador.vol*(.72+.28*p), t+1.2);
 };
 
 /* falha de ignição quando o diesel está no fim */
