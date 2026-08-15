@@ -21176,16 +21176,23 @@ if(typeof anoitecer==='function'){
 }
 
 /* ---------- checagem de realidade ----------
-   8 minutos e 4 de estresse, e acerta 80% das vezes. Os 20% restantes
-   não devolvem "não sei": devolvem a resposta errada com a mesma cara de
-   certeza. Uma checagem que avisasse quando falhou seria de 100%. */
+   [A02] Esta função existia e ninguém a chamava. [A04] E ela lia
+   `S.ilusaoNoAr`, uma variável que nada no jogo inteiro escrevia — então,
+   mesmo que fosse chamada, responderia sempre a mesma coisa.
+
+   O que ela pergunta agora tem verdade de verdade por baixo: *a tela está
+   te enganando neste momento?* A resposta certa é `estagio().uiLie > 0`,
+   que é exatamente o que o jogador não pode ver. Custa 8 minutos e 4 de
+   estresse, acerta 80% das vezes — e os 20% restantes não devolvem "não
+   sei": devolvem a resposta errada com a mesma cara de certeza. Uma
+   checagem que avisasse quando falhou seria uma checagem de 100%. */
+const CHECAGEM={minutos:8, estresse:4, acerto:.8};
+
 function checarRealidade(){
-  const acertou=chance(.8);
-  const eFalso=!!S.ilusaoNoAr;
-  const resposta=acertou?eFalso:!eFalso;
-  v9Perder(4,'CHECAGEM');
-  S.hora=Math.min(19,(S.hora||7));
-  return {resposta, acertou};
+  const mentindo=estagio().uiLie>0;
+  const acertou=chance(CHECAGEM.acerto);
+  v9Perder(CHECAGEM.estresse,'CHECAGEM');
+  return {resposta:acertou?mentindo:!mentindo, acertou, verdade:mentindo};
 }
 
 /* ---------- a tela dos quatro medidores ----------
@@ -21235,6 +21242,26 @@ if(typeof menuRealidade==='function'){
        +`abstinência ${Math.round(E.abstinencia)}.`,'sist');
     if(sanEfetiva()<san()-5)
       diz('A barra está melhor do que você está.','alerta');
+
+    /* [A02] a checagem finalmente tem um botão. Uma vez por dia: o valor
+       dela é ser cara e incerta, e poder repetir até gostar da resposta
+       transformaria 80% de acerto em certeza de graça. */
+    const jaHoje=S.checouDia===S.dia;
+    botao('Parar e conferir se a tela está mentindo',()=>{
+      if(S.hora+1>19)return diz('Não sobra dia pra isso hoje.','perigo');
+      S.checouDia=S.dia;
+      const r=checarRealidade();
+      S.hora=Math.min(19,S.hora+1);
+      atualizarPainel();
+      diz(r.resposta
+        ? 'Você para, respira e confere três coisas que sabe de cor. Duas não batem. Alguma coisa aqui está te enganando.'
+        : 'Você para, respira e confere três coisas que sabe de cor. As três batem. O que você está lendo é o que é.',
+        r.resposta?'perigo':'bom');
+      /* acertar cobra menos da dívida do que a dúvida cobrava */
+      if(r.acertou)S.realDebt=trava(debito()-3,0,100);
+      menuRealidade(volta);
+    },{falta:jaHoje?'já conferiu hoje':'',
+       custo:CHECAGEM.minutos+' minutos · '+CHECAGEM.estresse+' de estresse · erra 1 em 5'});
   };
 }
 

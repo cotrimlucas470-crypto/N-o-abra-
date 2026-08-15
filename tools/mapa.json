@@ -1,0 +1,10672 @@
+[
+ {
+  "nome": "iniciarAudio",
+  "tipo": "func",
+  "linha": 245,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   16817,
+   19974,
+   19975,
+   20917
+  ]
+ },
+ {
+  "nome": "gerarImpulso",
+  "tipo": "func",
+  "linha": 276,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   269,
+   292,
+   293,
+   294
+  ]
+ },
+ {
+  "nome": "ambienteCasa",
+  "tipo": "func",
+  "linha": 292,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   684,
+   10262,
+   10284,
+   10871
+  ]
+ },
+ {
+  "nome": "ambienteRua",
+  "tipo": "func",
+  "linha": 293,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   684,
+   9953
+  ]
+ },
+ {
+  "nome": "ambientePorao",
+  "tipo": "func",
+  "linha": 294,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   684,
+   16534
+  ]
+ },
+ {
+  "nome": "carregarVozes",
+  "tipo": "func",
+  "linha": 296,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   274
+  ]
+ },
+ {
+  "nome": "src",
+  "tipo": "func",
+  "linha": 301,
+  "bloco": "base",
+  "chamadas": 39,
+  "refs": [
+   321,
+   341,
+   405,
+   456
+  ]
+ },
+ {
+  "nome": "saida",
+  "tipo": "func",
+  "linha": 304,
+  "bloco": "base",
+  "chamadas": 102,
+  "refs": [
+   325,
+   331,
+   336,
+   344
+  ]
+ },
+ {
+  "nome": "batida",
+  "tipo": "func",
+  "linha": 316,
+  "bloco": "base",
+  "chamadas": 32,
+  "refs": [
+   1391,
+   2119,
+   2733,
+   4510
+  ]
+ },
+ {
+  "nome": "ligarGerador",
+  "tipo": "func",
+  "linha": 339,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   4952,
+   16830,
+   16853,
+   19822
+  ]
+ },
+ {
+  "nome": "ajustarGerador",
+  "tipo": "func",
+  "linha": 359,
+  "bloco": "base",
+  "chamadas": 10,
+  "refs": [
+   391,
+   687,
+   896,
+   4952
+  ]
+ },
+ {
+  "nome": "desligarGerador",
+  "tipo": "func",
+  "linha": 367,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   554,
+   16392,
+   16519,
+   16772
+  ]
+ },
+ {
+  "nome": "gerVolume",
+  "tipo": "func",
+  "linha": 380,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   688,
+   1502,
+   1514
+  ]
+ },
+ {
+  "nome": "gerRotacao",
+  "tipo": "func",
+  "linha": 381,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   1897
+  ]
+ },
+ {
+  "nome": "gerPulso",
+  "tipo": "func",
+  "linha": 382,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   1897
+  ]
+ },
+ {
+  "nome": "gerVolBase",
+  "tipo": "func",
+  "linha": 383,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   399
+  ]
+ },
+ {
+  "nome": "gerNominal",
+  "tipo": "func",
+  "linha": 384,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   1896
+  ]
+ },
+ {
+  "nome": "GER_COMODO",
+  "tipo": "CONST",
+  "linha": 395,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   396
+  ]
+ },
+ {
+  "nome": "gerFatorComodo",
+  "tipo": "func",
+  "linha": 396,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   690
+  ]
+ },
+ {
+  "nome": "nivelGerador",
+  "tipo": "func",
+  "linha": 397,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   686,
+   691,
+   18968
+  ]
+ },
+ {
+  "nome": "ligarAmbiente",
+  "tipo": "func",
+  "linha": 403,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   16357,
+   16831,
+   16853
+  ]
+ },
+ {
+  "nome": "agendarInquietacao",
+  "tipo": "func",
+  "linha": 415,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   413,
+   425
+  ]
+ },
+ {
+  "nome": "estalo",
+  "tipo": "func",
+  "linha": 428,
+  "bloco": "base",
+  "chamadas": 9,
+  "refs": [
+   420,
+   1324,
+   2137,
+   5957
+  ]
+ },
+ {
+  "nome": "grilo",
+  "tipo": "func",
+  "linha": 436,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   421
+  ]
+ },
+ {
+  "nome": "gotejo",
+  "tipo": "func",
+  "linha": 447,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   422,
+   655
+  ]
+ },
+ {
+  "nome": "rocado",
+  "tipo": "func",
+  "linha": 454,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   424,
+   4253,
+   8332,
+   12575
+  ]
+ },
+ {
+  "nome": "passoDistante",
+  "tipo": "func",
+  "linha": 462,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   423
+  ]
+ },
+ {
+  "nome": "passo",
+  "tipo": "func",
+  "linha": 463,
+  "bloco": "base",
+  "chamadas": 73,
+  "refs": [
+   462,
+   702,
+   703,
+   704
+  ]
+ },
+ {
+  "nome": "rugido",
+  "tipo": "func",
+  "linha": 470,
+  "bloco": "base",
+  "chamadas": 13,
+  "refs": [
+   2063,
+   2595,
+   5255,
+   10138
+  ]
+ },
+ {
+  "nome": "arranhao",
+  "tipo": "func",
+  "linha": 482,
+  "bloco": "base",
+  "chamadas": 7,
+  "refs": [
+   11071,
+   11150,
+   11262,
+   13550
+  ]
+ },
+ {
+  "nome": "sussurro",
+  "tipo": "func",
+  "linha": 492,
+  "bloco": "base",
+  "chamadas": 21,
+  "refs": [
+   491,
+   1366,
+   1583,
+   1585
+  ]
+ },
+ {
+  "nome": "iniciarCoracao",
+  "tipo": "func",
+  "linha": 507,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   16819
+  ]
+ },
+ {
+  "nome": "tensao",
+  "tipo": "func",
+  "linha": 525,
+  "bloco": "base",
+  "chamadas": 13,
+  "refs": [
+   243,
+   897,
+   2336,
+   2344
+  ]
+ },
+ {
+  "nome": "falar",
+  "tipo": "func",
+  "linha": 528,
+  "bloco": "base",
+  "chamadas": 33,
+  "refs": [
+   1403,
+   1617,
+   1689,
+   1921
+  ]
+ },
+ {
+  "nome": "calar",
+  "tipo": "func",
+  "linha": 552,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   554,
+   2080,
+   11172,
+   16808
+  ]
+ },
+ {
+  "nome": "pararTudo",
+  "tipo": "func",
+  "linha": 553,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   2442
+  ]
+ },
+ {
+  "nome": "martelada",
+  "tipo": "func",
+  "linha": 564,
+  "bloco": "base",
+  "chamadas": 8,
+  "refs": [
+   4910,
+   4950,
+   4959,
+   4979
+  ]
+ },
+ {
+  "nome": "serrada",
+  "tipo": "func",
+  "linha": 580,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   4900,
+   5090,
+   5091,
+   8676
+  ]
+ },
+ {
+  "nome": "metalPesado",
+  "tipo": "func",
+  "linha": 594,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   642,
+   4019,
+   11132,
+   11184
+  ]
+ },
+ {
+  "nome": "correnteSom",
+  "tipo": "func",
+  "linha": 608,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   4031,
+   11120,
+   11140
+  ]
+ },
+ {
+  "nome": "dobradica",
+  "tipo": "func",
+  "linha": 618,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   11120,
+   11185
+  ]
+ },
+ {
+  "nome": "trancaSom",
+  "tipo": "func",
+  "linha": 635,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   5091
+  ]
+ },
+ {
+  "nome": "ligarChuva",
+  "tipo": "func",
+  "linha": 646,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   16361
+  ]
+ },
+ {
+  "nome": "desligarChuva",
+  "tipo": "func",
+  "linha": 660,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   16365
+  ]
+ },
+ {
+  "nome": "SOM_COMODO",
+  "tipo": "CONST",
+  "linha": 668,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   683
+  ]
+ },
+ {
+  "nome": "somDoComodo",
+  "tipo": "func",
+  "linha": 676,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   389,
+   10463
+  ]
+ },
+ {
+  "nome": "passosAndando",
+  "tipo": "func",
+  "linha": 700,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   5042,
+   20907,
+   20908
+  ]
+ },
+ {
+  "nome": "PESSOAS",
+  "tipo": "CONST",
+  "linha": 709,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   2289,
+   10767,
+   16849
+  ]
+ },
+ {
+  "nome": "TIPOS",
+  "tipo": "CONST",
+  "linha": 751,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   10751,
+   10772
+  ]
+ },
+ {
+  "nome": "ABERTURAS",
+  "tipo": "CONST",
+  "linha": 762,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   10921,
+   10946
+  ]
+ },
+ {
+  "nome": "ABERTURAS_FERIDO",
+  "tipo": "CONST",
+  "linha": 770,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10939
+  ]
+ },
+ {
+  "nome": "ABERTURAS_CRIANCA",
+  "tipo": "CONST",
+  "linha": 775,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10940
+  ]
+ },
+ {
+  "nome": "limpar",
+  "tipo": "func",
+  "linha": 814,
+  "bloco": "base",
+  "chamadas": 135,
+  "refs": [
+   1705,
+   1862,
+   1865,
+   2054
+  ]
+ },
+ {
+  "nome": "esc",
+  "tipo": "func",
+  "linha": 815,
+  "bloco": "base",
+  "chamadas": 36,
+  "refs": [
+   817,
+   826,
+   864,
+   1254
+  ]
+ },
+ {
+  "nome": "cap",
+  "tipo": "func",
+  "linha": 816,
+  "bloco": "base",
+  "chamadas": 137,
+  "refs": [
+   1705,
+   1862,
+   1865,
+   2057
+  ]
+ },
+ {
+  "nome": "diz",
+  "tipo": "func",
+  "linha": 817,
+  "bloco": "base",
+  "chamadas": 1198,
+  "refs": [
+   818,
+   830,
+   839,
+   1026
+  ]
+ },
+ {
+  "nome": "fala",
+  "tipo": "func",
+  "linha": 818,
+  "bloco": "base",
+  "chamadas": 115,
+  "refs": [
+   237,
+   712,
+   715,
+   718
+  ]
+ },
+ {
+  "nome": "botao",
+  "tipo": "func",
+  "linha": 819,
+  "bloco": "base",
+  "chamadas": 409,
+  "refs": [
+   1085,
+   1086,
+   1709,
+   1723
+  ]
+ },
+ {
+  "nome": "ficha",
+  "tipo": "func",
+  "linha": 862,
+  "bloco": "base",
+  "chamadas": 30,
+  "refs": [
+   1016,
+   1018,
+   1020,
+   1022
+  ]
+ },
+ {
+  "nome": "tem",
+  "tipo": "func",
+  "linha": 867,
+  "bloco": "base",
+  "chamadas": 347,
+  "refs": [
+   667,
+   715,
+   732,
+   745
+  ]
+ },
+ {
+  "nome": "quem",
+  "tipo": "func",
+  "linha": 868,
+  "bloco": "base",
+  "chamadas": 143,
+  "refs": [
+   12,
+   236,
+   386,
+   1021
+  ]
+ },
+ {
+  "nome": "moralMedia",
+  "tipo": "func",
+  "linha": 869,
+  "bloco": "base",
+  "chamadas": 7,
+  "refs": [
+   891,
+   1578,
+   2328,
+   5105
+  ]
+ },
+ {
+  "nome": "mexerMoral",
+  "tipo": "func",
+  "linha": 873,
+  "bloco": "base",
+  "chamadas": 136,
+  "refs": [
+   1644,
+   1760,
+   1842,
+   1868
+  ]
+ },
+ {
+  "nome": "atualizarPainel",
+  "tipo": "func",
+  "linha": 877,
+  "bloco": "base",
+  "chamadas": 33,
+  "refs": [
+   2144,
+   2632,
+   4310,
+   4817
+  ]
+ },
+ {
+  "nome": "dimensionar",
+  "tipo": "func",
+  "linha": 906,
+  "bloco": "base",
+  "chamadas": 33,
+  "refs": [
+   914,
+   929,
+   930,
+   2450
+  ]
+ },
+ {
+  "nome": "desenharVazio",
+  "tipo": "func",
+  "linha": 916,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   950
+  ]
+ },
+ {
+  "nome": "laco",
+  "tipo": "func",
+  "linha": 927,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   963,
+   16828,
+   16851
+  ]
+ },
+ {
+  "nome": "MAX_REFORCO",
+  "tipo": "CONST",
+  "linha": 980,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   983,
+   989,
+   4622,
+   4983
+  ]
+ },
+ {
+  "nome": "pregar",
+  "tipo": "func",
+  "linha": 987,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   1756,
+   4621,
+   4646,
+   4980
+  ]
+ },
+ {
+  "nome": "folegoPorta",
+  "tipo": "func",
+  "linha": 993,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   1027,
+   16537,
+   16539
+  ]
+ },
+ {
+  "nome": "riscoInvasao",
+  "tipo": "func",
+  "linha": 995,
+  "bloco": "base",
+  "chamadas": 13,
+  "refs": [
+   889,
+   1008,
+   5105,
+   16471
+  ]
+ },
+ {
+  "nome": "estadoPorta",
+  "tipo": "func",
+  "linha": 1007,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   1025,
+   4984
+  ]
+ },
+ {
+  "nome": "fichaPorta",
+  "tipo": "func",
+  "linha": 1014,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   4976
+  ]
+ },
+ {
+  "nome": "danificarPorta",
+  "tipo": "func",
+  "linha": 1029,
+  "bloco": "base",
+  "chamadas": 21,
+  "refs": [
+   2085,
+   2659,
+   2691,
+   8136
+  ]
+ },
+ {
+  "nome": "pausa",
+  "tipo": "func",
+  "linha": 1053,
+  "bloco": "base",
+  "chamadas": 422,
+  "refs": [
+   1281,
+   1844,
+   1847,
+   1849
+  ]
+ },
+ {
+  "nome": "flutuar",
+  "tipo": "func",
+  "linha": 1064,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   1076
+  ]
+ },
+ {
+  "nome": "ganhou",
+  "tipo": "func",
+  "linha": 1070,
+  "bloco": "base",
+  "chamadas": 57,
+  "refs": [
+   1648,
+   1863,
+   1880,
+   1948
+  ]
+ },
+ {
+  "nome": "confirmarAbrir",
+  "tipo": "func",
+  "linha": 1081,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   11003,
+   11109
+  ]
+ },
+ {
+  "nome": "limparAviso",
+  "tipo": "func",
+  "linha": 1088,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   1086
+  ]
+ },
+ {
+  "nome": "hashNome",
+  "tipo": "func",
+  "linha": 1095,
+  "bloco": "base",
+  "chamadas": 16,
+  "refs": [
+   1106,
+   1489,
+   1836,
+   2042
+  ]
+ },
+ {
+  "nome": "semente",
+  "tipo": "func",
+  "linha": 1100,
+  "bloco": "base",
+  "chamadas": 98,
+  "refs": [
+   804,
+   1106,
+   1953,
+   2210
+  ]
+ },
+ {
+  "nome": "PELE",
+  "tipo": "CONST",
+  "linha": 1102,
+  "bloco": "base",
+  "chamadas": 9,
+  "refs": [
+   1113,
+   3655,
+   11854,
+   11868
+  ]
+ },
+ {
+  "nome": "CABELO",
+  "tipo": "CONST",
+  "linha": 1103,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   1114,
+   3655
+  ]
+ },
+ {
+  "nome": "pintarRosto",
+  "tipo": "func",
+  "linha": 1105,
+  "bloco": "base",
+  "chamadas": 9,
+  "refs": [
+   1247,
+   1268,
+   11831,
+   11838
+  ]
+ },
+ {
+  "nome": "elRosto",
+  "tipo": "func",
+  "linha": 1240,
+  "bloco": "base",
+  "chamadas": 8,
+  "refs": [
+   1252,
+   1261,
+   2580,
+   5130
+  ]
+ },
+ {
+  "nome": "fichaRosto",
+  "tipo": "func",
+  "linha": 1250,
+  "bloco": "base",
+  "chamadas": 15,
+  "refs": [
+   1715,
+   2474,
+   2501,
+   4451
+  ]
+ },
+ {
+  "nome": "quebrarRosto",
+  "tipo": "func",
+  "linha": 1259,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   2598,
+   2687
+  ]
+ },
+ {
+  "nome": "BARRA",
+  "tipo": "CONST",
+  "linha": 1289,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   168,
+   1302,
+   1303,
+   1312
+  ]
+ },
+ {
+  "nome": "montarBarramentos",
+  "tipo": "func",
+  "linha": 1291,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   1311
+  ]
+ },
+ {
+  "nome": "reduzirAbaixo",
+  "tipo": "func",
+  "linha": 1299,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   1314
+  ]
+ },
+ {
+  "nome": "marcarCamada",
+  "tipo": "func",
+  "linha": 1310,
+  "bloco": "base",
+  "chamadas": 8,
+  "refs": [
+   1322,
+   1547,
+   1620,
+   8271
+  ]
+ },
+ {
+  "nome": "assinatura",
+  "tipo": "func",
+  "linha": 1319,
+  "bloco": "base",
+  "chamadas": 10,
+  "refs": [
+   5253,
+   7599,
+   8373,
+   9074
+  ]
+ },
+ {
+  "nome": "compassoGerador",
+  "tipo": "func",
+  "linha": 1387,
+  "bloco": "base",
+  "chamadas": 0,
+  "refs": []
+ },
+ {
+  "nome": "FALAS_ALTA",
+  "tipo": "CONST",
+  "linha": 1397,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   1423
+  ]
+ },
+ {
+  "nome": "FALAS_BAIXA",
+  "tipo": "CONST",
+  "linha": 1405,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   1424
+  ]
+ },
+ {
+  "nome": "FALAS_NEUTRA",
+  "tipo": "CONST",
+  "linha": 1413,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   1425
+  ]
+ },
+ {
+  "nome": "falaDe",
+  "tipo": "func",
+  "linha": 1421,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   5143,
+   14757,
+   14758
+  ]
+ },
+ {
+  "nome": "REACOES",
+  "tipo": "CONST",
+  "linha": 1429,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   1453
+  ]
+ },
+ {
+  "nome": "reagir",
+  "tipo": "func",
+  "linha": 1452,
+  "bloco": "base",
+  "chamadas": 9,
+  "refs": [
+   1650,
+   1851,
+   4523,
+   10430
+  ]
+ },
+ {
+  "nome": "ABERTURAS_EXTRA",
+  "tipo": "CONST",
+  "linha": 1459,
+  "bloco": "base",
+  "chamadas": 0,
+  "refs": []
+ },
+ {
+  "nome": "vozDe",
+  "tipo": "func",
+  "linha": 1488,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   4445,
+   10779,
+   10805,
+   16245
+  ]
+ },
+ {
+  "nome": "abaixarAmbiente",
+  "tipo": "func",
+  "linha": 1499,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   1621,
+   4225,
+   11936
+  ]
+ },
+ {
+  "nome": "devolverAmbiente",
+  "tipo": "func",
+  "linha": 1511,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   1509,
+   1627,
+   4323,
+   11929
+  ]
+ },
+ {
+  "nome": "silencioSubito",
+  "tipo": "func",
+  "linha": 1523,
+  "bloco": "base",
+  "chamadas": 11,
+  "refs": [
+   1848,
+   2055,
+   2335,
+   2591
+  ]
+ },
+ {
+  "nome": "ligarDrone",
+  "tipo": "func",
+  "linha": 1533,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   9620,
+   10873,
+   12862
+  ]
+ },
+ {
+  "nome": "subirDrone",
+  "tipo": "func",
+  "linha": 1545,
+  "bloco": "base",
+  "chamadas": 6,
+  "refs": [
+   9620,
+   10873,
+   11096,
+   12862
+  ]
+ },
+ {
+  "nome": "desligarDrone",
+  "tipo": "func",
+  "linha": 1554,
+  "bloco": "base",
+  "chamadas": 10,
+  "refs": [
+   2442,
+   9652,
+   9674,
+   9693
+  ]
+ },
+ {
+  "nome": "trovao",
+  "tipo": "func",
+  "linha": 1561,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   16364
+  ]
+ },
+ {
+  "nome": "reacaoDaCasa",
+  "tipo": "func",
+  "linha": 1576,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   16375
+  ]
+ },
+ {
+  "nome": "chorar",
+  "tipo": "func",
+  "linha": 1590,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   1407,
+   1581,
+   2082,
+   11306
+  ]
+ },
+ {
+  "nome": "risada",
+  "tipo": "func",
+  "linha": 1604,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   1587
+  ]
+ },
+ {
+  "nome": "falarV5",
+  "tipo": "func",
+  "linha": 1618,
+  "bloco": "base",
+  "chamadas": 13,
+  "refs": [
+   4453,
+   9563,
+   9575,
+   9626
+  ]
+ },
+ {
+  "nome": "passarODia",
+  "tipo": "func",
+  "linha": 1636,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10328
+  ]
+ },
+ {
+  "nome": "aproximar",
+  "tipo": "func",
+  "linha": 1663,
+  "bloco": "base",
+  "chamadas": 13,
+  "refs": [
+   1792,
+   2003,
+   5163,
+   9375
+  ]
+ },
+ {
+  "nome": "amigos",
+  "tipo": "func",
+  "linha": 1668,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   10534,
+   14578
+  ]
+ },
+ {
+  "nome": "morreuAlguem",
+  "tipo": "func",
+  "linha": 1671,
+  "bloco": "base",
+  "chamadas": 26,
+  "refs": [
+   1655,
+   1780,
+   5386,
+   5414
+  ]
+ },
+ {
+  "nome": "TAREFAS",
+  "tipo": "CONST",
+  "linha": 1694,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   1693,
+   1714,
+   1721,
+   1737
+  ]
+ },
+ {
+  "nome": "menuTarefas",
+  "tipo": "func",
+  "linha": 1704,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   1723,
+   1729,
+   10456
+  ]
+ },
+ {
+  "nome": "resolverTarefas",
+  "tipo": "func",
+  "linha": 1733,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   16367
+  ]
+ },
+ {
+  "nome": "iniciarCasas",
+  "tipo": "func",
+  "linha": 1799,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   1809,
+   16850
+  ]
+ },
+ {
+  "nome": "transmissao",
+  "tipo": "func",
+  "linha": 1808,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   4860
+  ]
+ },
+ {
+  "nome": "caiUmaCasa",
+  "tipo": "func",
+  "linha": 1828,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   16478
+  ]
+ },
+ {
+  "nome": "menuAjudarCasa",
+  "tipo": "func",
+  "linha": 1858,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   4864
+  ]
+ },
+ {
+  "nome": "retribuicao",
+  "tipo": "func",
+  "linha": 1874,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10429
+  ]
+ },
+ {
+  "nome": "desgastarGerador",
+  "tipo": "func",
+  "linha": 1888,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   16391
+  ]
+ },
+ {
+  "nome": "estadoGerador",
+  "tipo": "func",
+  "linha": 1904,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   4943
+  ]
+ },
+ {
+  "nome": "OBJETIVOS",
+  "tipo": "CONST",
+  "linha": 1914,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   1975,
+   1999,
+   2000,
+   2005
+  ]
+ },
+ {
+  "nome": "objetivoDe",
+  "tipo": "func",
+  "linha": 1975,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   1977
+  ]
+ },
+ {
+  "nome": "talvezRevelar",
+  "tipo": "func",
+  "linha": 1976,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   5145,
+   16252
+  ]
+ },
+ {
+  "nome": "objetivosNoLocal",
+  "tipo": "func",
+  "linha": 1990,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10014
+  ]
+ },
+ {
+  "nome": "cumprirObjetivo",
+  "tipo": "func",
+  "linha": 1994,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10198
+  ]
+ },
+ {
+  "nome": "cobrarObjetivos",
+  "tipo": "func",
+  "linha": 2009,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10424
+  ]
+ },
+ {
+  "nome": "objetivosAbertos",
+  "tipo": "func",
+  "linha": 2027,
+  "bloco": "base",
+  "chamadas": 0,
+  "refs": []
+ },
+ {
+  "nome": "VIRADAS",
+  "tipo": "CONST",
+  "linha": 2032,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   2052
+  ]
+ },
+ {
+  "nome": "talvezVirada",
+  "tipo": "func",
+  "linha": 2050,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10425
+  ]
+ },
+ {
+  "nome": "NOTURNOS",
+  "tipo": "CONST",
+  "linha": 2069,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   2129
+  ]
+ },
+ {
+  "nome": "gastarRuido",
+  "tipo": "func",
+  "linha": 2126,
+  "bloco": "base",
+  "chamadas": 8,
+  "refs": [
+   2071,
+   2082,
+   2084,
+   2088
+  ]
+ },
+ {
+  "nome": "eventoNoturno",
+  "tipo": "func",
+  "linha": 2128,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   16422
+  ]
+ },
+ {
+  "nome": "anotar",
+  "tipo": "func",
+  "linha": 2157,
+  "bloco": "base",
+  "chamadas": 56,
+  "refs": [
+   1841,
+   1869,
+   1987,
+   2007
+  ]
+ },
+ {
+  "nome": "telaDiario",
+  "tipo": "func",
+  "linha": 2161,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   4920
+  ]
+ },
+ {
+  "nome": "CHAVE",
+  "tipo": "CONST",
+  "linha": 2180,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   2220,
+   2224,
+   2228,
+   2267
+  ]
+ },
+ {
+  "nome": "CHAVE_HIST",
+  "tipo": "CONST",
+  "linha": 2181,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   2269,
+   2277
+  ]
+ },
+ {
+  "nome": "salvar",
+  "tipo": "func",
+  "linha": 2182,
+  "bloco": "base",
+  "chamadas": 6,
+  "refs": [
+   2231,
+   12129,
+   12135,
+   12138
+  ]
+ },
+ {
+  "nome": "temSave",
+  "tipo": "func",
+  "linha": 2223,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   16821
+  ]
+ },
+ {
+  "nome": "carregar",
+  "tipo": "func",
+  "linha": 2226,
+  "bloco": "base",
+  "chamadas": 6,
+  "refs": [
+   4650,
+   6637,
+   8608,
+   16827
+  ]
+ },
+ {
+  "nome": "ESPECIAIS",
+  "tipo": "CONST",
+  "linha": 2234,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   2236
+  ]
+ },
+ {
+  "nome": "apagarSave",
+  "tipo": "func",
+  "linha": 2267,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   2442,
+   16833
+  ]
+ },
+ {
+  "nome": "lerHistorico",
+  "tipo": "func",
+  "linha": 2268,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   2273,
+   2282
+  ]
+ },
+ {
+  "nome": "gravarHistorico",
+  "tipo": "func",
+  "linha": 2271,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   2449
+  ]
+ },
+ {
+  "nome": "mortoDeAntes",
+  "tipo": "func",
+  "linha": 2281,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10777
+  ]
+ },
+ {
+  "nome": "SONHOS",
+  "tipo": "CONST",
+  "linha": 2294,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   2293,
+   2332
+  ]
+ },
+ {
+  "nome": "SONHO_MIMICO",
+  "tipo": "CONST",
+  "linha": 2322,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   2332
+  ]
+ },
+ {
+  "nome": "talvezSonhar",
+  "tipo": "func",
+  "linha": 2327,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   16473
+  ]
+ },
+ {
+  "nome": "telaAjuda",
+  "tipo": "func",
+  "linha": 2350,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   4921
+  ]
+ },
+ {
+  "nome": "desenharFim",
+  "tipo": "func",
+  "linha": 2368,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   2450
+  ]
+ },
+ {
+  "nome": "pintarFim",
+  "tipo": "func",
+  "linha": 2371,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   942
+  ]
+ },
+ {
+  "nome": "FINAIS",
+  "tipo": "CONST",
+  "linha": 2424,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   2274,
+   2367,
+   2443,
+   2448
+  ]
+ },
+ {
+  "nome": "fim",
+  "tipo": "func",
+  "linha": 2440,
+  "bloco": "base",
+  "chamadas": 87,
+  "refs": [
+   908,
+   942,
+   952,
+   1056
+  ]
+ },
+ {
+  "nome": "registrarVoz",
+  "tipo": "func",
+  "linha": 2485,
+  "bloco": "base",
+  "chamadas": 16,
+  "refs": [
+   1678,
+   1839,
+   2019,
+   2042
+  ]
+ },
+ {
+  "nome": "vozesDisponiveis",
+  "tipo": "func",
+  "linha": 2490,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   10753,
+   10775
+  ]
+ },
+ {
+  "nome": "telaVozes",
+  "tipo": "func",
+  "linha": 2494,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   4919
+  ]
+ },
+ {
+  "nome": "chanceInfiltrado",
+  "tipo": "func",
+  "linha": 2515,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   2521
+  ]
+ },
+ {
+  "nome": "talvezInfiltrar",
+  "tipo": "func",
+  "linha": 2520,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   11167
+  ]
+ },
+ {
+  "nome": "PISTAS",
+  "tipo": "CONST",
+  "linha": 2527,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   2557,
+   2559,
+   2563,
+   7823
+  ]
+ },
+ {
+  "nome": "pistaDoDia",
+  "tipo": "func",
+  "linha": 2546,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10453
+  ]
+ },
+ {
+  "nome": "menuAcusar",
+  "tipo": "func",
+  "linha": 2570,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   2579,
+   4917
+  ]
+ },
+ {
+  "nome": "acusar",
+  "tipo": "func",
+  "linha": 2586,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   2579,
+   14851
+  ]
+ },
+ {
+  "nome": "infiltradoNoPrazo",
+  "tipo": "func",
+  "linha": 2639,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   16423
+  ]
+ },
+ {
+  "nome": "sabotagem",
+  "tipo": "func",
+  "linha": 2644,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   2552
+  ]
+ },
+ {
+  "nome": "aberturaPorDentro",
+  "tipo": "func",
+  "linha": 2677,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   16423
+  ]
+ },
+ {
+  "nome": "PLANTA",
+  "tipo": "CONST",
+  "linha": 2700,
+  "bloco": "base",
+  "chamadas": 32,
+  "refs": [
+   2258,
+   2713,
+   2716,
+   3121
+  ]
+ },
+ {
+  "nome": "SALA",
+  "tipo": "CONST",
+  "linha": 2712,
+  "bloco": "base",
+  "chamadas": 12,
+  "refs": [
+   2705,
+   2711,
+   2713,
+   2887
+  ]
+ },
+ {
+  "nome": "AMBIENTE",
+  "tipo": "CONST",
+  "linha": 2724,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   10468,
+   14990
+  ]
+ },
+ {
+  "nome": "CANTO",
+  "tipo": "CONST",
+  "linha": 2736,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   2740
+  ]
+ },
+ {
+  "nome": "espalharGente",
+  "tipo": "func",
+  "linha": 2738,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10295
+  ]
+ },
+ {
+  "nome": "paredeBase",
+  "tipo": "func",
+  "linha": 2745,
+  "bloco": "base",
+  "chamadas": 7,
+  "refs": [
+   2787,
+   2816,
+   2840,
+   2864
+  ]
+ },
+ {
+  "nome": "lampiao",
+  "tipo": "func",
+  "linha": 2769,
+  "bloco": "base",
+  "chamadas": 29,
+  "refs": [
+   21,
+   49,
+   59,
+   68
+  ]
+ },
+ {
+  "nome": "vinheta",
+  "tipo": "func",
+  "linha": 2779,
+  "bloco": "base",
+  "chamadas": 14,
+  "refs": [
+   1234,
+   2418,
+   2813,
+   2837
+  ]
+ },
+ {
+  "nome": "CENAS",
+  "tipo": "CONST",
+  "linha": 2785,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   2744,
+   3138,
+   3201
+  ]
+ },
+ {
+  "nome": "minimapa",
+  "tipo": "func",
+  "linha": 3113,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   3112,
+   3143
+  ]
+ },
+ {
+  "nome": "desenharCasa",
+  "tipo": "func",
+  "linha": 3136,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   941
+  ]
+ },
+ {
+  "nome": "tomDoDia",
+  "tipo": "func",
+  "linha": 3148,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   3159
+  ]
+ },
+ {
+  "nome": "aplicarTom",
+  "tipo": "func",
+  "linha": 3158,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   953,
+   13035
+  ]
+ },
+ {
+  "nome": "desenharChuva",
+  "tipo": "func",
+  "linha": 3172,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   954,
+   955,
+   7343
+  ]
+ },
+ {
+  "nome": "pedirFade",
+  "tipo": "func",
+  "linha": 3203,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   929
+  ]
+ },
+ {
+  "nome": "pintarFade",
+  "tipo": "func",
+  "linha": 3204,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   958
+  ]
+ },
+ {
+  "nome": "reiniciarMicro",
+  "tipo": "func",
+  "linha": 3219,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   4028
+  ]
+ },
+ {
+  "nome": "micro",
+  "tipo": "func",
+  "linha": 3222,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   3888
+  ]
+ },
+ {
+  "nome": "POS_MAPA",
+  "tipo": "CONST",
+  "linha": 3248,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   3278,
+   3286,
+   3326
+  ]
+ },
+ {
+  "nome": "desenharMapa",
+  "tipo": "func",
+  "linha": 3254,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   946
+  ]
+ },
+ {
+  "nome": "telaMapa",
+  "tipo": "func",
+  "linha": 3363,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   4854
+  ]
+ },
+ {
+  "nome": "veios",
+  "tipo": "func",
+  "linha": 3377,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   3455,
+   3456,
+   3873
+  ]
+ },
+ {
+  "nome": "painel",
+  "tipo": "func",
+  "linha": 3387,
+  "bloco": "base",
+  "chamadas": 30,
+  "refs": [
+   52,
+   218,
+   878,
+   2865
+  ]
+ },
+ {
+  "nome": "desenharPorta",
+  "tipo": "func",
+  "linha": 3400,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   940,
+   2983
+  ]
+ },
+ {
+  "nome": "ROUPA",
+  "tipo": "CONST",
+  "linha": 3639,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   3656
+  ]
+ },
+ {
+  "nome": "ANOMALIAS",
+  "tipo": "CONST",
+  "linha": 3640,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   3835,
+   5685,
+   11981,
+   12519
+  ]
+ },
+ {
+  "nome": "modeloVisitante",
+  "tipo": "func",
+  "linha": 3652,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   3841,
+   3867,
+   15394
+  ]
+ },
+ {
+  "nome": "pintarVisitante",
+  "tipo": "func",
+  "linha": 3672,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   3899,
+   3902
+  ]
+ },
+ {
+  "nome": "ZONAS",
+  "tipo": "CONST",
+  "linha": 3816,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   3813,
+   3846
+  ]
+ },
+ {
+  "nome": "EXTRA_ANOM",
+  "tipo": "CONST",
+  "linha": 3830,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   3835
+  ]
+ },
+ {
+  "nome": "ANOM_TODAS",
+  "tipo": "CONST",
+  "linha": 3835,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   3667
+  ]
+ },
+ {
+  "nome": "montarLente",
+  "tipo": "func",
+  "linha": 3840,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   4028,
+   15390,
+   15391
+  ]
+ },
+ {
+  "nome": "pontosDeInteresse",
+  "tipo": "func",
+  "linha": 3853,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   4035
+  ]
+ },
+ {
+  "nome": "desenharLente",
+  "tipo": "func",
+  "linha": 3864,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   943
+  ]
+ },
+ {
+  "nome": "moverLente",
+  "tipo": "func",
+  "linha": 3967,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   3974,
+   3980
+  ]
+ },
+ {
+  "nome": "varrer",
+  "tipo": "func",
+  "linha": 4006,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   4038
+  ]
+ },
+ {
+  "nome": "olharPeloOlho",
+  "tipo": "func",
+  "linha": 4025,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10988
+  ]
+ },
+ {
+  "nome": "DEFEITOS_SOM",
+  "tipo": "CONST",
+  "linha": 4068,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   4092,
+   4370,
+   4375,
+   13461
+  ]
+ },
+ {
+  "nome": "perfilEscuta",
+  "tipo": "func",
+  "linha": 4080,
+  "bloco": "base",
+  "chamadas": 7,
+  "refs": [
+   4223,
+   4260,
+   4311,
+   13453
+  ]
+ },
+ {
+  "nome": "respirar",
+  "tipo": "func",
+  "linha": 4106,
+  "bloco": "base",
+  "chamadas": 8,
+  "refs": [
+   4228,
+   9439,
+   15331,
+   15497
+  ]
+ },
+ {
+  "nome": "pisada",
+  "tipo": "func",
+  "linha": 4140,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   4235,
+   4237,
+   4238,
+   17978
+  ]
+ },
+ {
+  "nome": "roupa",
+  "tipo": "func",
+  "linha": 4162,
+  "bloco": "base",
+  "chamadas": 30,
+  "refs": [
+   1942,
+   3656,
+   3827,
+   3832
+  ]
+ },
+ {
+  "nome": "engolir",
+  "tipo": "func",
+  "linha": 4172,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   4244,
+   4302
+  ]
+ },
+ {
+  "nome": "tossir",
+  "tipo": "func",
+  "linha": 4184,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   4246,
+   4248,
+   4302,
+   15100
+  ]
+ },
+ {
+  "nome": "fungar",
+  "tipo": "func",
+  "linha": 4200,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   4245,
+   4302
+  ]
+ },
+ {
+  "nome": "arrastarLonge",
+  "tipo": "func",
+  "linha": 4209,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   4251
+  ]
+ },
+ {
+  "nome": "tocarEscuta",
+  "tipo": "func",
+  "linha": 4221,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   4321
+  ]
+ },
+ {
+  "nome": "desenharEscuta",
+  "tipo": "func",
+  "linha": 4258,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   945
+  ]
+ },
+ {
+  "nome": "PERG_ESCUTA",
+  "tipo": "CONST",
+  "linha": 4288,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   4332,
+   4341
+  ]
+ },
+ {
+  "nome": "escutarPorta",
+  "tipo": "func",
+  "linha": 4308,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   10990,
+   21118
+  ]
+ },
+ {
+  "nome": "escolherEscuta",
+  "tipo": "func",
+  "linha": 4328,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   4319,
+   4325
+  ]
+ },
+ {
+  "nome": "responderEscuta",
+  "tipo": "func",
+  "linha": 4350,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   4343
+  ]
+ },
+ {
+  "nome": "julgarEscuta",
+  "tipo": "func",
+  "linha": 4358,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   4346,
+   4354,
+   13436,
+   13438
+  ]
+ },
+ {
+  "nome": "PERG_LOCAL",
+  "tipo": "CONST",
+  "linha": 4391,
+  "bloco": "base",
+  "chamadas": 9,
+  "refs": [
+   2252,
+   4420,
+   4423,
+   4430
+  ]
+ },
+ {
+  "nome": "liberarPerguntaLocal",
+  "tipo": "func",
+  "linha": 4419,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   5146,
+   5154,
+   16253
+  ]
+ },
+ {
+  "nome": "perguntasLocaisAtivas",
+  "tipo": "func",
+  "linha": 4429,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10985
+  ]
+ },
+ {
+  "nome": "mimicoSabeLocal",
+  "tipo": "func",
+  "linha": 4433,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   11033
+  ]
+ },
+ {
+  "nome": "ouvirVoz",
+  "tipo": "func",
+  "linha": 4443,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   4457,
+   5150,
+   10543
+  ]
+ },
+ {
+  "nome": "reconheceVoz",
+  "tipo": "func",
+  "linha": 4462,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10928
+  ]
+ },
+ {
+  "nome": "CACHORROS",
+  "tipo": "CONST",
+  "linha": 4478,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   4480
+  ]
+ },
+ {
+  "nome": "ganharCachorro",
+  "tipo": "func",
+  "linha": 4479,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   4523,
+   6294,
+   10447
+  ]
+ },
+ {
+  "nome": "latido",
+  "tipo": "func",
+  "linha": 4483,
+  "bloco": "base",
+  "chamadas": 14,
+  "refs": [
+   4252,
+   8324,
+   8325,
+   9713
+  ]
+ },
+ {
+  "nome": "acoesQuintal",
+  "tipo": "func",
+  "linha": 4503,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   4992
+  ]
+ },
+ {
+  "nome": "muro",
+  "tipo": "func",
+  "linha": 4538,
+  "bloco": "base",
+  "chamadas": 62,
+  "refs": [
+   735,
+   2189,
+   3001,
+   4519
+  ]
+ },
+ {
+  "nome": "estadoMuro",
+  "tipo": "func",
+  "linha": 4542,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   4520,
+   12220,
+   14623
+  ]
+ },
+ {
+  "nome": "forcaMuro",
+  "tipo": "func",
+  "linha": 4548,
+  "bloco": "base",
+  "chamadas": 8,
+  "refs": [
+   4570,
+   8121,
+   9705,
+   12220
+  ]
+ },
+ {
+  "nome": "danificarMuro",
+  "tipo": "func",
+  "linha": 4552,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   12030,
+   12919
+  ]
+ },
+ {
+  "nome": "menuMuro",
+  "tipo": "func",
+  "linha": 4558,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   4519
+  ]
+ },
+ {
+  "nome": "FABRICO",
+  "tipo": "CONST",
+  "linha": 4618,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   5084
+  ]
+ },
+ {
+  "nome": "ITENS",
+  "tipo": "CONST",
+  "linha": 4642,
+  "bloco": "base",
+  "chamadas": 14,
+  "refs": [
+   2247,
+   4641,
+   4666,
+   4760
+  ]
+ },
+ {
+  "nome": "usarMunicao",
+  "tipo": "func",
+  "linha": 4670,
+  "bloco": "base",
+  "chamadas": 6,
+  "refs": [
+   5287,
+   7610,
+   8494,
+   11211
+  ]
+ },
+ {
+  "nome": "acharComida",
+  "tipo": "func",
+  "linha": 4678,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10059
+  ]
+ },
+ {
+  "nome": "comerEstragada",
+  "tipo": "func",
+  "linha": 4686,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   4929
+  ]
+ },
+ {
+  "nome": "TODOS_LOCAIS",
+  "tipo": "CONST",
+  "linha": 4705,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   8096
+  ]
+ },
+ {
+  "nome": "locaisDeHoje",
+  "tipo": "func",
+  "linha": 4745,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   11507,
+   11536
+  ]
+ },
+ {
+  "nome": "itensDoLocal",
+  "tipo": "func",
+  "linha": 4757,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10066
+  ]
+ },
+ {
+  "nome": "EXAMES",
+  "tipo": "CONST",
+  "linha": 4764,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   4808,
+   4994
+  ]
+ },
+ {
+  "nome": "darItem",
+  "tipo": "func",
+  "linha": 4794,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   4770,
+   4775,
+   4782,
+   4788
+  ]
+ },
+ {
+  "nome": "menuExame",
+  "tipo": "func",
+  "linha": 4806,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   4994
+  ]
+ },
+ {
+  "nome": "menuComodo",
+  "tipo": "func",
+  "linha": 4824,
+  "bloco": "base",
+  "chamadas": 55,
+  "refs": [
+   1862,
+   1870,
+   3372,
+   4517
+  ]
+ },
+ {
+  "nome": "telaItens",
+  "tipo": "func",
+  "linha": 5049,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   5045
+  ]
+ },
+ {
+  "nome": "menuFabrico",
+  "tipo": "func",
+  "linha": 5080,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   4898
+  ]
+ },
+ {
+  "nome": "opiniaoDaCasa",
+  "tipo": "func",
+  "linha": 5102,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   4918
+  ]
+ },
+ {
+  "nome": "menuConversa",
+  "tipo": "func",
+  "linha": 5122,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   4916,
+   5192
+  ]
+ },
+ {
+  "nome": "menuAssunto",
+  "tipo": "func",
+  "linha": 5135,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   5128,
+   5139,
+   5150
+  ]
+ },
+ {
+  "nome": "BICHOS",
+  "tipo": "CONST",
+  "linha": 5197,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   5196,
+   5220,
+   5229
+  ]
+ },
+ {
+  "nome": "sortearBicho",
+  "tipo": "func",
+  "linha": 5218,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   5246,
+   7598,
+   16531
+  ]
+ },
+ {
+  "nome": "COMO",
+  "tipo": "CONST",
+  "linha": 5233,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   1386,
+   5249,
+   17176,
+   18489
+  ]
+ },
+ {
+  "nome": "DIST",
+  "tipo": "CONST",
+  "linha": 5239,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   5250,
+   11411
+  ]
+ },
+ {
+  "nome": "encontroRua",
+  "tipo": "func",
+  "linha": 5245,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   10134,
+   20149,
+   20150,
+   20151
+  ]
+ },
+ {
+  "nome": "fuga",
+  "tipo": "func",
+  "linha": 5394,
+  "bloco": "base",
+  "chamadas": 29,
+  "refs": [
+   2372,
+   2388,
+   2429,
+   2446
+  ]
+ },
+ {
+  "nome": "FERRA",
+  "tipo": "CONST",
+  "linha": 5430,
+  "bloco": "base",
+  "chamadas": 18,
+  "refs": [
+   2242,
+   5056,
+   5057,
+   5463
+  ]
+ },
+ {
+  "nome": "MATE",
+  "tipo": "CONST",
+  "linha": 5441,
+  "bloco": "base",
+  "chamadas": 24,
+  "refs": [
+   4583,
+   5459,
+   5466,
+   5616
+  ]
+ },
+ {
+  "nome": "temFerra",
+  "tipo": "func",
+  "linha": 5448,
+  "bloco": "base",
+  "chamadas": 26,
+  "refs": [
+   4584,
+   5463,
+   5669,
+   5873
+  ]
+ },
+ {
+  "nome": "pegarFerra",
+  "tipo": "func",
+  "linha": 5449,
+  "bloco": "base",
+  "chamadas": 7,
+  "refs": [
+   5671,
+   6289,
+   6426,
+   6711
+  ]
+ },
+ {
+  "nome": "temMat",
+  "tipo": "func",
+  "linha": 5454,
+  "bloco": "base",
+  "chamadas": 35,
+  "refs": [
+   4573,
+   4582,
+   4593,
+   6131
+  ]
+ },
+ {
+  "nome": "gastarMat",
+  "tipo": "func",
+  "linha": 5455,
+  "bloco": "base",
+  "chamadas": 28,
+  "refs": [
+   4574,
+   4585,
+   4595,
+   5638
+  ]
+ },
+ {
+  "nome": "darMat",
+  "tipo": "func",
+  "linha": 5456,
+  "bloco": "base",
+  "chamadas": 18,
+  "refs": [
+   4606,
+   5678,
+   6059,
+   6278
+  ]
+ },
+ {
+  "nome": "listaMat",
+  "tipo": "func",
+  "linha": 5457,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   5059,
+   8657
+  ]
+ },
+ {
+  "nome": "faltaPra",
+  "tipo": "func",
+  "linha": 5461,
+  "bloco": "base",
+  "chamadas": 6,
+  "refs": [
+   4830,
+   5064,
+   5613,
+   12209
+  ]
+ },
+ {
+  "nome": "AVARIAS",
+  "tipo": "CONST",
+  "linha": 5474,
+  "bloco": "base",
+  "chamadas": 21,
+  "refs": [
+   2241,
+   4829,
+   4847,
+   5064
+  ]
+ },
+ {
+  "nome": "avarias",
+  "tipo": "func",
+  "linha": 5536,
+  "bloco": "base",
+  "chamadas": 21,
+  "refs": [
+   795,
+   2190,
+   5037,
+   5060
+  ]
+ },
+ {
+  "nome": "avariaEm",
+  "tipo": "func",
+  "linha": 5537,
+  "bloco": "base",
+  "chamadas": 15,
+  "refs": [
+   3062,
+   3066,
+   5541,
+   5583
+  ]
+ },
+ {
+  "nome": "avariasNo",
+  "tipo": "func",
+  "linha": 5538,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   4828,
+   12161
+  ]
+ },
+ {
+  "nome": "abrirAvaria",
+  "tipo": "func",
+  "linha": 5540,
+  "bloco": "base",
+  "chamadas": 12,
+  "refs": [
+   5569,
+   5584,
+   5747,
+   5751
+  ]
+ },
+ {
+  "nome": "fecharAvaria",
+  "tipo": "func",
+  "linha": 5547,
+  "bloco": "base",
+  "chamadas": 7,
+  "refs": [
+   4596,
+   5585,
+   5653,
+   6148
+  ]
+ },
+ {
+  "nome": "talvezNovaAvaria",
+  "tipo": "func",
+  "linha": 5550,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   4846,
+   8156,
+   10331
+  ]
+ },
+ {
+  "nome": "envelhecerAvarias",
+  "tipo": "func",
+  "linha": 5573,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10330
+  ]
+ },
+ {
+  "nome": "pesoAvarias",
+  "tipo": "func",
+  "linha": 5593,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10338
+  ]
+ },
+ {
+  "nome": "menuConserto",
+  "tipo": "func",
+  "linha": 5604,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   4831
+  ]
+ },
+ {
+  "nome": "terminarConserto",
+  "tipo": "func",
+  "linha": 5651,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   5627,
+   5639
+  ]
+ },
+ {
+  "nome": "vasculharPor",
+  "tipo": "func",
+  "linha": 5666,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   4842,
+   10185
+  ]
+ },
+ {
+  "nome": "BASE",
+  "tipo": "CONST",
+  "linha": 5690,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   5705,
+   5811
+  ]
+ },
+ {
+  "nome": "ANOM",
+  "tipo": "CONST",
+  "linha": 5702,
+  "bloco": "base",
+  "chamadas": 9,
+  "refs": [
+   5796,
+   5797,
+   12015,
+   12074
+  ]
+ },
+ {
+  "nome": "memAnom",
+  "tipo": "func",
+  "linha": 5768,
+  "bloco": "base",
+  "chamadas": 40,
+  "refs": [
+   795,
+   2191,
+   5772,
+   5776
+  ]
+ },
+ {
+  "nome": "usouMetodo",
+  "tipo": "func",
+  "linha": 5771,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   5901
+  ]
+ },
+ {
+  "nome": "metodoViciado",
+  "tipo": "func",
+  "linha": 5775,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   5863,
+   5940,
+   12087
+  ]
+ },
+ {
+  "nome": "localViciado",
+  "tipo": "func",
+  "linha": 5783,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   5810
+  ]
+ },
+ {
+  "nome": "sortearAnomalia",
+  "tipo": "func",
+  "linha": 5793,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   5954,
+   14341
+  ]
+ },
+ {
+  "nome": "ondeAparece",
+  "tipo": "func",
+  "linha": 5809,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   5955
+  ]
+ },
+ {
+  "nome": "chanceAnomalia",
+  "tipo": "func",
+  "linha": 5819,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   5952
+  ]
+ },
+ {
+  "nome": "METODOS",
+  "tipo": "CONST",
+  "linha": 5829,
+  "bloco": "base",
+  "chamadas": 7,
+  "refs": [
+   5871,
+   5872,
+   5880,
+   5900
+  ]
+ },
+ {
+  "nome": "menuInvestigar",
+  "tipo": "func",
+  "linha": 5859,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   5958,
+   12079,
+   12080
+  ]
+ },
+ {
+  "nome": "investigar",
+  "tipo": "func",
+  "linha": 5898,
+  "bloco": "base",
+  "chamadas": 10,
+  "refs": [
+   5828,
+   5887,
+   5968,
+   7917
+  ]
+ },
+ {
+  "nome": "talvezAnomalia",
+  "tipo": "func",
+  "linha": 5950,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   4835
+  ]
+ },
+ {
+  "nome": "anotarCasa",
+  "tipo": "func",
+  "linha": 5963,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   4850
+  ]
+ },
+ {
+  "nome": "CULT",
+  "tipo": "CONST",
+  "linha": 5975,
+  "bloco": "base",
+  "chamadas": 7,
+  "refs": [
+   2244,
+   3026,
+   6002,
+   6038
+  ]
+ },
+ {
+  "nome": "PRAGAS",
+  "tipo": "CONST",
+  "linha": 5983,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   6013,
+   6014,
+   6018,
+   6047
+  ]
+ },
+ {
+  "nome": "canteiros",
+  "tipo": "func",
+  "linha": 5994,
+  "bloco": "base",
+  "chamadas": 22,
+  "refs": [
+   3025,
+   4506,
+   5996,
+   6001
+  ]
+ },
+ {
+  "nome": "novoCanteiro",
+  "tipo": "func",
+  "linha": 5995,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   6098
+  ]
+ },
+ {
+  "nome": "crescerCanteiros",
+  "tipo": "func",
+  "linha": 5998,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   8159,
+   10345
+  ]
+ },
+ {
+  "nome": "prontoPra",
+  "tipo": "func",
+  "linha": 6037,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   4507,
+   6048,
+   6051,
+   6055
+  ]
+ },
+ {
+  "nome": "menuHorta",
+  "tipo": "func",
+  "linha": 6041,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   4509,
+   6104
+  ]
+ },
+ {
+  "nome": "menuPlantio",
+  "tipo": "func",
+  "linha": 6093,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   6089
+  ]
+ },
+ {
+  "nome": "agua",
+  "tipo": "func",
+  "linha": 6109,
+  "bloco": "base",
+  "chamadas": 48,
+  "refs": [
+   227,
+   888,
+   1072,
+   1697
+  ]
+ },
+ {
+  "nome": "coletarChuva",
+  "tipo": "func",
+  "linha": 6112,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10346
+  ]
+ },
+ {
+  "nome": "menuAgua",
+  "tipo": "func",
+  "linha": 6123,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   4512
+  ]
+ },
+ {
+  "nome": "VEIC",
+  "tipo": "CONST",
+  "linha": 6156,
+  "bloco": "base",
+  "chamadas": 29,
+  "refs": [
+   4516,
+   5070,
+   6173,
+   6175
+  ]
+ },
+ {
+  "nome": "veic",
+  "tipo": "func",
+  "linha": 6170,
+  "bloco": "base",
+  "chamadas": 13,
+  "refs": [
+   795,
+   2191,
+   4514,
+   6171
+  ]
+ },
+ {
+  "nome": "veicPronto",
+  "tipo": "func",
+  "linha": 6171,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   3075,
+   4516,
+   6173
+  ]
+ },
+ {
+  "nome": "melhorVeic",
+  "tipo": "func",
+  "linha": 6172,
+  "bloco": "base",
+  "chamadas": 18,
+  "refs": [
+   3072,
+   4855,
+   5069,
+   6178
+  ]
+ },
+ {
+  "nome": "bonusCarga",
+  "tipo": "func",
+  "linha": 6177,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10195
+  ]
+ },
+ {
+  "nome": "menuVeiculos",
+  "tipo": "func",
+  "linha": 6180,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   4515
+  ]
+ },
+ {
+  "nome": "acharVeiculo",
+  "tipo": "func",
+  "linha": 6210,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10192
+  ]
+ },
+ {
+  "nome": "CLIMAS",
+  "tipo": "CONST",
+  "linha": 6221,
+  "bloco": "base",
+  "chamadas": 7,
+  "refs": [
+   2249,
+   5051,
+   6243,
+   6258
+  ]
+ },
+ {
+  "nome": "CLIMA_TXT",
+  "tipo": "CONST",
+  "linha": 6231,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   6260
+  ]
+ },
+ {
+  "nome": "sortearClima",
+  "tipo": "func",
+  "linha": 6241,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   6256
+  ]
+ },
+ {
+  "nome": "aplicarClima",
+  "tipo": "func",
+  "linha": 6255,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10297
+  ]
+ },
+ {
+  "nome": "visibilidade",
+  "tipo": "func",
+  "linha": 6262,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   7783,
+   8948
+  ]
+ },
+ {
+  "nome": "EVT",
+  "tipo": "CONST",
+  "linha": 6266,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   6352,
+   12063
+  ]
+ },
+ {
+  "nome": "PESO_R",
+  "tipo": "CONST",
+  "linha": 6349,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   6360,
+   6362
+  ]
+ },
+ {
+  "nome": "sortearEvento",
+  "tipo": "func",
+  "linha": 6350,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   6367
+  ]
+ },
+ {
+  "nome": "eventoDoDia",
+  "tipo": "func",
+  "linha": 6365,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10422
+  ]
+ },
+ {
+  "nome": "TROCAS",
+  "tipo": "CONST",
+  "linha": 6383,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   6410
+  ]
+ },
+ {
+  "nome": "visitaComerciante",
+  "tipo": "func",
+  "linha": 6401,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10423
+  ]
+ },
+ {
+  "nome": "TOM",
+  "tipo": "CONST",
+  "linha": 6449,
+  "bloco": "base",
+  "chamadas": 9,
+  "refs": [
+   6458,
+   6459,
+   6460,
+   6461
+  ]
+ },
+ {
+  "nome": "tomDaHora",
+  "tipo": "func",
+  "linha": 6457,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   6473,
+   15045,
+   15046
+  ]
+ },
+ {
+  "nome": "fatiar",
+  "tipo": "func",
+  "linha": 6467,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   6474
+  ]
+ },
+ {
+  "nome": "falarNatural",
+  "tipo": "func",
+  "linha": 6472,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   1626,
+   15064,
+   15065
+  ]
+ },
+ {
+  "nome": "CAT",
+  "tipo": "CONST",
+  "linha": 6497,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   6491,
+   7110,
+   17952
+  ]
+ },
+ {
+  "nome": "CATALOGO",
+  "tipo": "CONST",
+  "linha": 6500,
+  "bloco": "base",
+  "chamadas": 36,
+  "refs": [
+   2166,
+   4836,
+   5396,
+   6610
+  ]
+ },
+ {
+  "nome": "RARO_TXT",
+  "tipo": "CONST",
+  "linha": 6591,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   7113
+  ]
+ },
+ {
+  "nome": "MOCHILAS",
+  "tipo": "CONST",
+  "linha": 6594,
+  "bloco": "base",
+  "chamadas": 16,
+  "refs": [
+   6593,
+   6608,
+   6615,
+   7163
+  ]
+ },
+ {
+  "nome": "mochila",
+  "tipo": "func",
+  "linha": 6604,
+  "bloco": "base",
+  "chamadas": 120,
+  "refs": [
+   804,
+   908,
+   948,
+   952
+  ]
+ },
+ {
+  "nome": "mochilaInfo",
+  "tipo": "func",
+  "linha": 6613,
+  "bloco": "base",
+  "chamadas": 21,
+  "refs": [
+   4505,
+   4840,
+   6650,
+   7016
+  ]
+ },
+ {
+  "nome": "maos",
+  "tipo": "func",
+  "linha": 6622,
+  "bloco": "base",
+  "chamadas": 21,
+  "refs": [
+   804,
+   2209,
+   3826,
+   3831
+  ]
+ },
+ {
+  "nome": "PESO_MAOS",
+  "tipo": "CONST",
+  "linha": 6629,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   6651
+  ]
+ },
+ {
+  "nome": "pesoMochila",
+  "tipo": "func",
+  "linha": 6630,
+  "bloco": "base",
+  "chamadas": 14,
+  "refs": [
+   4505,
+   6636,
+   6652,
+   9167
+  ]
+ },
+ {
+  "nome": "pesoMaos",
+  "tipo": "func",
+  "linha": 6633,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   6636,
+   6651
+  ]
+ },
+ {
+  "nome": "pesoAtual",
+  "tipo": "func",
+  "linha": 6636,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   4840,
+   7017,
+   7152,
+   7465
+  ]
+ },
+ {
+  "nome": "maosOcupadas",
+  "tipo": "func",
+  "linha": 6638,
+  "bloco": "base",
+  "chamadas": 6,
+  "refs": [
+   5283,
+   5395,
+   6640,
+   8957
+  ]
+ },
+ {
+  "nome": "penalidadeMaos",
+  "tipo": "func",
+  "linha": 6639,
+  "bloco": "base",
+  "chamadas": 10,
+  "refs": [
+   5281,
+   5300,
+   5328,
+   5349
+  ]
+ },
+ {
+  "nome": "volumeAtual",
+  "tipo": "func",
+  "linha": 6644,
+  "bloco": "base",
+  "chamadas": 8,
+  "refs": [
+   6652,
+   7017,
+   7152,
+   9167
+  ]
+ },
+ {
+  "nome": "cabe",
+  "tipo": "func",
+  "linha": 6647,
+  "bloco": "base",
+  "chamadas": 62,
+  "refs": [
+   1123,
+   1758,
+   2688,
+   3217
+  ]
+ },
+ {
+  "nome": "guardar",
+  "tipo": "func",
+  "linha": 6654,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   5214,
+   7517,
+   7583,
+   15792
+  ]
+ },
+ {
+  "nome": "largar",
+  "tipo": "func",
+  "linha": 6674,
+  "bloco": "base",
+  "chamadas": 12,
+  "refs": [
+   5285,
+   7133,
+   7138,
+   7387
+  ]
+ },
+ {
+  "nome": "temItem",
+  "tipo": "func",
+  "linha": 6689,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   7386,
+   7391,
+   7589
+  ]
+ },
+ {
+  "nome": "contarItem",
+  "tipo": "func",
+  "linha": 6692,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   7130
+  ]
+ },
+ {
+  "nome": "descarregar",
+  "tipo": "func",
+  "linha": 6698,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   6697,
+   11560
+  ]
+ },
+ {
+  "nome": "estragarNaMochila",
+  "tipo": "func",
+  "linha": 6740,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   11558
+  ]
+ },
+ {
+  "nome": "PAL",
+  "tipo": "CONST",
+  "linha": 6758,
+  "bloco": "base",
+  "chamadas": 71,
+  "refs": [
+   6777,
+   6779,
+   6780,
+   6781
+  ]
+ },
+ {
+  "nome": "desItem",
+  "tipo": "func",
+  "linha": 6762,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   7064,
+   7082
+  ]
+ },
+ {
+  "nome": "DESENHO",
+  "tipo": "CONST",
+  "linha": 6775,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   6754,
+   6765,
+   8834
+  ]
+ },
+ {
+  "nome": "desenharMochila",
+  "tipo": "func",
+  "linha": 7011,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   948
+  ]
+ },
+ {
+  "nome": "toqueMochila",
+  "tipo": "func",
+  "linha": 7093,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   1050
+  ]
+ },
+ {
+  "nome": "fichaItem",
+  "tipo": "func",
+  "linha": 7105,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   7101
+  ]
+ },
+ {
+  "nome": "telaMochila",
+  "tipo": "func",
+  "linha": 7143,
+  "bloco": "base",
+  "chamadas": 6,
+  "refs": [
+   7135,
+   7138,
+   7140,
+   7464
+  ]
+ },
+ {
+  "nome": "acharMochila",
+  "tipo": "func",
+  "linha": 7162,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   7501,
+   9299,
+   17006
+  ]
+ },
+ {
+  "nome": "TIPO_CASA",
+  "tipo": "CONST",
+  "linha": 7175,
+  "bloco": "base",
+  "chamadas": 16,
+  "refs": [
+   7227,
+   7228,
+   7229,
+   7237
+  ]
+ },
+ {
+  "nome": "ESTADO_CASA",
+  "tipo": "CONST",
+  "linha": 7205,
+  "bloco": "base",
+  "chamadas": 0,
+  "refs": []
+ },
+ {
+  "nome": "COMODOS_CASA",
+  "tipo": "CONST",
+  "linha": 7206,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   7239,
+   7241
+  ]
+ },
+ {
+  "nome": "casasVistas",
+  "tipo": "func",
+  "linha": 7217,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   804,
+   2210,
+   7221,
+   7261
+  ]
+ },
+ {
+  "nome": "gerarCasa",
+  "tipo": "func",
+  "linha": 7219,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   7644
+  ]
+ },
+ {
+  "nome": "salvarCasa",
+  "tipo": "func",
+  "linha": 7260,
+  "bloco": "base",
+  "chamadas": 7,
+  "refs": [
+   7427,
+   7467,
+   7558,
+   7584
+  ]
+ },
+ {
+  "nome": "desenharCasaFora",
+  "tipo": "func",
+  "linha": 7269,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   949
+  ]
+ },
+ {
+  "nome": "chegarNaCasa",
+  "tipo": "func",
+  "linha": 7348,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   7651
+  ]
+ },
+ {
+  "nome": "menuFora",
+  "tipo": "func",
+  "linha": 7364,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   7361,
+   7379,
+   7390,
+   7404
+  ]
+ },
+ {
+  "nome": "entrarNaCasa",
+  "tipo": "func",
+  "linha": 7434,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   7366
+  ]
+ },
+ {
+  "nome": "menuDentro",
+  "tipo": "func",
+  "linha": 7449,
+  "bloco": "base",
+  "chamadas": 7,
+  "refs": [
+   7446,
+   7464,
+   7534,
+   7563
+  ]
+ },
+ {
+  "nome": "riscoCasa",
+  "tipo": "func",
+  "linha": 7473,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   7452,
+   7528
+  ]
+ },
+ {
+  "nome": "vasculharCasa",
+  "tipo": "func",
+  "linha": 7479,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   7458
+  ]
+ },
+ {
+  "nome": "sustoNaCasa",
+  "tipo": "func",
+  "linha": 7537,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   7530
+  ]
+ },
+ {
+  "nome": "encararOcupante",
+  "tipo": "func",
+  "linha": 7567,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   7462
+  ]
+ },
+ {
+  "nome": "menuRuaCasas",
+  "tipo": "func",
+  "linha": 7639,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   11538
+  ]
+ },
+ {
+  "nome": "poeira",
+  "tipo": "func",
+  "linha": 7664,
+  "bloco": "base",
+  "chamadas": 18,
+  "refs": [
+   845,
+   2725,
+   3833,
+   7371
+  ]
+ },
+ {
+  "nome": "fachoLampiao",
+  "tipo": "func",
+  "linha": 7686,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   7793,
+   7799,
+   13163,
+   13164
+  ]
+ },
+ {
+  "nome": "sombraDe",
+  "tipo": "func",
+  "linha": 7708,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   7790,
+   7791,
+   7792,
+   13161
+  ]
+ },
+ {
+  "nome": "textura",
+  "tipo": "func",
+  "linha": 7726,
+  "bloco": "base",
+  "chamadas": 6,
+  "refs": [
+   2312,
+   7724,
+   7795,
+   7801
+  ]
+ },
+ {
+  "nome": "respiraImagem",
+  "tipo": "func",
+  "linha": 7744,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   939
+  ]
+ },
+ {
+  "nome": "vinhetaViva",
+  "tipo": "func",
+  "linha": 7750,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   7797,
+   7802,
+   7813,
+   13180
+  ]
+ },
+ {
+  "nome": "franja",
+  "tipo": "func",
+  "linha": 7761,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   7796,
+   7816,
+   13182
+  ]
+ },
+ {
+  "nome": "acabamento",
+  "tipo": "func",
+  "linha": 7778,
+  "bloco": "base",
+  "chamadas": 8,
+  "refs": [
+   957,
+   7962,
+   11893,
+   11894
+  ]
+ },
+ {
+  "nome": "SOBRENOMES",
+  "tipo": "CONST",
+  "linha": 7826,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   7832
+  ]
+ },
+ {
+  "nome": "PRIMEIROS",
+  "tipo": "CONST",
+  "linha": 7828,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   7832
+  ]
+ },
+ {
+  "nome": "nomeInventado",
+  "tipo": "func",
+  "linha": 7831,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   7844
+  ]
+ },
+ {
+  "nome": "lerPista",
+  "tipo": "func",
+  "linha": 7836,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   7935
+  ]
+ },
+ {
+  "nome": "bonusEstudo",
+  "tipo": "func",
+  "linha": 7918,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   5884,
+   7930,
+   12101,
+   14214
+  ]
+ },
+ {
+  "nome": "menuPistas",
+  "tipo": "func",
+  "linha": 7921,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   4837
+  ]
+ },
+ {
+  "nome": "CIDADES",
+  "tipo": "CONST",
+  "linha": 7959,
+  "bloco": "base",
+  "chamadas": 24,
+  "refs": [
+   2248,
+   4856,
+   7226,
+   7950
+  ]
+ },
+ {
+  "nome": "ESTAGIOS",
+  "tipo": "CONST",
+  "linha": 8012,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   8025,
+   8026,
+   8037
+  ]
+ },
+ {
+  "nome": "estagioDe",
+  "tipo": "func",
+  "linha": 8022,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   8036,
+   8211,
+   12230,
+   14650
+  ]
+ },
+ {
+  "nome": "marcarCidade",
+  "tipo": "func",
+  "linha": 8029,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   8205,
+   10348
+  ]
+ },
+ {
+  "nome": "pesoEstagio",
+  "tipo": "func",
+  "linha": 8035,
+  "bloco": "base",
+  "chamadas": 7,
+  "refs": [
+   7234,
+   7244,
+   10008,
+   17085
+  ]
+ },
+ {
+  "nome": "LOCAIS_CIDADE",
+  "tipo": "CONST",
+  "linha": 8045,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   8097
+  ]
+ },
+ {
+  "nome": "climaDaCidade",
+  "tipo": "func",
+  "linha": 8089,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   6245
+  ]
+ },
+ {
+  "nome": "locaisDaCidade",
+  "tipo": "func",
+  "linha": 8094,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   8100
+  ]
+ },
+ {
+  "nome": "poolDeLocais",
+  "tipo": "func",
+  "linha": 8100,
+  "bloco": "base",
+  "chamadas": 11,
+  "refs": [
+   3285,
+   3368,
+   4747,
+   4751
+  ]
+ },
+ {
+  "nome": "podeViajar",
+  "tipo": "func",
+  "linha": 8103,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   8170,
+   8304
+  ]
+ },
+ {
+  "nome": "ausencia",
+  "tipo": "func",
+  "linha": 8117,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   7953,
+   8203
+  ]
+ },
+ {
+  "nome": "viajarPara",
+  "tipo": "func",
+  "linha": 8169,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   8308
+  ]
+ },
+ {
+  "nome": "bloqueioEstrada",
+  "tipo": "func",
+  "linha": 8230,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   8199
+  ]
+ },
+ {
+  "nome": "motorViagem",
+  "tipo": "func",
+  "linha": 8268,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   8184
+  ]
+ },
+ {
+  "nome": "telaCidades",
+  "tipo": "func",
+  "linha": 8294,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   4855,
+   8308
+  ]
+ },
+ {
+  "nome": "AMEACAS",
+  "tipo": "CONST",
+  "linha": 8320,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   2246,
+   8416,
+   8440,
+   12232
+  ]
+ },
+ {
+  "nome": "ameacasDoLocal",
+  "tipo": "func",
+  "linha": 8381,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   9991
+  ]
+ },
+ {
+  "nome": "chanceAmeaca",
+  "tipo": "func",
+  "linha": 8392,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   9990
+  ]
+ },
+ {
+  "nome": "ameacasVivas",
+  "tipo": "func",
+  "linha": 8404,
+  "bloco": "base",
+  "chamadas": 10,
+  "refs": [
+   8399,
+   8406,
+   8408,
+   8415
+  ]
+ },
+ {
+  "nome": "plantarAmeaca",
+  "tipo": "func",
+  "linha": 8405,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   9992
+  ]
+ },
+ {
+  "nome": "moverAmeacas",
+  "tipo": "func",
+  "linha": 8412,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10349
+  ]
+ },
+ {
+  "nome": "ameacaNoLocal",
+  "tipo": "func",
+  "linha": 8434,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   9989,
+   17098
+  ]
+ },
+ {
+  "nome": "encararAmeaca",
+  "tipo": "func",
+  "linha": 8439,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10000
+  ]
+ },
+ {
+  "nome": "sofrer",
+  "tipo": "func",
+  "linha": 8523,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   8470,
+   8485,
+   8496,
+   8509
+  ]
+ },
+ {
+  "nome": "pesoFerido",
+  "tipo": "func",
+  "linha": 8548,
+  "bloco": "base",
+  "chamadas": 24,
+  "refs": [
+   5300,
+   5349,
+   5401,
+   8459
+  ]
+ },
+ {
+  "nome": "sararUmPouco",
+  "tipo": "func",
+  "linha": 8552,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10350
+  ]
+ },
+ {
+  "nome": "RECEITAS",
+  "tipo": "CONST",
+  "linha": 8579,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   4895,
+   8661
+  ]
+ },
+ {
+  "nome": "podeReceita",
+  "tipo": "func",
+  "linha": 8630,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   4895,
+   8664,
+   8668
+  ]
+ },
+ {
+  "nome": "jaTemReceita",
+  "tipo": "func",
+  "linha": 8646,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   4895,
+   8661
+  ]
+ },
+ {
+  "nome": "menuCombinar",
+  "tipo": "func",
+  "linha": 8654,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   4894
+  ]
+ },
+ {
+  "nome": "DESMONTE",
+  "tipo": "CONST",
+  "linha": 8689,
+  "bloco": "base",
+  "chamadas": 7,
+  "refs": [
+   4896,
+   8698,
+   8705,
+   8706
+  ]
+ },
+ {
+  "nome": "menuDesmontar",
+  "tipo": "func",
+  "linha": 8695,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   4897
+  ]
+ },
+ {
+  "nome": "FAM",
+  "tipo": "CONST",
+  "linha": 8725,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   8719,
+   8934,
+   15427
+  ]
+ },
+ {
+  "nome": "CRIATURAS",
+  "tipo": "CONST",
+  "linha": 8734,
+  "bloco": "base",
+  "chamadas": 47,
+  "refs": [
+   4996,
+   5001,
+   5027,
+   5028
+  ]
+ },
+ {
+  "nome": "criaturasDaNoite",
+  "tipo": "func",
+  "linha": 8810,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   8816
+  ]
+ },
+ {
+  "nome": "sortearCriatura",
+  "tipo": "func",
+  "linha": 8815,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   9068,
+   12759
+  ]
+ },
+ {
+  "nome": "desSilhueta",
+  "tipo": "func",
+  "linha": 8836,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   12422,
+   12423,
+   13319,
+   13320
+  ]
+ },
+ {
+  "nome": "fichaCriatura",
+  "tipo": "func",
+  "linha": 8932,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   9079
+  ]
+ },
+ {
+  "nome": "leitura",
+  "tipo": "func",
+  "linha": 8945,
+  "bloco": "base",
+  "chamadas": 11,
+  "refs": [
+   7883,
+   9071,
+   9115,
+   9974
+  ]
+ },
+ {
+  "nome": "mostrarLeitura",
+  "tipo": "func",
+  "linha": 8975,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   9081,
+   13929
+  ]
+ },
+ {
+  "nome": "marcarVisto",
+  "tipo": "func",
+  "linha": 8987,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   9072
+  ]
+ },
+ {
+  "nome": "TATICAS",
+  "tipo": "CONST",
+  "linha": 8994,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   9083
+  ]
+ },
+ {
+  "nome": "perfilLocal",
+  "tipo": "func",
+  "linha": 9056,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   9070
+  ]
+ },
+ {
+  "nome": "encontroCriatura",
+  "tipo": "func",
+  "linha": 9067,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   9996
+  ]
+ },
+ {
+  "nome": "BOLETIM",
+  "tipo": "CONST",
+  "linha": 9116,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   9147
+  ]
+ },
+ {
+  "nome": "boletimRadio",
+  "tipo": "func",
+  "linha": 9138,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   10419,
+   14148,
+   14149
+  ]
+ },
+ {
+  "nome": "conferirMochila",
+  "tipo": "func",
+  "linha": 9163,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   4504,
+   9186
+  ]
+ },
+ {
+  "nome": "AFIN",
+  "tipo": "CONST",
+  "linha": 9198,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   9238,
+   9239,
+   9242
+  ]
+ },
+ {
+  "nome": "afinidade",
+  "tipo": "func",
+  "linha": 9236,
+  "bloco": "base",
+  "chamadas": 6,
+  "refs": [
+   9252,
+   9310,
+   16954,
+   16998
+  ]
+ },
+ {
+  "nome": "lootDoLocal",
+  "tipo": "func",
+  "linha": 9251,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   10069,
+   13467,
+   13468,
+   17056
+  ]
+ },
+ {
+  "nome": "ajusteRecurso",
+  "tipo": "func",
+  "linha": 9309,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10057
+  ]
+ },
+ {
+  "nome": "ROTINAS",
+  "tipo": "CONST",
+  "linha": 9320,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   9446
+  ]
+ },
+ {
+  "nome": "rotinaDe",
+  "tipo": "func",
+  "linha": 9443,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   9470
+  ]
+ },
+ {
+  "nome": "vidaDaCasa",
+  "tipo": "func",
+  "linha": 9461,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10401
+  ]
+ },
+ {
+  "nome": "MEMORIAS",
+  "tipo": "CONST",
+  "linha": 9485,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   9498
+  ]
+ },
+ {
+  "nome": "memoriaDaCasa",
+  "tipo": "func",
+  "linha": 9496,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10402
+  ]
+ },
+ {
+  "nome": "SAQ",
+  "tipo": "CONST",
+  "linha": 9510,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   9561,
+   9625,
+   9720
+  ]
+ },
+ {
+  "nome": "saqAtivos",
+  "tipo": "func",
+  "linha": 9516,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   9520,
+   9530,
+   9553
+  ]
+ },
+ {
+  "nome": "rastroSaqueador",
+  "tipo": "func",
+  "linha": 9519,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   9987
+  ]
+ },
+ {
+  "nome": "radioSaqueador",
+  "tipo": "func",
+  "linha": 9529,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10428
+  ]
+ },
+ {
+  "nome": "batedorSaqueador",
+  "tipo": "func",
+  "linha": 9552,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10454
+  ]
+ },
+ {
+  "nome": "fecharBatedor",
+  "tipo": "func",
+  "linha": 9602,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   9582,
+   9587,
+   9591,
+   9598
+  ]
+ },
+ {
+  "nome": "cercoSaqueador",
+  "tipo": "func",
+  "linha": 9614,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   9694,
+   16416
+  ]
+ },
+ {
+  "nome": "assalto",
+  "tipo": "func",
+  "linha": 9698,
+  "bloco": "base",
+  "chamadas": 7,
+  "refs": [
+   9641,
+   9660,
+   9678,
+   20172
+  ]
+ },
+ {
+  "nome": "saqueadoresDentro",
+  "tipo": "func",
+  "linha": 9756,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10426
+  ]
+ },
+ {
+  "nome": "desenharRua",
+  "tipo": "func",
+  "linha": 9783,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   944
+  ]
+ },
+ {
+  "nome": "ETAPAS",
+  "tipo": "CONST",
+  "linha": 9863,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   9862,
+   10006
+  ]
+ },
+ {
+  "nome": "capacidade",
+  "tipo": "func",
+  "linha": 9943,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   6628,
+   9941,
+   10081,
+   20076
+  ]
+ },
+ {
+  "nome": "expedicao",
+  "tipo": "func",
+  "linha": 9951,
+  "bloco": "base",
+  "chamadas": 6,
+  "refs": [
+   11579,
+   11580,
+   16291,
+   20296
+  ]
+ },
+ {
+  "nome": "etapaEntrar",
+  "tipo": "func",
+  "linha": 10033,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   10023,
+   10026,
+   10030
+  ]
+ },
+ {
+  "nome": "etapaDentro",
+  "tipo": "func",
+  "linha": 10046,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10042
+  ]
+ },
+ {
+  "nome": "etapaCarga",
+  "tipo": "func",
+  "linha": 10080,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10076
+  ]
+ },
+ {
+  "nome": "cap2",
+  "tipo": "func",
+  "linha": 10113,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   10082,
+   10088
+  ]
+ },
+ {
+  "nome": "etapaSair",
+  "tipo": "func",
+  "linha": 10115,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10109
+  ]
+ },
+ {
+  "nome": "sustoTalvez",
+  "tipo": "func",
+  "linha": 10129,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   10041,
+   10075,
+   10123
+  ]
+ },
+ {
+  "nome": "sustoAntigo",
+  "tipo": "func",
+  "linha": 10136,
+  "bloco": "base",
+  "chamadas": 0,
+  "refs": []
+ },
+ {
+  "nome": "recolher",
+  "tipo": "func",
+  "linha": 10182,
+  "bloco": "base",
+  "chamadas": 7,
+  "refs": [
+   5409,
+   5417,
+   5424,
+   10125
+  ]
+ },
+ {
+  "nome": "horaTexto",
+  "tipo": "func",
+  "linha": 10273,
+  "bloco": "base",
+  "chamadas": 17,
+  "refs": [
+   4815,
+   4879,
+   4942,
+   4976
+  ]
+ },
+ {
+  "nome": "gastarHoras",
+  "tipo": "func",
+  "linha": 10274,
+  "bloco": "base",
+  "chamadas": 22,
+  "refs": [
+   1864,
+   2588,
+   4447,
+   4449
+  ]
+ },
+ {
+  "nome": "cenaDia",
+  "tipo": "func",
+  "linha": 10283,
+  "bloco": "base",
+  "chamadas": 8,
+  "refs": [
+   8250,
+   12927,
+   14825,
+   16488
+  ]
+ },
+ {
+  "nome": "irPara",
+  "tipo": "func",
+  "linha": 10459,
+  "bloco": "base",
+  "chamadas": 25,
+  "refs": [
+   1709,
+   1728,
+   2176,
+   2364
+  ]
+ },
+ {
+  "nome": "acaoDia",
+  "tipo": "func",
+  "linha": 10481,
+  "bloco": "base",
+  "chamadas": 83,
+  "refs": [
+   4522,
+   4526,
+   4572,
+   4580
+  ]
+ },
+ {
+  "nome": "vigiar",
+  "tipo": "func",
+  "linha": 10506,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   4857,
+   10407
+  ]
+ },
+ {
+  "nome": "verAbrigo",
+  "tipo": "func",
+  "linha": 10529,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   5044,
+   10543
+  ]
+ },
+ {
+  "nome": "PESO_PISTA",
+  "tipo": "CONST",
+  "linha": 10569,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10584
+  ]
+ },
+ {
+  "nome": "pesoDe",
+  "tipo": "func",
+  "linha": 10583,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10591
+  ]
+ },
+ {
+  "nome": "certeza",
+  "tipo": "func",
+  "linha": 10588,
+  "bloco": "base",
+  "chamadas": 14,
+  "refs": [
+   1408,
+   5732,
+   10605,
+   10607
+  ]
+ },
+ {
+  "nome": "textoCerteza",
+  "tipo": "func",
+  "linha": 10603,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10614
+  ]
+ },
+ {
+  "nome": "painelCerteza",
+  "tipo": "func",
+  "linha": 10612,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10972
+  ]
+ },
+ {
+  "nome": "paciencia",
+  "tipo": "func",
+  "linha": 10636,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10645
+  ]
+ },
+ {
+  "nome": "turnosRestantes",
+  "tipo": "func",
+  "linha": 10644,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   10648,
+   10975
+  ]
+ },
+ {
+  "nome": "avisoPaciencia",
+  "tipo": "func",
+  "linha": 10647,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10973
+  ]
+ },
+ {
+  "nome": "foiEmbora",
+  "tipo": "func",
+  "linha": 10655,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10975
+  ]
+ },
+ {
+  "nome": "metodoPorta",
+  "tipo": "func",
+  "linha": 10682,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   4027,
+   4309,
+   10686,
+   11027
+  ]
+ },
+ {
+  "nome": "vicioPorta",
+  "tipo": "func",
+  "linha": 10685,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   3666,
+   4091,
+   10693
+  ]
+ },
+ {
+  "nome": "avisoVicio",
+  "tipo": "func",
+  "linha": 10692,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10976
+  ]
+ },
+ {
+  "nome": "PERG",
+  "tipo": "CONST",
+  "linha": 10702,
+  "bloco": "base",
+  "chamadas": 10,
+  "refs": [
+   10553,
+   10743,
+   10788,
+   10789
+  ]
+ },
+ {
+  "nome": "CHAVES",
+  "tipo": "CONST",
+  "linha": 10743,
+  "bloco": "base",
+  "chamadas": 11,
+  "refs": [
+   10745,
+   10747,
+   10785,
+   10786
+  ]
+ },
+ {
+  "nome": "totalUso",
+  "tipo": "func",
+  "linha": 10745,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   10550,
+   10746,
+   10825
+  ]
+ },
+ {
+  "nome": "taxaUso",
+  "tipo": "func",
+  "linha": 10746,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   10827,
+   10830,
+   10831
+  ]
+ },
+ {
+  "nome": "maisUsada",
+  "tipo": "func",
+  "linha": 10747,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10551
+  ]
+ },
+ {
+  "nome": "tipoDaNoite",
+  "tipo": "func",
+  "linha": 10749,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   10771,
+   13447,
+   13448
+  ]
+ },
+ {
+  "nome": "gerarVisitante",
+  "tipo": "func",
+  "linha": 10770,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10874
+  ]
+ },
+ {
+  "nome": "painelSinais",
+  "tipo": "func",
+  "linha": 10860,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   4020,
+   4381,
+   10964,
+   11095
+  ]
+ },
+ {
+  "nome": "cenaPorta",
+  "tipo": "func",
+  "linha": 10870,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   16462,
+   16466
+  ]
+ },
+ {
+  "nome": "menuPorta",
+  "tipo": "func",
+  "linha": 10968,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   1086,
+   10965,
+   10997,
+   11106
+  ]
+ },
+ {
+  "nome": "consultar",
+  "tipo": "func",
+  "linha": 11007,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   11001,
+   15413
+  ]
+ },
+ {
+  "nome": "perguntarLocal",
+  "tipo": "func",
+  "linha": 11026,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10986
+  ]
+ },
+ {
+  "nome": "perguntar",
+  "tipo": "func",
+  "linha": 11053,
+  "bloco": "base",
+  "chamadas": 10,
+  "refs": [
+   1434,
+   1962,
+   4396,
+   4404
+  ]
+ },
+ {
+  "nome": "depoisDaResposta",
+  "tipo": "func",
+  "linha": 11094,
+  "bloco": "base",
+  "chamadas": 7,
+  "refs": [
+   4061,
+   4383,
+   11023,
+   11050
+  ]
+ },
+ {
+  "nome": "corrente",
+  "tipo": "func",
+  "linha": 11116,
+  "bloco": "base",
+  "chamadas": 12,
+  "refs": [
+   1951,
+   2353,
+   2732,
+   3584
+  ]
+ },
+ {
+  "nome": "prazoEstourou",
+  "tipo": "func",
+  "linha": 11145,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   11097
+  ]
+ },
+ {
+  "nome": "acolher",
+  "tipo": "func",
+  "linha": 11162,
+  "bloco": "base",
+  "chamadas": 9,
+  "refs": [
+   10249,
+   11190,
+   11237,
+   11241
+  ]
+ },
+ {
+  "nome": "decidir",
+  "tipo": "func",
+  "linha": 11171,
+  "bloco": "base",
+  "chamadas": 13,
+  "refs": [
+   1082,
+   1085,
+   8931,
+   8943
+  ]
+ },
+ {
+  "nome": "abriu",
+  "tipo": "func",
+  "linha": 11181,
+  "bloco": "base",
+  "chamadas": 33,
+  "refs": [
+   1946,
+   2425,
+   2435,
+   2692
+  ]
+ },
+ {
+  "nome": "fechou",
+  "tipo": "func",
+  "linha": 11258,
+  "bloco": "base",
+  "chamadas": 8,
+  "refs": [
+   2672,
+   5712,
+   5713,
+   6299
+  ]
+ },
+ {
+  "nome": "PERG_NOVAS",
+  "tipo": "CONST",
+  "linha": 11289,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   11396
+  ]
+ },
+ {
+  "nome": "perguntasDoDia",
+  "tipo": "func",
+  "linha": 11402,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10980
+  ]
+ },
+ {
+  "nome": "DISTANCIA",
+  "tipo": "CONST",
+  "linha": 11415,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   11435
+  ]
+ },
+ {
+  "nome": "NOME_DIST",
+  "tipo": "CONST",
+  "linha": 11431,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   11458,
+   11509
+  ]
+ },
+ {
+  "nome": "distDe",
+  "tipo": "func",
+  "linha": 11434,
+  "bloco": "base",
+  "chamadas": 9,
+  "refs": [
+   11440,
+   11452,
+   11453,
+   11456
+  ]
+ },
+ {
+  "nome": "horasDe",
+  "tipo": "func",
+  "linha": 11439,
+  "bloco": "base",
+  "chamadas": 10,
+  "refs": [
+   9952,
+   11456,
+   11462,
+   11465
+  ]
+ },
+ {
+  "nome": "riscoDist",
+  "tipo": "func",
+  "linha": 11452,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   10010,
+   11509
+  ]
+ },
+ {
+  "nome": "rendeDist",
+  "tipo": "func",
+  "linha": 11453,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   10055,
+   11515
+  ]
+ },
+ {
+  "nome": "textoDist",
+  "tipo": "func",
+  "linha": 11455,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   11539
+  ]
+ },
+ {
+  "nome": "daTempo",
+  "tipo": "func",
+  "linha": 11461,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   11513,
+   11522,
+   11540
+  ]
+ },
+ {
+  "nome": "avisoTempo",
+  "tipo": "func",
+  "linha": 11464,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   11512,
+   11540
+  ]
+ },
+ {
+  "nome": "CONFLITOS",
+  "tipo": "CONST",
+  "linha": 11474,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   10317,
+   11473
+  ]
+ },
+ {
+  "nome": "menuLocais",
+  "tipo": "func",
+  "linha": 11501,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   8225,
+   9187,
+   11541
+  ]
+ },
+ {
+  "nome": "voltarDaQuadra",
+  "tipo": "func",
+  "linha": 11546,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   11538
+  ]
+ },
+ {
+  "nome": "escolherParceiro",
+  "tipo": "func",
+  "linha": 11576,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   11519
+  ]
+ },
+ {
+  "nome": "MAX_LINHAS",
+  "tipo": "CONST",
+  "linha": 11589,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   11602
+  ]
+ },
+ {
+  "nome": "montarSetas",
+  "tipo": "func",
+  "linha": 11610,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   16829,
+   16852
+  ]
+ },
+ {
+  "nome": "atualizarSetas",
+  "tipo": "func",
+  "linha": 11637,
+  "bloco": "base",
+  "chamadas": 11,
+  "refs": [
+   11605,
+   11627,
+   11633,
+   11634
+  ]
+ },
+ {
+  "nome": "seguirTexto",
+  "tipo": "func",
+  "linha": 11649,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   11661,
+   11665,
+   11667
+  ]
+ },
+ {
+  "nome": "dicaRolagem",
+  "tipo": "func",
+  "linha": 11669,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10872
+  ]
+ },
+ {
+  "nome": "montarBarra",
+  "tipo": "func",
+  "linha": 11683,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   16829,
+   16852
+  ]
+ },
+ {
+  "nome": "AC2",
+  "tipo": "CONST",
+  "linha": 11686,
+  "bloco": "base",
+  "chamadas": 6,
+  "refs": [
+   11687,
+   11693,
+   11699,
+   11710
+  ]
+ },
+ {
+  "nome": "contarAcoes",
+  "tipo": "func",
+  "linha": 11709,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   11717
+  ]
+ },
+ {
+  "nome": "atualizarBarra",
+  "tipo": "func",
+  "linha": 11714,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   11706,
+   11729,
+   11737,
+   11745
+  ]
+ },
+ {
+  "nome": "fecharBarra",
+  "tipo": "func",
+  "linha": 11724,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   11701,
+   11705
+  ]
+ },
+ {
+  "nome": "abrirBarra",
+  "tipo": "func",
+  "linha": 11732,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   11702
+  ]
+ },
+ {
+  "nome": "ROSTOS_VIVOS",
+  "tipo": "CONST",
+  "linha": 11776,
+  "bloco": "base",
+  "chamadas": 7,
+  "refs": [
+   11787,
+   11788,
+   11798,
+   11799
+  ]
+ },
+ {
+  "nome": "animarRosto",
+  "tipo": "func",
+  "linha": 11779,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   11884
+  ]
+ },
+ {
+  "nome": "ligarRelogioRostos",
+  "tipo": "func",
+  "linha": 11792,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   11789
+  ]
+ },
+ {
+  "nome": "tickRosto",
+  "tipo": "func",
+  "linha": 11812,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   11806
+  ]
+ },
+ {
+  "nome": "apresentarAnomalia",
+  "tipo": "func",
+  "linha": 11918,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   12083,
+   15540
+  ]
+ },
+ {
+  "nome": "_apresentar",
+  "tipo": "func",
+  "linha": 11932,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   11925
+  ]
+ },
+ {
+  "nome": "ANOM_PESADAS",
+  "tipo": "CONST",
+  "linha": 11982,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   12015
+  ]
+ },
+ {
+  "nome": "EVT_NOVOS",
+  "tipo": "CONST",
+  "linha": 12018,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   12063
+  ]
+ },
+ {
+  "nome": "ANOM_LISTA",
+  "tipo": "CONST",
+  "linha": 12066,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   12075
+  ]
+ },
+ {
+  "nome": "talvezLista",
+  "tipo": "func",
+  "linha": 12072,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10388
+  ]
+ },
+ {
+  "nome": "marcarSujo",
+  "tipo": "func",
+  "linha": 12122,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   12140,
+   12142,
+   12144,
+   12287
+  ]
+ },
+ {
+  "nome": "salvarAgora",
+  "tipo": "func",
+  "linha": 12132,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   12148,
+   12150,
+   12151,
+   12271
+  ]
+ },
+ {
+  "nome": "menuIr",
+  "tipo": "func",
+  "linha": 12155,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   5039
+  ]
+ },
+ {
+  "nome": "telaEstado",
+  "tipo": "func",
+  "linha": 12175,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   5036
+  ]
+ },
+ {
+  "nome": "confirmar",
+  "tipo": "func",
+  "linha": 12241,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   1080,
+   2476,
+   2576,
+   8333
+  ]
+ },
+ {
+  "nome": "telaAjustes",
+  "tipo": "func",
+  "linha": 12250,
+  "bloco": "base",
+  "chamadas": 7,
+  "refs": [
+   5040,
+   12255,
+   12257,
+   12261
+  ]
+ },
+ {
+  "nome": "aplicarCfg",
+  "tipo": "func",
+  "linha": 12281,
+  "bloco": "base",
+  "chamadas": 9,
+  "refs": [
+   2263,
+   12255,
+   12257,
+   12261
+  ]
+ },
+ {
+  "nome": "telaCheia",
+  "tipo": "func",
+  "linha": 12289,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   12267,
+   16800,
+   16819
+  ]
+ },
+ {
+  "nome": "escassez",
+  "tipo": "func",
+  "linha": 12310,
+  "bloco": "base",
+  "chamadas": 14,
+  "refs": [
+   10009,
+   10762,
+   12318,
+   12322
+  ]
+ },
+ {
+  "nome": "chanceVisitaGente",
+  "tipo": "func",
+  "linha": 12317,
+  "bloco": "base",
+  "chamadas": 0,
+  "refs": []
+ },
+ {
+  "nome": "poolVivo",
+  "tipo": "func",
+  "linha": 12321,
+  "bloco": "base",
+  "chamadas": 0,
+  "refs": []
+ },
+ {
+  "nome": "ritmoQueda",
+  "tipo": "func",
+  "linha": 12328,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   16478
+  ]
+ },
+ {
+  "nome": "mundoPerdeGente",
+  "tipo": "func",
+  "linha": 12333,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10381
+  ]
+ },
+ {
+  "nome": "textoEscassez",
+  "tipo": "func",
+  "linha": 12358,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10382
+  ]
+ },
+ {
+  "nome": "pressao",
+  "tipo": "func",
+  "linha": 12369,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10761
+  ]
+ },
+ {
+  "nome": "CRIATURAS_NOVAS",
+  "tipo": "CONST",
+  "linha": 12375,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   12419
+  ]
+ },
+ {
+  "nome": "ANOM_V19",
+  "tipo": "CONST",
+  "linha": 12520,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   12554
+  ]
+ },
+ {
+  "nome": "VIAS",
+  "tipo": "CONST",
+  "linha": 12565,
+  "bloco": "base",
+  "chamadas": 20,
+  "refs": [
+   12613,
+   12614,
+   12636,
+   12639
+  ]
+ },
+ {
+  "nome": "viaDe",
+  "tipo": "func",
+  "linha": 12594,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   12760
+  ]
+ },
+ {
+  "nome": "cerco",
+  "tipo": "func",
+  "linha": 12606,
+  "bloco": "base",
+  "chamadas": 21,
+  "refs": [
+   800,
+   2434,
+   8326,
+   8375
+  ]
+ },
+ {
+  "nome": "iniciarCerco",
+  "tipo": "func",
+  "linha": 12609,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   12848
+  ]
+ },
+ {
+  "nome": "hpVia",
+  "tipo": "func",
+  "linha": 12619,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   12866
+  ]
+ },
+ {
+  "nome": "barraVia",
+  "tipo": "func",
+  "linha": 12620,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   12783,
+   12866
+  ]
+ },
+ {
+  "nome": "acoesCerco",
+  "tipo": "func",
+  "linha": 12628,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   12788
+  ]
+ },
+ {
+  "nome": "ondaCerco",
+  "tipo": "func",
+  "linha": 12746,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   12874
+  ]
+ },
+ {
+  "nome": "noiteDeCerco",
+  "tipo": "func",
+  "linha": 12846,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   16401,
+   16525
+  ]
+ },
+ {
+  "nome": "MIN_TEXTO",
+  "tipo": "CONST",
+  "linha": 12939,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   12954
+  ]
+ },
+ {
+  "nome": "alturaCanvas",
+  "tipo": "func",
+  "linha": 12941,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   12965
+  ]
+ },
+ {
+  "nome": "pedirRedim",
+  "tipo": "func",
+  "linha": 12976,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   12987,
+   12990,
+   12991
+  ]
+ },
+ {
+  "nome": "CURVA_LUZ",
+  "tipo": "CONST",
+  "linha": 12999,
+  "bloco": "base",
+  "chamadas": 8,
+  "refs": [
+   13018,
+   13019,
+   13020
+  ]
+ },
+ {
+  "nome": "luzAgora",
+  "tipo": "func",
+  "linha": 13016,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   13032,
+   13036,
+   13121,
+   13142
+  ]
+ },
+ {
+  "nome": "padrao",
+  "tipo": "func",
+  "linha": 13059,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   13125
+  ]
+ },
+ {
+  "nome": "faixaDoDia",
+  "tipo": "func",
+  "linha": 13202,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   4815,
+   5125
+  ]
+ },
+ {
+  "nome": "texturaPele",
+  "tipo": "func",
+  "linha": 13221,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   13266
+  ]
+ },
+ {
+  "nome": "placar",
+  "tipo": "func",
+  "linha": 13398,
+  "bloco": "base",
+  "chamadas": 6,
+  "refs": [
+   800,
+   2196,
+   13405,
+   13435
+  ]
+ },
+ {
+  "nome": "dominio",
+  "tipo": "func",
+  "linha": 13403,
+  "bloco": "base",
+  "chamadas": 8,
+  "refs": [
+   13414,
+   13420,
+   13423,
+   13426
+  ]
+ },
+ {
+  "nome": "nivelDif",
+  "tipo": "func",
+  "linha": 13413,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   13474
+  ]
+ },
+ {
+  "nome": "difMimico",
+  "tipo": "func",
+  "linha": 13419,
+  "bloco": "base",
+  "chamadas": 0,
+  "refs": []
+ },
+ {
+  "nome": "difEscuta",
+  "tipo": "func",
+  "linha": 13422,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   13458
+  ]
+ },
+ {
+  "nome": "difLente",
+  "tipo": "func",
+  "linha": 13425,
+  "bloco": "base",
+  "chamadas": 0,
+  "refs": []
+ },
+ {
+  "nome": "difCerco",
+  "tipo": "func",
+  "linha": 13428,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   12797
+  ]
+ },
+ {
+  "nome": "difLoot",
+  "tipo": "func",
+  "linha": 13431,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   13469
+  ]
+ },
+ {
+  "nome": "textoDificuldade",
+  "tipo": "func",
+  "linha": 13473,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10380
+  ]
+ },
+ {
+  "nome": "marcarNoite",
+  "tipo": "func",
+  "linha": 13482,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   1674,
+   1675,
+   10878,
+   12847
+  ]
+ },
+ {
+  "nome": "resumoDaNoite",
+  "tipo": "func",
+  "linha": 13486,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10351
+  ]
+ },
+ {
+  "nome": "MALES",
+  "tipo": "CONST",
+  "linha": 13509,
+  "bloco": "base",
+  "chamadas": 36,
+  "refs": [
+   5006,
+   10355,
+   10364,
+   13647
+  ]
+ },
+ {
+  "nome": "REMEDIOS",
+  "tipo": "CONST",
+  "linha": 13625,
+  "bloco": "base",
+  "chamadas": 22,
+  "refs": [
+   13722,
+   13730,
+   13743,
+   13749
+  ]
+ },
+ {
+  "nome": "saude",
+  "tipo": "func",
+  "linha": 13644,
+  "bloco": "base",
+  "chamadas": 40,
+  "refs": [
+   5005,
+   5006,
+   10289,
+   13650
+  ]
+ },
+ {
+  "nome": "temMal",
+  "tipo": "func",
+  "linha": 13650,
+  "bloco": "base",
+  "chamadas": 6,
+  "refs": [
+   11444,
+   11445,
+   13702,
+   13712
+  ]
+ },
+ {
+  "nome": "pegarMal",
+  "tipo": "func",
+  "linha": 13651,
+  "bloco": "base",
+  "chamadas": 6,
+  "refs": [
+   13690,
+   13703,
+   13713,
+   13856
+  ]
+ },
+ {
+  "nome": "curarMal",
+  "tipo": "func",
+  "linha": 13660,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   17438,
+   17607,
+   17613,
+   18226
+  ]
+ },
+ {
+  "nome": "custoSaude",
+  "tipo": "func",
+  "linha": 13666,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   10290,
+   13680,
+   13756,
+   13933
+  ]
+ },
+ {
+  "nome": "passarSaude",
+  "tipo": "func",
+  "linha": 13685,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   10353,
+   10362
+  ]
+ },
+ {
+  "nome": "temRemedio",
+  "tipo": "func",
+  "linha": 13721,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   13763,
+   13794,
+   13806,
+   17370
+  ]
+ },
+ {
+  "nome": "gastarRemedio",
+  "tipo": "func",
+  "linha": 13729,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   13741,
+   17372
+  ]
+ },
+ {
+  "nome": "tratar",
+  "tipo": "func",
+  "linha": 13738,
+  "bloco": "base",
+  "chamadas": 7,
+  "refs": [
+   13569,
+   13720,
+   13767,
+   13797
+  ]
+ },
+ {
+  "nome": "telaSaude",
+  "tipo": "func",
+  "linha": 13753,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   5007
+  ]
+ },
+ {
+  "nome": "ferirPor",
+  "tipo": "func",
+  "linha": 13846,
+  "bloco": "base",
+  "chamadas": 13,
+  "refs": [
+   8535,
+   9102,
+   12721,
+   13903
+  ]
+ },
+ {
+  "nome": "adoecerPor",
+  "tipo": "func",
+  "linha": 13859,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   4690,
+   10373,
+   10374,
+   10377
+  ]
+ },
+ {
+  "nome": "dentro",
+  "tipo": "func",
+  "linha": 13878,
+  "bloco": "base",
+  "chamadas": 195,
+  "refs": [
+   531,
+   532,
+   763,
+   902
+  ]
+ },
+ {
+  "nome": "moverIntruso",
+  "tipo": "func",
+  "linha": 13886,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10385
+  ]
+ },
+ {
+  "nome": "pistaIntruso",
+  "tipo": "func",
+  "linha": 13914,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   5000,
+   10386
+  ]
+ },
+ {
+  "nome": "prioridades",
+  "tipo": "func",
+  "linha": 14019,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   5035,
+   14062
+  ]
+ },
+ {
+  "nome": "mostrarPrioridades",
+  "tipo": "func",
+  "linha": 14061,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   5033,
+   10420
+  ]
+ },
+ {
+  "nome": "ESTAGIOS_MUNDO",
+  "tipo": "CONST",
+  "linha": 14080,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   14120,
+   14121,
+   14200,
+   14667
+  ]
+ },
+ {
+  "nome": "estagioMundo",
+  "tipo": "func",
+  "linha": 14118,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   5030,
+   14151,
+   14197,
+   14640
+  ]
+ },
+ {
+  "nome": "contribuicoes",
+  "tipo": "func",
+  "linha": 14126,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   14182,
+   14218
+  ]
+ },
+ {
+  "nome": "telaMundo",
+  "tipo": "func",
+  "linha": 14195,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   5029
+  ]
+ },
+ {
+  "nome": "ESTACOES",
+  "tipo": "CONST",
+  "linha": 14228,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   14236,
+   14237
+  ]
+ },
+ {
+  "nome": "estacao",
+  "tipo": "func",
+  "linha": 14235,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   14241
+  ]
+ },
+ {
+  "nome": "talvezEstacao",
+  "tipo": "func",
+  "linha": 14240,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10403
+  ]
+ },
+ {
+  "nome": "TEMPER",
+  "tipo": "CONST",
+  "linha": 14261,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   14297,
+   14300,
+   14301,
+   14304
+  ]
+ },
+ {
+  "nome": "TEMPER_IDS",
+  "tipo": "CONST",
+  "linha": 14297,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   14302
+  ]
+ },
+ {
+  "nome": "temper",
+  "tipo": "func",
+  "linha": 14299,
+  "bloco": "base",
+  "chamadas": 9,
+  "refs": [
+   10538,
+   14338,
+   14399,
+   14425
+  ]
+ },
+ {
+  "nome": "credito",
+  "tipo": "func",
+  "linha": 14309,
+  "bloco": "base",
+  "chamadas": 6,
+  "refs": [
+   802,
+   2196,
+   12225,
+   14314
+  ]
+ },
+ {
+  "nome": "mexerCredito",
+  "tipo": "func",
+  "linha": 14313,
+  "bloco": "base",
+  "chamadas": 29,
+  "refs": [
+   5924,
+   10663,
+   10672,
+   14365
+  ]
+ },
+ {
+  "nome": "estadoCredito",
+  "tipo": "func",
+  "linha": 14316,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   12224,
+   14619
+  ]
+ },
+ {
+  "nome": "ajudaDaCasa",
+  "tipo": "func",
+  "linha": 14324,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   9445,
+   14423
+  ]
+ },
+ {
+  "nome": "testemunho",
+  "tipo": "func",
+  "linha": 14331,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10398
+  ]
+ },
+ {
+  "nome": "casaReage",
+  "tipo": "func",
+  "linha": 14421,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   5923
+  ]
+ },
+ {
+  "nome": "MORADORAS",
+  "tipo": "CONST",
+  "linha": 14456,
+  "bloco": "base",
+  "chamadas": 6,
+  "refs": [
+   14486,
+   14488,
+   14498,
+   14508
+  ]
+ },
+ {
+  "nome": "moradoras",
+  "tipo": "func",
+  "linha": 14483,
+  "bloco": "base",
+  "chamadas": 23,
+  "refs": [
+   802,
+   2196,
+   5031,
+   5032
+  ]
+ },
+ {
+  "nome": "passarMoradoras",
+  "tipo": "func",
+  "linha": 14494,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10394
+  ]
+ },
+ {
+  "nome": "menuMoradoras",
+  "tipo": "func",
+  "linha": 14523,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   5031
+  ]
+ },
+ {
+  "nome": "tempoDeCasa",
+  "tipo": "func",
+  "linha": 14563,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   14712
+  ]
+ },
+ {
+  "nome": "destinoDe",
+  "tipo": "func",
+  "linha": 14572,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   14592
+  ]
+ },
+ {
+  "nome": "epilogoPessoas",
+  "tipo": "func",
+  "linha": 14587,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   14714
+  ]
+ },
+ {
+  "nome": "epilogoCasa",
+  "tipo": "func",
+  "linha": 14616,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   14716
+  ]
+ },
+ {
+  "nome": "epilogoMundo",
+  "tipo": "func",
+  "linha": 14638,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   14718
+  ]
+ },
+ {
+  "nome": "epilogoSaber",
+  "tipo": "func",
+  "linha": 14656,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   14720
+  ]
+ },
+ {
+  "nome": "epilogoNumeros",
+  "tipo": "func",
+  "linha": 14676,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   14722
+  ]
+ },
+ {
+  "nome": "fraseFinal",
+  "tipo": "func",
+  "linha": 14690,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   14724
+  ]
+ },
+ {
+  "nome": "FALAS_CONTEXTO",
+  "tipo": "CONST",
+  "linha": 14731,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   14759
+  ]
+ },
+ {
+  "nome": "esperando",
+  "tipo": "func",
+  "linha": 14778,
+  "bloco": "base",
+  "chamadas": 18,
+  "refs": [
+   2306,
+   2315,
+   2688,
+   11678
+  ]
+ },
+ {
+  "nome": "aguardando",
+  "tipo": "func",
+  "linha": 14785,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   14808,
+   14867
+  ]
+ },
+ {
+  "nome": "acoesNaTela",
+  "tipo": "func",
+  "linha": 14792,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   14808,
+   14819,
+   14862,
+   14866
+  ]
+ },
+ {
+  "nome": "ligarVigia",
+  "tipo": "func",
+  "linha": 14801,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   16829,
+   16852
+  ]
+ },
+ {
+  "nome": "socorro",
+  "tipo": "func",
+  "linha": 14818,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   14814,
+   14859,
+   14869
+  ]
+ },
+ {
+  "nome": "_botaoCru",
+  "tipo": "func",
+  "linha": 14841,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   14824,
+   14828,
+   14833,
+   14835
+  ]
+ },
+ {
+  "nome": "suspeitar",
+  "tipo": "func",
+  "linha": 14861,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   14872,
+   14873
+  ]
+ },
+ {
+  "nome": "_osc",
+  "tipo": "func",
+  "linha": 14882,
+  "bloco": "base",
+  "chamadas": 13,
+  "refs": [
+   14927,
+   14933,
+   14955,
+   14960
+  ]
+ },
+ {
+  "nome": "_ruido",
+  "tipo": "func",
+  "linha": 14901,
+  "bloco": "base",
+  "chamadas": 16,
+  "refs": [
+   14926,
+   14940,
+   14945,
+   14947
+  ]
+ },
+ {
+  "nome": "camadaAmb",
+  "tipo": "func",
+  "linha": 14992,
+  "bloco": "base",
+  "chamadas": 10,
+  "refs": [
+   15020,
+   15023,
+   15026,
+   15029
+  ]
+ },
+ {
+  "nome": "pararAmb",
+  "tipo": "func",
+  "linha": 15002,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   15016
+  ]
+ },
+ {
+  "nome": "ambienteDoMomento",
+  "tipo": "func",
+  "linha": 15011,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   10276,
+   10298
+  ]
+ },
+ {
+  "nome": "somCerco",
+  "tipo": "func",
+  "linha": 15077,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   12772
+  ]
+ },
+ {
+  "nome": "somMoradora",
+  "tipo": "func",
+  "linha": 15088,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10396
+  ]
+ },
+ {
+  "nome": "somSaude",
+  "tipo": "func",
+  "linha": 15096,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10289
+  ]
+ },
+ {
+  "nome": "ACUSTICA",
+  "tipo": "CONST",
+  "linha": 15112,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   15128
+  ]
+ },
+ {
+  "nome": "acusticaDe",
+  "tipo": "func",
+  "linha": 15124,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   15297,
+   15304
+  ]
+ },
+ {
+  "nome": "oclusao",
+  "tipo": "func",
+  "linha": 15139,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   15149
+  ]
+ },
+ {
+  "nome": "volDeFora",
+  "tipo": "func",
+  "linha": 15149,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   15273
+  ]
+ },
+ {
+  "nome": "RUIDOS_CASA",
+  "tipo": "CONST",
+  "linha": 15153,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   15209
+  ]
+ },
+ {
+  "nome": "ligarCasaViva",
+  "tipo": "func",
+  "linha": 15203,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   15301
+  ]
+ },
+ {
+  "nome": "ligarCorpo",
+  "tipo": "func",
+  "linha": 15224,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   15302
+  ]
+ },
+ {
+  "nome": "pulsoGerador",
+  "tipo": "func",
+  "linha": 15261,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   15288
+  ]
+ },
+ {
+  "nome": "ligarPulsoGerador",
+  "tipo": "func",
+  "linha": 15279,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   15303
+  ]
+ },
+ {
+  "nome": "ligarFone",
+  "tipo": "func",
+  "linha": 15300,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   16829,
+   16852
+  ]
+ },
+ {
+  "nome": "DEFEITO_CRIATURA",
+  "tipo": "CONST",
+  "linha": 15313,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   15396,
+   15397,
+   15435
+  ]
+ },
+ {
+  "nome": "criaturaDoVisitante",
+  "tipo": "func",
+  "linha": 15376,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   15395
+  ]
+ },
+ {
+  "nome": "telaCaderno",
+  "tipo": "func",
+  "linha": 15414,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   5026
+  ]
+ },
+ {
+  "nome": "ATIVAS",
+  "tipo": "CONST",
+  "linha": 15456,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   10391,
+   15537,
+   15580,
+   15595
+  ]
+ },
+ {
+  "nome": "anomaliaAtiva",
+  "tipo": "func",
+  "linha": 15536,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   16421
+  ]
+ },
+ {
+  "nome": "pendencias",
+  "tipo": "func",
+  "linha": 15578,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   15584,
+   15591
+  ]
+ },
+ {
+  "nome": "marcarPendencia",
+  "tipo": "func",
+  "linha": 15583,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   15557,
+   15569
+  ]
+ },
+ {
+  "nome": "passarPendencias",
+  "tipo": "func",
+  "linha": 15589,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10390
+  ]
+ },
+ {
+  "nome": "marcado",
+  "tipo": "func",
+  "linha": 15606,
+  "bloco": "base",
+  "chamadas": 7,
+  "refs": [
+   2199,
+   5012,
+   7875,
+   15608
+  ]
+ },
+ {
+  "nome": "pesoMarca",
+  "tipo": "func",
+  "linha": 15607,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   5013,
+   5885,
+   15636
+  ]
+ },
+ {
+  "nome": "passarMarca",
+  "tipo": "func",
+  "linha": 15611,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10389
+  ]
+ },
+ {
+  "nome": "efeitoMarca",
+  "tipo": "func",
+  "linha": 15623,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10389
+  ]
+ },
+ {
+  "nome": "menuMarca",
+  "tipo": "func",
+  "linha": 15629,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   5012
+  ]
+ },
+ {
+  "nome": "vagas",
+  "tipo": "func",
+  "linha": 15666,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   15662,
+   15676,
+   15849,
+   15854
+  ]
+ },
+ {
+  "nome": "ocupadas",
+  "tipo": "func",
+  "linha": 15675,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   5285,
+   14114,
+   15676,
+   15854
+  ]
+ },
+ {
+  "nome": "cabeMais",
+  "tipo": "func",
+  "linha": 15676,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   15853
+  ]
+ },
+ {
+  "nome": "motivoLotado",
+  "tipo": "func",
+  "linha": 15677,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   15855
+  ]
+ },
+ {
+  "nome": "OFICIO",
+  "tipo": "CONST",
+  "linha": 15688,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   15722
+  ]
+ },
+ {
+  "nome": "oficioDe",
+  "tipo": "func",
+  "linha": 15722,
+  "bloco": "base",
+  "chamadas": 6,
+  "refs": [
+   15729,
+   15749,
+   15757,
+   15824
+  ]
+ },
+ {
+  "nome": "trabalhoDaCasa",
+  "tipo": "func",
+  "linha": 15725,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10400
+  ]
+ },
+ {
+  "nome": "podeSair",
+  "tipo": "func",
+  "linha": 15742,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   15813
+  ]
+ },
+ {
+  "nome": "mandarSair",
+  "tipo": "func",
+  "linha": 15748,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   15831
+  ]
+ },
+ {
+  "nome": "voltarDeFora",
+  "tipo": "func",
+  "linha": 15755,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   15806
+  ]
+ },
+ {
+  "nome": "passarFora",
+  "tipo": "func",
+  "linha": 15800,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10399
+  ]
+ },
+ {
+  "nome": "menuMandar",
+  "tipo": "func",
+  "linha": 15811,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   5014
+  ]
+ },
+ {
+  "nome": "ARQUETIPOS",
+  "tipo": "CONST",
+  "linha": 15868,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   15892,
+   15893,
+   16221
+  ]
+ },
+ {
+  "nome": "arquetipo",
+  "tipo": "func",
+  "linha": 15890,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   16204,
+   16221
+  ]
+ },
+ {
+  "nome": "ASSUNTOS",
+  "tipo": "CONST",
+  "linha": 15900,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   16237
+  ]
+ },
+ {
+  "nome": "FALAS",
+  "tipo": "CONST",
+  "linha": 15914,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   16205
+  ]
+ },
+ {
+  "nome": "desenharPessoa",
+  "tipo": "func",
+  "linha": 16165,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   947
+  ]
+ },
+ {
+  "nome": "animarConversa",
+  "tipo": "func",
+  "linha": 16193,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   16218
+  ]
+ },
+ {
+  "nome": "falaDo",
+  "tipo": "func",
+  "linha": 16203,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   16242
+  ]
+ },
+ {
+  "nome": "conversar",
+  "tipo": "func",
+  "linha": 16215,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   5139,
+   5141,
+   16249
+  ]
+ },
+ {
+  "nome": "GUIA",
+  "tipo": "CONST",
+  "linha": 16270,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   16299
+  ]
+ },
+ {
+  "nome": "guia",
+  "tipo": "func",
+  "linha": 16296,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   10421,
+   10970,
+   16336,
+   20730
+  ]
+ },
+ {
+  "nome": "abertura",
+  "tipo": "func",
+  "linha": 16310,
+  "bloco": "base",
+  "chamadas": 11,
+  "refs": [
+   901,
+   4042,
+   4043,
+   14461
+  ]
+ },
+ {
+  "nome": "gastoDiesel",
+  "tipo": "func",
+  "linha": 16342,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   16407
+  ]
+ },
+ {
+  "nome": "gastoComida",
+  "tipo": "func",
+  "linha": 16348,
+  "bloco": "base",
+  "chamadas": 6,
+  "refs": [
+   4880,
+   4883,
+   4884,
+   4885
+  ]
+ },
+ {
+  "nome": "anoitecer",
+  "tipo": "func",
+  "linha": 16354,
+  "bloco": "base",
+  "chamadas": 11,
+  "refs": [
+   3155,
+   5046,
+   10267,
+   10501
+  ]
+ },
+ {
+  "nome": "seguirNoite",
+  "tipo": "func",
+  "linha": 16452,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   16430,
+   16438,
+   16445,
+   16449
+  ]
+ },
+ {
+  "nome": "resolverNoite",
+  "tipo": "func",
+  "linha": 16464,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   10676,
+   11159,
+   11178
+  ]
+ },
+ {
+  "nome": "checarInvasao",
+  "tipo": "func",
+  "linha": 16470,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   16460,
+   16467
+  ]
+ },
+ {
+  "nome": "telaResgate",
+  "tipo": "func",
+  "linha": 16491,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   16482,
+   16485
+  ]
+ },
+ {
+  "nome": "semDiesel",
+  "tipo": "func",
+  "linha": 16518,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   16408
+  ]
+ },
+ {
+  "nome": "invasao",
+  "tipo": "func",
+  "linha": 16529,
+  "bloco": "base",
+  "chamadas": 7,
+  "refs": [
+   2695,
+   13483,
+   16385,
+   16401
+  ]
+ },
+ {
+  "nome": "escolherQuemVem",
+  "tipo": "func",
+  "linha": 16579,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   16572
+  ]
+ },
+ {
+  "nome": "comecarFuga",
+  "tipo": "func",
+  "linha": 16600,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   16585,
+   16590,
+   16596
+  ]
+ },
+ {
+  "nome": "turnoJogador",
+  "tipo": "func",
+  "linha": 16609,
+  "bloco": "base",
+  "chamadas": 9,
+  "refs": [
+   16576,
+   16606,
+   16624,
+   16659
+  ]
+ },
+ {
+  "nome": "bloquear",
+  "tipo": "func",
+  "linha": 16628,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   16615
+  ]
+ },
+ {
+  "nome": "escutar",
+  "tipo": "func",
+  "linha": 16639,
+  "bloco": "base",
+  "chamadas": 6,
+  "refs": [
+   4317,
+   5839,
+   11001,
+   15479
+  ]
+ },
+ {
+  "nome": "usarLanterna",
+  "tipo": "func",
+  "linha": 16653,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   16618
+  ]
+ },
+ {
+  "nome": "mover",
+  "tipo": "func",
+  "linha": 16662,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   4034,
+   16612,
+   16613
+  ]
+ },
+ {
+  "nome": "esconder",
+  "tipo": "func",
+  "linha": 16688,
+  "bloco": "base",
+  "chamadas": 20,
+  "refs": [
+   1438,
+   6642,
+   8327,
+   8335
+  ]
+ },
+ {
+  "nome": "moverMonstro",
+  "tipo": "func",
+  "linha": 16695,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   16717,
+   16718
+  ]
+ },
+ {
+  "nome": "turnoMonstro",
+  "tipo": "func",
+  "linha": 16707,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   16636,
+   16650,
+   16685,
+   16692
+  ]
+ },
+ {
+  "nome": "escapou",
+  "tipo": "func",
+  "linha": 16771,
+  "bloco": "base",
+  "chamadas": 6,
+  "refs": [
+   2254,
+   2429,
+   5769,
+   12833
+  ]
+ },
+ {
+  "nome": "segurarTela",
+  "tipo": "func",
+  "linha": 16796,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   16811,
+   16819
+  ]
+ },
+ {
+  "nome": "pedirNome",
+  "tipo": "func",
+  "linha": 16839,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   16833,
+   16836,
+   20709,
+   20710
+  ]
+ },
+ {
+  "nome": "INV_MAX",
+  "tipo": "CONST",
+  "linha": 16868,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   16874,
+   16881
+  ]
+ },
+ {
+  "nome": "invEstado",
+  "tipo": "func",
+  "linha": 16870,
+  "bloco": "base",
+  "chamadas": 0,
+  "refs": []
+ },
+ {
+  "nome": "invRestam",
+  "tipo": "func",
+  "linha": 16874,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   16880,
+   16907
+  ]
+ },
+ {
+  "nome": "painelInvasao",
+  "tipo": "func",
+  "linha": 16877,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   16908
+  ]
+ },
+ {
+  "nome": "ficarParado",
+  "tipo": "func",
+  "linha": 16894,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   16913
+  ]
+ },
+ {
+  "nome": "amanheceuInvasao",
+  "tipo": "func",
+  "linha": 16921,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   16907
+  ]
+ },
+ {
+  "nome": "MED_BASICO",
+  "tipo": "CONST",
+  "linha": 16949,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   16970,
+   17368
+  ]
+ },
+ {
+  "nome": "MED_BOM",
+  "tipo": "CONST",
+  "linha": 16950,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   16971
+  ]
+ },
+ {
+  "nome": "MED_RARO",
+  "tipo": "CONST",
+  "linha": 16951,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   16972
+  ]
+ },
+ {
+  "nome": "acharMedico",
+  "tipo": "func",
+  "linha": 16953,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   17059
+  ]
+ },
+ {
+  "nome": "acharMochilaGarantida",
+  "tipo": "func",
+  "linha": 16993,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   17061,
+   17390,
+   17391
+  ]
+ },
+ {
+  "nome": "IMPROVISO",
+  "tipo": "CONST",
+  "linha": 17010,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   17045
+  ]
+ },
+ {
+  "nome": "menuImproviso",
+  "tipo": "func",
+  "linha": 17039,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   5016
+  ]
+ },
+ {
+  "nome": "semDia",
+  "tipo": "func",
+  "linha": 17072,
+  "bloco": "base",
+  "chamadas": 6,
+  "refs": [
+   17080,
+   17091,
+   17127,
+   17130
+  ]
+ },
+ {
+  "nome": "depleta",
+  "tipo": "func",
+  "linha": 17076,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   17083
+  ]
+ },
+ {
+  "nome": "notaLoot",
+  "tipo": "func",
+  "linha": 17078,
+  "bloco": "base",
+  "chamadas": 9,
+  "refs": [
+   9968,
+   9976,
+   10200,
+   17166
+  ]
+ },
+ {
+  "nome": "notaRisco",
+  "tipo": "func",
+  "linha": 17088,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   17166,
+   17702
+  ]
+ },
+ {
+  "nome": "barra10",
+  "tipo": "func",
+  "linha": 17101,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   17169,
+   17170
+  ]
+ },
+ {
+  "nome": "corRisco",
+  "tipo": "func",
+  "linha": 17105,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   17169
+  ]
+ },
+ {
+  "nome": "corLoot",
+  "tipo": "func",
+  "linha": 17106,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   17170
+  ]
+ },
+ {
+  "nome": "HOTSPOTS",
+  "tipo": "CONST",
+  "linha": 17109,
+  "bloco": "base",
+  "chamadas": 8,
+  "refs": [
+   17108,
+   17133,
+   17141,
+   17153
+  ]
+ },
+ {
+  "nome": "hotspots",
+  "tipo": "func",
+  "linha": 17123,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   10404,
+   17139,
+   17147,
+   17555
+  ]
+ },
+ {
+  "nome": "hotspotDe",
+  "tipo": "func",
+  "linha": 17139,
+  "bloco": "base",
+  "chamadas": 6,
+  "refs": [
+   11520,
+   17084,
+   17092,
+   17167
+  ]
+ },
+ {
+  "nome": "textoHotspot",
+  "tipo": "func",
+  "linha": 17140,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10406
+  ]
+ },
+ {
+  "nome": "radioHotspot",
+  "tipo": "func",
+  "linha": 17146,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   10418,
+   17552,
+   17553,
+   17554
+  ]
+ },
+ {
+  "nome": "fichaLocal",
+  "tipo": "func",
+  "linha": 17165,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   11516
+  ]
+ },
+ {
+  "nome": "TIER",
+  "tipo": "CONST",
+  "linha": 17181,
+  "bloco": "base",
+  "chamadas": 6,
+  "refs": [
+   17196,
+   17235,
+   17236,
+   17264
+  ]
+ },
+ {
+  "nome": "tierDe",
+  "tipo": "func",
+  "linha": 17196,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   17197
+  ]
+ },
+ {
+  "nome": "tierAtual",
+  "tipo": "func",
+  "linha": 17197,
+  "bloco": "base",
+  "chamadas": 9,
+  "refs": [
+   17200,
+   17201,
+   17202,
+   17210
+  ]
+ },
+ {
+  "nome": "ruidoMochila",
+  "tipo": "func",
+  "linha": 17200,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   17293,
+   20086,
+   20087
+  ]
+ },
+ {
+  "nome": "furtMochila",
+  "tipo": "func",
+  "linha": 17201,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   17299
+  ]
+ },
+ {
+  "nome": "lentoMochila",
+  "tipo": "func",
+  "linha": 17202,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   17304
+  ]
+ },
+ {
+  "nome": "comp",
+  "tipo": "func",
+  "linha": 17206,
+  "bloco": "base",
+  "chamadas": 18,
+  "refs": [
+   262,
+   263,
+   265,
+   2201
+  ]
+ },
+ {
+  "nome": "temComp",
+  "tipo": "func",
+  "linha": 17217,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   17365
+  ]
+ },
+ {
+  "nome": "usarCompMed",
+  "tipo": "func",
+  "linha": 17219,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   17378,
+   20154,
+   20155,
+   20156
+  ]
+ },
+ {
+  "nome": "mochilaSorteada",
+  "tipo": "func",
+  "linha": 17230,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   17262
+  ]
+ },
+ {
+  "nome": "tentarMochila",
+  "tipo": "func",
+  "linha": 17261,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   17391
+  ]
+ },
+ {
+  "nome": "somMochila",
+  "tipo": "func",
+  "linha": 17308,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   17355
+  ]
+ },
+ {
+  "nome": "telaMochilaInfo",
+  "tipo": "func",
+  "linha": 17353,
+  "bloco": "base",
+  "chamadas": 9,
+  "refs": [
+   4839,
+   17374,
+   17380,
+   20330
+  ]
+ },
+ {
+  "nome": "RAR",
+  "tipo": "CONST",
+  "linha": 17401,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   10203,
+   17454,
+   17456,
+   17465
+  ]
+ },
+ {
+  "nome": "ORD_RAR",
+  "tipo": "CONST",
+  "linha": 17408,
+  "bloco": "base",
+  "chamadas": 0,
+  "refs": []
+ },
+ {
+  "nome": "ESTRAT",
+  "tipo": "CONST",
+  "linha": 17411,
+  "bloco": "base",
+  "chamadas": 8,
+  "refs": [
+   10202,
+   17410,
+   17452,
+   17454
+  ]
+ },
+ {
+  "nome": "acharEstrat",
+  "tipo": "func",
+  "linha": 17449,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10201
+  ]
+ },
+ {
+  "nome": "menuEstrat",
+  "tipo": "func",
+  "linha": 17460,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   5018,
+   17470,
+   17475
+  ]
+ },
+ {
+  "nome": "ganancia",
+  "tipo": "func",
+  "linha": 17484,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   5019,
+   17478,
+   17492
+  ]
+ },
+ {
+  "nome": "SINAIS",
+  "tipo": "CONST",
+  "linha": 17496,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   17495,
+   17515,
+   17516
+  ]
+ },
+ {
+  "nome": "sinalDe",
+  "tipo": "func",
+  "linha": 17513,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   11517
+  ]
+ },
+ {
+  "nome": "vigiado",
+  "tipo": "func",
+  "linha": 17520,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   10204,
+   11518,
+   17398
+  ]
+ },
+ {
+  "nome": "marcarVigiado",
+  "tipo": "func",
+  "linha": 17524,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10205
+  ]
+ },
+ {
+  "nome": "passarVigiados",
+  "tipo": "func",
+  "linha": 17527,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10407
+  ]
+ },
+ {
+  "nome": "FONTES",
+  "tipo": "CONST",
+  "linha": 17538,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   17556
+  ]
+ },
+ {
+  "nome": "fonteDoDia",
+  "tipo": "func",
+  "linha": 17544,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   17556
+  ]
+ },
+ {
+  "nome": "checarIsca",
+  "tipo": "func",
+  "linha": 17581,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   9985
+  ]
+ },
+ {
+  "nome": "triagem",
+  "tipo": "func",
+  "linha": 17589,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10408
+  ]
+ },
+ {
+  "nome": "cenaTriagem",
+  "tipo": "func",
+  "linha": 17597,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10408
+  ]
+ },
+ {
+  "nome": "CAMINHO",
+  "tipo": "CONST",
+  "linha": 17631,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   17629,
+   17693
+  ]
+ },
+ {
+  "nome": "eventoCaminho",
+  "tipo": "func",
+  "linha": 17691,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   9983
+  ]
+ },
+ {
+  "nome": "precisaoRadio",
+  "tipo": "func",
+  "linha": 17725,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   17731,
+   18231,
+   18285
+  ]
+ },
+ {
+  "nome": "comboioFantasma",
+  "tipo": "func",
+  "linha": 17728,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10417
+  ]
+ },
+ {
+  "nome": "checarComboio",
+  "tipo": "func",
+  "linha": 17746,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   9984
+  ]
+ },
+ {
+  "nome": "perderConfiancaRadio",
+  "tipo": "func",
+  "linha": 17799,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   17769,
+   17785,
+   17794
+  ]
+ },
+ {
+  "nome": "altar",
+  "tipo": "func",
+  "linha": 17808,
+  "bloco": "base",
+  "chamadas": 15,
+  "refs": [
+   2203,
+   4518,
+   9891,
+   17813
+  ]
+ },
+ {
+  "nome": "crescerAltar",
+  "tipo": "func",
+  "linha": 17812,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   17851
+  ]
+ },
+ {
+  "nome": "pesoAltar",
+  "tipo": "func",
+  "linha": 17815,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   4518,
+   17830,
+   17856
+  ]
+ },
+ {
+  "nome": "textoAltar",
+  "tipo": "func",
+  "linha": 17819,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   17829
+  ]
+ },
+ {
+  "nome": "menuAltar",
+  "tipo": "func",
+  "linha": 17827,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   4517
+  ]
+ },
+ {
+  "nome": "SANIDADE_ESTAGIOS",
+  "tipo": "CONST",
+  "linha": 17864,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   17878
+  ]
+ },
+ {
+  "nome": "san",
+  "tipo": "func",
+  "linha": 17872,
+  "bloco": "base",
+  "chamadas": 45,
+  "refs": [
+   5025,
+   17877,
+   17882,
+   17962
+  ]
+ },
+ {
+  "nome": "estagio",
+  "tipo": "func",
+  "linha": 17876,
+  "bloco": "base",
+  "chamadas": 23,
+  "refs": [
+   5025,
+   17881,
+   17883,
+   17898
+  ]
+ },
+ {
+  "nome": "mexerSan",
+  "tipo": "func",
+  "linha": 17880,
+  "bloco": "base",
+  "chamadas": 65,
+  "refs": [
+   5922,
+   11529,
+   17803,
+   17957
+  ]
+ },
+ {
+  "nome": "debito",
+  "tipo": "func",
+  "linha": 17890,
+  "bloco": "base",
+  "chamadas": 30,
+  "refs": [
+   5025,
+   17901,
+   17918,
+   17930
+  ]
+ },
+ {
+  "nome": "mente",
+  "tipo": "func",
+  "linha": 17897,
+  "bloco": "base",
+  "chamadas": 13,
+  "refs": [
+   730,
+   16036,
+   17397,
+   17910
+  ]
+ },
+ {
+  "nome": "NOMES_FALSOS",
+  "tipo": "CONST",
+  "linha": 17926,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   17931
+  ]
+ },
+ {
+  "nome": "nomeDe",
+  "tipo": "func",
+  "linha": 17927,
+  "bloco": "base",
+  "chamadas": 0,
+  "refs": []
+ },
+ {
+  "nome": "ILUSOES",
+  "tipo": "CONST",
+  "linha": 17953,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   17993
+  ]
+ },
+ {
+  "nome": "talvezIlusao",
+  "tipo": "func",
+  "linha": 17985,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   10415,
+   19781,
+   19782
+  ]
+ },
+ {
+  "nome": "menuRealidade",
+  "tipo": "func",
+  "linha": 18027,
+  "bloco": "base",
+  "chamadas": 10,
+  "refs": [
+   18043,
+   18061,
+   18113,
+   19804
+  ]
+ },
+ {
+  "nome": "menuCuidar",
+  "tipo": "func",
+  "linha": 18068,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   5024,
+   21202,
+   21203,
+   21227
+  ]
+ },
+ {
+  "nome": "passarSanidade",
+  "tipo": "func",
+  "linha": 18118,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10409
+  ]
+ },
+ {
+  "nome": "ruptura",
+  "tipo": "func",
+  "linha": 18128,
+  "bloco": "base",
+  "chamadas": 7,
+  "refs": [
+   10410,
+   17870,
+   19401,
+   19885
+  ]
+ },
+ {
+  "nome": "VISOES",
+  "tipo": "CONST",
+  "linha": 18156,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   18170
+  ]
+ },
+ {
+  "nome": "visaoDeRua",
+  "tipo": "func",
+  "linha": 18166,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   9981
+  ]
+ },
+ {
+  "nome": "ROTA",
+  "tipo": "CONST",
+  "linha": 18203,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   18246
+  ]
+ },
+ {
+  "nome": "eventoRota",
+  "tipo": "func",
+  "linha": 18244,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   9982
+  ]
+ },
+ {
+  "nome": "RADIO_FALAS",
+  "tipo": "CONST",
+  "linha": 18267,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   18286,
+   18287
+  ]
+ },
+ {
+  "nome": "radioFala",
+  "tipo": "func",
+  "linha": 18281,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10416
+  ]
+ },
+ {
+  "nome": "ULTIMAS",
+  "tipo": "CONST",
+  "linha": 18310,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   18326
+  ]
+ },
+ {
+  "nome": "leitoDeMorte",
+  "tipo": "func",
+  "linha": 18325,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   18383
+  ]
+ },
+ {
+  "nome": "talvezLeito",
+  "tipo": "func",
+  "linha": 18376,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10411
+  ]
+ },
+ {
+  "nome": "BATIDAS",
+  "tipo": "CONST",
+  "linha": 18391,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   18388,
+   18448,
+   18451,
+   18461
+  ]
+ },
+ {
+  "nome": "bater",
+  "tipo": "func",
+  "linha": 18414,
+  "bloco": "base",
+  "chamadas": 24,
+  "refs": [
+   653,
+   656,
+   658,
+   903
+  ]
+ },
+ {
+  "nome": "arranhar",
+  "tipo": "func",
+  "linha": 18432,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   18412
+  ]
+ },
+ {
+  "nome": "batidaDe",
+  "tipo": "func",
+  "linha": 18446,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   18460
+  ]
+ },
+ {
+  "nome": "tocarBatida",
+  "tipo": "func",
+  "linha": 18459,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10971
+  ]
+ },
+ {
+  "nome": "observarSombra",
+  "tipo": "func",
+  "linha": 18477,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   10993,
+   11102
+  ]
+ },
+ {
+  "nome": "resPorta",
+  "tipo": "func",
+  "linha": 18490,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   5021,
+   18494,
+   18504
+  ]
+ },
+ {
+  "nome": "portaRange",
+  "tipo": "func",
+  "linha": 18494,
+  "bloco": "base",
+  "chamadas": 6,
+  "refs": [
+   5021,
+   18497,
+   18507,
+   19696
+  ]
+ },
+ {
+  "nome": "passarPorta",
+  "tipo": "func",
+  "linha": 18496,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10412
+  ]
+ },
+ {
+  "nome": "menuPortaManut",
+  "tipo": "func",
+  "linha": 18502,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   5020
+  ]
+ },
+ {
+  "nome": "trilhos",
+  "tipo": "func",
+  "linha": 18526,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   18531,
+   18535
+  ]
+ },
+ {
+  "nome": "mexerTrilho",
+  "tipo": "func",
+  "linha": 18530,
+  "bloco": "base",
+  "chamadas": 13,
+  "refs": [
+   1673,
+   17802,
+   18120,
+   18694
+  ]
+ },
+ {
+  "nome": "trilhoDominante",
+  "tipo": "func",
+  "linha": 18534,
+  "bloco": "base",
+  "chamadas": 6,
+  "refs": [
+   18590,
+   19605,
+   19760,
+   19763
+  ]
+ },
+ {
+  "nome": "SINTOMA",
+  "tipo": "CONST",
+  "linha": 18539,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   18591
+  ]
+ },
+ {
+  "nome": "SEQUELAS",
+  "tipo": "CONST",
+  "linha": 18546,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   18545,
+   18556,
+   18563,
+   18567
+  ]
+ },
+ {
+  "nome": "sequelas",
+  "tipo": "func",
+  "linha": 18554,
+  "bloco": "base",
+  "chamadas": 11,
+  "refs": [
+   18120,
+   18561,
+   18563,
+   18566
+  ]
+ },
+ {
+  "nome": "talvezSequela",
+  "tipo": "func",
+  "linha": 18558,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   18595
+  ]
+ },
+ {
+  "nome": "colapso",
+  "tipo": "func",
+  "linha": 18585,
+  "bloco": "base",
+  "chamadas": 5,
+  "refs": [
+   10414,
+   19760,
+   19794,
+   19795
+  ]
+ },
+ {
+  "nome": "ANCORAS",
+  "tipo": "CONST",
+  "linha": 18619,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   18648,
+   18651,
+   18654
+  ]
+ },
+ {
+  "nome": "ancoras",
+  "tipo": "func",
+  "linha": 18645,
+  "bloco": "base",
+  "chamadas": 4,
+  "refs": [
+   5022,
+   5023,
+   18658,
+   18686
+  ]
+ },
+ {
+  "nome": "infoAnc",
+  "tipo": "func",
+  "linha": 18654,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   18661,
+   18689
+  ]
+ },
+ {
+  "nome": "contaminada",
+  "tipo": "func",
+  "linha": 18655,
+  "bloco": "base",
+  "chamadas": 6,
+  "refs": [
+   5023,
+   18663,
+   18664,
+   18665
+  ]
+ },
+ {
+  "nome": "menuAncora",
+  "tipo": "func",
+  "linha": 18656,
+  "bloco": "base",
+  "chamadas": 2,
+  "refs": [
+   5022,
+   18679
+  ]
+ },
+ {
+  "nome": "ilusaoDeAncora",
+  "tipo": "func",
+  "linha": 18685,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10413
+  ]
+ },
+ {
+  "nome": "decisoesDaRun",
+  "tipo": "func",
+  "linha": 18700,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   18744
+  ]
+ },
+ {
+  "nome": "ULTIMO_ATO",
+  "tipo": "CONST",
+  "linha": 18713,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   18748
+  ]
+ },
+ {
+  "nome": "LEGADO",
+  "tipo": "CONST",
+  "linha": 18730,
+  "bloco": "base",
+  "chamadas": 3,
+  "refs": [
+   14595,
+   14597,
+   18759
+  ]
+ },
+ {
+  "nome": "leitoLongo",
+  "tipo": "func",
+  "linha": 18737,
+  "bloco": "base",
+  "chamadas": 1,
+  "refs": [
+   10357
+  ]
+ },
+ {
+  "nome": "SOM",
+  "tipo": "CONST",
+  "linha": 18791,
+  "bloco": "v48",
+  "chamadas": 35,
+  "refs": [
+   383,
+   561,
+   1484,
+   14877
+  ]
+ },
+ {
+  "nome": "somOk",
+  "tipo": "func",
+  "linha": 18800,
+  "bloco": "v48",
+  "chamadas": 15,
+  "refs": [
+   18884,
+   19113,
+   19131,
+   19224
+  ]
+ },
+ {
+  "nome": "agoraS",
+  "tipo": "func",
+  "linha": 18808,
+  "bloco": "v48",
+  "chamadas": 20,
+  "refs": [
+   18885,
+   18955,
+   18978,
+   18994
+  ]
+ },
+ {
+  "nome": "ruidoS",
+  "tipo": "func",
+  "linha": 18809,
+  "bloco": "v48",
+  "chamadas": 14,
+  "refs": [
+   18874,
+   18914,
+   19025,
+   19058
+  ]
+ },
+ {
+  "nome": "lfoS",
+  "tipo": "func",
+  "linha": 18810,
+  "bloco": "v48",
+  "chamadas": 5,
+  "refs": [
+   18924,
+   19325,
+   19373,
+   19383
+  ]
+ },
+ {
+  "nome": "ligaS",
+  "tipo": "func",
+  "linha": 18811,
+  "bloco": "v48",
+  "chamadas": 10,
+  "refs": [
+   18919,
+   18925,
+   18926,
+   18927
+  ]
+ },
+ {
+  "nome": "esperaS",
+  "tipo": "func",
+  "linha": 18818,
+  "bloco": "v48",
+  "chamadas": 4,
+  "refs": [
+   19283,
+   19284,
+   19291,
+   19296
+  ]
+ },
+ {
+  "nome": "curvaSuave",
+  "tipo": "func",
+  "linha": 18824,
+  "bloco": "v48",
+  "chamadas": 1,
+  "refs": [
+   18893
+  ]
+ },
+ {
+  "nome": "ondaPulso",
+  "tipo": "func",
+  "linha": 18831,
+  "bloco": "v48",
+  "chamadas": 1,
+  "refs": [
+   18918
+  ]
+ },
+ {
+  "nome": "curvaTremida",
+  "tipo": "func",
+  "linha": 18839,
+  "bloco": "v48",
+  "chamadas": 3,
+  "refs": [
+   19050,
+   19051,
+   19060
+  ]
+ },
+ {
+  "nome": "curvaRangido",
+  "tipo": "func",
+  "linha": 18850,
+  "bloco": "v48",
+  "chamadas": 2,
+  "refs": [
+   19052,
+   19061
+  ]
+ },
+ {
+  "nome": "tossida",
+  "tipo": "func",
+  "linha": 18863,
+  "bloco": "v48",
+  "chamadas": 3,
+  "refs": [
+   18944
+  ]
+ },
+ {
+  "nome": "programarEngasgo",
+  "tipo": "func",
+  "linha": 18972,
+  "bloco": "v48",
+  "chamadas": 2,
+  "refs": [
+   18950,
+   18988
+  ]
+ },
+ {
+  "nome": "ferrolho",
+  "tipo": "func",
+  "linha": 19024,
+  "bloco": "v48",
+  "chamadas": 4,
+  "refs": [
+   19120,
+   19141
+  ]
+ },
+ {
+  "nome": "rangido",
+  "tipo": "func",
+  "linha": 19042,
+  "bloco": "v48",
+  "chamadas": 5,
+  "refs": [
+   18519,
+   18521,
+   18838,
+   19122
+  ]
+ },
+ {
+  "nome": "arrasto",
+  "tipo": "func",
+  "linha": 19068,
+  "bloco": "v48",
+  "chamadas": 4,
+  "refs": [
+   17679,
+   19123,
+   19139,
+   19560
+  ]
+ },
+ {
+  "nome": "lufada",
+  "tipo": "func",
+  "linha": 19083,
+  "bloco": "v48",
+  "chamadas": 1,
+  "refs": [
+   19124
+  ]
+ },
+ {
+  "nome": "batente",
+  "tipo": "func",
+  "linha": 19093,
+  "bloco": "v48",
+  "chamadas": 18,
+  "refs": [
+   332,
+   3428,
+   3525,
+   4786
+  ]
+ },
+ {
+  "nome": "somPortaAbrindo",
+  "tipo": "func",
+  "linha": 19111,
+  "bloco": "v48",
+  "chamadas": 2,
+  "refs": [
+   19482,
+   19823
+  ]
+ },
+ {
+  "nome": "somPortaFechando",
+  "tipo": "func",
+  "linha": 19129,
+  "bloco": "v48",
+  "chamadas": 1,
+  "refs": [
+   19824
+  ]
+ },
+ {
+  "nome": "SUP",
+  "tipo": "CONST",
+  "linha": 19147,
+  "bloco": "v48",
+  "chamadas": 2,
+  "refs": [
+   19179
+  ]
+ },
+ {
+  "nome": "pisoDaCena",
+  "tipo": "func",
+  "linha": 19169,
+  "bloco": "v48",
+  "chamadas": 1,
+  "refs": [
+   19166
+  ]
+ },
+ {
+  "nome": "passoEm",
+  "tipo": "func",
+  "linha": 19178,
+  "bloco": "v48",
+  "chamadas": 3,
+  "refs": [
+   19160,
+   19162,
+   19241
+  ]
+ },
+ {
+  "nome": "somPassos",
+  "tipo": "func",
+  "linha": 19222,
+  "bloco": "v48",
+  "chamadas": 5,
+  "refs": [
+   19469,
+   19475,
+   19765,
+   19825
+  ]
+ },
+ {
+  "nome": "garantirEscuro",
+  "tipo": "func",
+  "linha": 19250,
+  "bloco": "v48",
+  "chamadas": 1,
+  "refs": [
+   19275
+  ]
+ },
+ {
+  "nome": "transicaoPassos",
+  "tipo": "func",
+  "linha": 19273,
+  "bloco": "v48",
+  "chamadas": 1,
+  "refs": [
+   19829
+  ]
+ },
+ {
+  "nome": "estaloLeve",
+  "tipo": "func",
+  "linha": 19303,
+  "bloco": "v48",
+  "chamadas": 1,
+  "refs": [
+   19339
+  ]
+ },
+ {
+  "nome": "acalmarCasa",
+  "tipo": "func",
+  "linha": 19344,
+  "bloco": "v48",
+  "chamadas": 0,
+  "refs": []
+ },
+ {
+  "nome": "MENTAL",
+  "tipo": "CONST",
+  "linha": 19364,
+  "bloco": "v48",
+  "chamadas": 8,
+  "refs": [
+   19367,
+   19394,
+   19404,
+   19408
+  ]
+ },
+ {
+  "nome": "leitoMental",
+  "tipo": "func",
+  "linha": 19365,
+  "bloco": "v48",
+  "chamadas": 2,
+  "refs": [
+   19329,
+   19828
+  ]
+ },
+ {
+  "nome": "LEITO",
+  "tipo": "CONST",
+  "linha": 19399,
+  "bloco": "v48",
+  "chamadas": 4,
+  "refs": [
+   18309,
+   18699,
+   19406
+  ]
+ },
+ {
+  "nome": "atualizarMental",
+  "tipo": "func",
+  "linha": 19403,
+  "bloco": "v48",
+  "chamadas": 4,
+  "refs": [
+   19395,
+   19418,
+   19816,
+   19828
+  ]
+ },
+ {
+  "nome": "ajustarSalaMental",
+  "tipo": "func",
+  "linha": 19430,
+  "bloco": "v48",
+  "chamadas": 1,
+  "refs": [
+   19784
+  ]
+ },
+ {
+  "nome": "vozDeMorto",
+  "tipo": "func",
+  "linha": 19440,
+  "bloco": "v48",
+  "chamadas": 3,
+  "refs": [
+   19595,
+   19768,
+   19827
+  ]
+ },
+ {
+  "nome": "ILUSOES_SOM",
+  "tipo": "CONST",
+  "linha": 19467,
+  "bloco": "v48",
+  "chamadas": 1,
+  "refs": [
+   19621
+  ]
+ },
+ {
+  "nome": "somCova",
+  "tipo": "func",
+  "linha": 19532,
+  "bloco": "v48",
+  "chamadas": 1,
+  "refs": [
+   19507
+  ]
+ },
+ {
+  "nome": "somCadeira",
+  "tipo": "func",
+  "linha": 19557,
+  "bloco": "v48",
+  "chamadas": 1,
+  "refs": [
+   19515
+  ]
+ },
+ {
+  "nome": "somRelogio",
+  "tipo": "func",
+  "linha": 19565,
+  "bloco": "v48",
+  "chamadas": 1,
+  "refs": [
+   19523
+  ]
+ },
+ {
+  "nome": "ilusaoDeVoz",
+  "tipo": "func",
+  "linha": 19582,
+  "bloco": "v48",
+  "chamadas": 1,
+  "refs": [
+   19622
+  ]
+ },
+ {
+  "nome": "pesoTrilho",
+  "tipo": "func",
+  "linha": 19604,
+  "bloco": "v48",
+  "chamadas": 3,
+  "refs": [
+   19610,
+   19612,
+   19761
+  ]
+ },
+ {
+  "nome": "sortearPesado",
+  "tipo": "func",
+  "linha": 19609,
+  "bloco": "v48",
+  "chamadas": 1,
+  "refs": [
+   19625
+  ]
+ },
+ {
+  "nome": "ilusaoSonora",
+  "tipo": "func",
+  "linha": 19616,
+  "bloco": "v48",
+  "chamadas": 1,
+  "refs": [
+   19788
+  ]
+ },
+ {
+  "nome": "retratoSonoro",
+  "tipo": "func",
+  "linha": 19688,
+  "bloco": "v48",
+  "chamadas": 1,
+  "refs": [
+   19714
+  ]
+ },
+ {
+  "nome": "FALSOS_SONOROS",
+  "tipo": "CONST",
+  "linha": 19701,
+  "bloco": "v48",
+  "chamadas": 1,
+  "refs": [
+   19722
+  ]
+ },
+ {
+  "nome": "escutarACasa",
+  "tipo": "func",
+  "linha": 19709,
+  "bloco": "v48",
+  "chamadas": 1,
+  "refs": [
+   19809
+  ]
+ },
+ {
+  "nome": "somDoTrilho",
+  "tipo": "func",
+  "linha": 19762,
+  "bloco": "v48",
+  "chamadas": 1,
+  "refs": [
+   19798
+  ]
+ },
+ {
+  "nome": "testarSom",
+  "tipo": "func",
+  "linha": 19819,
+  "bloco": "v48",
+  "chamadas": 0,
+  "refs": []
+ },
+ {
+  "nome": "montarBarraSanidade",
+  "tipo": "func",
+  "linha": 19872,
+  "bloco": "v48",
+  "chamadas": 1,
+  "refs": [
+   19924
+  ]
+ },
+ {
+  "nome": "CLASSES_SAN",
+  "tipo": "CONST",
+  "linha": 19905,
+  "bloco": "v48",
+  "chamadas": 0,
+  "refs": []
+ },
+ {
+  "nome": "atualizarBarraSanidade",
+  "tipo": "func",
+  "linha": 19906,
+  "bloco": "v48",
+  "chamadas": 1,
+  "refs": [
+   19924
+  ]
+ },
+ {
+  "nome": "curvaTeto",
+  "tipo": "func",
+  "linha": 19949,
+  "bloco": "v48",
+  "chamadas": 1,
+  "refs": [
+   19965
+  ]
+ },
+ {
+  "nome": "reforcarSaida",
+  "tipo": "func",
+  "linha": 19955,
+  "bloco": "v48",
+  "chamadas": 2,
+  "refs": [
+   18805,
+   19978
+  ]
+ },
+ {
+  "nome": "volumeGeral",
+  "tipo": "func",
+  "linha": 19984,
+  "bloco": "v48",
+  "chamadas": 0,
+  "refs": []
+ },
+ {
+  "nome": "pesoReal",
+  "tipo": "func",
+  "linha": 20020,
+  "bloco": "s14",
+  "chamadas": 1,
+  "refs": [
+   20027
+  ]
+ },
+ {
+  "nome": "razaoCarga",
+  "tipo": "func",
+  "linha": 20025,
+  "bloco": "s14",
+  "chamadas": 3,
+  "refs": [
+   20033,
+   20040,
+   20237
+  ]
+ },
+ {
+  "nome": "TETO_FORCADO",
+  "tipo": "CONST",
+  "linha": 20031,
+  "bloco": "s14",
+  "chamadas": 1,
+  "refs": [
+   20116
+  ]
+ },
+ {
+  "nome": "sobrecarga",
+  "tipo": "func",
+  "linha": 20032,
+  "bloco": "s14",
+  "chamadas": 11,
+  "refs": [
+   20001,
+   20019,
+   20030,
+   20119
+  ]
+ },
+ {
+  "nome": "estaSobrecarregado",
+  "tipo": "func",
+  "linha": 20040,
+  "bloco": "s14",
+  "chamadas": 1,
+  "refs": [
+   20227
+  ]
+ },
+ {
+  "nome": "MODULOS",
+  "tipo": "CONST",
+  "linha": 20046,
+  "bloco": "s14",
+  "chamadas": 5,
+  "refs": [
+   20068,
+   20073,
+   20347,
+   20378
+  ]
+ },
+ {
+  "nome": "mods",
+  "tipo": "func",
+  "linha": 20066,
+  "bloco": "s14",
+  "chamadas": 5,
+  "refs": [
+   20071,
+   20073,
+   20347,
+   20385
+  ]
+ },
+ {
+  "nome": "temMod",
+  "tipo": "func",
+  "linha": 20071,
+  "bloco": "s14",
+  "chamadas": 4,
+  "refs": [
+   20098,
+   20195,
+   20348,
+   20382
+  ]
+ },
+ {
+  "nome": "somaMod",
+  "tipo": "func",
+  "linha": 20072,
+  "bloco": "s14",
+  "chamadas": 7,
+  "refs": [
+   20081,
+   20082,
+   20088,
+   20089
+  ]
+ },
+ {
+  "nome": "quickTotal",
+  "tipo": "func",
+  "linha": 20140,
+  "bloco": "s14",
+  "chamadas": 2,
+  "refs": [
+   20145,
+   20345
+  ]
+ },
+ {
+  "nome": "quickRestante",
+  "tipo": "func",
+  "linha": 20143,
+  "bloco": "s14",
+  "chamadas": 2,
+  "refs": [
+   20157,
+   20345
+  ]
+ },
+ {
+  "nome": "gastarQuick",
+  "tipo": "func",
+  "linha": 20147,
+  "bloco": "s14",
+  "chamadas": 1,
+  "refs": [
+   20159
+  ]
+ },
+ {
+  "nome": "nomeArma",
+  "tipo": "func",
+  "linha": 20168,
+  "bloco": "s14",
+  "chamadas": 4,
+  "refs": [
+   20187,
+   20350,
+   20353,
+   20360
+  ]
+ },
+ {
+  "nome": "oculto",
+  "tipo": "func",
+  "linha": 20173,
+  "bloco": "s14",
+  "chamadas": 12,
+  "refs": [
+   20062,
+   20164,
+   20175,
+   20182
+  ]
+ },
+ {
+  "nome": "podeRasgar",
+  "tipo": "func",
+  "linha": 20194,
+  "bloco": "s14",
+  "chamadas": 2,
+  "refs": [
+   20198,
+   20346
+  ]
+ },
+ {
+  "nome": "rolarRasgo",
+  "tipo": "func",
+  "linha": 20197,
+  "bloco": "s14",
+  "chamadas": 1,
+  "refs": [
+   20220
+  ]
+ },
+ {
+  "nome": "precoDaSaida",
+  "tipo": "func",
+  "linha": 20209,
+  "bloco": "s14",
+  "chamadas": 1,
+  "refs": [
+   20301
+  ]
+ },
+ {
+  "nome": "tentarRecuperarLargada",
+  "tipo": "func",
+  "linha": 20263,
+  "bloco": "s14",
+  "chamadas": 1,
+  "refs": [
+   20300
+  ]
+ },
+ {
+  "nome": "radioSobreALargada",
+  "tipo": "func",
+  "linha": 20287,
+  "bloco": "s14",
+  "chamadas": 1,
+  "refs": [
+   20299
+  ]
+ },
+ {
+  "nome": "podeCosturar",
+  "tipo": "func",
+  "linha": 20312,
+  "bloco": "s14",
+  "chamadas": 1,
+  "refs": [
+   20369
+  ]
+ },
+ {
+  "nome": "costurarMochila",
+  "tipo": "func",
+  "linha": 20316,
+  "bloco": "s14",
+  "chamadas": 1,
+  "refs": [
+   20369
+  ]
+ },
+ {
+  "nome": "telaModulos",
+  "tipo": "func",
+  "linha": 20375,
+  "bloco": "s14",
+  "chamadas": 2,
+  "refs": [
+   20372,
+   20388
+  ]
+ },
+ {
+  "nome": "VOZ_ABERTURA",
+  "tipo": "CONST",
+  "linha": 20417,
+  "bloco": "cine",
+  "chamadas": 3,
+  "refs": [
+   20612,
+   20712
+  ]
+ },
+ {
+  "nome": "HISTORIA",
+  "tipo": "CONST",
+  "linha": 20419,
+  "bloco": "cine",
+  "chamadas": 1,
+  "refs": [
+   20601
+  ]
+ },
+ {
+  "nome": "FIM_NARRACAO",
+  "tipo": "CONST",
+  "linha": 20445,
+  "bloco": "cine",
+  "chamadas": 3,
+  "refs": [
+   20488,
+   20671,
+   20673
+  ]
+ },
+ {
+  "nome": "instanteNaFala",
+  "tipo": "func",
+  "linha": 20450,
+  "bloco": "cine",
+  "chamadas": 1,
+  "refs": [
+   20469
+  ]
+ },
+ {
+  "nome": "marcarPalavras",
+  "tipo": "func",
+  "linha": 20463,
+  "bloco": "cine",
+  "chamadas": 1,
+  "refs": [
+   20601
+  ]
+ },
+ {
+  "nome": "fundoAbertura",
+  "tipo": "func",
+  "linha": 20481,
+  "bloco": "cine",
+  "chamadas": 1,
+  "refs": [
+   20622
+  ]
+ },
+ {
+  "nome": "calarFundo",
+  "tipo": "func",
+  "linha": 20508,
+  "bloco": "cine",
+  "chamadas": 1,
+  "refs": [
+   20682
+  ]
+ },
+ {
+  "nome": "MARCAS_FUNDO",
+  "tipo": "CONST",
+  "linha": 20521,
+  "bloco": "cine",
+  "chamadas": 3,
+  "refs": [
+   20650,
+   20651
+  ]
+ },
+ {
+  "nome": "montarTelaAbertura",
+  "tipo": "func",
+  "linha": 20531,
+  "bloco": "cine",
+  "chamadas": 1,
+  "refs": [
+   20595
+  ]
+ },
+ {
+  "nome": "contarHistoria",
+  "tipo": "func",
+  "linha": 20592,
+  "bloco": "cine",
+  "chamadas": 1,
+  "refs": [
+   20716
+  ]
+ },
+ {
+  "nome": "trocarPara",
+  "tipo": "func",
+  "linha": 20624,
+  "bloco": "cine",
+  "chamadas": 1,
+  "refs": [
+   20657
+  ]
+ },
+ {
+  "nome": "quadro",
+  "tipo": "func",
+  "linha": 20645,
+  "bloco": "cine",
+  "chamadas": 13,
+  "refs": [
+   934,
+   935,
+   4779,
+   5504
+  ]
+ },
+ {
+  "nome": "fechar",
+  "tipo": "func",
+  "linha": 20677,
+  "bloco": "cine",
+  "chamadas": 10,
+  "refs": [
+   1465,
+   7468,
+   9129,
+   10587
+  ]
+ },
+ {
+  "nome": "PASSOS_CORTE",
+  "tipo": "CONST",
+  "linha": 20782,
+  "bloco": "corte",
+  "chamadas": 4,
+  "refs": [
+   20797,
+   20800
+  ]
+ },
+ {
+  "nome": "CORTE",
+  "tipo": "CONST",
+  "linha": 20784,
+  "bloco": "corte",
+  "chamadas": 12,
+  "refs": [
+   20762,
+   20818,
+   20819,
+   20821
+  ]
+ },
+ {
+  "nome": "pedirClipe",
+  "tipo": "func",
+  "linha": 20796,
+  "bloco": "corte",
+  "chamadas": 2,
+  "refs": [
+   20895,
+   20921
+  ]
+ },
+ {
+  "nome": "temClipe",
+  "tipo": "func",
+  "linha": 20806,
+  "bloco": "corte",
+  "chamadas": 2,
+  "refs": [
+   20897,
+   20910
+  ]
+ },
+ {
+  "nome": "tocarCorte",
+  "tipo": "func",
+  "linha": 20808,
+  "bloco": "corte",
+  "chamadas": 1,
+  "refs": [
+   20862
+  ]
+ },
+ {
+  "nome": "garantirCorte",
+  "tipo": "func",
+  "linha": 20826,
+  "bloco": "corte",
+  "chamadas": 1,
+  "refs": [
+   20860
+  ]
+ },
+ {
+  "nome": "cortarPara",
+  "tipo": "func",
+  "linha": 20859,
+  "bloco": "corte",
+  "chamadas": 1,
+  "refs": [
+   20900
+  ]
+ },
+ {
+  "nome": "V9_ESTAGIOS",
+  "tipo": "CONST",
+  "linha": 20950,
+  "bloco": "s9",
+  "chamadas": 3,
+  "refs": [
+   20978
+  ]
+ },
+ {
+  "nome": "v9",
+  "tipo": "func",
+  "linha": 20960,
+  "bloco": "s9",
+  "chamadas": 11,
+  "refs": [
+   20947,
+   20973,
+   21004,
+   21028
+  ]
+ },
+ {
+  "nome": "sanEfetiva",
+  "tipo": "func",
+  "linha": 20972,
+  "bloco": "s9",
+  "chamadas": 4,
+  "refs": [
+   20977,
+   21096,
+   21241,
+   21243
+  ]
+ },
+ {
+  "nome": "v9Estagio",
+  "tipo": "func",
+  "linha": 20976,
+  "bloco": "s9",
+  "chamadas": 1,
+  "refs": [
+   20994
+  ]
+ },
+ {
+  "nome": "V9_DESC",
+  "tipo": "CONST",
+  "linha": 20984,
+  "bloco": "s9",
+  "chamadas": 1,
+  "refs": [
+   20995
+  ]
+ },
+ {
+  "nome": "corromper",
+  "tipo": "func",
+  "linha": 21003,
+  "bloco": "s9",
+  "chamadas": 1,
+  "refs": [
+   21015
+  ]
+ },
+ {
+  "nome": "perceber",
+  "tipo": "func",
+  "linha": 21010,
+  "bloco": "s9",
+  "chamadas": 4,
+  "refs": [
+   5735,
+   8556,
+   20935,
+   21021
+  ]
+ },
+ {
+  "nome": "v9Perder",
+  "tipo": "func",
+  "linha": 21026,
+  "bloco": "s9",
+  "chamadas": 2,
+  "refs": [
+   21039,
+   21194
+  ]
+ },
+ {
+  "nome": "recomporEscudo",
+  "tipo": "func",
+  "linha": 21050,
+  "bloco": "s9",
+  "chamadas": 1,
+  "refs": [
+   21097
+  ]
+ },
+ {
+  "nome": "V9_MEDS",
+  "tipo": "CONST",
+  "linha": 21061,
+  "bloco": "s9",
+  "chamadas": 3,
+  "refs": [
+   21072,
+   21217,
+   21218
+  ]
+ },
+ {
+  "nome": "tomarMed",
+  "tipo": "func",
+  "linha": 21071,
+  "bloco": "s9",
+  "chamadas": 1,
+  "refs": [
+   21223
+  ]
+ },
+ {
+  "nome": "V9_SEQUELAS",
+  "tipo": "CONST",
+  "linha": 21086,
+  "bloco": "s9",
+  "chamadas": 2,
+  "refs": [
+   21103,
+   21215
+  ]
+ },
+ {
+  "nome": "V9_ORDEM",
+  "tipo": "CONST",
+  "linha": 21091,
+  "bloco": "s9",
+  "chamadas": 1,
+  "refs": [
+   21099
+  ]
+ },
+ {
+  "nome": "temSequela",
+  "tipo": "func",
+  "linha": 21092,
+  "bloco": "s9",
+  "chamadas": 2,
+  "refs": [
+   21099,
+   21123
+  ]
+ },
+ {
+  "nome": "v9PassarNoite",
+  "tipo": "func",
+  "linha": 21094,
+  "bloco": "s9",
+  "chamadas": 1,
+  "refs": [
+   21112
+  ]
+ },
+ {
+  "nome": "V9_SENTIDOS",
+  "tipo": "CONST",
+  "linha": 21134,
+  "bloco": "s9",
+  "chamadas": 1,
+  "refs": [
+   21153
+  ]
+ },
+ {
+  "nome": "v9Rastros",
+  "tipo": "func",
+  "linha": 21136,
+  "bloco": "s9",
+  "chamadas": 1,
+  "refs": [
+   21151
+  ]
+ },
+ {
+  "nome": "v9Calor",
+  "tipo": "func",
+  "linha": 21147,
+  "bloco": "s9",
+  "chamadas": 1,
+  "refs": [
+   21173
+  ]
+ },
+ {
+  "nome": "CHECAGEM",
+  "tipo": "CONST",
+  "linha": 21189,
+  "bloco": "s9",
+  "chamadas": 6,
+  "refs": [
+   18026,
+   21193,
+   21194,
+   21264
+  ]
+ },
+ {
+  "nome": "checarRealidade",
+  "tipo": "func",
+  "linha": 21191,
+  "bloco": "s9",
+  "chamadas": 1,
+  "refs": [
+   21253
+  ]
+ }
+]
