@@ -190,7 +190,7 @@ function montarTelaAbertura(){
 }
 
 /* ---------- contar ---------- */
-let _jaContou=false;
+let _jaContou=false, _ouviuInteira=false;
 
 function contarHistoria(){
   return new Promise(resolve=>{
@@ -214,7 +214,7 @@ function contarHistoria(){
     try{
       au=new Audio(VOZ_ABERTURA);
       au.preload='auto';
-      au.addEventListener('ended',()=>fechar(1200));
+      au.addEventListener('ended',()=>fechar(1200,true));
     }catch(e){ au=null; }
 
     /* o relógio de parede, pra quando o áudio não puder tocar */
@@ -273,13 +273,14 @@ function contarHistoria(){
 
       BA.style.width=Math.min(100,s/FIM_NARRACAO*100).toFixed(1)+'%';
 
-      if(s>=FIM_NARRACAO+1.4)return fechar(900);
+      if(s>=FIM_NARRACAO+1.4)return fechar(900,true);
       requestAnimationFrame(quadro);
     }
 
-    function fechar(espera){
+    function fechar(espera,inteira){
       if(acabou)return;
       acabou=true;
+      if(inteira)_ouviuInteira=true;
       try{ if(au){au.pause(); au.currentTime=0;} }catch(e){}
       calarFundo();
       el.classList.add('saindo');
@@ -291,7 +292,7 @@ function contarHistoria(){
       },espera||900);
     }
 
-    el.querySelector('#cine-pular').onclick=e=>{ e.stopPropagation(); fechar(420); };
+    el.querySelector('#cine-pular').onclick=e=>{ e.stopPropagation(); fechar(420,false); };
 
     /* tocar precisa do gesto que já aconteceu no botão do lampião;
        se mesmo assim o navegador recusar, a história é contada muda */
@@ -321,5 +322,38 @@ if(typeof pedirNome==='function'){
     });
     if(typeof esperando==='function')esperando(p);
     return p;
+  };
+}
+
+/* ---------- a abertura escrita não repete o que já foi dito ----------
+   O texto que a voz narra é, palavra por palavra, o mesmo que a
+   `abertura()` escreve linha a linha depois do pedido de nome. Quem
+   ouvisse os 49 s inteiros ia ler tudo de novo em seguida, por mais
+   13 s. Então: ouviu até o fim, a abertura escrita guarda só o fecho e
+   a escolha do guia — que é a única coisa dela que decide alguma coisa.
+   Pulou a narração, ela roda inteira, e quem pulou não perde a história. */
+if(typeof abertura==='function'){
+  const _aberturaBase=abertura;
+  window.abertura=async function(){
+    if(!_ouviuInteira)return _aberturaBase();
+    if(S.abriuJogo)return;
+    S.abriuJogo=true;
+    limpar();AC.innerHTML='';cena.modo='vazio';dimensionar();
+    await pausa(700);
+    cap('Antes');
+    await pausa(900);
+    diz('Você já ouviu como é.','narr');
+    await pausa(1300);
+    diz('Você vai errar. A questão é errar pra qual lado.','alerta');
+    await pausa(1500);
+    AC.innerHTML='';
+    return new Promise(res=>{
+      botao('Começar',()=>{res();},{cls:'chave'});
+      botao('Já sei como funciona — pular as dicas',()=>{
+        S.semGuia=true;
+        diz('Fechado. Não falo mais nada.','fraco');
+        res();
+      },{custo:'desliga o guia'});
+    });
   };
 }

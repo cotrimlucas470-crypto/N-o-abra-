@@ -12,12 +12,16 @@ const BLOCOS=[
   {arq:'v48-som-e-sanidade.js', ini:'<!-- v48:inicio -->', fim:'<!-- v48:fim -->'},
   {arq:'s14-mochilas.js',       ini:'<!-- s14:inicio -->', fim:'<!-- s14:fim -->'},
   {arq:'abertura-narrada.js',   ini:'<!-- cine:inicio -->',fim:'<!-- cine:fim -->'},
+  {arq:'corte-comodo.js',       ini:'<!-- corte:inicio -->',fim:'<!-- corte:fim -->'},
 ];
 
 /* A voz da abertura entra embutida. O jogo é um arquivo só — é o que a
    pessoa publica e o que o celular guarda — então o mp3 vira data: URI
    aqui, na montagem, e o bloco continua legível no repositório. */
-const EMBUTIR={'@@VOZ_ABERTURA@@':{arq:'abertura.mp3', tipo:'audio/mpeg'}};
+const EMBUTIR={
+  '@@VOZ_ABERTURA@@':{arq:'abertura.mp3', tipo:'audio/mpeg'},
+  '@@PASSOS_CORTE@@':{arq:'passos.mp3',   tipo:'audio/mpeg'},
+};
 
 let html=fs.readFileSync('index.html','utf8');
 

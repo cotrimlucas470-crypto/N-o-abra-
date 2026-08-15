@@ -11,6 +11,8 @@ Duas coisas: o motor de áudio novo e a sanidade que passa a mentir no ouvido.
 | `s14-mochilas.js` | o bloco de §14: sobrecarga, módulos, acesso rápido, descarte em fuga |
 | `abertura-narrada.js` | a abertura contada em voz alta, com as marcas de tempo da narração |
 | `abertura.mp3` | a voz. O `montar.js` embute ela no `index.html` como `data:` |
+| `corte-comodo.js` | o corte de 0,98 s entre cômodos, preso aos passos da gravação |
+| `passos.mp3` | os passos. Também embutido pelo `montar.js` |
 | `montar.js` | injeta os blocos no `index.html`. `node montar.js` |
 | `sw.js` | service worker (cache `v48-`, senão o celular serve a versão velha) |
 
@@ -70,6 +72,60 @@ só — é o que você publica e o que o celular guarda — então o `montar.js`
 converte o mp3 na hora da montagem e o bloco continua legível no
 repositório. Custa 1,01 MB, e é por isso que o `index.html` passou de 862 KB
 para 1,9 MB.
+
+**A abertura escrita parou de repetir a narração.** O texto que a voz diz é,
+palavra por palavra, o mesmo que a `abertura()` escrevia linha a linha depois
+do pedido de nome — quem ouvisse os 49 s ia ler tudo de novo por mais 13 s.
+Agora: ouviu até o fim, a abertura escrita guarda só o fecho e a escolha do
+guia, que é a única coisa dela que decide alguma coisa. Pulou, ela roda
+inteira — quem pulou não perde a história.
+
+---
+
+## O corte entre cômodos
+
+Trocar de cômodo era um piscar: o texto sumia e o outro cômodo já estava
+escrito. Agora existe o caminho — escurece, você ouve os passos, e a casa
+volta no último deles.
+
+**As marcas saíram de medir a gravação.** O arquivo tem 3,082 s e 10 passos
+numa cadência firme de ~0,27 s, com impactos em 0,295 0,600 0,870 1,180
+1,430 1,705 1,945 2,225 2,490 2,755. A janela usada é **0,295 → 1,275**:
+quatro passos, **0,980 s**. Ela começa exatamente num impacto — sem aquele
+instante de silêncio no começo que denuncia o corte — e termina no vão depois
+do quarto passo, antes do quinto, então nada é cortado no meio. Os 20 ms que
+sobram do orçamento de 1 s ficam de folga.
+
+Dentro da janela os pés batem em **0, 0,305, 0,575 e 0,885**, e a tela é
+presa neles:
+
+| quando | o que acontece |
+|---|---|
+| 0 → 120 ms | escurece, em cima do primeiro passo |
+| 140 ms | **o cômodo troca**, no escuro, sem ninguém ver |
+| 800 → 980 ms | a volta, terminando junto com o quarto pé no chão |
+
+A casa aparece **com** o passo, não depois dele. A volta usa
+`cubic-bezier(.16,.84,.44,1)` — desce rápido e alonga no fim — e o `#app`
+assenta de `scale(1.028)` para `1` junto, então a casa se acomoda em vez de
+simplesmente aparecer. Medido: a opacidade passa por 15 valores intermediários
+na volta, não é um salto.
+
+**Só corta quando o cômodo muda de verdade.** Os vários botões *Voltar* da
+casa chamam `irPara` com o cômodo em que você já está; escurecer a tela pra
+continuar no mesmo lugar seria mentira. Nesse caso a volta é imediata — 18 ms
+medidos, sem um quadro escuro.
+
+Os passos sintetizados que tocavam nessa hora saíram do caminho: o jogo já
+dizia a direção do passo um instante antes de trocar de cômodo, então agora
+essa direção é guardada e o corte toca a gravação com a panorâmica certa, em
+vez de somar dois sons de passo por cima um do outro.
+
+Um detalhe que custou caro: a volta era **instantânea** na primeira versão.
+Tirar a classe do preto e pôr a da volta com um reflow no meio faz a
+opacidade saltar pra 0 antes de a transição começar. A volta agora **soma**
+uma classe em vez de trocar — dois seletores juntos pesam mais que um — e não
+há reflow entre as duas.
 
 ---
 
