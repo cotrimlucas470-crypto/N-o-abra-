@@ -15,6 +15,8 @@ const BLOCOS=[
   {arq:'corte-comodo.js',       ini:'<!-- corte:inicio -->',fim:'<!-- corte:fim -->'},
   {arq:'s9-percepcao.js',       ini:'<!-- s9:inicio -->',   fim:'<!-- s9:fim -->'},
   {arq:'audio-manager.js',      ini:'<!-- am:inicio -->',   fim:'<!-- am:fim -->'},
+  {arq:'s15-qualidade.js',      ini:'<!-- s15:inicio -->',  fim:'<!-- s15:fim -->'},
+  {arq:'s16-armazenamento.js',  ini:'<!-- s16:inicio -->',  fim:'<!-- s16:fim -->'},
 ];
 
 /* A voz da abertura entra embutida. O jogo é um arquivo só — é o que a
