@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, maximum-scale=1">
+<meta name="theme-color" content="#101216">
+<meta name="description" content="Forge Mobile — A Pocket Game Development Environment">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Forge Mobile</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="assets/icons/icon-192.png">
+<link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/layout.css">
+<link rel="stylesheet" href="css/panels.css">
+</head>
+<body data-orientation="landscape" data-panel="viewport">
+
+<div id="splash">
+  <div class="splash-mark">FM</div>
+  <div class="splash-title">Forge Mobile</div>
+  <div class="splash-sub">A Pocket Game Development Environment</div>
+  <div class="splash-bar"><i></i></div>
+</div>
+
+<div id="app" hidden>
+
+  <header id="topbar">
+    <button class="icon-btn" id="btn-menu" title="Menu" aria-label="Menu">☰</button>
+    <div id="project-name" title="Projeto">—</div>
+    <div class="topbar-spacer"></div>
+    <div class="playbar" role="group" aria-label="Play controls">
+      <button class="icon-btn play" id="btn-play" title="Play (Ctrl+P)" aria-label="Play">▶</button>
+      <button class="icon-btn" id="btn-pause" title="Pause" aria-label="Pause">❚❚</button>
+      <button class="icon-btn" id="btn-stop" title="Stop" aria-label="Stop">■</button>
+    </div>
+    <div class="topbar-spacer"></div>
+    <div class="toolbar" role="group" aria-label="Ferramentas">
+      <button class="icon-btn" id="btn-undo" title="Undo (Ctrl+Z)" aria-label="Undo">↶</button>
+      <button class="icon-btn" id="btn-redo" title="Redo (Ctrl+Y)" aria-label="Redo">↷</button>
+      <button class="icon-btn" id="btn-save" title="Salvar (Ctrl+S)" aria-label="Salvar">⤓</button>
+      <button class="icon-btn" id="btn-search" title="Busca global (Ctrl+K)" aria-label="Busca">⌕</button>
+      <button class="icon-btn" id="btn-settings" title="Configurações" aria-label="Configurações">⚙</button>
+    </div>
+  </header>
+
+  <main id="workspace">
+
+    <aside class="panel" id="panel-hierarchy" data-panel-id="hierarchy">
+      <div class="panel-head">
+        <span class="panel-title">Hierarchy</span>
+        <div class="panel-actions">
+          <button class="icon-btn sm" id="hier-add" title="Criar GameObject">＋</button>
+          <button class="icon-btn sm" id="hier-dup" title="Duplicar">⧉</button>
+          <button class="icon-btn sm" id="hier-del" title="Excluir">🗑</button>
+          <button class="icon-btn sm drawer-close" title="Fechar">✕</button>
+        </div>
+      </div>
+      <div class="panel-sub"><input type="search" id="hier-search" placeholder="Buscar objetos…" autocomplete="off"></div>
+      <div class="panel-body" id="hierarchy-tree" role="tree"></div>
+    </aside>
+
+    <section class="panel" id="panel-viewport" data-panel-id="viewport">
+      <div class="panel-head tabs" id="viewport-tabs">
+        <button class="tab active" data-view="scene">Scene</button>
+        <button class="tab" data-view="game">Game</button>
+        <div class="panel-actions">
+          <button class="icon-btn sm" id="btn-perf" title="Performance overlay">📈</button>
+          <button class="icon-btn sm" id="btn-frame" title="Enquadrar seleção (F)">◎</button>
+        </div>
+      </div>
+      <div class="viewport-stack">
+        <div class="view" id="scene-view">
+          <canvas id="scene-canvas"></canvas>
+          <div class="scene-tools" role="group" aria-label="Ferramentas de transformação">
+            <button class="tool active" data-tool="select" title="Selecionar">✥</button>
+            <button class="tool" data-tool="move" title="Mover">✛</button>
+            <button class="tool" data-tool="rotate" title="Rotacionar">⟳</button>
+            <button class="tool" data-tool="scale" title="Escalar">⤢</button>
+          </div>
+          <div class="scene-zoom">
+            <button class="icon-btn sm" id="zoom-in">＋</button>
+            <button class="icon-btn sm" id="zoom-out">－</button>
+            <button class="icon-btn sm" id="zoom-reset">⌂</button>
+          </div>
+        </div>
+        <div class="view" id="game-view" hidden>
+          <canvas id="game-canvas"></canvas>
+          <div id="touch-controls" hidden>
+            <div class="stick" id="touch-stick"><i></i></div>
+            <div class="pad">
+              <button class="gbtn" data-btn="Action">A</button>
+              <button class="gbtn" data-btn="Jump">⤒</button>
+            </div>
+          </div>
+          <div class="game-empty" id="game-empty">Pressione <b>▶ Play</b> para executar a cena.</div>
+        </div>
+        <div id="perf-overlay" hidden></div>
+      </div>
+    </section>
+
+    <aside class="panel" id="panel-inspector" data-panel-id="inspector">
+      <div class="panel-head">
+        <span class="panel-title">Inspector</span>
+        <div class="panel-actions">
+          <button class="icon-btn sm" id="insp-add" title="Add Component">＋</button>
+          <button class="icon-btn sm drawer-close" title="Fechar">✕</button>
+        </div>
+      </div>
+      <div class="panel-body" id="inspector-body"></div>
+    </aside>
+
+    <section class="panel" id="panel-bottom" data-panel-id="bottom">
+      <div class="panel-head tabs" id="bottom-tabs">
+        <button class="tab active" data-tab="project">Project</button>
+        <button class="tab" data-tab="console">Console <span class="badge" id="console-badge" hidden>0</span></button>
+        <button class="tab" data-tab="learn">Learn</button>
+        <div class="panel-actions">
+          <button class="icon-btn sm drawer-close" title="Fechar">✕</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="tab-page active" id="tab-project">
+          <div class="project-toolbar">
+            <button class="btn sm" id="proj-new-folder">Nova pasta</button>
+            <button class="btn sm" id="proj-new-script">Novo script</button>
+            <button class="btn sm" id="proj-new-scene">Nova cena</button>
+            <button class="btn sm" id="proj-new-material">Novo material</button>
+            <button class="btn sm" id="proj-import">Importar asset</button>
+            <input type="file" id="proj-file-input" hidden multiple>
+          </div>
+          <div id="project-tree"></div>
+        </div>
+        <div class="tab-page" id="tab-console">
+          <div class="console-toolbar">
+            <button class="btn sm" id="console-clear">Limpar</button>
+            <label class="chk"><input type="checkbox" id="f-log" checked> Logs</label>
+            <label class="chk"><input type="checkbox" id="f-warn" checked> Warnings</label>
+            <label class="chk"><input type="checkbox" id="f-error" checked> Errors</label>
+            <label class="chk"><input type="checkbox" id="f-collapse"> Agrupar</label>
+            <input type="search" id="console-search" placeholder="filtrar…">
+          </div>
+          <div id="console-list" aria-live="polite"></div>
+        </div>
+        <div class="tab-page" id="tab-learn"></div>
+      </div>
+    </section>
+  </main>
+
+  <nav id="mobile-tabs" aria-label="Painéis">
+    <button data-panel="hierarchy">Hierarchy</button>
+    <button data-panel="viewport" class="active">Scene</button>
+    <button data-panel="inspector">Inspector</button>
+    <button data-panel="bottom">Project</button>
+  </nav>
+</div>
+
+<div id="modal-root"></div>
+<div id="toast-root" aria-live="polite"></div>
+
+<noscript>Forge Mobile precisa de JavaScript habilitado.</noscript>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
