@@ -1,0 +1,11 @@
+Coloque aqui os arquivos do AUDIO_ASSET_MANIFEST.md, com os nomes que o
+audio-manager.js espera (a coluna `arq` do catálogo AM_SONS).
+
+O pacote de áudio não redistribui os arquivos de propósito: cada um tem de
+ser baixado da página de origem (Mixkit / Pixabay) e ter a licença
+registrada em AUDIO_LICENSES.md. O jogo funciona sem nenhum deles — cada
+slot cai na síntese que o jogo já faz — e passa a usar o arquivo assim que
+ele aparecer nesta pasta, sem precisar mexer em código.
+
+No console do jogo, `amRelatorio()` diz quais slots já têm arquivo, quais
+estão na síntese e quais não têm nada.

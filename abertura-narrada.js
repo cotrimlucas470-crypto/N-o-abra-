@@ -19,45 +19,31 @@
 
 const VOZ_ABERTURA='@@VOZ_ABERTURA@@';
 
-/* A segunda gravação. Medida: 41,22 s, mono, pico 0,291, e — isto importa —
-   15 blocos de fala separados por pausas de frase. Não é ambiente: é outra
-   narração. Tocada como está, por baixo da primeira, seriam duas pessoas
-   falando ao mesmo tempo, que é a definição de ficar estranho.
+/* O DRONE DA ABERTURA — e por que a segunda gravação saiu daqui.
+   Ela era outra narração (medida: 41,22 s, 15 blocos de fala com pausas de
+   frase). Passou por três tentativas: escondida a ponto de sumir, depois
+   audível mas mascarada pelo gerador, depois audível numa banda própria com
+   ducking de 8 dB. A terceira funcionou — e o resultado foi exatamente o
+   problema: duas vozes falando na abertura. Uma delas tinha de sair, e a que
+   sai é a que não tem função: a narração da frente é a que dá o relógio para
+   as palavras aparecerem.
 
-   A primeira tentativa resolveu isso escondendo: passa-baixa em 320 Hz e
-   ganho baixo. Funcionou demais — a coisa sumiu, e uma presença que ninguém
-   percebe não é presença nenhuma. O conserto não é subir o volume, é dar
-   lugar a ela: ela ocupa os vãos.
+   No lugar dela, o que o pacote de áudio pede para a abertura: "drone
+   profundo, escuro e perceptível, porém discreto; sem bateria, melodia
+   dominante ou jumpscare". Então é drone, e é sintetizado — três senoides em
+   quinta e oitava com batimento lento entre elas, ruído filtrado por cima
+   fazendo o ar, e nada disso é voz.
 
-   Este bloco já sabe, por medição, os 24 instantes em que o narrador está
-   falando e os 18 vãos entre as frases dele. A presença é abaixada durante
-   cada fala e sobe em cada respirada, com rampas de 120 ms — então ela é
-   claramente audível, respirando entre as linhas, e nunca em cima delas.
-   Vão curto demais para caber uma subida (menos de 340 ms) ela atravessa
-   abaixada, senão viraria um gate batendo.
+   O ducking continua igual e continua vindo do pacote ("~6-10 dB; restaurar
+   em 1-2 s"): 8,0 dB de recuo durante cada uma das 24 falas medidas do
+   narrador, descida de 250 ms, subida de 1,2 s. O drone respira nos vãos
+   entre as frases, e nunca em cima delas.
 
-   E ela não podia ficar numa passa-baixa grave, que foi a segunda tentativa
-   errada: medindo a saída, o nível durante a fala e o nível nos vãos deram
-   praticamente igual (rms 0,0513 contra 0,0548). O motivo não era o ganho —
-   era o gerador. Ele é passa-baixa em 430 Hz, toca do segundo 4,7 até o fim,
-   e mascarava a presença dentro da própria faixa dela.
-
-   Então a presença mudou de lugar em vez de subir de volume: uma janela de
-   380 a 1500 Hz, acima do teto do motor. É a banda do telefone — voz do
-   outro lado da parede, com cadência e peso, sem sibilância e sem palavra
-   que dispute atenção — e ela não briga com nada que já estava lá.
-
-   A 0,84 de velocidade desce cerca de três semitons e dura 49,07 s, o tamanho
-   exato da narração: acompanha a história inteira e cala junto com ela. */
-const FUNDO_ABERTURA='@@FUNDO_ABERTURA@@';
-/* Os números do ducking são os do pacote de áudio (01_PROMPT_AUDIO):
-   "durante fala, ducking de ~6-10 dB; restaurar em 1-2 s".
-   8 dB de atenuação são 10^(-8/20) = 0,40 de ganho relativo. A descida é
-   rápida (250 ms, pra estar fora do caminho antes da voz entrar) e a
-   subida é lenta (1,2 s), então nos vãos curtos ela só começa a voltar e
-   nos longos ela floresce inteira — o que dá respiração em vez de gate. */
-const FUNDO={rate:0.84, sub:380, corte:1500, vol:1.10, duck:0.40,
-             desce:0.25, sobe:1.20, vaoMinimo:0.30, rev:0.62};
+   O arquivo `fundo-abertura.mp3` continua no repositório e continua embutido
+   pela montagem; ele só não é mais usado aqui. Voltar atrás é trocar
+   `droneAbertura` por `presencaAbertura` numa linha. */
+const FUNDO={ raiz:44, vol:0.30, duck:0.40,
+              desce:0.25, sobe:1.20, vaoMinimo:0.30 };
 
 /* os 24 blocos de fala do narrador, achatados e em ordem */
 function blocosDaNarracao(){
@@ -72,32 +58,29 @@ function blocosDaNarracao(){
 function envelopeDaPresenca(g,t0,dur,desde){
   const B=blocosDaNarracao();
   const alto=FUNDO.vol, baixo=FUNDO.vol*FUNDO.duck;
-  /* agendar no passado é erro em alguns navegadores: tudo que já passou
-     é descartado e o ganho parte de onde deveria estar agora */
   const d=(desde==null)?t0:Math.max(t0,desde);
   const quando=(t)=>Math.max(d,t0+t);
   g.gain.setValueAtTime(0,d);
-  g.gain.linearRampToValueAtTime(baixo,quando(.45));   // já entra sob a 1ª fala
+  g.gain.linearRampToValueAtTime(baixo,quando(2.2));   // sobe no escuro inicial
   for(let i=0;i<B.length;i++){
     const fim=B[i][1], prox=(i+1<B.length)?B[i+1][0]:null;
     if(fim>=dur)break;
-    if(t0+fim<d)continue;                              // esse vão já passou
+    if(t0+fim<d)continue;
     const vao=prox==null?dur-fim:prox-fim;
-    if(vao<FUNDO.vaoMinimo)continue;                   // curto: atravessa abaixada
+    if(vao<FUNDO.vaoMinimo)continue;                   // curto: atravessa abaixado
     /* a voz calou: começa a voltar, devagar */
     g.gain.setValueAtTime(baixo,quando(fim));
-    const teto=Math.min(dur,fim+FUNDO.sobe);
-    g.gain.linearRampToValueAtTime(alto,quando(teto));
+    g.gain.linearRampToValueAtTime(alto,quando(Math.min(dur,fim+FUNDO.sobe)));
     if(prox!=null){
       /* e sai da frente antes da próxima fala, rápido. Num vão curto o
-         desvio acontece antes de a subida terminar, e ela nem chega ao
+         desvio acontece antes de a subida terminar, e ele nem chega ao
          teto — é essa a diferença entre respirar e piscar. */
       const comeca=Math.max(fim,prox-FUNDO.desce);
-      g.gain.cancelAndHoldAtTime?g.gain.cancelAndHoldAtTime(quando(comeca)):null;
+      if(g.gain.cancelAndHoldAtTime)g.gain.cancelAndHoldAtTime(quando(comeca));
       g.gain.linearRampToValueAtTime(baixo,quando(prox));
     }
   }
-  g.gain.linearRampToValueAtTime(0,quando(dur-.15));
+  g.gain.linearRampToValueAtTime(0,quando(dur-.6));
 }
 
 const HISTORIA=[
@@ -162,46 +145,35 @@ function marcarPalavras(p){
    toca fora do grafo do jogo, e o que ela precisa é de espaço. */
 let _cineFundo=null;
 
-/* a presença: a segunda gravação, dando lugar à voz do narrador.
+/* o drone: fundo da abertura, sem uma palavra dentro */
+function droneAbertura(nos,t0,dur){
+  if(!A.ctx)return null;
+  const t=t0, f=FUNDO.raiz;
+  const g=A.ctx.createGain(); g.gain.value=0;
+  const lp=A.ctx.createBiquadFilter();
+  lp.type='lowpass'; lp.frequency.value=520; lp.Q.value=.6;
+  lp.connect(g); saida(g,{rev:.72});
 
-   `t0` é o instante em que a narração começou, não o instante em que a
-   decodificação acabou. Isso importa: decodificar quase um mega de mp3 leva
-   algumas centenas de milissegundos, e agendar o envelope a partir do fim do
-   decode punha o padrão inteiro atrasado em relação à voz — a presença subia
-   em cima da fala e recuava no silêncio, exatamente o contrário.
+  /* raiz, quinta e oitava. As duas primeiras desafinadas de 0,15 Hz uma da
+     outra: é o batimento lento que faz um acorde parado soar vivo sem
+     precisar de melodia. */
+  const vozes=[[f,.34],[f*1.5+.15,.20],[f*2,.13],[f*3+.07,.05]];
+  for(const [hz,vol] of vozes){
+    const o=A.ctx.createOscillator(), og=A.ctx.createGain();
+    o.type='sine'; o.frequency.value=hz; og.gain.value=vol;
+    o.connect(og); og.connect(lp); o.start(t); nos.push(o);
+  }
+  /* o ar por cima, pra não ficar som de teclado */
+  const ar=src(), af=A.ctx.createBiquadFilter(), ag=A.ctx.createGain();
+  af.type='bandpass'; af.frequency.value=260; af.Q.value=.5; ag.gain.value=.09;
+  ar.connect(af); af.connect(ag); ag.connect(lp); ar.start(t); nos.push(ar);
+  /* e uma abertura de filtro muito lenta: o quarto vai apertando */
+  lp.frequency.setValueAtTime(520,t);
+  lp.frequency.linearRampToValueAtTime(300,t+dur);
 
-   Então quando o buffer fica pronto ela entra JÁ NO PONTO: começa de dentro
-   do arquivo, no trecho correspondente ao tempo que já passou, e o envelope é
-   agendado contra `t0`. Quem chegou atrasado corre atrás; a voz não espera. */
-function presencaAbertura(nos,t0){
-  if(!A.ctx||!FUNDO_ABERTURA||FUNDO_ABERTURA.indexOf('base64')<0)return null;
-  try{
-    const b64=FUNDO_ABERTURA.slice(FUNDO_ABERTURA.indexOf(',')+1);
-    const bin=atob(b64), u8=new Uint8Array(bin.length);
-    for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
-    const g=A.ctx.createGain(); g.gain.value=0;
-    const hp=A.ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=FUNDO.sub;
-    const lp=A.ctx.createBiquadFilter(); lp.type='lowpass';  lp.frequency.value=FUNDO.corte; lp.Q.value=.5;
-    hp.connect(lp); lp.connect(g); saida(g,{rev:FUNDO.rev});
-    A.ctx.decodeAudioData(u8.buffer,(buf)=>{
-      if(!A.ctx)return;
-      const agora=A.ctx.currentTime;
-      const atraso=Math.max(0,agora-t0);          // quanto o decode custou
-      const dentro=atraso*FUNDO.rate;             // onde no arquivo isso cai
-      if(dentro>=buf.duration-1)return;           // atrasou tanto que não vale
-      const s=A.ctx.createBufferSource();
-      s.buffer=buf; s.playbackRate.value=FUNDO.rate;
-      s.connect(hp); s.start(agora,dentro);
-      const dur=buf.duration/FUNDO.rate;
-      envelopeDaPresenca(g,t0,dur,agora);
-      nos.push(s);
-    },()=>{});
-    return g;
-  }catch(e){ return null; }
+  envelopeDaPresenca(g,t,dur);
+  return g;
 }
-
-/* exposto pra medição: o instante em que a narração começou */
-let _t0Cine=0;
 
 function fundoAbertura(){
   if(!A.ctx)return;
@@ -213,8 +185,8 @@ function fundoAbertura(){
   sub.type='sine'; sub.frequency.setValueAtTime(38,t);
   sub.frequency.linearRampToValueAtTime(31,t+FIM_NARRACAO);
   subG.gain.setValueAtTime(0,t);
-  /* o leito cede um pouco: a presença ocupa os vãos, não a faixa toda */
-  subG.gain.linearRampToValueAtTime(.044,t+4);
+  /* o leito cede um pouco: o drone ocupa os vãos, não a faixa toda */
+  subG.gain.linearRampToValueAtTime(.040,t+4);
   sub.connect(subG); saida(subG,{rev:.2}); sub.start(t); nos.push(sub);
 
   /* ar parado: sopro largo, sem direção */
@@ -229,7 +201,7 @@ function fundoAbertura(){
   resp.type='sine'; resp.frequency.value=.075; respG.gain.value=.010;
   resp.connect(respG); respG.connect(arG.gain); resp.start(t); nos.push(resp);
 
-  const pres=presencaAbertura(nos,t);
+  const pres=droneAbertura(nos,t,FIM_NARRACAO);
   _cineFundo={nos,sub:subG,ar:arG,pres};
 }
 

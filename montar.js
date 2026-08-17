@@ -14,6 +14,7 @@ const BLOCOS=[
   {arq:'abertura-narrada.js',   ini:'<!-- cine:inicio -->',fim:'<!-- cine:fim -->'},
   {arq:'corte-comodo.js',       ini:'<!-- corte:inicio -->',fim:'<!-- corte:fim -->'},
   {arq:'s9-percepcao.js',       ini:'<!-- s9:inicio -->',   fim:'<!-- s9:fim -->'},
+  {arq:'audio-manager.js',      ini:'<!-- am:inicio -->',   fim:'<!-- am:fim -->'},
 ];
 
 /* A voz da abertura entra embutida. O jogo é um arquivo só — é o que a
@@ -22,7 +23,9 @@ const BLOCOS=[
 const EMBUTIR={
   '@@VOZ_ABERTURA@@':{arq:'abertura.mp3', tipo:'audio/mpeg'},
   '@@PASSOS_CORTE@@':{arq:'passos.mp3',   tipo:'audio/mpeg'},
-  '@@FUNDO_ABERTURA@@':{arq:'fundo-abertura.mp3', tipo:'audio/mpeg'},
+  /* fundo-abertura.mp3 ficou fora: a abertura usa drone sintetizado, e
+     embutir 0,84 MB de base64 que ninguém toca era peso morto no HTML.
+     O arquivo continua no repositório caso a voz volte. */
 };
 
 let html=fs.readFileSync('index.html','utf8');
