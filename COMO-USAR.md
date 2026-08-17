@@ -585,3 +585,113 @@ mais forte que seja. O jogo nunca diz qual é.
 8 minutos e 4 de estresse, e acerta 80% das vezes. Medido: 80,0%. Os 20%
 restantes **não devolvem "não sei"** — devolvem a resposta errada com a mesma
 cara de certeza. Uma checagem que avisasse quando falhou seria de 100%.
+
+## §15 e §16 — qualidade dos itens e armazenamento na casa
+
+Duas seções novas. A §15 põe durabilidade em tudo que se usa; a §16 dá à
+casa móveis que abrem de verdade. Nenhuma das duas reescreve o v48: as duas
+embrulham funções que já existiam, do mesmo jeito que o §14 embrulha
+`mochilaInfo`.
+
+### Como isso entra na cena
+
+O jogo é um HTML só. Cada seção mora num arquivo à parte pra dar pra ler, e
+o `montar.js` injeta todos antes do `</body>`, na ordem da lista `BLOCOS`.
+Pra montar:
+
+```
+node montar.js      # regrava index.html e troca o cache do sw.js
+```
+
+A ordem importa e é esta: `v48 → s14 → abertura → corte → s9 → audio →
+s15 → s16`. A §15 precisa vir depois do v48 (embrulha `melhorArma`,
+`ferirPor`, `descarregar`) e a §16 depois da §15 (usa `carimbar`, `peca` e
+`ehDuravel`). Trocar a ordem quebra as duas.
+
+**Não dá pra só apagar os blocos e esperar que tudo volte.** O núcleo chama
+três ganchos — `gastarArma`, `chanceArma` e `usarFerra` — que existem
+vazios dentro do `index.html` justamente pra isso: sem a §15, o jogo roda
+inteiro, só sem desgaste. A §15 substitui os três quando carrega.
+
+### Os cinco estados
+
+Durabilidade é 0 a 100, e a faixa sai da **porcentagem** do máximo daquela
+peça, não do valor cru — reparar encolhe o máximo, então 60 de 80 não é a
+mesma coisa que 60 de 100.
+
+| faixa | estado | cor | o que muda |
+|---|---|---|---|
+| 100–86 | Perfeito | verde | +5% de eficiência |
+| 85–61 | Bom | azul | nada |
+| 60–36 | Desgastado | amarelo | −15% |
+| 35–11 | Ruim | laranja | −35% e um debuff |
+| 10–0 | Quebrado | vermelho | não funciona até consertar |
+
+### Quem gasta o quê
+
+- **arma** — a cada golpe, acertando ou não (errar gasta 60%, porque bate
+  em parede e chão). Enganchado nos dois pontos de combate do jogo.
+- **armadura** — a cada dano recebido, dentro do `ferirPor`. Às vezes ela
+  come a pancada inteira, e a chance disso depende do estado dela.
+- **ferramenta** — a cada serviço. O gancho é o `martelada` e o `serrada`:
+  se o jogo tocou o som do martelo, o martelo trabalhou. Enxada, pá e
+  escada têm chamada própria de `usarFerra`.
+- **comida** — por dia. Dentro de móvel fechado, metade da velocidade.
+
+A taxa de cada item está na tabela `DESGASTE`, com um padrão por categoria
+em `DESGASTE_PADRAO`. Mexer no equilíbrio é mexer só ali.
+
+### Os debuffs
+
+Ficam num sistema de status separado dos `MALES` — doença e ferida são uma
+conta, equipamento ruim é outra, e misturar as duas estragava as duas. Cada
+efeito tem nome, ícone, duração e efeito:
+
+- **arma ruim** — −35% de dano e 20 pontos a menos de chance de acertar
+- **armadura ruim** — −35% de defesa e −10% de velocidade
+- **ferramenta ruim** — coleta pior e chance de o serviço não sair
+- **intoxicação** — comer o que estragou; cobra por hora, não por dia
+
+Os três primeiros têm `fonte:'equipamento'` e são recalculados do zero pelo
+`sincronizarEfeitos()`. É idempotente de propósito: chamar dez vezes dá o
+mesmo resultado, e é por isso que o debuff **some sozinho** quando você
+repara a peça ou tira a armadura. Ninguém precisa lembrar de remover.
+
+### O reparo
+
+Na oficina, botão **Bancada de reparo**. Custa material e moeda, uma hora, e
+devolve 40 de durabilidade (+10 por nível de bancada). Cada remendo tira 2
+do **máximo**, e isso não volta: peça remendada dez vezes nunca mais é peça
+nova. É o que faz valer a pena achar uma inteira.
+
+### Os móveis
+
+Três, cada um com id próprio, no cômodo dele: armário na **despensa** (60),
+caixote no **sótão** (30), prateleira no **porão** (40). Abre pelo botão do
+cômodo ou pela tecla **E** quando você está nele. Dá pra montar mais
+prateleira: +20 espaços por vez, até duas vezes.
+
+A tela é de duas colunas — mochila à esquerda, móvel à direita. Clique move
+uma unidade; arrastar-e-soltar faz o mesmo com o mouse; **Depositar tudo** e
+**Retirar tudo** movem o resto. Tem busca por nome, filtro por categoria,
+quatro ordenações (nome, raridade, quantidade e conservação) e contador de
+espaços usados. Retirar respeita o peso e o volume da mochila: o que não
+cabe fica.
+
+**Iguais empilham, estados diferentes não.** Quatro frutas colhidas hoje vão
+num espaço só; duas facas, uma a 90% e outra a 30%, ocupam dois — somar as
+duas apagaria qual é qual. Arma e ferramenta não têm `pilha` no catálogo,
+então continuam uma por espaço de qualquer jeito.
+
+**O que sobrava do saque não sumia mais num buraco.** Antes ia pro
+`S.guardados`, de onde não saía nunca; agora cai no armário da despensa, e
+o que estava no buraco é migrado na primeira vez que o jogo abre.
+
+### Pra acrescentar um item novo
+
+Ele é dado, não código. Põe no `CATALOGO` com a categoria certa (`arma`,
+`armadura` ou `ferra`, ou `comida` com `perece`), e o desgaste já vem do
+padrão da categoria. Só põe uma linha no `DESGASTE` se aquele item tiver que
+fugir da média. Se ele for aparecer no mundo, põe o id na lista de saque de
+algum `TIPO_CASA`. E desenha ele no `DESENHO` — este jogo não usa ícone
+genérico, e item sem desenho cai num quadrado cinza.
