@@ -68,24 +68,45 @@ jogo, contra 0,405 da voz: o fundo nunca disputa com a narração.
 **A presença por baixo.** A segunda gravação foi medida antes de ser usada:
 41,22 s, mono, pico 0,291 e **15 blocos de fala separados por pausas de
 frase**. Não é ambiente — é outra narração. Tocada como está, por baixo da
-primeira, seriam duas pessoas falando ao mesmo tempo, que é a definição de
-ficar estranho.
+primeira, seriam duas pessoas falando ao mesmo tempo.
 
-Então ela não entra como voz, entra como presença:
+Ela dá lugar à voz em vez de brigar com ela. Chegar aqui custou dois erros
+meus, e os dois só apareceram na medição:
 
-- **passa-baixa em 320 Hz** mata a inteligibilidade. Medido no espectro da
-  saída: a faixa de 40–320 Hz domina a de 320 Hz–2 kHz em **26,3 dB**, então
-  sobram a cadência e o peso e nenhuma palavra disputa com o narrador
-- **0,84 de velocidade** desce cerca de três semitons e estica os 41,22 s
-  para **49,07 s** — o tamanho exato da narração. A coisa acompanha a
-  história do começo ao fim e cala junto com ela
-- corte de graves em 40 Hz, a mesma lição do gerador: sub solto não é som, é
-  o cone indo de um extremo ao outro
-- o leito próprio cedeu espaço (sub de 0,055 para 0,038, ar de 0,030 para
-  0,022) para a presença caber sem somar
+**Errado 1 — esconder.** Passa-baixa em 320 Hz e ganho baixo. Funcionou
+demais: a coisa sumiu, e presença que ninguém percebe não é presença.
 
-Medido: leito completo com a presença dentro dá pico **0,262** contra os
-**0,405** da voz. A narração continua liderando com folga.
+**Errado 2 — subir o volume.** Medindo a saída, o nível durante a fala e o
+nível nos vãos deram praticamente igual (rms 0,0513 contra 0,0548). O motivo
+não era ganho: era **o gerador**. Ele é passa-baixa em 430 Hz, toca do
+segundo 4,7 até o fim, e mascarava a presença dentro da faixa dela.
+
+**Certo — mudar de lugar e ocupar os vãos.** Uma janela de **380 a 1500 Hz**,
+acima do teto do motor: voz do outro lado da parede, com cadência e peso, sem
+sibilância e sem palavra que dispute atenção. E o ganho é automatizado contra
+as **24 marcas de fala** que este bloco já conhecia: ela recua durante cada
+linha e volta em cada respirada.
+
+Os números do ducking são os do pacote de áudio, que pede *"ducking de ~6–10 dB;
+restaurar em 1–2 s"*: **8,0 dB medidos** de atenuação, descida de 250 ms (pra
+estar fora do caminho antes da voz entrar) e subida de 1,2 s. Como a subida é
+lenta e os vãos vão de 0,36 s a 0,80 s, ela **só floresce nos vãos longos** — o
+que é respiração em vez de gate. Medido: 0,44 de ganho durante a fala, pico
+0,742 nos vãos.
+
+**Um defeito de sincronia que a medição pegou.** A presença era agendada a
+partir do fim da decodificação, não do início da narração. Decodificar quase
+um mega de mp3 leva algumas centenas de milissegundos, e isso punha o padrão
+inteiro atrasado: ela subia em cima da fala e recuava no silêncio, o oposto do
+desenhado. Agora, quando o buffer fica pronto, ela entra **já no ponto** —
+começa de dentro do arquivo, no trecho correspondente ao tempo que passou, e o
+envelope é agendado contra o início da narração.
+
+**E uma correção de método:** todos os picos que eu vinha reportando nesta
+seção foram medidos em `A.master`, que é **antes** do ganho de compensação e
+do teto `tanh`. Os números relativos continuam valendo (leito contra leito),
+mas o pico absoluto real se mede em `A._saidaV48.teto`. Lá o leito completo
+com a presença dá pico 0,883, abaixo do teto de 0,95.
 
 Na última frase a sala muda de cor — o lampião vira ferrugem.
 

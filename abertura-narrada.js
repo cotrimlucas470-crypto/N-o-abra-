@@ -24,16 +24,81 @@ const VOZ_ABERTURA='@@VOZ_ABERTURA@@';
    narração. Tocada como está, por baixo da primeira, seriam duas pessoas
    falando ao mesmo tempo, que é a definição de ficar estranho.
 
-   Então ela não entra como voz, entra como presença. Passa-baixa em 320 Hz
-   mata a inteligibilidade — sobram a cadência e o peso, e nenhuma palavra
-   disputa com o narrador. A 0,84 de velocidade ela desce cerca de três
-   semitons e passa a durar 49,07 s, que é o tamanho da narração: a coisa
-   acompanha a história do começo ao fim e cala junto com ela.
+   A primeira tentativa resolveu isso escondendo: passa-baixa em 320 Hz e
+   ganho baixo. Funcionou demais — a coisa sumiu, e uma presença que ninguém
+   percebe não é presença nenhuma. O conserto não é subir o volume, é dar
+   lugar a ela: ela ocupa os vãos.
 
-   O corte de graves em 40 Hz é a mesma lição do gerador: sub solto não é
-   som, é o cone indo de um extremo ao outro. */
+   Este bloco já sabe, por medição, os 24 instantes em que o narrador está
+   falando e os 18 vãos entre as frases dele. A presença é abaixada durante
+   cada fala e sobe em cada respirada, com rampas de 120 ms — então ela é
+   claramente audível, respirando entre as linhas, e nunca em cima delas.
+   Vão curto demais para caber uma subida (menos de 340 ms) ela atravessa
+   abaixada, senão viraria um gate batendo.
+
+   E ela não podia ficar numa passa-baixa grave, que foi a segunda tentativa
+   errada: medindo a saída, o nível durante a fala e o nível nos vãos deram
+   praticamente igual (rms 0,0513 contra 0,0548). O motivo não era o ganho —
+   era o gerador. Ele é passa-baixa em 430 Hz, toca do segundo 4,7 até o fim,
+   e mascarava a presença dentro da própria faixa dela.
+
+   Então a presença mudou de lugar em vez de subir de volume: uma janela de
+   380 a 1500 Hz, acima do teto do motor. É a banda do telefone — voz do
+   outro lado da parede, com cadência e peso, sem sibilância e sem palavra
+   que dispute atenção — e ela não briga com nada que já estava lá.
+
+   A 0,84 de velocidade desce cerca de três semitons e dura 49,07 s, o tamanho
+   exato da narração: acompanha a história inteira e cala junto com ela. */
 const FUNDO_ABERTURA='@@FUNDO_ABERTURA@@';
-const FUNDO={rate:0.84, corte:320, sub:40, vol:0.46, rev:0.80};
+/* Os números do ducking são os do pacote de áudio (01_PROMPT_AUDIO):
+   "durante fala, ducking de ~6-10 dB; restaurar em 1-2 s".
+   8 dB de atenuação são 10^(-8/20) = 0,40 de ganho relativo. A descida é
+   rápida (250 ms, pra estar fora do caminho antes da voz entrar) e a
+   subida é lenta (1,2 s), então nos vãos curtos ela só começa a voltar e
+   nos longos ela floresce inteira — o que dá respiração em vez de gate. */
+const FUNDO={rate:0.84, sub:380, corte:1500, vol:1.10, duck:0.40,
+             desce:0.25, sobe:1.20, vaoMinimo:0.30, rev:0.62};
+
+/* os 24 blocos de fala do narrador, achatados e em ordem */
+function blocosDaNarracao(){
+  const b=[];
+  HISTORIA.forEach(p=>p.b.forEach(x=>b.push(x)));
+  return b.sort((x,y)=>x[0]-y[0]);
+}
+
+/* A automação inteira é agendada de uma vez, na hora de começar: o
+   navegador executa no relógio do áudio, com precisão de amostra, e não
+   depende de nenhum setTimeout chegando na hora. */
+function envelopeDaPresenca(g,t0,dur,desde){
+  const B=blocosDaNarracao();
+  const alto=FUNDO.vol, baixo=FUNDO.vol*FUNDO.duck;
+  /* agendar no passado é erro em alguns navegadores: tudo que já passou
+     é descartado e o ganho parte de onde deveria estar agora */
+  const d=(desde==null)?t0:Math.max(t0,desde);
+  const quando=(t)=>Math.max(d,t0+t);
+  g.gain.setValueAtTime(0,d);
+  g.gain.linearRampToValueAtTime(baixo,quando(.45));   // já entra sob a 1ª fala
+  for(let i=0;i<B.length;i++){
+    const fim=B[i][1], prox=(i+1<B.length)?B[i+1][0]:null;
+    if(fim>=dur)break;
+    if(t0+fim<d)continue;                              // esse vão já passou
+    const vao=prox==null?dur-fim:prox-fim;
+    if(vao<FUNDO.vaoMinimo)continue;                   // curto: atravessa abaixada
+    /* a voz calou: começa a voltar, devagar */
+    g.gain.setValueAtTime(baixo,quando(fim));
+    const teto=Math.min(dur,fim+FUNDO.sobe);
+    g.gain.linearRampToValueAtTime(alto,quando(teto));
+    if(prox!=null){
+      /* e sai da frente antes da próxima fala, rápido. Num vão curto o
+         desvio acontece antes de a subida terminar, e ela nem chega ao
+         teto — é essa a diferença entre respirar e piscar. */
+      const comeca=Math.max(fim,prox-FUNDO.desce);
+      g.gain.cancelAndHoldAtTime?g.gain.cancelAndHoldAtTime(quando(comeca)):null;
+      g.gain.linearRampToValueAtTime(baixo,quando(prox));
+    }
+  }
+  g.gain.linearRampToValueAtTime(0,quando(dur-.15));
+}
 
 const HISTORIA=[
  {t:'Você trancou a porta faz três dias e não abriu mais.',
@@ -97,8 +162,18 @@ function marcarPalavras(p){
    toca fora do grafo do jogo, e o que ela precisa é de espaço. */
 let _cineFundo=null;
 
-/* a presença: a segunda gravação, irreconhecível de propósito */
-function presencaAbertura(nos){
+/* a presença: a segunda gravação, dando lugar à voz do narrador.
+
+   `t0` é o instante em que a narração começou, não o instante em que a
+   decodificação acabou. Isso importa: decodificar quase um mega de mp3 leva
+   algumas centenas de milissegundos, e agendar o envelope a partir do fim do
+   decode punha o padrão inteiro atrasado em relação à voz — a presença subia
+   em cima da fala e recuava no silêncio, exatamente o contrário.
+
+   Então quando o buffer fica pronto ela entra JÁ NO PONTO: começa de dentro
+   do arquivo, no trecho correspondente ao tempo que já passou, e o envelope é
+   agendado contra `t0`. Quem chegou atrasado corre atrás; a voz não espera. */
+function presencaAbertura(nos,t0){
   if(!A.ctx||!FUNDO_ABERTURA||FUNDO_ABERTURA.indexOf('base64')<0)return null;
   try{
     const b64=FUNDO_ABERTURA.slice(FUNDO_ABERTURA.indexOf(',')+1);
@@ -110,39 +185,43 @@ function presencaAbertura(nos){
     hp.connect(lp); lp.connect(g); saida(g,{rev:FUNDO.rev});
     A.ctx.decodeAudioData(u8.buffer,(buf)=>{
       if(!A.ctx)return;
-      const t=A.ctx.currentTime+.05;
+      const agora=A.ctx.currentTime;
+      const atraso=Math.max(0,agora-t0);          // quanto o decode custou
+      const dentro=atraso*FUNDO.rate;             // onde no arquivo isso cai
+      if(dentro>=buf.duration-1)return;           // atrasou tanto que não vale
       const s=A.ctx.createBufferSource();
       s.buffer=buf; s.playbackRate.value=FUNDO.rate;
-      s.connect(hp); s.start(t);
+      s.connect(hp); s.start(agora,dentro);
       const dur=buf.duration/FUNDO.rate;
-      g.gain.setValueAtTime(0,t);
-      g.gain.linearRampToValueAtTime(FUNDO.vol,t+3.5);       // entra sem ser notada
-      g.gain.setValueAtTime(FUNDO.vol,t+dur-4);
-      g.gain.linearRampToValueAtTime(0,t+dur-.2);            // e sai do mesmo jeito
+      envelopeDaPresenca(g,t0,dur,agora);
       nos.push(s);
     },()=>{});
     return g;
   }catch(e){ return null; }
 }
 
+/* exposto pra medição: o instante em que a narração começou */
+let _t0Cine=0;
+
 function fundoAbertura(){
   if(!A.ctx)return;
   const t=A.ctx.currentTime, nos=[];
+  _t0Cine=t;
 
   /* pressão de sub: o cômodo tem peso antes de ter som */
   const sub=A.ctx.createOscillator(),subG=A.ctx.createGain();
   sub.type='sine'; sub.frequency.setValueAtTime(38,t);
   sub.frequency.linearRampToValueAtTime(31,t+FIM_NARRACAO);
   subG.gain.setValueAtTime(0,t);
-  /* o leito cede espaço: agora tem uma presença ocupando essa faixa */
-  subG.gain.linearRampToValueAtTime(.038,t+4);
+  /* o leito cede um pouco: a presença ocupa os vãos, não a faixa toda */
+  subG.gain.linearRampToValueAtTime(.044,t+4);
   sub.connect(subG); saida(subG,{rev:.2}); sub.start(t); nos.push(sub);
 
   /* ar parado: sopro largo, sem direção */
   const ar=src(),arF=A.ctx.createBiquadFilter(),arG=A.ctx.createGain();
   arF.type='bandpass'; arF.frequency.value=340; arF.Q.value=.55;
   arG.gain.setValueAtTime(0,t);
-  arG.gain.linearRampToValueAtTime(.022,t+5);
+  arG.gain.linearRampToValueAtTime(.024,t+5);
   ar.connect(arF); arF.connect(arG); saida(arG,{rev:.85}); ar.start(t); nos.push(ar);
 
   /* respiração lenta do ar, pra não virar chiado parado */
@@ -150,7 +229,7 @@ function fundoAbertura(){
   resp.type='sine'; resp.frequency.value=.075; respG.gain.value=.010;
   resp.connect(respG); respG.connect(arG.gain); resp.start(t); nos.push(resp);
 
-  const pres=presencaAbertura(nos);
+  const pres=presencaAbertura(nos,t);
   _cineFundo={nos,sub:subG,ar:arG,pres};
 }
 
