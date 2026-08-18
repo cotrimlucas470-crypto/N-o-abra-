@@ -25,6 +25,11 @@ const BLOCOS=[
 const EMBUTIR={
   '@@VOZ_ABERTURA@@':{arq:'abertura.mp3', tipo:'audio/mpeg'},
   '@@PASSOS_CORTE@@':{arq:'passos.mp3',   tipo:'audio/mpeg'},
+  /* o gerador é gravação de verdade, cortada num laço de 6 s e
+     recodificada a 48 kbps mono. 35 KB pra um som que fica tocando
+     metade do jogo é barato — e é o único jeito de ele existir num
+     HTML só, que é como o jogo é publicado. */
+  '@@GERADOR@@':{arq:'gerador.mp3', tipo:'audio/mpeg'},
   /* fundo-abertura.mp3 ficou fora: a abertura usa drone sintetizado, e
      embutir 0,84 MB de base64 que ninguém toca era peso morto no HTML.
      O arquivo continua no repositório caso a voz volte. */

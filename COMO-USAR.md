@@ -695,3 +695,112 @@ padrão da categoria. Só põe uma linha no `DESGASTE` se aquele item tiver que
 fugir da média. Se ele for aparecer no mundo, põe o id na lista de saque de
 algum `TIPO_CASA`. E desenha ele no `DESENHO` — este jogo não usa ícone
 genérico, e item sem desenho cai num quadrado cinza.
+
+## O som ficou regulado (e o gerador virou gravação)
+
+Duas queixas, uma causa comum: os efeitos estavam "desregulados" porque o
+mixer de seis canais da fase 1 **não governava nada**.
+
+### O que estava errado
+
+A síntese do v48 entrega direto em `A.seco`/`A.molhado` pela função `saida()`.
+Ela nasceu antes dos canais existirem. E como o pacote de áudio nunca trouxe os
+arquivos, *tudo* que o jogo toca é síntese — ou seja, cem por cento do som
+passava por fora do mixer. Os canais estavam lá, bonitos, sem tocar em nada.
+
+Medido no `A.master`, com o resto em silêncio:
+
+| som | pico | |
+|---|---|---|
+| batida na porta | **+1,2 dBFS** | estourando |
+| impacto de horror | −1,2 | |
+| martelo | −9,4 | |
+| passo | −16,8 | |
+| clique de UI | −26,3 | |
+| chuva, vento, insetos | — | **nunca tocaram** |
+
+Vinte e oito decibéis entre o mais alto e o mais baixo, com o topo passando do
+teto. Não era mixagem: era o limitador decidindo o volume de tudo, toda noite.
+
+E os leitos de ambiente nunca tocaram uma vez sequer: `amLoop` só sabia tocar
+arquivo, nenhuma entrada de loop tinha síntese, e não existe arquivo baixado.
+
+### O bug que estava por trás do estouro
+
+Na `batida`, a camada de ressonância do batente fazia:
+
+```js
+rg.gain.setValueAtTime(.10*forca, t+.01);   // e o oscilador começa em t
+```
+
+Um `GainNode` **nasce com ganho 1,0**. O valor só era escrito 10 ms depois do
+oscilador começar. Eram 10 ms de onda triangular em escala cheia a cada batida,
+três por chamada, e — o pior — sem escalar com `forca`: baixar a força da
+batida quase não mudava o volume dela. Era esse degrau que punha a porta em
++1,2 dBFS.
+
+Com `rg.gain.value=0`, a batida volta a ser linear: medido, 2,38× de entrada
+dá 2,45× de saída.
+
+### A régua
+
+Agora são três números por som, e cada um responde uma pergunta:
+
+- **`AM_DB`** — até onde o canal inteiro pode ir
+- **`AM_BRUTO`** — o quanto aquela síntese sai alta por acidente
+- **`AM_NIVEL`** — o quanto aquele som *deve* tocar dentro do canal
+
+O trim é `10^(AM_NIVEL/20) / AM_BRUTO`: normaliza a síntese e põe o som no
+lugar decidido. Arquivo baixado já vem normalizado e leva só o nível. E a
+síntese passou a entrar pelos canais — `amToca` troca a `saida` pelo tempo
+exato da chamada por uma que entrega num barramento com o trim, e devolve
+depois. Nenhuma função de som do v48 precisou ser reescrita.
+
+Resultado medido: **25 sons, 24 a 25 dentro de ±3 dB do alvo**, espalhamento de
+28 para ~20 dB, pico mais alto em −7 dBFS e nada estourando.
+
+**Pra remedir:** pare o leito de vento da casa (`A.amb.vento.g.gain.value=0`) e
+o `agendarInquietacao` — ele joga estalo, grilo ou gotejo a cada 1,2 s, no meio
+da tomada. Sem isso o piso fica em −28 dBFS, a mesma medida dá valores
+diferentes a cada rodada e a correção oscila sem convergir. Parados, o piso cai
+pra −42 dBFS e o número para de se mexer.
+
+### Os leitos que passaram a existir
+
+Chuva leve, chuva pesada, vento, insetos, pássaros, calha e o drone do horror
+agora são sintetizados quando não há arquivo. Não são gravações — são texturas
+com a forma certa, e cada uma cede o lugar assim que o arquivo de verdade
+aparecer em `audio/`.
+
+Leito também deixou de entrar em `AM.fontes`. `amInvalidar` roda a cada troca
+de cômodo, e com o leito lá dentro a chuva e o gerador morriam toda vez que
+você andasse pela casa — pior, a entrada continuava em `AM.loops`, então o
+`amLoop` seguinte só subia o ganho de uma fonte já morta e o leito não voltava
+nunca mais.
+
+### O gerador
+
+O motor sintetizado imitava um gerador a diesel pequeno com quatro osciladores
+e ruído modulado. Agora tem um gerador a diesel pequeno de verdade: 89 s de
+gravação, dos quais foram cortados 6 s no trecho estável (120 s a 126 s), num
+laço casado com a taxa de explosão do motor — **25,5 Hz medidos por
+autocorrelação**, 153 ciclos exatos. Crossfade de 60 ms com a cauda dobrada
+sobre o começo; a emenda ficou dentro do ruído natural do sinal, sem estalo.
+
+Recodificado a 48 kbps mono, 22 kHz: **35 KB**, embutido no HTML.
+
+MP3 carrega ~50 ms de atraso do encoder no começo e sobra no fim. Sem pontos de
+laço explícitos, cada volta traria esse silêncio pra dentro e o loop bateria.
+Os pontos vão medidos e **em segundos** (`[0.0501134, 6.0452154]`), que é o que
+não depende da taxa do contexto de áudio.
+
+A gravação não substitui a síntese, ocupa o lugar do corpo dela. Continua com a
+síntese o que depende do jogo e não do microfone: a partida que acelera demais
+e assenta, as tossidas dos três primeiros segundos e o engasgo de quando o
+diesel está no fim. E a rotação entra pela **taxa de reprodução**: tanque baixo
+toca mais devagar, e aí o tom e a cadência caem juntos, que é o que um motor
+faz de verdade.
+
+Junto veio outro conserto: desligar e religar o gerador dentro de 1,4 s deixava
+ele mudo, porque o `stop` agendado do desligamento ainda disparava e matava a
+fonte que tinha acabado de voltar.
