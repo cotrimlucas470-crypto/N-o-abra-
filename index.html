@@ -24343,5 +24343,1851 @@ S.luzes=S.luzes||{};
 
 </script>
 <!-- s18:fim -->
+<!-- s19:inicio -->
+<script>
+/* ================= §19 — A FICHA: ATRIBUTOS E CLASSES =================
+   Dez atributos de 0 a 10, dez pontos livres, catorze ofícios. A regra
+   que organiza tudo: a TELA NÃO CALCULA NADA. Ela pergunta ao jogo
+   quanto vale cada coisa, no nível atual e no nível seguinte, e mostra
+   a diferença. Texto e lógica não podem discordar porque só existe uma
+   conta — `derivadas()`, aqui embaixo.
+
+   O valor efetivo de um atributo é `investido + bônus do ofício`, com
+   teto duro em 10. Nada passa de 10: nem ofício, nem equipamento, nem
+   soma dos dois. A tela mostra as parcelas separadas justamente pra
+   ficar claro de onde veio cada ponto.
+   ===================================================================== */
+
+/* ---------- os dez atributos ----------
+   `porPonto` é a conta de cada nível. Todos usam retorno decrescente
+   nos níveis altos (a raiz em `curva`), pra que ir de 8 pra 9 valha
+   menos que ir de 1 pra 2 — senão só existe uma build boa. */
+
+const FICHA_MAX=10, FICHA_PONTOS=10;
+
+/* curva de retorno decrescente: n=0 dá 0, n=10 dá 1, e a subida é
+   mais forte no começo. Centralizada aqui de propósito: mexer no
+   equilíbrio geral do jogo é mexer nesta linha. */
+function curva(n){ return Math.pow(trava(n,0,FICHA_MAX)/FICHA_MAX,0.72); }
+
+const ATRIBUTOS={
+ forca:{n:'Força',ord:1,
+   d:'O que você levanta e o que você quebra. Peso nas costas e força no braço.',
+   afeta:'carga · dano no corpo a corpo · arma pesada · resistir a empurrão'},
+ velocidade:{n:'Velocidade',ord:2,
+   d:'Correr é a saída mais usada deste jogo. Isto é o quanto ela funciona.',
+   afeta:'corrida · arranque · abrir distância na perseguição'},
+ destreza:{n:'Destreza',ord:3,
+   d:'A mão. Mexer em coisa pequena, rápido, sem deixar cair.',
+   afeta:'interação · sacar e guardar · recarga · mexer na mochila'},
+ furtividade:{n:'Furtividade',ord:4,
+   d:'Não é invisibilidade. É produzir menos rastro do que o normal.',
+   afeta:'ruído do passo · rastro sonoro e visual · demora pra somarem você'},
+ resistencia:{n:'Resistência',ord:5,
+   d:'Quanto tempo o corpo aguenta antes de te entregar.',
+   afeta:'fôlego · gasto ao correr e ao bater · perseguição longa'},
+ vitalidade:{n:'Vitalidade',ord:6,
+   d:'O quanto você aguenta apanhar e adoecer antes de parar.',
+   afeta:'vida · gravidade da ferida · tolerância a doença'},
+ percepcao:{n:'Percepção',ord:7,
+   d:'Reparar no que está errado antes que o errado repare em você.',
+   afeta:'notar ameaça · achar item bom · ouvir o que a casa faz'},
+ pontaria:{n:'Pontaria',ord:8,
+   d:'Acertar o que você mira. Nunca é garantido, nem no 10.',
+   afeta:'dispersão · controle do recuo · firmar a mira · tiro longe'},
+ sorte:{n:'Sorte',ord:9,
+   d:'A margem das coisas. Empurra o acaso, não manda nele.',
+   afeta:'o que aparece no saque · estado do que você acha · evento pequeno'},
+ inteligencia:{n:'Inteligência',ord:10,
+   d:'Entender a peça antes de forçar. Consertar em vez de improvisar.',
+   afeta:'fabricação · reparo · manutenção de arma · aproveitar material'}
+};
+const ATRIB_IDS=Object.keys(ATRIBUTOS).sort((a,b)=>ATRIBUTOS[a].ord-ATRIBUTOS[b].ord);
+
+/* ---------- os catorze ofícios ----------
+   Cada um mexe em atributo E numa passiva que toca sistema de verdade.
+   Nenhum é só bônus: todo `mais` tem um `menos` do lado. */
+const CLASSES={
+ sobrevivente:{n:'Sobrevivente',
+   d:'Você já estava aqui antes de tudo desandar. Aguenta e repara em tudo, e nunca aprendeu a fazer nada direito.',
+   mais:{resistencia:1,percepcao:1,sorte:1},
+   menos:{inteligencia:1,pontaria:1},
+   passiva:{id:'faro',n:'Faro de rua',
+     d:'Locais visitados rendem 15% mais material: você sabe onde as pessoas escondem coisa.'},
+   itens:['faca','lata','lata','garrafa'], veste:null},
+ soldado:{n:'Soldado',
+   d:'Treinado pra atirar e pra obedecer. As duas coisas te atrapalham aqui, em ordens diferentes.',
+   mais:{pontaria:3,forca:1},
+   menos:{furtividade:2},
+   passiva:{id:'coronha',n:'Coronha firme',
+     d:'Recuo 35% menor e recarga 20% mais rápida em qualquer arma de fogo.'},
+   itens:['revolver','cartucho','cartucho','kit'], veste:'colete'},
+ medico:{n:'Médico',
+   d:'Sabe exatamente o que está acontecendo com o corpo de todo mundo. Inclusive com o seu.',
+   mais:{inteligencia:3,percepcao:1},
+   menos:{forca:2},
+   passiva:{id:'mao-firme',n:'Mão firme',
+     d:'Tratamento cura o dobro e gasta metade do remédio.'},
+   itens:['kit','remedio','remedio','livro'], veste:null},
+ mecanico:{n:'Mecânico',
+   d:'O gerador é uma pessoa pra você. Sabe quando vai falhar pelo barulho.',
+   mais:{inteligencia:2,forca:1,destreza:1},
+   menos:{percepcao:1,furtividade:1},
+   passiva:{id:'ouvido-de-motor',n:'Ouvido de motor',
+     d:'O gerador gasta 25% menos diesel e avisa antes de quebrar.'},
+   itens:['inglesa','alicate','fio','arame'], veste:'avental'},
+ cacador:{n:'Caçador',
+   d:'Passou a vida esperando bicho ficar parado. Agora o bicho espera você.',
+   mais:{pontaria:2,percepcao:2,furtividade:1},
+   menos:{inteligencia:1,forca:1},
+   passiva:{id:'espera',n:'Espera',
+     d:'Parado e agachado, seu rastro para de crescer por completo.'},
+   itens:['espingarda','cartucho','faca'], veste:null},
+ explorador:{n:'Explorador',
+   d:'Conhece o mapa inteiro de cabeça e não confia em nenhum pedaço dele.',
+   mais:{velocidade:2,resistencia:2},
+   menos:{forca:1,pontaria:1},
+   passiva:{id:'perna',n:'Perna boa',
+     d:'Expedições custam 1 hora a menos e você volta com menos ferida.'},
+   itens:['lanterna','pilha','garrafa','fruta'], veste:'jaqueta'},
+ ladrao:{n:'Ladrão',
+   d:'Entrava em casa dos outros antes disso ser sobre sobreviver. A prática serviu.',
+   mais:{furtividade:3,destreza:2},
+   menos:{vitalidade:2,forca:1},
+   passiva:{id:'dedo-leve',n:'Dedo leve',
+     d:'Vasculhar não faz barulho nenhum, e você acha o esconderijo dos outros.'},
+   itens:['faca','chave','dinheiro','fenda'], veste:null},
+ bombeiro:{n:'Bombeiro',
+   d:'Entrar onde todo mundo está saindo. É a única coisa que você sabe fazer direito.',
+   mais:{forca:3,resistencia:2},
+   menos:{furtividade:3},
+   passiva:{id:'arrombar',n:'Ombro',
+   d:'Arromba porta emperrada sem ferramenta, e carrega gente ferida sem penalidade.'},
+   itens:['machadinha','pa','kit'], veste:'avental'},
+ policial:{n:'Policial',
+   d:'A farda não vale mais nada. O treino de ler gente, vale.',
+   mais:{pontaria:2,percepcao:2},
+   menos:{sorte:2},
+   passiva:{id:'ler-gente',n:'Ler gente',
+     d:'Você vê a moral verdadeira de quem está no abrigo, e o infiltrado escorrega mais.'},
+   itens:['revolver','cartucho','lanterna'], veste:'colete'},
+ engenheiro:{n:'Engenheiro',
+   d:'Desenha antes de fazer. Aqui isso é luxo, e você faz mesmo assim.',
+   mais:{inteligencia:3,destreza:1},
+   menos:{velocidade:2},
+   passiva:{id:'projeto',n:'Projeto',
+     d:'Fabricação custa 30% menos material e a bancada nasce um nível acima.'},
+   itens:['serra','martelo','prego','tabua','tabua'], veste:null},
+ seguranca:{n:'Segurança',
+   d:'Vigiou prédio vazio a noite inteira por anos. A casa é um prédio vazio maior.',
+   mais:{percepcao:2,vitalidade:1,forca:1},
+   menos:{destreza:1,sorte:1},
+   passiva:{id:'ronda',n:'Ronda',
+     d:'A porta aguenta um encontro a mais, e você acorda antes de baterem.'},
+   itens:['taco','lanterna','pilha'], veste:'colete'},
+ paramedico:{n:'Paramédico',
+   d:'Estabiliza e passa pro próximo. Não tem tempo de se apegar, e é assim que salva.',
+   mais:{destreza:2,inteligencia:1,velocidade:1},
+   menos:{forca:1,pontaria:1},
+   passiva:{id:'triagem',n:'Triagem',
+     d:'Ferida urgente para de piorar sozinha, e você trata alguém em metade do tempo.'},
+   itens:['kit','remedio','garrafa','lona'], veste:null},
+ tecnico:{n:'Técnico',
+   d:'Conserta o que ninguém sabe abrir. Rádio, bomba d\'água, o que aparecer.',
+   mais:{inteligencia:2,destreza:2},
+   menos:{vitalidade:1,resistencia:1},
+   passiva:{id:'gambiarra',n:'Gambiarra',
+     d:'Reparo não encolhe o máximo da peça, e você conserta sem a ferramenta certa.'},
+   itens:['fenda','alicate','fio','pilha'], veste:null},
+ civil:{n:'Civil',
+   d:'Não tinha ofício nenhum que servisse pra isto. Sobra espaço pra virar o que precisar.',
+   mais:{},
+   menos:{},
+   passiva:{id:'sem-vicio',n:'Sem vício',
+     d:'Dois pontos livres a mais na criação: nada em você foi treinado errado.'},
+   itens:['lata','lata','pao','garrafa','faca'], veste:null}
+};
+const CLASSE_IDS=Object.keys(CLASSES);
+
+/* ================= O ESTADO DA FICHA ================= */
+function ficha(){
+  if(!S.ficha||typeof S.ficha!=='object')S.ficha={classe:null,pontos:{},versao:1};
+  if(!S.ficha.pontos||typeof S.ficha.pontos!=='object')S.ficha.pontos={};
+  ATRIB_IDS.forEach(k=>{
+    const v=S.ficha.pontos[k];
+    /* save adulterado ou de versão velha não derruba o jogo nem
+       entrega atributo grátis: qualquer coisa fora da faixa é presa */
+    S.ficha.pontos[k]=(typeof v==='number'&&isFinite(v))?trava(Math.round(v),0,FICHA_MAX):0;
+  });
+  if(!CLASSES[S.ficha.classe])S.ficha.classe=S.ficha.classe===null?null:'civil';
+  return S.ficha;
+}
+function classeAtual(){ const f=ficha(); return f.classe?CLASSES[f.classe]:null; }
+function pontosTotais(){
+  const c=classeAtual();
+  return FICHA_PONTOS+((c&&c.passiva.id==='sem-vicio')?2:0);
+}
+function pontosGastos(){
+  const f=ficha();
+  return ATRIB_IDS.reduce((s,k)=>s+f.pontos[k],0);
+}
+function pontosLivres(){ return pontosTotais()-pontosGastos(); }
+
+/* as três parcelas, separadas — é o que a tela mostra em colunas */
+function parcelas(k){
+  const f=ficha(), c=classeAtual();
+  const investido=f.pontos[k]||0;
+  const bonus=c?((c.mais&&c.mais[k])||0)-((c.menos&&c.menos[k])||0):0;
+  /* teto duro: nada passa de 10, nem com ofício */
+  const efetivo=trava(investido+bonus,0,FICHA_MAX);
+  return {investido,bonus,efetivo,cortado:(investido+bonus)>FICHA_MAX};
+}
+function atrib(k){ return parcelas(k).efetivo; }
+
+/* ================= AS DERIVADAS =================
+   Uma função só, que devolve TODOS os números que o jogo usa. A tela
+   de criação chama esta mesma função com uma ficha hipotética pra
+   mostrar a prévia do próximo ponto — por isso ela aceita um override
+   em vez de ler `S` direto. É o que impede o texto de mentir. */
+function derivadas(over){
+  const A={};
+  ATRIB_IDS.forEach(k=>{ A[k]=over&&over[k]!=null?trava(over[k],0,FICHA_MAX):atrib(k); });
+  const c=curva;
+  return {
+    /* FORÇA */
+    carga:       +(24+20*c(A.forca)).toFixed(1),          /* kg nas costas */
+    danoCorpo:   +(1+0.55*c(A.forca)).toFixed(3),         /* multiplicador */
+    armaPesada:  +(1+0.40*c(A.forca)).toFixed(3),
+    empurrao:    +(0.50*c(A.forca)).toFixed(3),
+    penalPeso:   +(1-0.45*c(A.forca)).toFixed(3),
+    /* VELOCIDADE */
+    corrida:     +(1+0.45*c(A.velocidade)).toFixed(3),
+    arranque:    +(1+0.60*c(A.velocidade)).toFixed(3),
+    distancia:   +(0.55*c(A.velocidade)).toFixed(3),      /* abrir distância */
+    /* DESTREZA */
+    interacao:   +(1-0.40*c(A.destreza)).toFixed(3),      /* tempo, menor é melhor */
+    sacar:       +(1-0.45*c(A.destreza)).toFixed(3),
+    recarga:     +(1-0.42*c(A.destreza)).toFixed(3),
+    /* FURTIVIDADE */
+    ruidoPasso:  +(1-0.55*c(A.furtividade)).toFixed(3),
+    rastro:      +(1-0.50*c(A.furtividade)).toFixed(3),
+    suspeita:    +(1-0.45*c(A.furtividade)).toFixed(3),
+    /* RESISTÊNCIA */
+    folego:      Math.round(3+5*c(A.resistencia)),
+    gastoCorrer: +(1-0.45*c(A.resistencia)).toFixed(3),
+    gastoBater:  +(1-0.40*c(A.resistencia)).toFixed(3),
+    /* VITALIDADE */
+    vida:        Math.round(100+60*c(A.vitalidade)),
+    gravidade:   +(1-0.35*c(A.vitalidade)).toFixed(3),
+    tolerancia:  +(1-0.40*c(A.vitalidade)).toFixed(3),
+    /* PERCEPÇÃO */
+    notar:       +(0.65*c(A.percepcao)).toFixed(3),
+    acharItem:   +(1+0.50*c(A.percepcao)).toFixed(3),
+    ouvir:       +(1+0.60*c(A.percepcao)).toFixed(3),
+    /* PONTARIA */
+    dispersao:   +(1-0.55*c(A.pontaria)).toFixed(3),
+    recuo:       +(1-0.50*c(A.pontaria)).toFixed(3),
+    firmar:      +(1-0.45*c(A.pontaria)).toFixed(3),
+    /* teto de acerto: nem o 10 acerta sempre */
+    acertoMax:   +(0.55+0.35*c(A.pontaria)).toFixed(3),
+    /* SORTE */
+    loot:        +(1+0.35*c(A.sorte)).toFixed(3),
+    condicao:    +(1+0.30*c(A.sorte)).toFixed(3),
+    evento:      +(0.28*c(A.sorte)).toFixed(3),
+    /* INTELIGÊNCIA */
+    fabricar:    +(1-0.35*c(A.inteligencia)).toFixed(3),
+    reparo:      +(1+0.55*c(A.inteligencia)).toFixed(3),
+    manutencao:  +(1+0.50*c(A.inteligencia)).toFixed(3),
+    aproveitar:  +(1+0.40*c(A.inteligencia)).toFixed(3)
+  };
+}
+
+/* a prévia de um ponto: pergunta ao jogo o valor agora e o valor com
+   um ponto a mais, e devolve as linhas que MUDARAM. Nada é escrito à
+   mão, então nenhuma linha pode discordar da lógica. */
+const ROTULOS={
+  carga:['Carga máxima',' kg'], danoCorpo:['Dano corpo a corpo','×'],
+  armaPesada:['Eficiência com arma pesada','×'], empurrao:['Resistir a empurrão','%'],
+  penalPeso:['Penalidade de excesso de peso','×'],
+  corrida:['Velocidade de corrida','×'], arranque:['Aceleração','×'],
+  distancia:['Abrir distância na fuga','%'],
+  interacao:['Tempo de interação','×'], sacar:['Tempo de sacar e guardar','×'],
+  recarga:['Tempo de recarga','×'],
+  ruidoPasso:['Ruído do passo','×'], rastro:['Rastro deixado','×'],
+  suspeita:['Velocidade da suspeita','×'],
+  folego:['Fôlego',''], gastoCorrer:['Gasto ao correr','×'], gastoBater:['Gasto ao bater','×'],
+  vida:['Vida máxima',''], gravidade:['Gravidade da ferida','×'],
+  tolerancia:['Tolerância a doença','×'],
+  notar:['Chance de notar ameaça','%'], acharItem:['Achar item bom','×'],
+  ouvir:['Alcance do que você ouve','×'],
+  dispersao:['Dispersão do tiro','×'], recuo:['Recuo','×'],
+  firmar:['Tempo pra firmar a mira','×'], acertoMax:['Teto de acerto','%'],
+  loot:['Qualidade do saque','×'], condicao:['Estado do que você acha','×'],
+  evento:['Sorte em evento pequeno','%'],
+  fabricar:['Material pra fabricar','×'], reparo:['Rendimento do reparo','×'],
+  manutencao:['Manutenção de arma','×'], aproveitar:['Aproveitar recurso','×']
+};
+function previaPonto(k,delta){
+  const base={}; ATRIB_IDS.forEach(x=>base[x]=atrib(x));
+  const agora=derivadas(base);
+  const alvo={...base};
+  alvo[k]=trava(base[k]+(delta==null?1:delta),0,FICHA_MAX);
+  if(alvo[k]===base[k])return [];
+  const dep=derivadas(alvo);
+  const fmt=(v,suf)=>suf==='%'?Math.round(v*100)+'%':(suf===' kg'?v.toFixed(0)+' kg':(suf==='×'?v.toFixed(2)+'×':String(v)));
+  return Object.keys(ROTULOS)
+    .filter(campo=>agora[campo]!==dep[campo])
+    .map(campo=>({campo, nome:ROTULOS[campo][0],
+      de:fmt(agora[campo],ROTULOS[campo][1]), para:fmt(dep[campo],ROTULOS[campo][1])}));
+}
+
+/* ================= INTEGRAÇÃO COM O JOGO =================
+   Cada derivada abaixo entra num sistema que já existia. Sem isto a
+   ficha seria decoração — e o pedido é explícito em não aceitar
+   modificador cosmético. */
+
+/* FORÇA → carga. `mochilaInfo` já é embrulhada pelo §14; entramos
+   depois dela, então o veículo continua somando por cima. */
+if(typeof mochilaInfo==='function'){
+  const _mi=mochilaInfo;
+  mochilaInfo=function(){
+    const inf=_mi.apply(this,arguments);
+    const D=derivadas();
+    /* a base do §14 é 24 kg de mochila comum; a força desloca isso */
+    return {...inf, kg:+(inf.kg*(D.carga/24)).toFixed(1)};
+  };
+}
+/* FORÇA → dano no corpo a corpo. Entra DEPOIS do §15, então o
+   desgaste da peça continua valendo e os dois se multiplicam. */
+if(typeof melhorArma==='function'){
+  const _ma=melhorArma;
+  melhorArma=function(){
+    const a=_ma.apply(this,arguments);
+    if(!a)return a;
+    const D=derivadas();
+    const pesada=(a._danoBase||a.dano)>=3;
+    const m=pesada?D.armaPesada:D.danoCorpo;
+    return {...a, dano:+(a.dano*m).toFixed(2), _ficha:m};
+  };
+}
+/* FURTIVIDADE → rastro. O §9 soma rastros; a furtividade os encolhe
+   antes da conta, sem nunca zerar: quem não produz nada ainda tem
+   PRESENÇA, e isso é regra do §9 que não se mexe aqui. */
+if(typeof v9Rastros==='function'){
+  const _vr=v9Rastros;
+  window.v9Rastros=function(){
+    const t=_vr.apply(this,arguments);
+    const D=derivadas();
+    return t.map(r=>({...r, p:r.p*(r.k==='PRESENCA'?1:D.rastro)}));
+  };
+}
+/* FURTIVIDADE → ruído do passo, e PESO → ruído a mais.
+   Excesso de peso é o contrapeso da força: quem carrega demais faz
+   barulho, e a força alivia mas não anula. */
+function ruidoDoPasso(base){
+  const D=derivadas();
+  let v=(base==null?1:base)*D.ruidoPasso;
+  const inf=(typeof mochilaInfo==='function')?mochilaInfo():{kg:24};
+  const p=(typeof pesoAtual==='function')?pesoAtual():0;
+  const excesso=Math.max(0,p/Math.max(1,inf.kg)-0.75);
+  v*=1+excesso*1.4*D.penalPeso;
+  return +v.toFixed(3);
+}
+/* VELOCIDADE e RESISTÊNCIA → fuga. `pesoFerido` é o número que o jogo
+   já usa como "o quanto tudo que exige corpo fica pior"; a ficha entra
+   nele em vez de criar um segundo canal. */
+if(typeof pesoFerido==='function'){
+  const _pf=pesoFerido;
+  window.pesoFerido=function(){
+    const base=_pf.apply(this,arguments);
+    const D=derivadas();
+    /* velocidade e resistência aliviam; nunca abaixo de zero */
+    return trava(base*(1-D.distancia*.55)*(2-D.gastoCorrer)/1,0,.55);
+  };
+}
+/* VITALIDADE → gravidade da ferida. Entra no `ferirPor`, depois do
+   §15 (armadura), então armadura e vitalidade se somam na ordem certa. */
+if(typeof ferirPor==='function'){
+  const _fp=ferirPor;
+  ferirPor=function(fonte,alvo,nome){
+    const D=derivadas();
+    const eu=!alvo||alvo===S;
+    /* vitalidade alta às vezes transforma ferida em susto */
+    if(eu&&D.gravidade<1&&chance((1-D.gravidade)*.5)){
+      if(typeof diz==='function')diz('Dói, mas não abriu. Você aguenta.','fraco');
+      return null;
+    }
+    return _fp.call(this,fonte,alvo,nome);
+  };
+}
+/* SORTE e PERCEPÇÃO → saque. O §15 tem `podeReparar`/`reparar`; aqui
+   o que muda é o quanto vem e em que estado. */
+if(typeof acharComida==='function'){
+  const _ac=acharComida;
+  acharComida=function(q,mult){
+    const D=derivadas();
+    /* sorte reduz a fração estragada, com teto: nunca zera */
+    const r=_ac.call(this,q,(mult==null?1:mult)/trava(D.condicao,1,1.3));
+    return r;
+  };
+}
+/* INTELIGÊNCIA → reparo. O §15 devolve `ganho` fixo; multiplicamos. */
+if(typeof reparar==='function'){
+  const _rp=reparar;
+  reparar=function(id,quantidade){
+    const D=derivadas();
+    const c=classeAtual();
+    const r=_rp.call(this,id,Math.round((quantidade||40)*D.reparo));
+    /* passiva do Técnico: o teto não encolhe */
+    if(r&&c&&c.passiva.id==='gambiarra'&&typeof peca==='function'){
+      const p=peca(id); if(p)p.durMax=Math.min(100,p.durMax+2);
+    }
+    return r;
+  };
+}
+
+/* ================= A TELA DE CRIAÇÃO ================= */
+function estiloFicha(){
+  if(document.getElementById('css-ficha'))return;
+  const s=document.createElement('style');
+  s.id='css-ficha';
+  s.textContent=`
+#ficha{position:fixed;inset:0;z-index:90;background:var(--breu);color:var(--papel);
+  display:flex;flex-direction:column;font-family:var(--corpo);overflow:hidden}
+#ficha .topo{padding:12px 14px 8px;border-bottom:1px solid #2A232E;
+  background:linear-gradient(180deg,#1B1721,#0F0D13);flex:0 0 auto}
+#ficha h2{font-family:var(--display);font-size:17px;font-weight:400;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--mofo)}
+#ficha .pts{font-family:var(--mostrador);font-size:12px;color:var(--lampiao);margin-top:5px}
+#ficha .pts b{font-size:16px}
+#ficha .pts.zero{color:var(--mofo)}
+#ficha .abas{display:flex;gap:4px;margin-top:9px}
+#ficha .aba{flex:1;font-family:var(--mostrador);font-size:10px;letter-spacing:.12em;
+  text-transform:uppercase;padding:7px 4px;border:1px solid #2A232E;background:none;
+  color:var(--mofo);cursor:pointer}
+#ficha .aba.on{color:var(--lampiao);border-color:var(--lampiao)}
+#ficha .corpo{flex:1;overflow-y:auto;padding:10px 12px 14px;overscroll-behavior:contain}
+#ficha .cl{width:100%;text-align:left;background:none;border:0;border-bottom:1px solid #1E1922;
+  padding:9px 7px;color:var(--papel);cursor:pointer;font-family:var(--corpo);font-size:14px}
+#ficha .cl.on{background:rgba(201,162,39,.10);border-left:2px solid var(--lampiao)}
+#ficha .cl b{font-family:var(--display);font-size:16px;font-weight:400;display:block}
+#ficha .cl span{font-size:12.5px;color:#A99F94;line-height:1.35;display:block;margin-top:2px}
+#ficha .cl i{font-family:var(--mostrador);font-size:9.5px;font-style:normal;
+  letter-spacing:.06em;display:block;margin-top:4px}
+#ficha .mais{color:#6E8C55}#ficha .menos{color:#B84B33}
+#ficha .at{display:grid;grid-template-columns:1fr auto auto auto;gap:5px 7px;
+  align-items:center;padding:8px 4px;border-bottom:1px solid #1E1922}
+#ficha .at .nm{font-size:14.5px}
+#ficha .at .nm small{display:block;font-family:var(--mostrador);font-size:9px;
+  color:var(--mofo);letter-spacing:.05em;text-transform:uppercase;margin-top:2px}
+#ficha .at .val{font-family:var(--mostrador);font-size:17px;color:var(--lampiao);
+  min-width:56px;text-align:right}
+#ficha .at .val u{text-decoration:none;font-size:10px;color:var(--mofo)}
+#ficha .at button{width:34px;height:34px;border:1px solid #2A232E;background:#16131A;
+  color:var(--papel);font-size:18px;cursor:pointer;line-height:1;padding:0}
+#ficha .at button:disabled{opacity:.28;cursor:default}
+#ficha .prev{grid-column:1/-1;font-family:var(--mostrador);font-size:10px;
+  color:var(--mofo);line-height:1.6;padding:2px 0 0}
+#ficha .prev b{color:#6E8C55;font-weight:400}
+#ficha .aviso-f{color:#E0703F;font-family:var(--mostrador);font-size:10.5px;
+  min-height:14px;padding:4px 0}
+#ficha .res{border:1px solid #2A232E;padding:9px 11px;margin-top:10px}
+#ficha .res h3{font-family:var(--mostrador);font-size:10px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--mofo);margin-bottom:6px}
+#ficha .res div{font-size:13px;line-height:1.55}
+#ficha .res em{color:var(--mofo);font-style:normal}
+#ficha .rodape{flex:0 0 auto;display:flex;gap:6px;padding:9px 12px;
+  border-top:1px solid #2A232E;background:#0F0D13}
+#ficha .rodape button{flex:1;background:#16131A;border:1px solid #2A232E;color:var(--papel);
+  font-family:var(--corpo);font-size:14px;padding:11px 6px;cursor:pointer}
+#ficha .rodape button.chave{border-color:var(--lampiao);color:var(--lampiao)}
+#ficha .rodape button:disabled{opacity:.35;cursor:default}`;
+  document.head.appendChild(s);
+}
+
+let _fichaAba='classe', _fichaFoco=null;
+
+function telaFicha(aoConfirmar){
+  estiloFicha();
+  const f=ficha();
+  if(!f.classe)f.classe='sobrevivente';
+  const el=document.createElement('div');
+  el.id='ficha';
+  el.innerHTML=`<div class="topo">
+      <h2>Quem você era</h2>
+      <div class="pts"></div>
+      <div class="abas">
+        <button class="aba" data-a="classe">ofício</button>
+        <button class="aba" data-a="atributos">atributos</button>
+        <button class="aba" data-a="resumo">ficha</button>
+      </div>
+      <div class="aviso-f"></div>
+    </div>
+    <div class="corpo"></div>
+    <div class="rodape">
+      <button class="zerar">Redefinir</button>
+      <button class="ok chave">Trancar a porta</button>
+    </div>`;
+  document.body.appendChild(el);
+
+  const corpo=el.querySelector('.corpo');
+  const avisar=t=>{ el.querySelector('.aviso-f').textContent=t||''; };
+
+  function pintarTopo(){
+    const l=pontosLivres();
+    const p=el.querySelector('.pts');
+    p.className='pts'+(l===0?' zero':'');
+    p.innerHTML=`<b>${l}</b> de ${pontosTotais()} pontos livres`;
+    el.querySelector('.ok').disabled=(l!==0);
+    el.querySelectorAll('.aba').forEach(a=>a.classList.toggle('on',a.dataset.a===_fichaAba));
+  }
+
+  function pintarClasses(){
+    corpo.innerHTML='';
+    CLASSE_IDS.forEach(id=>{
+      const C=CLASSES[id];
+      const b=document.createElement('button');
+      b.className='cl'+(ficha().classe===id?' on':'');
+      const mais=Object.keys(C.mais||{}).map(k=>`+${C.mais[k]} ${ATRIBUTOS[k].n}`).join(' · ');
+      const menos=Object.keys(C.menos||{}).map(k=>`−${C.menos[k]} ${ATRIBUTOS[k].n}`).join(' · ');
+      const itens=(C.itens||[]).map(i=>(CATALOGO[i]||{n:i}).n.toLowerCase()).join(', ');
+      b.innerHTML=`<b>${esc(C.n)}</b><span>${esc(C.d)}</span>`
+        +`<i class="mais">${mais?esc(mais):'sem bônus de atributo'}</i>`
+        +(menos?`<i class="menos">${esc(menos)}</i>`:'')
+        +`<i style="color:var(--lampiao)">passiva · ${esc(C.passiva.n)}: ${esc(C.passiva.d)}</i>`
+        +`<i style="color:var(--mofo)">começa com: ${esc(itens)}${C.veste?' · vestindo '+esc((CATALOGO[C.veste]||{n:C.veste}).n.toLowerCase()):''}</i>`;
+      b.onclick=()=>{
+        ficha().classe=id;
+        if(typeof amToca==='function')amToca('ui_clique');
+        /* trocar de ofício pode estourar o teto de um atributo: o
+           investimento excedente volta pro bolso em vez de sumir */
+        devolverExcesso();
+        pintar();
+      };
+      corpo.appendChild(b);
+    });
+  }
+
+  function pintarAtributos(){
+    corpo.innerHTML='';
+    ATRIB_IDS.forEach(k=>{
+      const P=parcelas(k), A=ATRIBUTOS[k];
+      const linha=document.createElement('div');
+      linha.className='at';
+      const podeMais=pontosLivres()>0 && P.investido<FICHA_MAX && P.efetivo<FICHA_MAX;
+      const podeMenos=P.investido>0;
+      linha.innerHTML=`
+        <div class="nm">${esc(A.n)}<small>${esc(A.afeta)}</small></div>
+        <div class="val">${P.efetivo}<u>/10</u><br><u>${P.investido} inv${P.bonus?(P.bonus>0?' +'+P.bonus:' '+P.bonus)+' ofício':''}</u></div>
+        <button class="menos" ${podeMenos?'':'disabled'}>−</button>
+        <button class="mais" ${podeMais?'':'disabled'}>+</button>`;
+      const prev=document.createElement('div');
+      prev.className='prev';
+      if(_fichaFoco===k){
+        const linhas=previaPonto(k,1);
+        prev.innerHTML=linhas.length
+          ? 'o próximo ponto: '+linhas.map(x=>`${esc(x.nome)} <b>${esc(x.de)} → ${esc(x.para)}</b>`).join(' · ')
+          : (P.efetivo>=FICHA_MAX?'no teto: 10 é o máximo.':'sem mudança.');
+      }else{
+        prev.innerHTML=esc(A.d);
+      }
+      linha.appendChild(prev);
+      linha.querySelector('.mais').onclick=()=>{
+        _fichaFoco=k;
+        if(pontosLivres()<=0)return avisar('Não sobrou ponto pra gastar.');
+        if(P.efetivo>=FICHA_MAX)return avisar(`${A.n} já está no teto de ${FICHA_MAX}.`);
+        ficha().pontos[k]++;
+        if(typeof amToca==='function')amToca('ui_clique');
+        avisar(''); pintar();
+      };
+      linha.querySelector('.menos').onclick=()=>{
+        _fichaFoco=k;
+        if(ficha().pontos[k]<=0)return avisar('Não há ponto seu pra tirar daqui.');
+        ficha().pontos[k]--;
+        if(typeof amToca==='function')amToca('ui_clique');
+        avisar(''); pintar();
+      };
+      linha.querySelector('.nm').onclick=()=>{ _fichaFoco=_fichaFoco===k?null:k; pintar(); };
+      corpo.appendChild(linha);
+    });
+  }
+
+  function pintarResumo(){
+    const C=classeAtual(), D=derivadas();
+    corpo.innerHTML='';
+    const bloco=(titulo,linhas)=>{
+      const d=document.createElement('div');
+      d.className='res';
+      d.innerHTML=`<h3>${esc(titulo)}</h3>`+linhas.map(l=>`<div>${l}</div>`).join('');
+      corpo.appendChild(d);
+    };
+    bloco('ofício',[
+      `<b>${esc(C.n)}</b>`,
+      `<em>${esc(C.d)}</em>`,
+      `<em>passiva:</em> ${esc(C.passiva.n)} — ${esc(C.passiva.d)}`
+    ]);
+    bloco('atributos',ATRIB_IDS.map(k=>{
+      const P=parcelas(k);
+      return `${esc(ATRIBUTOS[k].n)}: <b>${P.efetivo}</b> <em>(${P.investido} seu`
+        +(P.bonus?`, ${P.bonus>0?'+':''}${P.bonus} do ofício`:'')
+        +(P.cortado?', cortado no teto':'')+`)</em>`;
+    }));
+    bloco('o que isso vale',[
+      `Carga máxima: <b>${D.carga} kg</b>`,
+      `Vida: <b>${D.vida}</b> · Fôlego: <b>${D.folego}</b>`,
+      `Dano no corpo a corpo: <b>${D.danoCorpo.toFixed(2)}×</b>`,
+      `Rastro deixado: <b>${Math.round(D.rastro*100)}%</b> do normal`,
+      `Teto de acerto com arma de fogo: <b>${Math.round(D.acertoMax*100)}%</b>`,
+      `Recarga: <b>${D.recarga.toFixed(2)}×</b> · Reparo: <b>${D.reparo.toFixed(2)}×</b>`
+    ]);
+    bloco('começa com',[
+      (C.itens||[]).map(i=>esc((CATALOGO[i]||{n:i}).n)).join('<br>')
+      +(C.veste?'<br><em>vestindo</em> '+esc((CATALOGO[C.veste]||{n:C.veste}).n):'')
+    ]);
+  }
+
+  function pintar(){
+    pintarTopo();
+    if(_fichaAba==='classe')pintarClasses();
+    else if(_fichaAba==='atributos')pintarAtributos();
+    else pintarResumo();
+  }
+
+  el.querySelectorAll('.aba').forEach(a=>a.onclick=()=>{ _fichaAba=a.dataset.a; avisar(''); pintar(); });
+  el.querySelector('.zerar').onclick=()=>{
+    ATRIB_IDS.forEach(k=>ficha().pontos[k]=0);
+    avisar('Distribuição zerada.'); pintar();
+  };
+  el.querySelector('.ok').onclick=()=>{
+    const erro=validarFicha();
+    if(erro)return avisar(erro);
+    aplicarFicha();
+    el.remove();
+    if(typeof aoConfirmar==='function')aoConfirmar();
+  };
+  /* teclado: setas navegam as abas, Enter confirma quando dá */
+  el.tabIndex=0;
+  el.addEventListener('keydown',e=>{
+    if(e.key==='Enter'&&pontosLivres()===0){ el.querySelector('.ok').click(); }
+    if(e.key==='ArrowRight'||e.key==='ArrowLeft'){
+      const ordem=['classe','atributos','resumo'];
+      const i=ordem.indexOf(_fichaAba);
+      _fichaAba=ordem[trava(i+(e.key==='ArrowRight'?1:-1),0,2)];
+      pintar();
+    }
+  });
+  setTimeout(()=>el.focus(),50);
+  _fichaAba='classe'; _fichaFoco=null;
+  pintar();
+}
+
+/* pontos que passaram do teto por causa do ofício voltam pro bolso */
+function devolverExcesso(){
+  const f=ficha();
+  ATRIB_IDS.forEach(k=>{
+    const c=classeAtual();
+    const bonus=c?((c.mais&&c.mais[k])||0)-((c.menos&&c.menos[k])||0):0;
+    const maxInv=trava(FICHA_MAX-Math.max(0,bonus),0,FICHA_MAX);
+    if(f.pontos[k]>maxInv)f.pontos[k]=maxInv;
+  });
+  /* e se o total gastou mais do que existe (ofício com menos pontos),
+     tira do maior até caber */
+  let guarda=0;
+  while(pontosLivres()<0&&guarda++<100){
+    const maior=ATRIB_IDS.slice().sort((a,b)=>f.pontos[b]-f.pontos[a])[0];
+    if(f.pontos[maior]<=0)break;
+    f.pontos[maior]--;
+  }
+}
+
+/* a validação que o botão de confirmar usa. Devolve a mensagem do
+   problema, ou '' quando está tudo certo. */
+function validarFicha(){
+  const f=ficha();
+  if(!CLASSES[f.classe])return 'Escolha um ofício.';
+  for(const k of ATRIB_IDS){
+    const v=f.pontos[k];
+    if(typeof v!=='number'||!isFinite(v))return `Valor inválido em ${ATRIBUTOS[k].n}.`;
+    if(v<0)return `${ATRIBUTOS[k].n} não pode ser negativo.`;
+    if(v>FICHA_MAX)return `${ATRIBUTOS[k].n} passa do teto de ${FICHA_MAX}.`;
+    if(parcelas(k).efetivo>FICHA_MAX)return `${ATRIBUTOS[k].n} passa de ${FICHA_MAX} com o ofício.`;
+  }
+  const g=pontosGastos(), t=pontosTotais();
+  if(g>t)return `Você gastou ${g} de ${t} pontos.`;
+  if(g<t)return `Ainda sobram ${t-g} pontos pra gastar.`;
+  return '';
+}
+
+/* aplica a ficha ao jogo: itens iniciais, roupa e derivadas */
+function aplicarFicha(){
+  const C=classeAtual();
+  if(!C)return;
+  const f=ficha();
+  if(f.aplicada)return;              /* nunca duas vezes: duplicaria item */
+  f.aplicada=true;
+  (C.itens||[]).forEach(id=>{
+    if(!CATALOGO[id])return;
+    const e=CATALOGO[id];
+    if(e.cat==='armadura'){
+      S.armaduras=S.armaduras||[];
+      if(!S.armaduras.includes(id))S.armaduras.push(id);
+      return;
+    }
+    if(typeof guardar==='function')guardar(id,1);
+  });
+  if(C.veste&&CATALOGO[C.veste]){
+    S.armaduras=S.armaduras||[];
+    if(!S.armaduras.includes(C.veste))S.armaduras.push(C.veste);
+    S.armadura=C.veste;
+  }
+  /* a passiva do Engenheiro nasce com a bancada um nível acima */
+  if(C.passiva.id==='projeto')S.oficinaNivel=Math.max(S.oficinaNivel||0,1);
+  if(typeof sincronizarEfeitos==='function')sincronizarEfeitos();
+}
+
+/* ---------- entra no começo do jogo ----------
+   `pedirNome` é o último passo antes do jogo começar. A ficha entra
+   entre o nome e a abertura: depois de dizer quem você é, antes de
+   trancar a porta pela primeira vez. */
+/* Interceptar em FASE DE CAPTURA, e não embrulhando `pedirNome`.
+   O embrulho parecia certo e não funcionava: o `onclick` que o
+   original grava no `#go` continuava valendo, porque a tela é montada
+   por `innerHTML` e o handler é atribuído lá dentro, depois. Captura
+   no documento não depende de ordem nem de binding — o clique passa
+   por aqui antes de chegar no botão, e `stopImmediatePropagation`
+   segura o handler original até a ficha ser confirmada. */
+let _fichaFeita=false;
+function abrirFichaAntesDeComecar(seguir){
+  if(_fichaFeita)return false;
+  const nm=document.getElementById('nm');
+  S.nomeJogador=((nm&&nm.value)||'Você').trim().slice(0,14);
+  S.ficha={classe:'sobrevivente',pontos:{},versao:1};   /* limpa a cada jogo novo */
+  telaFicha(()=>{ _fichaFeita=true; seguir(); });
+  return true;
+}
+document.addEventListener('click',ev=>{
+  const alvo=ev.target;
+  const go=alvo&&alvo.closest?alvo.closest('#go'):null;
+  if(!go||_fichaFeita||document.getElementById('ficha'))return;
+  if(abrirFichaAntesDeComecar(()=>go.click())){
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+  }
+},true);
+/* o original também entra com Enter no campo do nome */
+document.addEventListener('keydown',ev=>{
+  if(ev.key!=='Enter')return;
+  const nm=document.getElementById('nm');
+  if(!nm||document.activeElement!==nm||_fichaFeita||document.getElementById('ficha'))return;
+  const go=document.getElementById('go');
+  if(!go)return;
+  if(abrirFichaAntesDeComecar(()=>go.click())){
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+  }
+},true);
+
+/* ---------- persistência ----------
+   `carregar` do v48 copia qualquer campo que ache, então basta gravar.
+   Save velho, sem ficha, entra com ficha zerada e Civil — o jogo roda
+   igual, e é isso que migração segura significa aqui. */
+if(typeof salvar==='function'){
+  const _sv=salvar;
+  salvar=function(){
+    _sv.apply(this,arguments);
+    try{
+      const d=JSON.parse(localStorage.getItem(CHAVE)||'{}');
+      d.ficha=S.ficha;
+      localStorage.setItem(CHAVE,JSON.stringify(d));
+    }catch(e){}
+  };
+}
+if(typeof carregar==='function'){
+  const _cr=carregar;
+  carregar=function(){
+    const r=_cr.apply(this,arguments);
+    if(r){
+      /* Migração de save anterior à v50. Testar só `!S.ficha` não
+         bastava: o bloco cria `S.ficha` vazia ao carregar, então o
+         objeto SEMPRE existe e a migração nunca disparava — o jogo
+         ficava sem ofício nenhum. O que decide é haver classe válida. */
+      if(!S.ficha||typeof S.ficha!=='object'||!CLASSES[S.ficha.classe]){
+        S.ficha={classe:'civil',pontos:{},versao:1,aplicada:true};
+        /* `aplicada:true` de propósito: save antigo já tem os itens
+           que juntou, e não pode ganhar kit inicial de brinde agora */
+      }
+      ficha();                        /* prende valores fora da faixa */
+    }
+    return r;
+  };
+}
+
+/* atalho de leitura pro resto do jogo e pros testes */
+function fichaEstado(){
+  const f=ficha(), C=classeAtual();
+  return {classe:f.classe, classeNome:C?C.n:null, passiva:C?C.passiva.id:null,
+    pontos:{...f.pontos}, gastos:pontosGastos(), livres:pontosLivres(),
+    total:pontosTotais(), aplicada:!!f.aplicada,
+    efetivos:Object.fromEntries(ATRIB_IDS.map(k=>[k,atrib(k)])),
+    parcelas:Object.fromEntries(ATRIB_IDS.map(k=>[k,parcelas(k)])),
+    derivadas:derivadas(), valido:validarFicha()};
+}
+
+S.ficha=S.ficha||{classe:null,pontos:{},versao:1};
+
+</script>
+<!-- s19:fim -->
+<!-- s20:inicio -->
+<script>
+/* ================= §20 — ARMAS DE FOGO =================
+   DECISÃO TÉCNICA, declarada de saída porque muda tudo: este jogo não
+   tem mundo em tempo real, câmera livre nem colisor. O combate é uma
+   cena de menu que resolve um encontro. Então NÃO existe raycast nem
+   projétil físico aqui — seria inventar um mundo 3D pra encaixar um
+   sistema que o jogo não tem. O tiro é resolvido por probabilidade
+   composta, e é honesto assim: a mesma conta que o jogo já usa pra
+   enfrentar bicho com facão, com dispersão, recuo, distância e estado
+   da arma entrando nela.
+
+   O que É de verdade, e não simulado: munição por calibre, carregador
+   com contagem, câmara separada, recarga que pode ser interrompida,
+   espingarda que enche cartucho por cartucho, desgaste, travamento,
+   e o ruído do disparo entrando no sistema de rastro do §9.
+
+   COMO ADICIONAR UMA ARMA: veja `ARMAS_EXEMPLO` no fim do arquivo.
+   Uma arma nova é uma entrada de dados; nenhuma linha do núcleo muda.
+   ======================================================================= */
+
+/* ---------- calibres ---------- */
+const CALIBRES={
+ '.38':   {n:'.38', d:'Revólver de casa. Ainda se acha em gaveta.',  ruido:62, peso:.012},
+ '9mm':   {n:'9mm', d:'O mais comum que existe. Pistola e submetralhadora.', ruido:60, peso:.011},
+ '.12':   {n:'calibre 12', d:'Cartucho de espingarda. Resolve perto.', ruido:78, peso:.045},
+ '.22':   {n:'.22', d:'Fininho e quieto. Serve pra caça pequena.', ruido:38, peso:.004},
+ '.308':  {n:'.308', d:'Rifle de verdade. Longe, e alto.', ruido:82, peso:.024},
+ '7.62':  {n:'7,62', d:'Carabina militar. O que sobrou de quartel.', ruido:76, peso:.020}
+};
+
+/* ---------- os campos de uma arma, e o que é obrigatório ----------
+   A validação lê esta tabela. Campo obrigatório que faltar vira erro
+   legível no console e a arma é recusada — nunca entra meio pronta
+   pra quebrar no meio de um tiroteio. */
+const ARMA_CAMPOS={
+  id:{obrig:true,tipo:'string'},        nome:{obrig:true,tipo:'string'},
+  categoria:{obrig:true,tipo:'string'}, calibre:{obrig:true,tipo:'string'},
+  capacidade:{obrig:true,tipo:'number'},camara:{padrao:1},
+  dano:{obrig:true,tipo:'number'},      alcance:{padrao:3},
+  alcanceMax:{padrao:5},                quedaDano:{padrao:.18},
+  dispersao:{padrao:1},                 recuoV:{padrao:1}, recuoH:{padrao:.5},
+  cadencia:{padrao:1},                  modos:{padrao:['semi']},
+  tempoSaque:{padrao:1},                tempoRecarga:{padrao:2.4},
+  peso:{obrig:true,tipo:'number'},      durabilidade:{padrao:100},
+  confiabilidade:{padrao:.98},          ruido:{padrao:null},
+  porCartucho:{padrao:false},           d:{padrao:''},
+  desenho:{padrao:null}
+};
+
+/* ---------- o catálogo ----------
+   Sete categorias, exemplares originais. `porCartucho:true` faz a
+   recarga ser de um em um, que é o que espingarda de bomba faz. */
+const ARMAS_FOGO={
+ pistola_taurus:{id:'pistola_taurus',nome:'Pistola 9mm enferrujada',categoria:'pistola',
+   calibre:'9mm',capacidade:12,dano:3.2,alcance:3,alcanceMax:6,dispersao:1.0,
+   recuoV:.9,recuoH:.5,cadencia:2.2,modos:['semi'],tempoSaque:.8,tempoRecarga:2.1,
+   peso:.9,confiabilidade:.94,
+   d:'Ferrugem na corrediça. Come munição comum e trava de vez em quando.'},
+ revolver_38:{id:'revolver_38',nome:'Revólver .38 de seis',categoria:'revolver',
+   calibre:'.38',capacidade:6,camara:0,dano:3.6,alcance:2.6,alcanceMax:5,dispersao:1.15,
+   recuoV:1.2,recuoH:.6,cadencia:1.4,modos:['semi'],tempoSaque:.7,tempoRecarga:3.4,
+   peso:1.0,confiabilidade:.99,porCartucho:true,
+   d:'Tambor de seis. Nunca trava, e recarregar leva uma eternidade.'},
+ smg_caseira:{id:'smg_caseira',nome:'Submetralhadora de oficina',categoria:'smg',
+   calibre:'9mm',capacidade:25,dano:2.6,alcance:2.2,alcanceMax:4,dispersao:1.9,
+   recuoV:1.5,recuoH:1.3,cadencia:9,modos:['semi','rajada','auto'],
+   tempoSaque:1.0,tempoRecarga:2.6,peso:2.6,confiabilidade:.86,
+   d:'Feita em torno por alguém com pressa. Cospe munição e trava se você abusar.'},
+ espingarda_20:{id:'espingarda_20',nome:'Espingarda de bomba',categoria:'espingarda',
+   calibre:'.12',capacidade:5,dano:7.5,alcance:1.6,alcanceMax:3,quedaDano:.45,
+   dispersao:2.4,recuoV:2.4,recuoH:.9,cadencia:.9,modos:['semi'],
+   tempoSaque:1.3,tempoRecarga:1.0,peso:3.4,confiabilidade:.97,porCartucho:true,
+   d:'Perto, resolve qualquer coisa uma vez. Longe, faz barulho e cocega.'},
+ carabina_762:{id:'carabina_762',nome:'Carabina 7,62 de quartel',categoria:'carabina',
+   calibre:'7.62',capacidade:20,dano:5.2,alcance:5,alcanceMax:9,quedaDano:.10,
+   dispersao:.85,recuoV:1.6,recuoH:.7,cadencia:3.5,modos:['semi','rajada'],
+   tempoSaque:1.4,tempoRecarga:2.8,peso:3.8,confiabilidade:.95,
+   d:'Pesada e certeira. O barulho dela chama tudo que estiver na rua.'},
+ rifle_22:{id:'rifle_22',nome:'Rifle .22 de sítio',categoria:'rifle',
+   calibre:'.22',capacidade:10,dano:2.0,alcance:4.5,alcanceMax:8,quedaDano:.12,
+   dispersao:.75,recuoV:.4,recuoH:.2,cadencia:2,modos:['semi'],
+   tempoSaque:1.1,tempoRecarga:2.4,peso:2.2,confiabilidade:.97,
+   d:'Mata passarinho e capivara. Contra o que anda de noite, é um aviso.'},
+ precisao_308:{id:'precisao_308',nome:'Ferrolho .308 com luneta',categoria:'precisao',
+   calibre:'.308',capacidade:5,dano:8.0,alcance:9,alcanceMax:14,quedaDano:.05,
+   dispersao:.45,recuoV:2.8,recuoH:.5,cadencia:.55,modos:['semi'],
+   tempoSaque:1.9,tempoRecarga:3.6,peso:4.6,confiabilidade:.99,
+   d:'Um tiro por vez, e o tiro conta. Depois dele, saia do lugar.'}
+};
+
+/* ---------- validação ----------
+   Roda no carregamento e em qualquer arma registrada depois. Uma arma
+   incompleta é recusada COM MOTIVO, e o jogo continua de pé. */
+function validarArma(a){
+  const erros=[];
+  if(!a||typeof a!=='object')return ['a arma não é um objeto'];
+  for(const [campo,regra] of Object.entries(ARMA_CAMPOS)){
+    const v=a[campo];
+    if(v===undefined||v===null){
+      if(regra.obrig)erros.push(`falta o campo obrigatório "${campo}"`);
+      else if(regra.padrao!==undefined&&campo!=='desenho'&&campo!=='ruido')a[campo]=Array.isArray(regra.padrao)?regra.padrao.slice():regra.padrao;
+      continue;
+    }
+    if(regra.tipo&&typeof v!==regra.tipo)erros.push(`"${campo}" devia ser ${regra.tipo}, veio ${typeof v}`);
+  }
+  if(a.calibre&&!CALIBRES[a.calibre])erros.push(`calibre "${a.calibre}" não existe em CALIBRES`);
+  if(typeof a.capacidade==='number'&&a.capacidade<1)erros.push('capacidade tem de ser pelo menos 1');
+  if(typeof a.dano==='number'&&a.dano<=0)erros.push('dano tem de ser maior que zero');
+  return erros;
+}
+
+/* registra uma arma nova em tempo de execução. É o caminho oficial
+   pra estender: dados entram, validação corre, catálogo e inventário
+   passam a conhecer a arma. Nenhuma função do núcleo muda. */
+function registrarArma(a){
+  const erros=validarArma(a);
+  if(erros.length){
+    console.error('[§20] arma "'+((a&&a.id)||'sem id')+'" recusada:\n  · '+erros.join('\n  · '));
+    return false;
+  }
+  ARMAS_FOGO[a.id]=a;
+  registrarNoCatalogo(a);
+  return true;
+}
+
+/* toda arma de fogo também é um item do jogo: entra no CATALOGO pra
+   poder ser achada, carregada, pesada e guardada como qualquer coisa */
+function registrarNoCatalogo(a){
+  if(typeof CATALOGO==='undefined')return;
+  if(CATALOGO[a.id])return;
+  CATALOGO[a.id]={n:a.nome,cat:'arma',kg:a.peso,vol:Math.max(2,Math.round(a.peso*1.6)),
+    raro:a.categoria==='precisao'?5:(a.categoria==='pistola'?3:4),
+    dano:a.dano,municao:true,fogo:a.id,d:a.d||''};
+  if(typeof DESENHO!=='undefined'&&!DESENHO[a.id])
+    DESENHO[a.id]=a.desenho||desenhoDeArma(a.categoria);
+}
+
+/* ---------- munição e carregadores como itens ---------- */
+function registrarMunicoes(){
+  if(typeof CATALOGO==='undefined')return;
+  for(const [cal,C] of Object.entries(CALIBRES)){
+    const id='mun_'+cal.replace(/[^a-z0-9]/gi,'');
+    if(!CATALOGO[id]){
+      CATALOGO[id]={n:'Munição '+C.n,cat:'arma',kg:+(C.peso*20).toFixed(2),vol:1,raro:4,
+        pilha:5,municaoDe:cal,qtd:20,d:C.d+' Vinte tiros na caixa.'};
+      if(typeof DESENHO!=='undefined')DESENHO[id]=desenhoDeMunicao(cal);
+    }
+    const idc='carr_'+cal.replace(/[^a-z0-9]/gi,'');
+    if(!CATALOGO[idc]&&cal!=='.12'&&cal!=='.38'){
+      CATALOGO[idc]={n:'Carregador '+C.n,cat:'arma',kg:.25,vol:1,raro:4,pilha:3,
+        carregadorDe:cal,d:'Vazio, pesa pouco. Cheio, muda o tempo de recarga.'};
+      if(typeof DESENHO!=='undefined')DESENHO[idc]=desenhoDeCarregador();
+    }
+  }
+}
+
+/* ================= O ESTADO DAS ARMAS =================
+   Uma peça por arma, guardada em S: carregador, câmara e travamento.
+   Separado do §15 (que cuida do desgaste) de propósito: desgaste é de
+   qualquer peça, isto aqui é só de arma de fogo. */
+function armas(){
+  if(!S.fogo||typeof S.fogo!=='object')S.fogo={};
+  return S.fogo;
+}
+function estadoArma(id){
+  const A=ARMAS_FOGO[id];
+  if(!A)return null;
+  const F=armas();
+  if(!F[id])F[id]={carregador:0,camara:0,travada:false,modo:A.modos[0],tiros:0};
+  const e=F[id];
+  /* prende qualquer valor absurdo vindo de save adulterado */
+  e.carregador=trava(Math.round(+e.carregador||0),0,A.capacidade);
+  e.camara=trava(Math.round(+e.camara||0),0,A.camara||0);
+  if(!A.modos.includes(e.modo))e.modo=A.modos[0];
+  return e;
+}
+/* munição reserva por calibre, na mochila e em casa */
+function reservaDe(cal){
+  let n=(S.municao&&S.municao[cal])||0;
+  return Math.max(0,Math.round(n));
+}
+function darMunicao(cal,q){
+  S.municao=S.municao||{};
+  S.municao[cal]=Math.max(0,(S.municao[cal]||0)+q);
+  return S.municao[cal];
+}
+function gastarMunicao(cal,q){
+  S.municao=S.municao||{};
+  const t=Math.min(S.municao[cal]||0,q);
+  S.municao[cal]=(S.municao[cal]||0)-t;
+  return t;
+}
+
+/* ---------- a arma que está na mão ---------- */
+function armaDeFogoEquipada(){
+  const id=S.armaFogo;
+  if(!id||!ARMAS_FOGO[id])return null;
+  if(!(S.armas||[]).includes(id))return null;
+  return {...ARMAS_FOGO[id], estado:estadoArma(id),
+          peca:(typeof peca==='function')?peca(id):null};
+}
+function equiparFogo(id){
+  if(id&&!ARMAS_FOGO[id])return false;
+  if(id&&!(S.armas||[]).includes(id))return false;
+  S.armaFogo=id||null;
+  return true;
+}
+
+/* ================= RECARREGAR ================= */
+function podeRecarregar(id){
+  const A=ARMAS_FOGO[id]; if(!A)return {ok:false,porque:'arma desconhecida'};
+  const e=estadoArma(id);
+  if(e.carregador>=A.capacidade&&e.camara>=(A.camara||0))
+    return {ok:false,porque:'já está cheia'};
+  if(reservaDe(A.calibre)<=0)
+    return {ok:false,porque:'sem munição '+CALIBRES[A.calibre].n+' na mochila'};
+  return {ok:true};
+}
+/* recarga completa ou parcial. `quantos` limita — é o que faz a
+   espingarda encher de um em um e a recarga poder ser interrompida
+   sem deixar a arma num estado inválido. */
+function recarregar(id,quantos){
+  const A=ARMAS_FOGO[id]; if(!A)return 0;
+  const v=podeRecarregar(id); if(!v.ok)return 0;
+  const e=estadoArma(id);
+  const falta=(A.capacidade-e.carregador)+((A.camara||0)-e.camara);
+  const alvo=Math.min(quantos==null?falta:Math.max(0,quantos),falta);
+  const tem=gastarMunicao(A.calibre,alvo);
+  let posto=0;
+  /* a câmara enche primeiro: é ela que dá o tiro seguinte */
+  while(posto<tem&&e.camara<(A.camara||0)){ e.camara++; posto++; }
+  while(posto<tem&&e.carregador<A.capacidade){ e.carregador++; posto++; }
+  /* se sobrou munição tirada e não coube, devolve — nunca some item */
+  if(posto<tem)darMunicao(A.calibre,tem-posto);
+  return posto;
+}
+/* tempo de recarga, já com destreza e ofício. É o número que a tela
+   mostra e o que o jogo cobra: não há duas contas. */
+function tempoDeRecarga(id){
+  const A=ARMAS_FOGO[id]; if(!A)return 0;
+  const D=(typeof derivadas==='function')?derivadas():{recarga:1};
+  const C=(typeof classeAtual==='function')?classeAtual():null;
+  let t=A.tempoRecarga*D.recarga;
+  if(C&&C.passiva.id==='coronha')t*=.80;
+  return +t.toFixed(2);
+}
+
+/* ================= DISPARAR ================= */
+function podeDisparar(id){
+  const A=ARMAS_FOGO[id]; if(!A)return {ok:false,porque:'arma desconhecida'};
+  const e=estadoArma(id);
+  if(e.travada)return {ok:false,porque:'travada — puxe o ferrolho'};
+  if(e.camara<=0&&e.carregador<=0)return {ok:false,porque:'sem munição na arma'};
+  const p=(typeof peca==='function')?peca(id):null;
+  if(p&&typeof quebrado==='function'&&quebrado(p))
+    return {ok:false,porque:'quebrada — passe pela bancada'};
+  return {ok:true};
+}
+
+/* a chance de acertar, composta. Nunca 100%, nem com Pontaria 10:
+   `acertoMax` das derivadas é o teto, e ele para em 90%. */
+function chanceDeAcerto(id,dist,alvoForca){
+  const A=ARMAS_FOGO[id]; if(!A)return 0;
+  const D=(typeof derivadas==='function')?derivadas():{dispersao:1,acertoMax:.7,firmar:1};
+  const p=(typeof peca==='function')?peca(id):null;
+  const estado=(p&&typeof efic==='function')?efic(p):1;
+  const d=dist==null?2:dist;
+  /* dispersão cresce com a distância e com a arma; pontaria a encolhe */
+  const disp=A.dispersao*D.dispersao*(1+Math.max(0,d-A.alcance)*.35);
+  let c=1/(1+disp*.55);
+  /* fora do alcance máximo, cai forte */
+  if(d>A.alcanceMax)c*=.35;
+  /* arma gasta erra mais */
+  c*=(0.65+0.35*estado);
+  /* alvo forte é mais difícil de derrubar, não de acertar */
+  return trava(c,0.05,D.acertoMax);
+}
+/* dano final: base, queda com a distância, estado e força do braço
+   não entram (é arma de fogo, não porrete) */
+function danoDoTiro(id,dist){
+  const A=ARMAS_FOGO[id]; if(!A)return 0;
+  const d=dist==null?2:dist;
+  const perda=Math.max(0,d-A.alcance)*A.quedaDano;
+  const p=(typeof peca==='function')?peca(id):null;
+  const estado=(p&&typeof efic==='function')?efic(p):1;
+  return +Math.max(.4,A.dano*(1-trava(perda,0,.7))*estado).toFixed(2);
+}
+
+/* O TIRO. Uma função só, e é ela que qualquer cena de combate chama.
+   Devolve tudo que aconteceu, pra quem chamou escrever o texto. */
+function atirar(id,op){
+  op=op||{};
+  const A=ARMAS_FOGO[id];
+  if(!A)return {ok:false,porque:'arma desconhecida'};
+  const v=podeDisparar(id);
+  if(!v.ok)return {ok:false,porque:v.porque};
+  const e=estadoArma(id);
+
+  /* tira da câmara; se não havia câmara, tira do carregador */
+  if(e.camara>0)e.camara--;
+  else if(e.carregador>0)e.carregador--;
+  else return {ok:false,porque:'sem munição na arma'};
+  /* e a próxima sobe pra câmara, se a arma tem câmara */
+  if((A.camara||0)>0&&e.camara<(A.camara)&&e.carregador>0){ e.carregador--; e.camara++; }
+  e.tiros++;
+
+  /* travamento: confiabilidade, piorada pelo desgaste. Sempre avisada. */
+  const p=(typeof peca==='function')?peca(id):null;
+  const estado=(p&&typeof efic==='function')?efic(p):1;
+  const conf=A.confiabilidade*(0.75+0.25*estado);
+  let travou=false;
+  if(Math.random()>conf){ e.travada=true; travou=true; }
+
+  /* desgaste do §15: cada tiro gasta a peça */
+  if(typeof gastarDur==='function'&&p)
+    gastarDur(p,(typeof fichaDesg==='function'&&fichaDesg(id)?fichaDesg(id).taxa:1.2),A.nome);
+
+  const dist=op.dist==null?2:op.dist;
+  const acerto=travou?false:chance(chanceDeAcerto(id,dist));
+  const dano=acerto?danoDoTiro(id,dist):0;
+
+  /* RUÍDO: entra no sistema que já existe, e é o preço da arma de
+     fogo. Dentro de casa ecoa mais; a chuva cobre um pouco. */
+  const ruidoBase=A.ruido!=null?A.ruido:CALIBRES[A.calibre].ruido;
+  const fechado=(typeof cena!=='undefined'&&cena.casa&&cena.modo!=='rua');
+  const chovendo=(typeof CH!=='undefined'&&CH.i>0)?CH.i:0;
+  const r=Math.round(ruidoBase*(fechado?1.15:1)*(1-chovendo*.18));
+  if(typeof S!=='undefined'){
+    S.ruido=trava((S.ruido||0)+r*.35,0,100);
+    /* e o rastro do §9 recebe o estouro, que é o que faz a coisa vir */
+    S.calor=(S.calor||0)+r*.55;
+  }
+  if(typeof amToca==='function')amToca(r>70?'porta_batida':'metal_cai');
+
+  /* recuo: sobe a dispersão do próximo tiro e leva tempo pra firmar */
+  const D=(typeof derivadas==='function')?derivadas():{recuo:1,firmar:1};
+  const C=(typeof classeAtual==='function')?classeAtual():null;
+  let recuo=A.recuoV*D.recuo;
+  if(C&&C.passiva.id==='coronha')recuo*=.65;
+
+  return {ok:true, acerto, dano, travou, ruido:r,
+    recuo:+recuo.toFixed(2), firmar:+(recuo*.35*D.firmar).toFixed(2),
+    carregador:e.carregador, camara:e.camara,
+    reserva:reservaDe(A.calibre), calibre:A.calibre,
+    chance:+chanceDeAcerto(id,dist).toFixed(3)};
+}
+/* destravar custa tempo, não munição */
+function destravar(id){
+  const e=estadoArma(id);
+  if(!e||!e.travada)return false;
+  e.travada=false;
+  return true;
+}
+function trocarModo(id){
+  const A=ARMAS_FOGO[id]; const e=estadoArma(id);
+  if(!A||!e||A.modos.length<2)return null;
+  e.modo=A.modos[(A.modos.indexOf(e.modo)+1)%A.modos.length];
+  return e.modo;
+}
+
+/* ================= DESENHO (o "modelo" deste projeto) =================
+   Este jogo não tem malha 3D: o equivalente é a arte vetorial em
+   canvas do `DESENHO`, uma função por item, e é nela que os itens
+   novos entram. Não é um cubo genérico nem um ícone reaproveitado —
+   é a mesma técnica que os 60 itens originais usam. O que fica
+   faltando de refinamento artístico está dito no README. */
+function desenhoDeArma(cat){
+  const M='#8A8F98', ME='#5A606A', MAD='#5A3A22', PRETO='#2A252E';
+  const canos={
+    pistola:s=>{dRect(-s*.30,-s*.10,s*.44,s*.11,ME);      /* corrediça */
+      dRect(-s*.30,-s*.02,s*.40,s*.06,M);
+      dRect(-s*.20,s*.02,s*.13,s*.26,PRETO);              /* punho */
+      dRect(-s*.08,s*.02,s*.06,s*.10,ME);},
+    revolver:s=>{dRect(-s*.28,-s*.08,s*.40,s*.08,M);
+      dCirc(-s*.05,s*.00,s*.09,ME);                       /* tambor */
+      dRect(-s*.14,s*.04,s*.12,s*.24,MAD);
+      dLinha(-s*.02,s*.06,s*.04,s*.12,ME,2);},
+    smg:s=>{dRect(-s*.34,-s*.10,s*.56,s*.10,ME);
+      dRect(-s*.34,0,s*.50,s*.07,M);
+      dRect(-s*.10,s*.06,s*.09,s*.28,PRETO);              /* carregador reto */
+      dRect(-s*.26,s*.05,s*.10,s*.16,PRETO);},
+    espingarda:s=>{dRect(-s*.40,-s*.06,s*.66,s*.08,ME);
+      dRect(-s*.40,s*.02,s*.60,s*.05,'#6A6F78');          /* bomba */
+      dRect(s*.16,-s*.02,s*.22,s*.13,MAD);
+      dRect(-s*.16,s*.06,s*.18,s*.05,ME);},
+    carabina:s=>{dRect(-s*.42,-s*.07,s*.74,s*.08,ME);
+      dRect(s*.10,-s*.01,s*.28,s*.12,MAD);
+      dRect(-s*.10,s*.04,s*.10,s*.26,PRETO);
+      dLinha(-s*.42,-s*.09,-s*.22,-s*.09,M,2);},
+    rifle:s=>{dRect(-s*.44,-s*.05,s*.78,s*.06,ME);
+      dRect(s*.06,-s*.01,s*.32,s*.11,MAD);
+      dRect(-s*.06,s*.03,s*.07,s*.16,MAD);},
+    precisao:s=>{dRect(-s*.46,-s*.04,s*.84,s*.06,ME);
+      dRect(-s*.10,-s*.18,s*.34,s*.09,PRETO);             /* luneta */
+      dCirc(-s*.10,-s*.135,s*.05,'#2E3238');
+      dRect(s*.10,0,s*.30,s*.12,MAD);
+      dRect(-s*.04,s*.04,s*.08,s*.20,MAD);}
+  };
+  return canos[cat]||canos.pistola;
+}
+function desenhoDeMunicao(cal){
+  const grosso=cal==='.12'?1.5:(cal==='.22'?.6:1);
+  return s=>{
+    for(let i=0;i<4;i++){
+      const x=-s*.20+i*s*.13;
+      dRect(x,-s*.02,s*.07*grosso,s*.20,'#B08A3A');       /* estojo */
+      CX.fillStyle=cal==='.12'?'#8C2F1E':'#C8CDD4';       /* ponta */
+      CX.beginPath();
+      CX.moveTo(x,-s*.02);CX.lineTo(x+s*.07*grosso,-s*.02);
+      CX.lineTo(x+s*.035*grosso,-s*.14);CX.closePath();CX.fill();
+    }
+  };
+}
+function desenhoDeCarregador(){
+  return s=>{
+    dRect(-s*.11,-s*.24,s*.22,s*.48,'#2E3238');
+    dRect(-s*.11,-s*.24,s*.22,s*.05,'#5A606A');
+    for(let i=0;i<4;i++)dLinha(-s*.11,-s*.12+i*s*.10,s*.11,-s*.12+i*s*.10,'#1A1D21',1);
+  };
+}
+
+/* ================= INTEGRAÇÃO ================= */
+/* as armas de fogo entram no mundo: aparecem em saque de lugar certo */
+function semearArmas(){
+  if(typeof TIPO_CASA==='undefined')return;
+  const por={delegacia:['pistola_taurus','revolver_38'],
+    oficina:['smg_caseira'], sitio:['espingarda_20','rifle_22'],
+    boa:['pistola_taurus'], abandonada:['revolver_38']};
+  for(const [tipo,lista] of Object.entries(por)){
+    const T=TIPO_CASA[tipo];
+    if(!T||!T.loot)continue;
+    lista.forEach(id=>{ if(CATALOGO[id]&&!T.loot.includes(id))T.loot.push(id); });
+  }
+  /* munição junto, senão a arma é peso morto */
+  ['sitio','oficina','boa','comercio'].forEach(t=>{
+    const T=TIPO_CASA[t];
+    if(T&&T.loot)['mun_9mm','mun_38','mun_12'].forEach(m=>{
+      if(CATALOGO[m]&&!T.loot.includes(m))T.loot.push(m);
+    });
+  });
+}
+/* quando a mochila é esvaziada em casa, munição vira reserva e a arma
+   entra no paiol — o §15 já leva o desgaste junto */
+if(typeof descarregar==='function'){
+  const _dc=descarregar;
+  descarregar=function(){
+    const m=(typeof mochila==='function')?mochila():{itens:[]};
+    /* munição sai antes: vira contador por calibre, não item guardado */
+    m.itens.slice().forEach(it=>{
+      const e=CATALOGO[it.id];
+      if(e&&e.municaoDe){
+        darMunicao(e.municaoDe,(e.qtd||20)*it.q);
+        m.itens=m.itens.filter(x=>x!==it);
+      }
+    });
+    const r=_dc.apply(this,arguments);
+    /* a primeira arma de fogo que chegar vira a equipada */
+    if(!S.armaFogo){
+      const f=(S.armas||[]).find(id=>ARMAS_FOGO[id]);
+      if(f)equiparFogo(f);
+    }
+    return r;
+  };
+}
+
+/* ---------- estado, pro HUD e pros testes ---------- */
+function armaEstado(id){
+  const a=id||S.armaFogo;
+  const A=ARMAS_FOGO[a];
+  if(!A)return null;
+  const e=estadoArma(a);
+  const p=(typeof peca==='function')?peca(a):null;
+  return {id:a, nome:A.nome, categoria:A.categoria, calibre:A.calibre,
+    carregador:e.carregador, capacidade:A.capacidade,
+    camara:e.camara, temCamara:(A.camara||0)>0,
+    reserva:reservaDe(A.calibre), travada:e.travada, modo:e.modo,
+    modos:A.modos.slice(), tiros:e.tiros,
+    condicao:p&&typeof pctDur==='function'?pctDur(p):100,
+    tempoRecarga:tempoDeRecarga(a),
+    chance:+chanceDeAcerto(a,2).toFixed(3), dano:danoDoTiro(a,2),
+    podeDisparar:podeDisparar(a), podeRecarregar:podeRecarregar(a)};
+}
+
+/* ---------- persistência ---------- */
+if(typeof salvar==='function'){
+  const _sv=salvar;
+  salvar=function(){
+    _sv.apply(this,arguments);
+    try{
+      const d=JSON.parse(localStorage.getItem(CHAVE)||'{}');
+      d.fogo=S.fogo; d.municao=S.municao; d.armaFogo=S.armaFogo;
+      localStorage.setItem(CHAVE,JSON.stringify(d));
+    }catch(e){}
+  };
+}
+
+/* ================= REGISTRO E EXEMPLO DE EXTENSÃO =================
+   Tudo acima é dado. Abaixo, a demonstração de que dá pra somar uma
+   arma sem tocar em nenhuma linha do núcleo: a `pistola_mauser` nasce
+   aqui, por `registrarArma`, com validação e desenho próprio, e passa
+   a existir no jogo como qualquer outra. Copie este bloco pra criar a
+   sua — só o `id`, o `nome` e os números mudam. */
+registrarMunicoes();
+Object.values(ARMAS_FOGO).forEach(a=>{
+  const e=validarArma(a);
+  if(e.length)console.error('[§20] arma de catálogo inválida: '+a.id+' — '+e.join('; '));
+  else registrarNoCatalogo(a);
+});
+
+registrarArma({
+  id:'pistola_mauser', nome:'Pistola de coronha de madeira',
+  categoria:'pistola', calibre:'9mm', capacidade:10, dano:3.4,
+  alcance:3.4, alcanceMax:7, dispersao:.95, recuoV:1.0, recuoH:.4,
+  cadencia:2, modos:['semi'], tempoSaque:.9, tempoRecarga:2.3,
+  peso:1.2, confiabilidade:.96,
+  d:'Antiga, cuidada, e alguém a escondeu com carinho. Atira reto.',
+  /* desenho próprio: o "modelo" deste projeto é arte de canvas */
+  desenho:s=>{
+    dRect(-s*.30,-s*.09,s*.46,s*.10,'#5A606A');
+    dRect(-s*.30,-s*.01,s*.42,s*.05,'#8A8F98');
+    dRect(-s*.18,s*.03,s*.14,s*.28,'#6A4A2E');
+    dLinha(-s*.16,s*.10,-s*.06,s*.10,'#4A3220',1.5);
+  }
+});
+
+semearArmas();
+S.fogo=S.fogo||{}; S.municao=S.municao||{};
+
+</script>
+<!-- s20:fim -->
+<!-- s21:inicio -->
+<script>
+/* ================= §21 — CORPO, ROUPA E PAINEL =================
+   Slots por região do corpo, peças que protegem só o que cobrem, e um
+   painel de equipamento com silhueta. A regra que evita o abuso mais
+   comum do gênero: PROTEÇÃO É POR REGIÃO. Uma bota não segura mordida
+   no braço, e nenhuma peça sozinha protege o corpo inteiro.
+
+   O HUD de combate é compacto de propósito — a tela é de celular, e o
+   jogo é de texto. Estado nunca é dito só por cor: tudo que tem cor
+   tem também número ou palavra.
+   ================================================================== */
+
+/* ---------- os slots ---------- */
+const SLOTS=[
+ {id:'cabeca',  n:'Cabeça',        reg:['cabeca']},
+ {id:'rosto',   n:'Rosto',         reg:['cabeca']},
+ {id:'tronco1', n:'Tronco (interno)', reg:['torso']},
+ {id:'tronco2', n:'Tronco (externo)', reg:['torso','bracos']},
+ {id:'armadura',n:'Armadura',      reg:['torso']},
+ {id:'maos',    n:'Mãos',          reg:['bracos']},
+ {id:'cintura', n:'Cintura',       reg:['torso']},
+ {id:'pernas',  n:'Pernas',        reg:['pernas']},
+ {id:'pes',     n:'Pés',           reg:['pes']},
+ {id:'costas',  n:'Costas',        reg:[]},
+ {id:'mochila', n:'Mochila',       reg:[]},
+ {id:'branca',  n:'Arma branca',   reg:[]},
+ {id:'fogo',    n:'Arma de fogo',  reg:[]},
+ {id:'util',    n:'Utilitário',    reg:[]}
+];
+const REGIOES=['cabeca','torso','bracos','pernas','pes'];
+
+/* ---------- as peças ----------
+   `prot` é por tipo de dano e vale só nas `reg` da peça. `veloc` e
+   `ruido` são o preço: armadura pesada protege e denuncia. */
+const ROUPAS={
+ camiseta:{n:'Camiseta puída',slot:'tronco1',reg:['torso'],kg:.2,
+   prot:{corte:.04,pancada:.02}, veloc:0, ruido:0, calor:.1,
+   d:'Serve pra não andar sem camisa. É tudo que ela faz.'},
+ camisa:{n:'Camisa de manga',slot:'tronco1',reg:['torso','bracos'],kg:.3,
+   prot:{corte:.06,arranhao:.12}, veloc:0, ruido:0, calor:.2,
+   d:'Manga comprida segura mato e unha, não segura dente.'},
+ calca:{n:'Calça de brim',slot:'pernas',reg:['pernas'],kg:.6,
+   prot:{corte:.10,arranhao:.20,pancada:.04}, veloc:0, ruido:.02, calor:.2,
+   d:'Grossa no joelho. Aguenta cerca e mato.'},
+ casaco:{n:'Casaco pesado',slot:'tronco2',reg:['torso','bracos'],kg:1.4,
+   prot:{corte:.14,pancada:.10,mordida:.08}, veloc:-.03, ruido:.04, calor:.6,
+   d:'Quente demais de dia, e é ele que te salva de madrugada.'},
+ bota:{n:'Bota de couro',slot:'pes',reg:['pes'],kg:1.1,
+   prot:{corte:.22,pancada:.16,mordida:.14}, veloc:.02, ruido:.06, calor:.2,
+   d:'Cano alto. Pisa em prego e você nem sente.'},
+ tenis:{n:'Tênis gasto',slot:'pes',reg:['pes'],kg:.5,
+   prot:{corte:.06}, veloc:.05, ruido:-.06, calor:0,
+   d:'Solado macio. Corre melhor e faz menos barulho que bota.'},
+ luva:{n:'Luva de raspa',slot:'maos',reg:['bracos'],kg:.2,
+   prot:{corte:.18,queimadura:.25}, veloc:0, ruido:0, calor:.1,
+   d:'Pega vidro e arame sem abrir a mão.'},
+ capacete:{n:'Capacete de obra',slot:'cabeca',reg:['cabeca'],kg:.9,
+   prot:{pancada:.35,corte:.12}, veloc:-.02, ruido:.03, calor:0,
+   d:'Amarelo e feio. Já segurou telha inteira.'},
+ mascara:{n:'Máscara de pano',slot:'rosto',reg:['cabeca'],kg:.1,
+   prot:{doenca:.20}, veloc:0, ruido:0, calor:.1,
+   d:'Filtra poeira e o cheiro do que apodrece.'},
+ joelheira:{n:'Joelheira e caneleira',slot:'pernas',reg:['pernas'],kg:.7,
+   prot:{pancada:.22,corte:.14}, veloc:-.02, ruido:.03, calor:0,
+   d:'Plástico duro sobre a canela. Chutar porta deixa de doer.'},
+ cinto:{n:'Cinto de ferramenta',slot:'cintura',reg:['torso'],kg:.8,
+   prot:{}, veloc:-.01, ruido:.05, extra:{vol:4},
+   d:'Quatro espaços a mais, pendurados na cintura, batendo na perna.'},
+ mochila_leve:{n:'Mochila pequena',slot:'mochila',reg:[],kg:.8,
+   prot:{}, veloc:0, ruido:.02, extra:{vol:10,kg:6},
+   d:'Cabe pouco e não atrapalha nada.'}
+};
+
+/* as armaduras do §15 entram aqui com região e tipo de dano */
+const ARMADURAS_REG={
+ colete:{reg:['torso'],prot:{corte:.30,pancada:.34,mordida:.26},veloc:-.05,ruido:.10},
+ avental:{reg:['torso','pernas'],prot:{corte:.34,queimadura:.30},veloc:-.06,ruido:.08},
+ jaqueta:{reg:['torso','bracos'],prot:{corte:.20,mordida:.18},veloc:-.02,ruido:.04}
+};
+
+/* põe as roupas no catálogo do jogo, com desenho próprio */
+function registrarRoupas(){
+  if(typeof CATALOGO==='undefined')return;
+  for(const [id,R] of Object.entries(ROUPAS)){
+    if(CATALOGO[id])continue;
+    CATALOGO[id]={n:R.n,cat:'roupa',kg:R.kg,vol:Math.max(1,Math.round(R.kg*2)),
+      raro:R.slot==='armadura'?4:2,roupa:id,d:R.d};
+    if(typeof DESENHO!=='undefined'&&!DESENHO[id])DESENHO[id]=desenhoDeRoupa(id,R);
+  }
+  if(typeof CAT!=='undefined')CAT.roupa='roupa';
+  /* e no mundo: roupa se acha em casa de gente */
+  if(typeof TIPO_CASA!=='undefined'){
+    const por={simples:['camiseta','calca','tenis'],boa:['casaco','bota','capacete'],
+      abandonada:['camisa','mascara'],oficina:['luva','joelheira','cinto'],
+      sitio:['bota','casaco'],comercio:['mochila_leve','tenis','camiseta']};
+    for(const [t,l] of Object.entries(por)){
+      const T=TIPO_CASA[t];
+      if(T&&T.loot)l.forEach(i=>{ if(CATALOGO[i]&&!T.loot.includes(i))T.loot.push(i); });
+    }
+  }
+}
+
+/* ---------- o estado do corpo ---------- */
+function corpo(){
+  if(!S.corpo||typeof S.corpo!=='object')S.corpo={};
+  SLOTS.forEach(s=>{ if(S.corpo[s.id]===undefined)S.corpo[s.id]=null; });
+  /* peça que sumiu do catálogo entre versões não trava a tela */
+  Object.keys(S.corpo).forEach(k=>{
+    const v=S.corpo[k];
+    if(v&&!ROUPAS[v]&&!(typeof CATALOGO!=='undefined'&&CATALOGO[v]))S.corpo[k]=null;
+  });
+  return S.corpo;
+}
+function slotDe(id){
+  if(ROUPAS[id])return ROUPAS[id].slot;
+  if(typeof CATALOGO!=='undefined'&&CATALOGO[id]){
+    const e=CATALOGO[id];
+    if(e.cat==='armadura')return 'armadura';
+    if(e.fogo)return 'fogo';
+    if(e.dano)return 'branca';
+  }
+  return null;
+}
+function pecaDoSlot(slot){ return corpo()[slot]||null; }
+
+function vestir(id){
+  const slot=slotDe(id);
+  if(!slot)return {ok:false,porque:'isso não se veste'};
+  const C=corpo();
+  /* regra de sobreposição: armadura por cima do tronco externo exige
+     que o externo caiba embaixo — casaco + colete é o limite */
+  if(slot==='armadura'&&C.tronco2&&ROUPAS[C.tronco2]&&ROUPAS[C.tronco2].kg>1.2)
+    return {ok:false,porque:'o casaco não cabe embaixo da armadura'};
+  C[slot]=id;
+  if(slot==='armadura'&&typeof S!=='undefined')S.armadura=id;
+  if(typeof sincronizarEfeitos==='function')sincronizarEfeitos();
+  return {ok:true,slot};
+}
+function desvestir(slot){
+  const C=corpo();
+  const t=C[slot];
+  C[slot]=null;
+  if(slot==='armadura')S.armadura=null;
+  if(typeof sincronizarEfeitos==='function')sincronizarEfeitos();
+  return t;
+}
+
+/* ---------- o que o corpo dá e o que cobra ----------
+   Proteção por região e por tipo de dano, somada com retorno
+   decrescente pra não existir combinação imune. */
+function protecaoDe(regiao,tipo){
+  let soma=0;
+  const C=corpo();
+  SLOTS.forEach(s=>{
+    const id=C[s.id]; if(!id)return;
+    const R=ROUPAS[id]||ARMADURAS_REG[id];
+    if(!R)return;
+    const reg=R.reg||[];
+    if(!reg.includes(regiao))return;
+    const p=(R.prot||{})[tipo]||0;
+    if(p<=0)return;
+    /* desgaste da peça encolhe a proteção */
+    const pc=(typeof peca==='function')?peca(id):null;
+    const est=(pc&&typeof efic==='function')?efic(pc):1;
+    soma+=p*est;
+  });
+  /* teto: 70%, e a soma nunca é linear */
+  return +trava(1-Math.pow(1-trava(soma,0,.95),1),0,.70).toFixed(3);
+}
+function penalidadesDoCorpo(){
+  let veloc=0, ruido=0, kg=0, volExtra=0, kgExtra=0;
+  const C=corpo();
+  SLOTS.forEach(s=>{
+    const id=C[s.id]; if(!id)return;
+    const R=ROUPAS[id]||ARMADURAS_REG[id];
+    if(!R)return;
+    veloc+=R.veloc||0; ruido+=R.ruido||0;
+    kg+=R.kg||(CATALOGO[id]?CATALOGO[id].kg:0)||0;
+    if(R.extra){ volExtra+=R.extra.vol||0; kgExtra+=R.extra.kg||0; }
+  });
+  return {veloc:+veloc.toFixed(3), ruido:+ruido.toFixed(3),
+    kg:+kg.toFixed(2), volExtra, kgExtra};
+}
+
+/* INTEGRAÇÃO 1 — a proteção entra na ferida, depois do §15 e do §19,
+   e é por região: o golpe escolhe onde bate. */
+if(typeof ferirPor==='function'){
+  const _fp=ferirPor;
+  ferirPor=function(fonte,alvo,nome){
+    const eu=!alvo||alvo===S;
+    if(eu){
+      const reg=sortear(REGIOES);
+      const tipo={bicho:'mordida',gente:'corte',queda:'pancada',
+        fogo:'queimadura',mato:'arranhao',obra:'pancada'}[fonte]||'corte';
+      const p=protecaoDe(reg,tipo);
+      if(p>0&&chance(p)){
+        if(typeof diz==='function')
+          diz(`O que você está vestindo segura o golpe ${
+            {cabeca:'na cabeça',torso:'no peito',bracos:'no braço',
+             pernas:'na perna',pes:'no pé'}[reg]}.`,'bom');
+        /* e a peça que segurou se gasta */
+        const C=corpo();
+        SLOTS.forEach(s=>{
+          const id=C[s.id]; const R=id&&(ROUPAS[id]||ARMADURAS_REG[id]);
+          if(R&&(R.reg||[]).includes(reg)&&typeof gastarDur==='function'&&typeof peca==='function'){
+            const pc=peca(id); if(pc)gastarDur(pc,2.2,(CATALOGO[id]||{n:id}).n);
+          }
+        });
+        return null;
+      }
+    }
+    return _fp.call(this,fonte,alvo,nome);
+  };
+}
+/* INTEGRAÇÃO 2 — peso e barulho da roupa entram na capacidade e no rastro */
+if(typeof mochilaInfo==='function'){
+  const _mi=mochilaInfo;
+  mochilaInfo=function(){
+    const inf=_mi.apply(this,arguments);
+    const P=penalidadesDoCorpo();
+    return {...inf, kg:+(inf.kg+P.kgExtra).toFixed(1), vol:inf.vol+P.volExtra};
+  };
+}
+if(typeof v9Rastros==='function'){
+  const _vr=v9Rastros;
+  window.v9Rastros=function(){
+    const t=_vr.apply(this,arguments);
+    const P=penalidadesDoCorpo();
+    /* armadura pesada faz barulho: entra no rastro SOM e METAL */
+    return t.map(r=>(r.k==='SOM'||r.k==='METAL')?{...r,p:r.p*(1+P.ruido)}:r);
+  };
+}
+
+/* ================= O PAINEL ================= */
+function estiloCorpo(){
+  if(document.getElementById('css-corpo'))return;
+  const s=document.createElement('style');
+  s.id='css-corpo';
+  s.textContent=`
+#corpo-ui{position:fixed;inset:0;z-index:78;background:var(--breu);color:var(--papel);
+  display:flex;flex-direction:column;font-family:var(--corpo)}
+#corpo-ui .topo{padding:10px 13px;border-bottom:1px solid #2A232E;
+  background:linear-gradient(180deg,#1B1721,#0F0D13)}
+#corpo-ui h2{font-family:var(--display);font-size:15px;font-weight:400;
+  letter-spacing:.2em;text-transform:uppercase;color:var(--mofo)}
+#corpo-ui .peso{font-family:var(--mostrador);font-size:10.5px;color:var(--lampiao);margin-top:4px}
+#corpo-ui .corpo2{flex:1;overflow-y:auto;padding:8px 10px 12px}
+#corpo-ui .sl{display:grid;grid-template-columns:74px 1fr auto;gap:8px;align-items:center;
+  padding:7px 5px;border-bottom:1px solid #1E1922}
+#corpo-ui .sl .rot{font-family:var(--mostrador);font-size:9px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--mofo)}
+#corpo-ui .sl .it{font-size:13.5px}
+#corpo-ui .sl .it small{display:block;font-family:var(--mostrador);font-size:9px;
+  color:var(--mofo);margin-top:2px}
+#corpo-ui .sl.vazio .it{color:#5A5464;font-style:italic}
+#corpo-ui .sl button{background:#16131A;border:1px solid #2A232E;color:var(--papel);
+  font-family:var(--corpo);font-size:12px;padding:6px 9px;cursor:pointer}
+#corpo-ui .prot{border:1px solid #2A232E;margin-top:10px;padding:8px 10px}
+#corpo-ui .prot h3{font-family:var(--mostrador);font-size:9.5px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--mofo);margin-bottom:5px}
+#corpo-ui .prot div{font-family:var(--mostrador);font-size:10.5px;line-height:1.7}
+#corpo-ui .prot b{color:var(--lampiao);font-weight:400}
+#corpo-ui .rodape{display:flex;gap:6px;padding:8px;border-top:1px solid #2A232E;background:#0F0D13}
+#corpo-ui .rodape button{flex:1;background:#16131A;border:1px solid #2A232E;color:var(--papel);
+  font-family:var(--corpo);font-size:13px;padding:10px;cursor:pointer}
+#corpo-ui .rodape button.chave{border-color:var(--lampiao);color:var(--lampiao)}
+#hud-arma{position:fixed;right:8px;bottom:8px;z-index:55;pointer-events:none;
+  font-family:var(--mostrador);font-size:10px;letter-spacing:.05em;text-align:right;
+  background:rgba(11,10,13,.72);border:1px solid #2A232E;padding:6px 8px;line-height:1.6}
+#hud-arma b{color:var(--lampiao);font-weight:400;font-size:13px}
+#hud-arma .alerta{color:#E0703F}
+#hud-arma .ruim{color:#B84B33}`;
+  document.head.appendChild(s);
+}
+
+function telaCorpo(volta){
+  estiloCorpo();
+  const el=document.createElement('div');
+  el.id='corpo-ui';
+  el.innerHTML=`<div class="topo"><h2>O que você está vestindo</h2>
+      <div class="peso"></div></div>
+    <div class="corpo2"></div>
+    <div class="rodape"><button class="sai chave">Fechar</button></div>`;
+  document.body.appendChild(el);
+  const c2=el.querySelector('.corpo2');
+
+  function pintar(){
+    const C=corpo(), P=penalidadesDoCorpo();
+    const inf=(typeof mochilaInfo==='function')?mochilaInfo():{kg:24,vol:30};
+    el.querySelector('.peso').textContent=
+      `roupa ${P.kg.toFixed(1)} kg · carga ${(typeof pesoAtual==='function'?pesoAtual():0).toFixed(1)}/${inf.kg.toFixed(0)} kg`
+      +(P.veloc?` · velocidade ${P.veloc>0?'+':''}${Math.round(P.veloc*100)}%`:'')
+      +(P.ruido?` · ruído +${Math.round(P.ruido*100)}%`:'');
+    c2.innerHTML='';
+    SLOTS.forEach(s=>{
+      const id=C[s.id];
+      const e=id?(CATALOGO[id]||{n:id}):null;
+      const R=id?(ROUPAS[id]||ARMADURAS_REG[id]):null;
+      const pc=(id&&typeof peca==='function')?peca(id):null;
+      const est=(pc&&typeof pctDur==='function')?pctDur(pc):null;
+      const d=document.createElement('div');
+      d.className='sl'+(id?'':' vazio');
+      const protTxt=R&&R.prot?Object.keys(R.prot).map(k=>k+' '+Math.round(R.prot[k]*100)+'%').join(' · '):'';
+      d.innerHTML=`<div class="rot">${esc(s.n)}</div>
+        <div class="it">${id?esc(e.n):'— vazio —'}
+          ${id?`<small>${esc(protTxt||'sem proteção')}${est!=null?' · estado '+est+'%':''}</small>`:''}</div>
+        <div>${id?'<button class="tirar">Tirar</button>':''}</div>`;
+      if(id)d.querySelector('.tirar').onclick=()=>{
+        const t=desvestir(s.id);
+        if(t&&typeof guardar==='function')guardar(t,1);
+        if(typeof amToca==='function')amToca('ui_clique');
+        pintar();
+      };
+      c2.appendChild(d);
+    });
+    /* o que a roupa protege, por região — número, não cor */
+    const p=document.createElement('div');
+    p.className='prot';
+    p.innerHTML='<h3>proteção por região</h3>'+REGIOES.map(r=>{
+      const linhas=['corte','pancada','mordida'].map(t=>
+        `${t} <b>${Math.round(protecaoDe(r,t)*100)}%</b>`).join(' · ');
+      return `<div>${r}: ${linhas}</div>`;
+    }).join('');
+    c2.appendChild(p);
+    /* e o que dá pra vestir agora, da mochila */
+    const vestiveis=(typeof mochila==='function'?mochila().itens:[])
+      .filter(it=>slotDe(it.id));
+    if(vestiveis.length){
+      const v=document.createElement('div');
+      v.className='prot';
+      v.innerHTML='<h3>na mochila, dá pra vestir</h3>';
+      vestiveis.forEach(it=>{
+        const b=document.createElement('button');
+        b.style.cssText='display:block;width:100%;text-align:left;background:none;border:0;'
+          +'border-bottom:1px solid #1E1922;color:var(--papel);padding:7px 4px;cursor:pointer;'
+          +'font-family:var(--corpo);font-size:13px';
+        b.textContent=(CATALOGO[it.id]||{n:it.id}).n+' → '+
+          (SLOTS.find(s=>s.id===slotDe(it.id))||{n:'?'}).n;
+        b.onclick=()=>{
+          const r=vestir(it.id);
+          if(!r.ok)return alert(r.porque);
+          if(typeof largar==='function')largar(it.id,1);
+          if(typeof amToca==='function')amToca('porta_maçaneta');
+          pintar();
+        };
+        v.appendChild(b);
+      });
+      c2.appendChild(v);
+    }
+  }
+  el.querySelector('.sai').onclick=()=>{
+    el.remove();
+    if(typeof salvar==='function')salvar();
+    if(typeof volta==='function')volta();
+  };
+  pintar();
+}
+
+/* ---------- HUD de combate, compacto ---------- */
+function atualizarHudArma(){
+  estiloCorpo();
+  let h=document.getElementById('hud-arma');
+  const a=(typeof armaEstado==='function')?armaEstado():null;
+  const branca=(typeof melhorArma==='function')?melhorArma():null;
+  if(!a&&!branca){ if(h)h.remove(); return; }
+  if(!h){ h=document.createElement('div'); h.id='hud-arma'; document.body.appendChild(h); }
+  const linhas=[];
+  if(branca)linhas.push(`punho: ${esc(branca.n.toLowerCase())} · dano ${branca.dano}`);
+  if(a){
+    const vazia=a.carregador<=0&&a.camara<=0;
+    const cls=a.travada?'ruim':(vazia?'alerta':'');
+    linhas.push(`<span class="${cls}">${esc(a.nome.toLowerCase())}</span>`);
+    linhas.push(`<b>${a.camara>0?a.camara+'+':''}${a.carregador}</b>/${a.capacidade}`
+      +` · reserva ${a.reserva} ${esc(a.calibre)}`);
+    linhas.push(`modo ${esc(a.modo)} · estado ${a.condicao}%`);
+    if(a.travada)linhas.push('<span class="ruim">TRAVADA — destrave</span>');
+    else if(vazia)linhas.push('<span class="alerta">SEM MUNIÇÃO NA ARMA</span>');
+    if(a.reserva<=0&&vazia)linhas.push('<span class="ruim">sem reserva deste calibre</span>');
+  }
+  const novo=linhas.join('<br>');
+  if(h.dataset.v!==novo){ h.innerHTML=novo; h.dataset.v=novo; }  /* só redesenha se mudou */
+}
+/* o HUD acompanha o painel do jogo, que já é chamado quando algo muda */
+if(typeof atualizarPainel==='function'){
+  const _ap=atualizarPainel;
+  atualizarPainel=function(){
+    const r=_ap.apply(this,arguments);
+    try{ atualizarHudArma(); }catch(e){}
+    return r;
+  };
+}
+
+/* ---------- entradas no jogo ---------- */
+if(typeof menuComodo==='function'){
+  const _mc=menuComodo;
+  menuComodo=function(id){
+    const r=_mc.apply(this,arguments);
+    try{
+      if(id===1&&typeof botao==='function'){
+        const P=penalidadesDoCorpo();
+        botao('Roupa e equipamento',()=>telaCorpo(()=>menuComodo(1)),
+          {custo:P.kg?P.kg.toFixed(1)+' kg vestidos':'nada vestido'});
+      }
+      if(id===3&&typeof botao==='function'&&(S.armas||[]).some(x=>ARMAS_FOGO[x])){
+        botao('Mexer nas armas de fogo',()=>telaArmas(()=>menuComodo(3)),
+          {custo:'carregar, destravar, trocar modo'});
+      }
+    }catch(e){}
+    return r;
+  };
+}
+
+/* ---------- a bancada de armas ---------- */
+function telaArmas(volta){
+  if(typeof limpar!=='function')return;
+  limpar(); AC.innerHTML=''; cap('ARMAS DE FOGO');
+  const minhas=(S.armas||[]).filter(id=>ARMAS_FOGO[id]);
+  if(!minhas.length){
+    diz('Você não tem nenhuma arma de fogo.','fraco');
+    botao('Voltar',volta,{cls:'chave'}); return;
+  }
+  minhas.forEach(id=>{
+    const a=armaEstado(id);
+    const A=ARMAS_FOGO[id];
+    ficha(a.nome+(S.armaFogo===id?' · NA MÃO':''),
+      `${a.camara>0?a.camara+'+':''}${a.carregador}/${a.capacidade} · ${a.calibre}`,
+      `${A.categoria} · dano ${a.dano} · acerto ${Math.round(a.chance*100)}% · estado ${a.condicao}%`
+      +(a.travada?' · TRAVADA':''));
+    if(S.armaFogo!==id)
+      botao('Pegar '+a.nome.toLowerCase(),()=>{equiparFogo(id);telaArmas(volta);},{custo:'na mão'});
+    if(a.travada)
+      botao('Destravar',()=>{destravar(id);amToca&&amToca('metal_cai');telaArmas(volta);},{custo:'puxa o ferrolho'});
+    const v=a.podeRecarregar;
+    botao(A.porCartucho?'Enfiar um cartucho':'Recarregar',()=>{
+      const n=recarregar(id,A.porCartucho?1:null);
+      if(!n)diz('Não deu pra carregar.','perigo');
+      else diz(`+${n} ${A.porCartucho?'cartucho':'na arma'}. Levou ${tempoDeRecarga(id)}s.`,'sist');
+      amToca&&amToca('metal_cai');
+      telaArmas(volta);
+    },{custo:v.ok?`reserva ${a.reserva} · ${tempoDeRecarga(id)}s`:'',falta:v.ok?'':v.porque});
+    if(a.modos.length>1)
+      botao('Modo: '+a.modo,()=>{trocarModo(id);telaArmas(volta);},
+        {custo:a.modos.join(' / ')});
+  });
+  diz('Munição guardada: '+(Object.keys(S.municao||{}).filter(k=>S.municao[k]>0)
+    .map(k=>S.municao[k]+' de '+k).join(' · ')||'nenhuma'),'sist');
+  botao('Voltar',volta,{cls:'chave'});
+}
+
+/* ---------- desenho das roupas ---------- */
+function desenhoDeRoupa(id,R){
+  const P='#7A7266', C='#5A4A3E', E='#2E3238';
+  const forma={
+   tronco1:s=>{CX.fillStyle=P;CX.beginPath();
+     CX.moveTo(-s*.20,-s*.20);CX.lineTo(s*.20,-s*.20);
+     CX.lineTo(s*.24,s*.26);CX.lineTo(-s*.24,s*.26);CX.closePath();CX.fill();
+     dRect(-s*.08,-s*.22,s*.16,s*.06,'#4A443E');},
+   tronco2:s=>{CX.fillStyle=C;CX.beginPath();
+     CX.moveTo(-s*.24,-s*.22);CX.lineTo(s*.24,-s*.22);
+     CX.lineTo(s*.26,s*.28);CX.lineTo(-s*.26,s*.28);CX.closePath();CX.fill();
+     dLinha(0,-s*.20,0,s*.28,'#3A2E26',2);
+     dRect(-s*.34,-s*.18,s*.10,s*.34,'#4A3A30');
+     dRect(s*.24,-s*.18,s*.10,s*.34,'#4A3A30');},
+   pernas:s=>{dRect(-s*.16,-s*.24,s*.13,s*.50,'#4A5262');
+     dRect(s*.03,-s*.24,s*.13,s*.50,'#4A5262');
+     dRect(-s*.16,-s*.26,s*.32,s*.07,'#3A424E');},
+   pes:s=>{CX.fillStyle=C;CX.beginPath();
+     CX.moveTo(-s*.24,s*.06);CX.lineTo(s*.10,s*.06);CX.lineTo(s*.22,s*.20);
+     CX.lineTo(-s*.24,s*.20);CX.closePath();CX.fill();
+     dRect(-s*.24,s*.18,s*.46,s*.05,'#2A2420');
+     dRect(-s*.20,-s*.10,s*.18,s*.18,'#4A3A2E');},
+   maos:s=>{CX.fillStyle=C;CX.beginPath();
+     CX.moveTo(-s*.14,s*.20);CX.lineTo(-s*.16,-s*.10);CX.lineTo(s*.14,-s*.14);
+     CX.lineTo(s*.16,s*.18);CX.closePath();CX.fill();
+     for(let i=0;i<3;i++)dRect(-s*.10+i*s*.09,-s*.24,s*.06,s*.12,'#4A3A2E');},
+   cabeca:s=>{CX.fillStyle='#C9A227';CX.beginPath();
+     CX.arc(0,s*.02,s*.24,Math.PI,0);CX.fill();
+     dRect(-s*.30,s*.00,s*.60,s*.06,'#A8871E');
+     dLinha(0,-s*.22,0,s*.02,'#8A6E18',2);},
+   rosto:s=>{CX.fillStyle=P;CX.beginPath();
+     CX.ellipse(0,0,s*.22,s*.15,0,0,7);CX.fill();
+     dLinha(-s*.22,-s*.06,-s*.34,-s*.12,'#5A5248',1.5);
+     dLinha(s*.22,-s*.06,s*.34,-s*.12,'#5A5248',1.5);},
+   cintura:s=>{dRect(-s*.30,-s*.05,s*.60,s*.11,C);
+     dRect(-s*.05,-s*.07,s*.10,s*.15,'#8A8F98');
+     dRect(-s*.24,s*.06,s*.10,s*.16,'#4A3A2E');
+     dRect(s*.14,s*.06,s*.10,s*.16,'#4A3A2E');},
+   mochila:s=>{dRect(-s*.18,-s*.20,s*.36,s*.42,'#4A4238');
+     dRect(-s*.18,-s*.20,s*.36,s*.08,'#3A342C');
+     dRect(-s*.06,s*.00,s*.12,s*.14,'#5A5248');}
+  };
+  return forma[R.slot]||forma.tronco1;
+}
+
+/* ---------- persistência ---------- */
+if(typeof salvar==='function'){
+  const _sv=salvar;
+  salvar=function(){
+    _sv.apply(this,arguments);
+    try{
+      const d=JSON.parse(localStorage.getItem(CHAVE)||'{}');
+      d.corpo=S.corpo;
+      localStorage.setItem(CHAVE,JSON.stringify(d));
+    }catch(e){}
+  };
+}
+
+function corpoEstado(){
+  const C=corpo(), P=penalidadesDoCorpo();
+  return {slots:{...C}, penalidades:P,
+    protecao:Object.fromEntries(REGIOES.map(r=>[r,
+      Object.fromEntries(['corte','pancada','mordida'].map(t=>[t,protecaoDe(r,t)]))])),
+    vestidos:SLOTS.filter(s=>C[s.id]).length};
+}
+
+registrarRoupas();
+S.corpo=S.corpo||{};
+
+</script>
+<!-- s21:fim -->
 </body>
 </html>

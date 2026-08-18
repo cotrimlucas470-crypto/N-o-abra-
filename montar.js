@@ -19,6 +19,9 @@ const BLOCOS=[
   {arq:'s16-armazenamento.js',  ini:'<!-- s16:inicio -->',  fim:'<!-- s16:fim -->'},
   {arq:'s17-chuva.js',          ini:'<!-- s17:inicio -->',  fim:'<!-- s17:fim -->'},
   {arq:'s18-luz.js',            ini:'<!-- s18:inicio -->',  fim:'<!-- s18:fim -->'},
+  {arq:'s19-ficha.js',          ini:'<!-- s19:inicio -->',  fim:'<!-- s19:fim -->'},
+  {arq:'s20-armas.js',          ini:'<!-- s20:inicio -->',  fim:'<!-- s20:fim -->'},
+  {arq:'s21-corpo.js',          ini:'<!-- s21:inicio -->',  fim:'<!-- s21:fim -->'},
 ];
 
 /* A voz da abertura entra embutida. O jogo é um arquivo só — é o que a
