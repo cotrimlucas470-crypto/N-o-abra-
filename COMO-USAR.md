@@ -804,3 +804,77 @@ faz de verdade.
 Junto veio outro conserto: desligar e religar o gerador dentro de 1,4 s deixava
 ele mudo, porque o `stop` agendado do desligamento ainda disparava e matava a
 fonte que tinha acabado de voltar.
+
+---
+
+## §22 — o menu parou de ser uma parede
+
+**Medido antes de mexer:** 191 botões em 9 cômodos, média de 21 por tela. O
+porão chega a 22, o quintal a 23. Numa tela de celular isso é uma parede: a
+ação que você quer está sempre a seis rolagens de distância, e as três ou quatro
+que importam naquele cômodo ficam misturadas com "Ajustes" e "O caderno".
+
+O conserto não foi esconder botão. Foi separar o que é *deste* cômodo do que
+está sempre disponível em qualquer lugar:
+
+- **neste cômodo** — aberta. É a razão de você estar nessa tela.
+- **ir para** — aberta, em grade de duas colunas. São atalhos curtos.
+- **você** — recolhida. Mochila, roupa, machucados.
+- **a casa** — recolhida. Conversar, cobrar, observar quem está junto.
+- **saber** — recolhida. Caderno, diário, ajustes.
+
+De saída ficam 86 botões visíveis dos 191 — 45%. Um toque no cabeçalho abre a
+seção, e o que você deixa aberto fica gravado com o resto das preferências.
+
+Nada sumiu, e isso é testado: o teste soma os botões dentro de todas as seções
+dos 9 cômodos e compara com os 191 contados antes de qualquer agrupamento
+existir. É fácil "organizar" um menu perdendo botão pelo caminho.
+
+A classificação erra pro lado seguro. O padrão é "neste cômodo"; só sai dali o
+que casa com um padrão conhecido. Assim, botão novo que qualquer bloco futuro
+acrescente aparece no cômodo por omissão, em vez de sumir numa gaveta.
+
+---
+
+## Vestir passou a ser uma escolha
+
+Antes, roupa dava proteção e só. 6% a mais contra corte é um número que não muda
+decisão nenhuma — você vestia tudo que coubesse e pronto.
+
+Agora **toda peça mexe na ficha**, e quase toda peça mexe nos dois sentidos:
+
+| peça | dá | cobra |
+|---|---|---|
+| Tênis gasto | +1 Velocidade, +1 Furtividade | — |
+| Bota de couro | +1 Resistência | −1 Furtividade |
+| Casaco pesado | +1 Vitalidade | −1 Velocidade |
+| Capacete de obra | +1 Vitalidade | −1 Percepção |
+| Joelheira e caneleira | +1 Força | −1 Velocidade |
+| Colete improvisado | +1 Vitalidade | −1 Furtividade |
+| Avental de couro | +1 Força | −1 Destreza |
+| Camiseta / Camisa / Calça | +1 Vel. / Vit. / Res. | — |
+| Luva / Cinto | +1 Destreza | — |
+| Máscara de pano | +1 Furtividade | — |
+| Mochila pequena / Jaqueta | +1 Força / +1 Vitalidade | — |
+
+Sair de bota é sair mais duro e mais barulhento. Sair de tênis é o contrário.
+Não existe conjunto que ganhe em tudo.
+
+Duas regras impedem isso de virar planilha:
+
+**O teto de 10 continua valendo.** O equipamento entra como uma terceira parcela
+na ficha, ao lado do que você investiu e do que o ofício deu, e o total é
+truncado em 10. Com Velocidade já em 10, tênis não adiciona nada — e a ficha
+mostra as três parcelas separadas pra você ver por quê.
+
+**Peça quebrada não dá bônus.** Isso obrigou a consertar um buraco que estava lá
+desde a v48: **roupa não tinha durabilidade nenhuma.** O sistema de qualidade não
+tinha ramo para a categoria `roupa`, então a camiseta e a bota simplesmente não
+existiam pra ele — a proteção nunca decaía, a peça que segurava o golpe nunca
+sentia, e a regra nova não teria como valer. Agora gasta, com taxa por peça:
+máscara de pano e camiseta rasgam depressa, capacete e mochila quase não. O
+conserto de roupa custa **lona e linha**, na mesma bancada.
+
+O painel do corpo mostra a soma no topo e, ao abrir um slot, o que a peça
+vestida dá e **o que a alternativa daria no lugar** — a comparação fica na tela
+na hora de decidir.
