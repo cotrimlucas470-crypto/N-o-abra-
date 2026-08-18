@@ -275,7 +275,31 @@ na hora de decidir.
 
 ## 6. HUD e painel
 
-- **Painel corporal** (`Roupa e equipamento`, no quarto): slot a slot, com item,
+### O botão de equipamento
+
+Antes só se chegava ao painel por um botão no **quarto**, e depois do §22 ele
+ficava dentro da seção recolhida "você" — ou seja, ficou *menos* achável, não
+mais. Agora há duas entradas:
+
+1. **Um botão fixo** no canto de baixo à direita da cena, presente em **todo
+   cômodo**. Dentro dele não vai um ícone genérico: vai a **mesma silhueta do
+   painel**, com cada parte acendendo conforme o quanto ela está protegida — dá
+   pra ver de relance que você está de bota e sem casaco. O selo conta as peças
+   vestidas e vira `!` (com a borda mudando junto, nunca só cor) quando alguma
+   está em pedaços.
+2. **`Roupa e equipamento` no menu**, agora em todos os cômodos, dentro de
+   "você".
+
+O botão vive num trilho à direita junto com o HUD de arma. Ele só aparece
+**quando o menu de cômodo está na tela** — e isso não é detalhe de estilo:
+fechar o painel volta chamando `menuComodo`, e num corte de noite ou no meio da
+rua isso teleportaria o jogador pra dentro de casa. Aparecendo junto com o menu
+do cômodo, o caminho de volta é sempre o certo. O cômodo de retorno vem de quem
+desenhou o menu, não de `cena.casa.voce` — esse campo só é escrito por `irPara`.
+
+Com o painel aberto, o trilho inteiro some.
+
+- **Painel corporal** (`Roupa e equipamento`, em qualquer cômodo): slot a slot, com item,
   proteção declarada, estado da peça, e o que dá pra vestir da mochila. Mostra
   proteção por região em número — **estado nunca é dito só por cor**.
 - **Bancada de armas** (na oficina): carregar, destravar, trocar modo, escolher

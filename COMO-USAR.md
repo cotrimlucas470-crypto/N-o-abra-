@@ -878,3 +878,46 @@ conserto de roupa custa **lona e linha**, na mesma bancada.
 O painel do corpo mostra a soma no topo e, ao abrir um slot, o que a peça
 vestida dá e **o que a alternativa daria no lugar** — a comparação fica na tela
 na hora de decidir.
+
+---
+
+## O botão de equipamento
+
+Faltava o mais simples: um jeito de abrir a tela de roupa sem procurar. Antes só
+tinha um botão **no quarto**, e depois que o menu virou seções ele foi parar
+dentro de "você", recolhido — ou seja, ficou mais difícil de achar, não mais
+fácil.
+
+Agora tem um **botão fixo no canto de baixo à direita**, em qualquer cômodo.
+Dentro dele não vai um ícone qualquer: vai a mesma silhueta do painel, e cada
+parte dela acende conforme o quanto está protegida. Dá pra ver de relance que
+você está de bota e sem casaco, sem abrir nada. O número no canto conta as peças
+vestidas, e vira `!` quando alguma está em pedaços.
+
+A entrada pelo menu continua existindo, agora em **todos** os cômodos, dentro de
+"você".
+
+O botão só aparece quando o menu do cômodo está na tela, e isso é de propósito:
+fechar o painel volta pro cômodo, e no meio de uma cena de madrugada ou no meio
+da rua isso te teleportaria pra dentro de casa. Ele aparece junto com o menu do
+cômodo justamente pra que o caminho de volta seja sempre o certo.
+
+### Três coisas que estavam quebradas e apareceram no caminho
+
+**O HUD de arma nunca tinha aparecido.** Nenhuma vez, desde que foi escrito. A
+função que monta ele começava chamando uma função de estilo que simplesmente
+nunca existiu; o erro estourava na primeira linha e era engolido por um
+`try/catch`. Estava documentado, estava testado por leitura de código, e não
+estava na tela. Agora está: arma na mão, câmara e carregador, reserva por
+calibre, modo, estado, e os avisos de TRAVADA e SEM MUNIÇÃO.
+
+**O contador de ações dizia "nada agora" com a tela cheia.** Culpa do
+agrupamento de botões: o contador olhava só os filhos diretos da barra, e depois
+das seções os botões passaram a ficar um nível abaixo. Vinte e três coisas pra
+fazer e a barra dizendo que não tinha nenhuma.
+
+**A linha de bônus saía pelos dois lados do canvas.** Com o corpo vestido são
+seis atributos, e o nome inteiro de cada um não cabe em 390 px — a linha era
+cortada no meio da palavra. Virou sigla de três letras (FOR, VEL, DES, FUR, RES,
+VIT, PER, PON, SOR, INT — todas distintas), e o que ainda não couber quebra em
+duas linhas em vez de sumir.

@@ -150,6 +150,20 @@ if(typeof cenaDia==='function'){
   };
 }
 
+/* BUG que este bloco criou e agora conserta: a barra de baixo conta as
+   ações com `contarAcoes()`, que olha só os filhos DIRETOS de #acoes.
+   Depois do agrupamento os filhos diretos são as seções, e os botões
+   ficam um nível abaixo — o contador dizia "nada agora" com 19 coisas
+   pra fazer na tela. Passa a contar em profundidade, sem contar os
+   cabeçalhos das seções, que não são ação nenhuma. */
+if(typeof contarAcoes==='function'){
+  contarAcoes=function(){
+    const el=document.getElementById('acoes');
+    if(!el)return 0;
+    return el.querySelectorAll('button:not(.sec-cab)').length;
+  };
+}
+
 /* o estado das seções acompanha o save, junto com o resto de `cfg`,
    que o v48 já grava */
 function menuEstado(){

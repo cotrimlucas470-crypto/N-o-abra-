@@ -181,6 +181,28 @@ quebrada é peso morto, não bônus.
 
 ---
 
+## `equipteste` — o botão de equipamento
+
+22 verificações, 0 falhas. Cobre o botão existir fora do quarto, não vazar da
+tela, ter alvo de dedo ≥44px, não cobrir a seta de rolagem, abrir o painel,
+sumir enquanto o painel está aberto, deixar vestir pelo canvas, voltar pro
+cômodo certo, o selo contar peça e avisar peça quebrada, o HUD de arma existir,
+a linha de bônus caber no canvas, e o contador da barra voltar a contar.
+
+### O corte entre cômodos ficou 5 ms mais lento — e o teste viu
+
+A suíte `corte` mede se a troca de cômodo acontece **enquanto a tela está
+preta**. No HEAD anterior os dois instantes empatavam em 198 ms — passava com
+margem zero. O trabalho novo dentro de `menuComodo` empurrou a observação do
+preto pra 208 ms com a troca em 203 ms, e a asserção falhou.
+
+Não era ruído de medição: `menuComodo` roda **dentro do corte**, com a tela
+preta, e desenhar o boneco do botão ali segura o quadro. A correção é a certa
+de qualquer jeito — `atualizarBotaoEquip()` saiu do caminho crítico pra um
+`setTimeout(...,0)`. O botão não precisa nascer no mesmo quadro da transição.
+
+---
+
 ## Regressão das versões anteriores
 
 | suíte | resultado |
@@ -227,6 +249,12 @@ distribuir os pontos e confirmar a ficha antes de seguir.
 | **Interceptação da tela de criação não pegava** | `s19-ficha.js` | embrulhar `pedirNome` não funcionava: a tela é montada por `innerHTML` e o `onclick` é atribuído lá dentro, depois. Trocado por listener em **fase de captura** no documento |
 | **Classe sem desvantagem** | `s19-ficha.js` | o Sobrevivente tinha `mais` e nenhum `menos`. Ganhou −1 Inteligência e −1 Pontaria |
 | **Itens iniciais inexistentes** | `s19-ficha.js` | Médico e Paramédico começavam com `alcool` e `gaze`, que são entradas de `REMEDIOS` e **não existem no `CATALOGO`** |
+| **O HUD de arma nunca apareceu, nenhuma vez** | `s21-corpo.js` | `atualizarHudArma()` começava chamando `estiloCorpo()`, e **essa função nunca foi escrita**. A chamada estourava `ReferenceError` na primeira linha e quem chama engolia o erro num `try/catch` — o HUD estava documentado e testado por inspeção de código, e não existia na tela |
+| **Um botão de equipamento por redesenho** | `s21-corpo.js` | `montarBotaoEquip()` nunca atribuía `_btEquip`, então a guarda de "já existe" nunca via nada: cada chamada montava um botão novo, o antigo ficava no trilho com o selo congelado, e esconder nunca achava qual esconder. Pego pela asserção "existe UM só, não um por redesenho" |
+| **Barra vermelha solta dentro do HUD** | `s21-corpo.js` | o HUD usava as classes `.alerta` e `.ruim`, que no jogo são **de parágrafo** e trazem borda esquerda, fundo e padding. Renomeadas para `.ha-alerta` e `.ha-ruim` |
+| **Comentário com crase dentro de template literal** | `s21-corpo.js` | uma crase num comentário **dentro** da string de CSS fechou a string; o resto virou `".alerta is not a function"` e o bloco morria na carga. Achado porque o botão sumiu do teste |
+| **`ruído +-2%`** | `s21-corpo.js` | o sinal era escrito na mão antes do número; com o tênis, que **abaixa** o ruído, saía `+-2%`. Agora quem põe o sinal é o número |
+| **Rótulo de slot riscado pela caixa de baixo** | `s21-corpo.js` | em 390×844 as seis caixas empilhadas não deixavam vão pro rótulo, e a borda da caixa seguinte passava por cima de "POR DENTRO". Caixa menor, rótulo mais abaixo e uma tarja escura atrás |
 | **Roupa não tinha durabilidade nenhuma** | `s15-qualidade.js` | achado ao implementar "peça quebrada não dá bônus": `fichaDesg` não tinha ramo para a categoria `roupa`, então `peca()` devolvia `null` para camiseta e bota. **A proteção nunca decaía**, a peça que segurava o golpe nunca sentia, e a regra nova não tinha como valer. Ganhou taxa por peça e receita de conserto (lona e linha) |
 
 ---

@@ -316,6 +316,20 @@ function desenharSilhueta(w,h){
   });
 }
 
+/* junta as partes numa linha só enquanto couber na largura dada; o que
+   não couber vai pra linha seguinte. Deixa a fonte escolhida em CX. */
+function quebraQueCabe(partes,sep,maxW,px){
+  CX.font=px+'px "Share Tech Mono",monospace';
+  const linhas=[]; let atual='';
+  partes.forEach(p=>{
+    const tenta=atual?atual+sep+p:p;
+    if(atual&&CX.measureText(tenta).width>maxW){ linhas.push(atual); atual=p; }
+    else atual=tenta;
+  });
+  if(atual)linhas.push(atual);
+  return linhas;
+}
+
 function desenharCorpo(w,h,t){
   const g=CX.createLinearGradient(0,0,0,h);
   g.addColorStop(0,'#141019'); g.addColorStop(1,'#08060C');
@@ -323,7 +337,9 @@ function desenharCorpo(w,h,t){
   desenharSilhueta(w,h);
 
   const C=corpo(), P=penalidadesDoCorpo();
-  const cel=Math.min(w*.155,h*.115);
+  /* a altura é o que aperta: seis caixas empilhadas mais o rótulo de
+     cada uma. .098 da altura dá o vão que o rótulo precisa. */
+  const cel=Math.min(w*.150,h*.098);
   GRADE_CORPO=[];
   SLOTS.forEach(s=>{
     const pos=POSTO[s.id]; if(!pos)return;
@@ -356,11 +372,19 @@ function desenharCorpo(w,h,t){
       CX.moveTo(x,y-cel*.13); CX.lineTo(x,y+cel*.13);
       CX.stroke();
     }
-    CX.fillStyle=id?'rgba(232,226,212,.62)':'rgba(232,226,212,.30)';
+    /* o rótulo cai no vão entre esta caixa e a de baixo, e o vão é
+       apertado: numa tela de 390×844 sobram uns 4px. Uma tarja escura
+       atrás garante que ele continue legível mesmo se a borda da caixa
+       seguinte encostar nele. */
+    const rot=(s.curto||s.n.toUpperCase());
+    const px=Math.max(6.5,cel*.185);
     CX.textAlign='center';
-    CX.font=Math.max(7,cel*.19)+'px "Share Tech Mono",monospace';
-    /* rótulo curto: 'Tronco (interno)' cortava no meio da palavra */
-    CX.fillText((s.curto||s.n.toUpperCase()),x,y+cel*.66);
+    CX.font=px+'px "Share Tech Mono",monospace';
+    const lw=CX.measureText(rot).width;
+    CX.fillStyle='rgba(10,8,14,.82)';
+    CX.fillRect(x-lw/2-3,y+cel*.70-px*.86,lw+6,px*1.25);
+    CX.fillStyle=id?'rgba(232,226,212,.66)':'rgba(232,226,212,.32)';
+    CX.fillText(rot,x,y+cel*.70);
     GRADE_CORPO.push({slot:s.id,x,y,r:cel*.55});
   });
 
@@ -371,18 +395,29 @@ function desenharCorpo(w,h,t){
   CX.fillStyle='rgba(201,162,39,.85)';
   CX.font=Math.max(9,h*.026)+'px "Share Tech Mono",monospace';
   CX.fillText(`roupa ${P.kg.toFixed(1)} kg · carga ${carga.toFixed(1)}/${inf.kg.toFixed(0)} kg`,w*.5,h*.045);
+  /* BUG visto na tela do celular: com seis atributos a linha de bônus
+     saía pelos dois lados do canvas, cortada no meio da palavra. Nome
+     inteiro não cabe em 390px — vira sigla de três letras (FOR, VEL,
+     DES, FUR, RES, VIT, PER, PON, SOR, INT; todas distintas), e o que
+     ainda não couber quebra em duas linhas em vez de sumir. */
   const bonT=(typeof bonusEquipamentoTudo==='function')?bonusEquipamentoTudo():{};
-  const bonTxt=Object.keys(bonT).map(k=>(bonT[k]>0?'+':'')+bonT[k]+' '+ATRIBUTOS[k].n).join(' · ');
-  if(bonTxt){
+  const sigla=k=>((ATRIBUTOS[k]&&ATRIBUTOS[k].n)||k).slice(0,3).toUpperCase();
+  const bonPartes=Object.keys(bonT)
+    .map(k=>sigla(k)+' '+(bonT[k]>0?'+':'')+bonT[k]);
+  let y=h*.072;
+  if(bonPartes.length){
     CX.fillStyle='rgba(110,140,85,.95)';
-    CX.font=Math.max(8,h*.023)+'px "Share Tech Mono",monospace';
-    CX.fillText(bonTxt,w*.5,h*.072);
+    const linhas=quebraQueCabe(bonPartes,'   ',w*.94,Math.max(8,h*.023));
+    linhas.forEach(l=>{ CX.fillText(l,w*.5,y); y+=h*.026; });
   }
   if(P.veloc||P.ruido){
     CX.fillStyle='rgba(224,112,63,.85)';
     CX.font=Math.max(8,h*.022)+'px "Share Tech Mono",monospace';
-    CX.fillText(`velocidade ${P.veloc>=0?'+':''}${Math.round(P.veloc*100)}%`
-      +` · ruído +${Math.round(P.ruido*100)}%`,w*.5,bonTxt?h*.098:h*.072);
+    /* o sinal era escrito na mão e saía "+-2%" quando o tênis abaixava
+       o ruído; agora quem põe o sinal é o próprio número */
+    const sinal=v=>(v>=0?'+':'')+Math.round(v*100)+'%';
+    CX.fillText(`velocidade ${sinal(P.veloc)} · ruído ${sinal(P.ruido)}`,
+      w*.5,bonPartes.length?y:h*.072);
   }
   vinheta(w,h,1.05);
 }
@@ -429,9 +464,10 @@ function acoesDoSlot(slot){
       if(mais)diz('Vestindo: '+mais,'bom');
       if(menos)diz('Em troca: '+menos,'perigo');
     }
-    if(R.veloc||R.ruido)
-      diz(`Custa: velocidade ${R.veloc>=0?'+':''}${Math.round((R.veloc||0)*100)}%`
-        +` · ruído +${Math.round((R.ruido||0)*100)}%`,'alerta');
+    if(R.veloc||R.ruido){
+      const sinal=v=>(v>=0?'+':'')+Math.round((v||0)*100)+'%';
+      diz(`Custa: velocidade ${sinal(R.veloc)} · ruído ${sinal(R.ruido)}`,'alerta');
+    }
     const pc=(typeof peca==='function'&&typeof ehDuravel==='function'&&ehDuravel(id))?peca(id):null;
     if(pc&&typeof pctDur==='function')
       diz('Estado: '+pctDur(pc)+'% — '+qual(pctDur(pc)).n.toLowerCase(),'sist');
@@ -475,6 +511,9 @@ function telaCorpo(volta){
   cena.modo='corpo';
   if(typeof dimensionar==='function')dimensionar();
   limpar(); AC.innerHTML='';
+  /* o botão flutuante sai de cena enquanto o painel está aberto: ele
+     abriria a tela que já está aberta */
+  try{ atualizarBotaoEquip(); }catch(e){}
   cap('O QUE VOCÊ ESTÁ VESTINDO');
   diz('Toque num slot pra ver o que ele protege e o que custa.','fraco');
   const P=penalidadesDoCorpo();
@@ -500,6 +539,191 @@ if(typeof desenharVazio==='function'){
   };
 }
 
+/* ================= O TRILHO DA DIREITA =================
+   BUG achado agora: `atualizarHudArma()` começava chamando
+   `estiloCorpo()`, e essa função NUNCA EXISTIU. A chamada estourava
+   ReferenceError na primeira linha, e quem chama engoliu o erro num
+   try/catch — então o HUD de arma nunca apareceu no jogo, nenhuma vez,
+   desde que foi escrito. Aqui ela existe.
+
+   O trilho é uma coluna no canto de baixo à direita da cena, acima da
+   seta de rolagem (que mora em `bottom:10px`). Dentro dele: o botão de
+   equipamento e, em cima dele, o HUD de arma. Os dois no mesmo lugar,
+   uma coluna só, sem brigar com o texto — que já reserva 46px de
+   margem à direita pras setas. */
+function estiloCorpo(){
+  if(document.getElementById('css-corpo'))return;
+  const s=document.createElement('style');
+  s.id='css-corpo';
+  s.textContent=`
+#rail-corpo{position:absolute;right:9px;bottom:52px;z-index:14;
+  display:flex;flex-direction:column;align-items:flex-end;gap:7px;
+  pointer-events:none}
+#rail-corpo>*{pointer-events:auto}
+body.barra-off #rail-corpo{bottom:24px}
+/* o texto já reservava 46px à direita pras setas de rolagem. O botão é
+   maior que elas, então a calha cresce junto — senão a última palavra
+   de cada linha passa por baixo dele. */
+#texto{padding-right:60px}
+
+#bt-equip{width:46px;height:46px;min-height:46px;padding:0;margin:0;
+  position:relative;display:flex;align-items:center;justify-content:center;
+  background:rgba(12,10,16,.88);border:1px solid #3A3145;border-radius:9px;
+  cursor:pointer;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);
+  transition:border-color .18s ease,background .18s ease}
+#bt-equip:active{background:rgba(201,162,39,.22);border-color:var(--lampiao)}
+#bt-equip canvas{display:block;width:24px;height:32px}
+#bt-equip .selo{position:absolute;top:-6px;right:-6px;min-width:16px;height:16px;
+  padding:0 3px;border-radius:8px;background:#12101A;border:1px solid #3A3145;
+  font-family:var(--mostrador);font-size:8.5px;line-height:14px;text-align:center;
+  color:var(--lampiao)}
+/* peça quebrada não é dita só por cor: o selo vira "!" junto com a borda */
+#bt-equip .selo.ruim{border-color:var(--ferrugem);color:#E0703F}
+#bt-equip.aviso{border-color:var(--ferrugem)}
+
+#hud-arma{max-width:62vw;padding:6px 9px;border-radius:7px;
+  background:rgba(12,10,16,.88);border:1px solid #2A2432;
+  -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);
+  font-family:var(--mostrador);font-size:9.5px;line-height:1.55;
+  letter-spacing:.05em;color:#8A8296;text-align:right}
+#hud-arma b{color:var(--papel);font-weight:400}
+/* classes próprias, com prefixo: as classes .alerta e .ruim são de
+   parágrafo do jogo e trazem borda vermelha, fundo e padding — dentro
+   do HUD isso virava uma barra vermelha solta no meio da caixa.
+   (E sem crase nenhuma neste comentário: ele mora DENTRO de um
+   template literal, e uma crase aqui fecha a string.) */
+#hud-arma .ha-alerta{color:var(--lampiao)}
+#hud-arma .ha-ruim{color:#E0703F}`;
+  document.head.appendChild(s);
+}
+
+let _rail=null;
+function railCorpo(){
+  estiloCorpo();
+  if(_rail&&_rail.isConnected)return _rail;
+  const pai=document.getElementById('cena');
+  if(!pai)return null;
+  _rail=document.createElement('div');
+  _rail.id='rail-corpo';
+  pai.appendChild(_rail);
+  return _rail;
+}
+
+/* ---------- o boneco miúdo do botão ----------
+   Não é ícone genérico: é a mesma silhueta do painel, e cada parte
+   acende conforme o quanto ela está protegida. Dá pra ver de relance
+   que você está de bota e sem casaco. */
+function desenharBonecoMini(g,w,h){
+  const cx=w*.5, topo=h*.06, alt=h*.90;
+  const p=(x,y)=>[cx+x*w,topo+y*alt];
+  const tinta=r=>{
+    const v=(typeof protecaoDe==='function')?protecaoDe(r,'corte'):0;
+    return 'rgba(201,162,39,'+(0.10+Math.min(v,.7)*1.05).toFixed(3)+')';
+  };
+  g.clearRect(0,0,w,h);
+  g.strokeStyle='rgba(176,166,190,.55)';
+  g.lineWidth=Math.max(1,w*.045);
+  g.fillStyle=tinta('cabeca');
+  g.beginPath(); g.arc(cx,topo+alt*.085,alt*.085,0,7); g.fill(); g.stroke();
+  g.fillStyle=tinta('torso');
+  g.beginPath();
+  g.moveTo(...p(-.16,.20)); g.lineTo(...p(.16,.20));
+  g.lineTo(...p(.19,.34));  g.lineTo(...p(.15,.55));
+  g.lineTo(...p(-.15,.55)); g.lineTo(...p(-.19,.34));
+  g.closePath(); g.fill(); g.stroke();
+  [-1,1].forEach(s=>{
+    g.fillStyle=tinta('bracos');
+    g.beginPath();
+    g.moveTo(...p(s*.16,.22)); g.lineTo(...p(s*.30,.27));
+    g.lineTo(...p(s*.27,.53)); g.lineTo(...p(s*.18,.52));
+    g.closePath(); g.fill(); g.stroke();
+    g.fillStyle=tinta('pernas');
+    g.beginPath();
+    g.moveTo(...p(s*.02,.56)); g.lineTo(...p(s*.15,.56));
+    g.lineTo(...p(s*.14,.88)); g.lineTo(...p(s*.03,.88));
+    g.closePath(); g.fill(); g.stroke();
+    g.fillStyle=tinta('pes');
+    g.beginPath();
+    g.moveTo(...p(s*.02,.88)); g.lineTo(...p(s*.15,.88));
+    g.lineTo(...p(s*.16,.98)); g.lineTo(...p(s*.01,.98));
+    g.closePath(); g.fill(); g.stroke();
+  });
+}
+
+/* ---------- o botão de equipamento ----------
+   Ele só aparece quando o MENU DE CÔMODO está na tela. Isso não é
+   frescura: `telaCorpo` volta chamando `menuComodo`, e num corte de
+   noite ou no meio da rua isso teleportaria você pra dentro de casa.
+   Aparecendo junto com o menu do cômodo, o caminho de volta é sempre
+   o certo. */
+let _btEquip=null, _noComodo=false, _comodoAtual=1;
+
+function montarBotaoEquip(){
+  const rail=railCorpo(); if(!rail)return null;
+  if(_btEquip&&_btEquip.isConnected)return _btEquip;
+  const b=document.createElement('button');
+  b.id='bt-equip'; b.type='button';
+  b.setAttribute('aria-label','abrir roupa e equipamento');
+  b.innerHTML='<canvas width="48" height="64"></canvas><span class="selo">0</span>';
+  b.addEventListener('pointerdown',e=>e.stopPropagation());
+  b.addEventListener('click',e=>{
+    e.stopPropagation(); e.preventDefault();
+    if(typeof cena==='undefined'||cena.modo==='corpo')return;
+    if(typeof amToca==='function')amToca('ui_clique');
+    /* o cômodo vem de quem desenhou o menu, não de `cena.casa.voce`:
+       esse campo só é escrito por `irPara`, e ficaria desatualizado em
+       qualquer tela que chame `menuComodo` direto */
+    const comodo=_comodoAtual;
+    telaCorpo(()=>{ if(typeof menuComodo==='function')menuComodo(comodo); });
+  });
+  rail.insertBefore(b,null);
+  /* guardar a referência não é detalhe: sem isto cada chamada montava
+     um botão NOVO, o antigo ficava no trilho com o selo congelado, e
+     `esconder` nunca achava qual esconder */
+  _btEquip=b;
+  return b;
+}
+
+function atualizarBotaoEquip(){
+  /* com o painel aberto o trilho INTEIRO sai — o HUD de arma também.
+     Ele ficava por cima da silhueta e do texto do painel, dizendo o
+     que a tela de baixo já ia dizer. */
+  const noPainel=typeof cena!=='undefined'&&cena.modo==='corpo';
+  if(_rail)_rail.style.display=noPainel?'none':'';
+  const mostrar=_noComodo&&!noPainel;
+  if(!mostrar){ if(_btEquip)_btEquip.style.display='none'; return; }
+  const b=montarBotaoEquip(); if(!b)return;
+  b.style.display='';
+  const C=corpo();
+  let n=0, ruim=0;
+  SLOTS.forEach(s=>{
+    const id=C[s.id]; if(!id)return;
+    n++;
+    const pc=(typeof peca==='function'&&typeof ehDuravel==='function'&&ehDuravel(id))?peca(id):null;
+    if(pc&&typeof quebrado==='function'&&quebrado(pc))ruim++;
+  });
+  const selo=b.querySelector('.selo');
+  const txt=ruim?'!':String(n);
+  if(selo.textContent!==txt){ selo.textContent=txt; }
+  selo.classList.toggle('ruim',!!ruim);
+  selo.title=ruim?(ruim+' peça(s) em pedaços'):(n+' peça(s) vestida(s)');
+  b.classList.toggle('aviso',!!ruim);
+  b.title=ruim?'Roupa e equipamento — tem peça quebrada':'Roupa e equipamento';
+  /* o boneco só é redesenhado quando muda alguma coisa */
+  const marca=SLOTS.map(s=>C[s.id]||'').join('|')+'#'+ruim;
+  if(b.dataset.v!==marca){
+    b.dataset.v=marca;
+    const cv=b.querySelector('canvas');
+    try{ desenharBonecoMini(cv.getContext('2d'),cv.width,cv.height); }catch(e){}
+  }
+}
+
+/* o botão nasce e morre junto com o menu do cômodo */
+if(typeof limpar==='function'){
+  const _lp=limpar;
+  limpar=function(){ _noComodo=false; return _lp.apply(this,arguments); };
+}
+
 /* ---------- HUD de combate, compacto ---------- */
 function atualizarHudArma(){
   estiloCorpo();
@@ -507,19 +731,25 @@ function atualizarHudArma(){
   const a=(typeof armaEstado==='function')?armaEstado():null;
   const branca=(typeof melhorArma==='function')?melhorArma():null;
   if(!a&&!branca){ if(h)h.remove(); return; }
-  if(!h){ h=document.createElement('div'); h.id='hud-arma'; document.body.appendChild(h); }
+  if(!h){
+    h=document.createElement('div'); h.id='hud-arma';
+    /* no trilho, acima do botão — e não solto no body, que é onde ele
+       ficaria por cima da barra de ações */
+    const rail=railCorpo();
+    if(rail)rail.insertBefore(h,rail.firstChild); else document.body.appendChild(h);
+  }
   const linhas=[];
   if(branca)linhas.push(`punho: ${esc(branca.n.toLowerCase())} · dano ${branca.dano}`);
   if(a){
     const vazia=a.carregador<=0&&a.camara<=0;
-    const cls=a.travada?'ruim':(vazia?'alerta':'');
+    const cls=a.travada?'ha-ruim':(vazia?'ha-alerta':'');
     linhas.push(`<span class="${cls}">${esc(a.nome.toLowerCase())}</span>`);
     linhas.push(`<b>${a.camara>0?a.camara+'+':''}${a.carregador}</b>/${a.capacidade}`
       +` · reserva ${a.reserva} ${esc(a.calibre)}`);
     linhas.push(`modo ${esc(a.modo)} · estado ${a.condicao}%`);
-    if(a.travada)linhas.push('<span class="ruim">TRAVADA — destrave</span>');
-    else if(vazia)linhas.push('<span class="alerta">SEM MUNIÇÃO NA ARMA</span>');
-    if(a.reserva<=0&&vazia)linhas.push('<span class="ruim">sem reserva deste calibre</span>');
+    if(a.travada)linhas.push('<span class="ha-ruim">TRAVADA — destrave</span>');
+    else if(vazia)linhas.push('<span class="ha-alerta">SEM MUNIÇÃO NA ARMA</span>');
+    if(a.reserva<=0&&vazia)linhas.push('<span class="ha-ruim">sem reserva deste calibre</span>');
   }
   const novo=linhas.join('<br>');
   if(h.dataset.v!==novo){ h.innerHTML=novo; h.dataset.v=novo; }  /* só redesenha se mudou */
@@ -530,6 +760,7 @@ if(typeof atualizarPainel==='function'){
   atualizarPainel=function(){
     const r=_ap.apply(this,arguments);
     try{ atualizarHudArma(); }catch(e){}
+    try{ atualizarBotaoEquip(); }catch(e){}
     return r;
   };
 }
@@ -540,15 +771,23 @@ if(typeof menuComodo==='function'){
   menuComodo=function(id){
     const r=_mc.apply(this,arguments);
     try{
-      if(id===1&&typeof botao==='function'){
+      /* em TODO cômodo, não só no quarto: roupa é coisa que você quer
+         trocar antes de sair, e a porta não fica no quarto */
+      if(typeof botao==='function'){
         const P=penalidadesDoCorpo();
-        botao('Roupa e equipamento',()=>telaCorpo(()=>menuComodo(1)),
-          {custo:P.kg?P.kg.toFixed(1)+' kg vestidos':'nada vestido'});
+        botao('Roupa e equipamento',()=>telaCorpo(()=>menuComodo(id)),
+          {custo:P.kg?P.kg.toFixed(1)+' kg vestidos':'nada vestido',grupo:'voce'});
       }
       if(id===3&&typeof botao==='function'&&(S.armas||[]).some(x=>ARMAS_FOGO[x])){
         botao('Mexer nas armas de fogo',()=>telaArmas(()=>menuComodo(3)),
           {custo:'carregar, destravar, trocar modo'});
       }
+      _noComodo=true; _comodoAtual=id;
+      /* fora do caminho crítico: `menuComodo` roda dentro do corte
+         entre cômodos, com a tela preta, e cada milissegundo gasto aqui
+         atrasa o quadro. Desenhar o boneco do botão pode esperar o
+         próximo tique. */
+      setTimeout(atualizarBotaoEquip,0);
     }catch(e){}
     return r;
   };
