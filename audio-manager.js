@@ -586,9 +586,9 @@ function amDuck(ms,quanto){
 const AM_PISOS={madeira:'piso_range', escada:'piso_range', concreto:'piso_range',
                 terra:'folhas', grama:'folhas', folhas:'folhas', lama:'agua_corre'};
 function amPisoDoLugar(){
-  const m=(window.cena&&cena.modo)||'';
+  const m=(typeof cena!=="undefined"&&cena.modo)||'';
   if(m==='rua'||m==='casafora'||m==='mapa')return 'concreto';
-  const c=(window.cena&&cena.casa)?cena.casa.voce:null;
+  const c=(typeof cena!=="undefined"&&cena.casa)?cena.casa.voce:null;
   if(c===10||c===8)return 'terra';
   if(c===0||c===9)return 'escada';
   return 'madeira';
@@ -618,7 +618,7 @@ function amNivelDeHorror(){
     if(risco>.18||calor>25)n=2;
     if(risco>.30||est.ilusao>=.22)n=3;
     if(risco>.45||calor>70)n=4;
-    if((S&&S.invadindo)||(window.cena&&cena.modo==='fuga'))n=5;
+    if((S&&S.invadindo)||(typeof cena!=="undefined"&&cena.modo==='fuga'))n=5;
   }catch(e){}
   return n;
 }
@@ -640,8 +640,8 @@ function amAmbiente(){
   try{
     noite=(S.hora>=19||S.hora<6);
     chuva=S.chuva?(S.tempestade?2:1):0;
-    fora=!!(window.cena&&['rua','casafora','mapa'].includes(cena.modo))
-       || ((window.cena&&cena.casa)?cena.casa.voce===8||cena.casa.voce===10:false);
+    fora=!!(typeof cena!=='undefined'&&['rua','casafora','mapa'].includes(cena.modo))
+       || ((typeof cena!=="undefined"&&cena.casa)?cena.casa.voce===8||cena.casa.voce===10:false);
   }catch(e){}
   const chave=[noite,chuva,fora].join('|');
   if(chave===_amEstado)return;

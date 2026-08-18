@@ -9,3 +9,27 @@ ele aparecer nesta pasta, sem precisar mexer em código.
 
 No console do jogo, `amRelatorio()` diz quais slots já têm arquivo, quais
 estão na síntese e quais não têm nada.
+
+-------------------------------------------------------------------
+CHUVA (v49)
+
+O slot da chuva é o único que NÃO passa pelo catálogo AM_SONS: ele tem
+controlador próprio (s17-chuva.js), porque precisa de uma fonte só
+alimentando dois caminhos de crossfade — dentro e fora da casa.
+
+Para usar um MP3 de chuva:
+
+  1. copie o arquivo para  audio/chuva.mp3
+  2. recarregue o jogo
+
+Ele entra na PRÓXIMA chuva, nunca cortando a que estiver tocando. Até
+existir, o sistema roda numa síntese de chuva com a mesma cadeia de
+filtro, crossfade e exposição.
+
+Se o arquivo não for um laço perfeito, ajuste `CHUVA.laco` em
+s17-chuva.js com [inicio, fim] EM SEGUNDOS — nunca em amostras, porque
+o navegador reamostra o arquivo para a taxa do aparelho.
+
+No console: chuvaEstado() mostra intensidade, exposição, qual fonte
+está tocando (mp3 ou sintese), os dois ganhos do crossfade e o corte
+do passa-baixas.
