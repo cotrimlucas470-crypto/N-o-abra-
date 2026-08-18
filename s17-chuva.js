@@ -24,12 +24,10 @@
       janela ao mesmo tempo. Não dá pra ter chuva forte na tela e
       quase nada no ouvido.
 
-   SOBRE O MP3: o pedido é usar um MP3 como fonte principal. Nenhum
-   arquivo de chuva foi entregue — os áudios recebidos até aqui são
-   narração, passos e o gerador a diesel. Então o sistema procura
-   `audio/chuva.mp3`, usa se achar, e cai numa síntese de chuva
-   enquanto não achar. Trocar o MP3 é copiar o arquivo pra lá; as
-   instruções e o porquê de cada parâmetro estão no README.
+   SOBRE O MP3: a chuva agora É uma gravação, embutida no HTML. Um
+   arquivo em `audio/chuva.mp3` tem precedência sobre ela — é assim
+   que se troca a chuva sem tocar no HTML. Se nenhum dos dois puder
+   ser decodificado, a síntese continua lá como rede de segurança.
    ================================================================= */
 
 /* ---------- todos os parâmetros ajustáveis, num lugar só ---------- */
@@ -39,7 +37,13 @@ const CHUVA={
      porque o navegador reamostra o arquivo pra taxa do contexto, e
      amostra deixaria de valer. null = laça o buffer inteiro, que é o
      certo pra um arquivo já cortado como laço. */
-  laco:null,
+  /* A gravação embutida é um laço de 5,76 s tirado de uma tempestade
+     real, do trecho SEM trovão: trovão dentro do laço se repetiria a
+     cada volta e denunciaria a gravação na hora. Os trovões daquela
+     mesma fita viraram disparos avulsos (§ AudioManager), que é onde
+     eles soam certos — a intervalos irregulares.
+     Pontos em SEGUNDOS: o início pula os 50 ms de atraso do encoder. */
+  laco:[0.0501134,5.8101134],
   /* quanto tempo leva cada mudança suave */
   tempoIntensidade:1.6,       /* começar, engrossar, parar */
   tempoExposicao:0.65,        /* entrar e sair de casa */
@@ -185,6 +189,7 @@ function chuvaMontar(){
   amRota(CH.fechado,'AMBIENCE',{rev:.55});   /* dentro de casa reverbera mais */
 
   CH.montado=true;
+  chuvaBuscarArquivo();      /* decodifica antes da primeira chuva */
   return true;
 }
 
@@ -192,6 +197,10 @@ function chuvaMontar(){
    até a chuva acabar de verdade. */
 function chuvaLigarFonte(){
   if(!chuvaMontar()||CH.fonte)return;
+  /* a gravação embutida decodifica em milissegundos; esperar por ela
+     evita começar na síntese e ter de trocar de fonte no meio — que é
+     exatamente o corte que este bloco existe pra impedir */
+  if(!_chuvaResolvida&&!AM.cache.has('chuva_arquivo'))return;
   const t=AM.ctx.currentTime;
   const buf=AM.cache.get('chuva_arquivo');
   if(buf){
@@ -207,9 +216,6 @@ function chuvaLigarFonte(){
     nos.forEach(n=>{ try{n.start(t);}catch(e){} });
     CH.fonte={nos,arquivo:false};
     CH.usandoArquivo=false;
-    /* pede o arquivo pro futuro: se existir, entra na próxima chuva,
-       sem cortar a que está tocando agora */
-    chuvaBuscarArquivo();
   }
 }
 function chuvaDesligarFonte(){
@@ -226,15 +232,19 @@ function chuvaDesligarFonte(){
   setTimeout(cortar,300);
 }
 
-let _chuvaBuscou=false;
+const CHUVA_EMBUTIDA='@@CHUVA@@';
+let _chuvaBuscou=false, _chuvaResolvida=false;
 function chuvaBuscarArquivo(){
   if(_chuvaBuscou||AM.cache.has('chuva_arquivo'))return;
   _chuvaBuscou=true;
-  fetch(AM.base+CHUVA.arquivo)
-    .then(r=>r.ok?r.arrayBuffer():Promise.reject(0))
-    .then(ab=>AM.ctx.decodeAudioData(ab))
-    .then(buf=>{ AM.cache.set('chuva_arquivo',buf); })
-    .catch(()=>{});   /* não existir é a condição normal, não é erro */
+  const pegar=url=>fetch(url).then(r=>r.ok?r.arrayBuffer():Promise.reject(0))
+    .then(ab=>AM.ctx.decodeAudioData(ab));
+  /* `audio/chuva.mp3` vence a embutida: é o caminho de troca sem
+     recompilar. Não existir é a condição normal, não é erro. */
+  pegar(AM.base+CHUVA.arquivo)
+    .catch(()=>pegar(CHUVA_EMBUTIDA))
+    .then(buf=>{ if(buf)AM.cache.set('chuva_arquivo',buf); _chuvaResolvida=true; })
+    .catch(()=>{ _chuvaResolvida=true; });
 }
 
 /* ================= O PULSO =================

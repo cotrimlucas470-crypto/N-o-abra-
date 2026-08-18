@@ -97,11 +97,13 @@ const AM_NIVEL={
   /* AMBIENCE (teto -22) */
   chuva_leve:0, chuva_pesada:3, vento:-2, passaros:-3, insetos:-3,
   calha_agua:-4,
-  /* o gerador é a exceção deliberada: ele toca o tempo todo e é a
-     única coisa que separa a casa do silêncio. Fica 6 dB acima do teto
-     do canal, encostando no nível que o motor sintetizado tinha antes
-     (-15 dBFS medidos), pra troca não soar como perda de volume. */
-  gerador_motor:6
+  /* O gerador toca o tempo todo, e é justamente por isso que ele NÃO
+     pode competir com o resto. A primeira versão o pôs 6 dB acima do
+     teto do canal pra igualar o motor sintetizado antigo — medido,
+     dava -16,3 dBFS de pico, dez decibéis acima da chuva, e dominava
+     a casa inteira. Agora fica abaixo do teto, no nível de leito que
+     ele sempre devia ter tido: presente, e por baixo de tudo. */
+  gerador_motor:-6
 };
 
 /* O ganho que põe o som no lugar certo. Arquivo baixado já vem
@@ -200,8 +202,12 @@ const AM_SONS={
   chuva_leve    :{canal:'AMBIENCE',loop:true, leito:leitoChuva(0)},
   chuva_pesada  :{canal:'AMBIENCE',loop:true, leito:leitoChuva(1)},
   calha_agua    :{canal:'AMBIENCE',loop:true, leito:leitoCalha},
-  trovao_longe  :{canal:'HORROR', arq:'sfx_40_trovao_distante.mp3',sintese:()=>amTrovao(.5), cd:6000},
-  trovao_perto  :{canal:'HORROR', arq:'sfx_41_trovao_profundo.mp3',sintese:()=>amTrovao(1),  cd:9000},
+  /* trovões de gravação, tirados da mesma fita da chuva. Ficam como
+     DISPARO, não dentro do laço: no laço eles voltariam a cada 5,8 s
+     e a gravação se denunciaria. Aqui saem em intervalo irregular,
+     que é como trovão se comporta. */
+  trovao_longe  :{canal:'HORROR', dados:'@@TROVAO_LONGE@@', sintese:()=>amTrovao(.5), cd:6000},
+  trovao_perto  :{canal:'HORROR', dados:'@@TROVAO_PERTO@@', sintese:()=>amTrovao(1),  cd:9000},
   vento         :{canal:'AMBIENCE',loop:true, leito:leitoVento},
   /* o gerador é gravação de verdade, embutida no HTML. A taxa de
      reprodução acompanha a rotação do motor, então tanque baixo baixa
@@ -727,12 +733,19 @@ if(typeof diz==='function'){
    mais devagar, e aí o tom E a cadência caem juntos, que é o que um
    motor faz de verdade. */
 
-const GER_CORPO_SINTESE=.34;   /* o que sobra do motor antigo por baixo */
+const GER_CORPO_SINTESE=.16;   /* o que sobra do motor antigo por baixo */
 
 function amGeradorNivel(){
   /* mesmo dono de sempre: base × carga × cômodo, normalizado pra 1 */
   try{
     if(typeof nivelGerador!=='function'||!A.ger)return 0;
+    /* BUG corrigido: o gerador continuava tocando no mesmo nível numa
+       expedição do outro lado da cidade. Ele mora na oficina — a
+       dezenas de quarteirões dali não se ouve motor nenhum. Fora de
+       casa o leito some; na frente da casa, sobra um resto. */
+    const m=(typeof cena!=='undefined'&&cena.modo)||'';
+    if(m==='rua'||m==='mapa')return 0;
+    if(m==='casafora')return .18;
     const base=(typeof gerVolBase==='function')?gerVolBase():.055;
     return base>0?trava(nivelGerador()/base,0,2):1;
   }catch(e){ return 1; }
@@ -774,6 +787,16 @@ if(typeof desligarGerador==='function'){
   window.desligarGerador=function(){
     try{ amLoop('gerador_motor',0); }catch(e){}
     return _desligar.apply(this,arguments);
+  };
+}
+/* sair de casa e voltar tem de reavaliar o nível na hora, senão o
+   gerador só cai no próximo `ajustarGerador`, que pode nunca vir */
+if(typeof irPara==='function'){
+  const _irGer=irPara;
+  window.irPara=function(){
+    const r=_irGer.apply(this,arguments);
+    queueMicrotask(()=>{ try{ if(A&&A.ger)amLoop('gerador_motor',amGeradorNivel()); }catch(e){} });
+    return r;
   };
 }
 if(typeof ajustarGerador==='function'){

@@ -35,6 +35,11 @@ const EMBUTIR={
      metade do jogo é barato — e é o único jeito de ele existir num
      HTML só, que é como o jogo é publicado. */
   '@@GERADOR@@':{arq:'gerador.mp3', tipo:'audio/mpeg'},
+  /* a chuva é um laço de 5,76 s sem trovão nenhum; os dois trovões da
+     mesma gravação entram como disparo avulso, não no laço */
+  '@@CHUVA@@':{arq:'chuva.mp3', tipo:'audio/mpeg'},
+  '@@TROVAO_PERTO@@':{arq:'trovao-perto.mp3', tipo:'audio/mpeg'},
+  '@@TROVAO_LONGE@@':{arq:'trovao-longe.mp3', tipo:'audio/mpeg'},
   /* fundo-abertura.mp3 ficou fora: a abertura usa drone sintetizado, e
      embutir 0,84 MB de base64 que ninguém toca era peso morto no HTML.
      O arquivo continua no repositório caso a voz volte. */

@@ -13,8 +13,8 @@
 const SLOTS=[
  {id:'cabeca',  n:'Cabeça',        reg:['cabeca']},
  {id:'rosto',   n:'Rosto',         reg:['cabeca']},
- {id:'tronco1', n:'Tronco (interno)', reg:['torso']},
- {id:'tronco2', n:'Tronco (externo)', reg:['torso','bracos']},
+ {id:'tronco1', n:'Tronco (interno)', curto:'POR DENTRO', reg:['torso']},
+ {id:'tronco2', n:'Tronco (externo)', curto:'POR CIMA', reg:['torso','bracos']},
  {id:'armadura',n:'Armadura',      reg:['torso']},
  {id:'maos',    n:'Mãos',          reg:['bracos']},
  {id:'cintura', n:'Cintura',       reg:['torso']},
@@ -22,9 +22,9 @@ const SLOTS=[
  {id:'pes',     n:'Pés',           reg:['pes']},
  {id:'costas',  n:'Costas',        reg:[]},
  {id:'mochila', n:'Mochila',       reg:[]},
- {id:'branca',  n:'Arma branca',   reg:[]},
- {id:'fogo',    n:'Arma de fogo',  reg:[]},
- {id:'util',    n:'Utilitário',    reg:[]}
+ {id:'branca',  n:'Arma branca',   curto:'BRANCA', reg:[]},
+ {id:'fogo',    n:'Arma de fogo',  curto:'FOGO', reg:[]},
+ {id:'util',    n:'Utilitário',    curto:'UTIL', reg:[]}
 ];
 const REGIOES=['cabeca','torso','bracos','pernas','pes'];
 
@@ -230,129 +230,220 @@ if(typeof v9Rastros==='function'){
   };
 }
 
-/* ================= O PAINEL ================= */
-function estiloCorpo(){
-  if(document.getElementById('css-corpo'))return;
-  const s=document.createElement('style');
-  s.id='css-corpo';
-  s.textContent=`
-#corpo-ui{position:fixed;inset:0;z-index:78;background:var(--breu);color:var(--papel);
-  display:flex;flex-direction:column;font-family:var(--corpo)}
-#corpo-ui .topo{padding:10px 13px;border-bottom:1px solid #2A232E;
-  background:linear-gradient(180deg,#1B1721,#0F0D13)}
-#corpo-ui h2{font-family:var(--display);font-size:15px;font-weight:400;
-  letter-spacing:.2em;text-transform:uppercase;color:var(--mofo)}
-#corpo-ui .peso{font-family:var(--mostrador);font-size:10.5px;color:var(--lampiao);margin-top:4px}
-#corpo-ui .corpo2{flex:1;overflow-y:auto;padding:8px 10px 12px}
-#corpo-ui .sl{display:grid;grid-template-columns:74px 1fr auto;gap:8px;align-items:center;
-  padding:7px 5px;border-bottom:1px solid #1E1922}
-#corpo-ui .sl .rot{font-family:var(--mostrador);font-size:9px;letter-spacing:.08em;
-  text-transform:uppercase;color:var(--mofo)}
-#corpo-ui .sl .it{font-size:13.5px}
-#corpo-ui .sl .it small{display:block;font-family:var(--mostrador);font-size:9px;
-  color:var(--mofo);margin-top:2px}
-#corpo-ui .sl.vazio .it{color:#5A5464;font-style:italic}
-#corpo-ui .sl button{background:#16131A;border:1px solid #2A232E;color:var(--papel);
-  font-family:var(--corpo);font-size:12px;padding:6px 9px;cursor:pointer}
-#corpo-ui .prot{border:1px solid #2A232E;margin-top:10px;padding:8px 10px}
-#corpo-ui .prot h3{font-family:var(--mostrador);font-size:9.5px;letter-spacing:.13em;
-  text-transform:uppercase;color:var(--mofo);margin-bottom:5px}
-#corpo-ui .prot div{font-family:var(--mostrador);font-size:10.5px;line-height:1.7}
-#corpo-ui .prot b{color:var(--lampiao);font-weight:400}
-#corpo-ui .rodape{display:flex;gap:6px;padding:8px;border-top:1px solid #2A232E;background:#0F0D13}
-#corpo-ui .rodape button{flex:1;background:#16131A;border:1px solid #2A232E;color:var(--papel);
-  font-family:var(--corpo);font-size:13px;padding:10px;cursor:pointer}
-#corpo-ui .rodape button.chave{border-color:var(--lampiao);color:var(--lampiao)}
-#hud-arma{position:fixed;right:8px;bottom:8px;z-index:55;pointer-events:none;
-  font-family:var(--mostrador);font-size:10px;letter-spacing:.05em;text-align:right;
-  background:rgba(11,10,13,.72);border:1px solid #2A232E;padding:6px 8px;line-height:1.6}
-#hud-arma b{color:var(--lampiao);font-weight:400;font-size:13px}
-#hud-arma .alerta{color:#E0703F}
-#hud-arma .ruim{color:#B84B33}`;
-  document.head.appendChild(s);
+/* ================= O PAINEL DE EQUIPAMENTO =================
+   Desenhado no canvas do próprio jogo, e não em DOM, por um motivo
+   concreto: assim cada slot mostra o ÍCONE REAL do item, com a mesma
+   arte vetorial que a mochila usa (`desItem`). Um painel em DOM teria
+   de reinventar os ícones ou mostrar só texto.
+
+   A silhueta é original — traço simples, mesma paleta do jogo. A
+   organização (corpo no meio, slots em volta, peso e proteção
+   embaixo) é a de qualquer tela de equipamento; a arte não é de
+   ninguém. */
+
+/* onde cada slot fica em volta do corpo, em fração da tela */
+const POSTO={
+  cabeca:  [.18,.13], rosto:   [.18,.28],
+  tronco1: [.18,.43], tronco2: [.18,.58],
+  armadura:[.18,.73], cintura: [.18,.88],
+  costas:  [.82,.13], mochila: [.82,.28],
+  maos:    [.82,.43], pernas:  [.82,.58],
+  pes:     [.82,.73], util:    [.82,.88],
+  branca:  [.38,.955], fogo:   [.62,.955]
+};
+let GRADE_CORPO=[], _slotFoco=null;
+
+function desenharSilhueta(w,h){
+  const cx=w*.5, topo=h*.10, alt=h*.74;
+  CX.strokeStyle='rgba(176,166,190,.52)';
+  CX.fillStyle='rgba(128,120,142,.16)';
+  CX.lineWidth=Math.max(1.5,w*.004);
+  const p=(x,y)=>[cx+x*w,topo+y*alt];
+  CX.beginPath();
+  CX.arc(cx,topo+alt*.075,alt*.075,0,7);            /* cabeça */
+  CX.fill(); CX.stroke();
+  CX.beginPath();                                    /* tronco */
+  CX.moveTo(...p(-.075,.17)); CX.lineTo(...p(.075,.17));
+  CX.lineTo(...p(.088,.30));  CX.lineTo(...p(.070,.52));
+  CX.lineTo(...p(-.070,.52)); CX.lineTo(...p(-.088,.30));
+  CX.closePath(); CX.fill(); CX.stroke();
+  [[-1],[1]].forEach(([s])=>{                        /* braços */
+    CX.beginPath();
+    CX.moveTo(...p(s*.075,.19)); CX.lineTo(...p(s*.135,.24));
+    CX.lineTo(...p(s*.125,.50)); CX.lineTo(...p(s*.085,.49));
+    CX.closePath(); CX.fill(); CX.stroke();
+    CX.beginPath();                                  /* pernas */
+    CX.moveTo(...p(s*.012,.52)); CX.lineTo(...p(s*.068,.52));
+    CX.lineTo(...p(s*.062,.98)); CX.lineTo(...p(s*.016,.98));
+    CX.closePath(); CX.fill(); CX.stroke();
+  });
+}
+
+function desenharCorpo(w,h,t){
+  const g=CX.createLinearGradient(0,0,0,h);
+  g.addColorStop(0,'#141019'); g.addColorStop(1,'#08060C');
+  CX.fillStyle=g; CX.fillRect(0,0,w,h);
+  desenharSilhueta(w,h);
+
+  const C=corpo(), P=penalidadesDoCorpo();
+  const cel=Math.min(w*.155,h*.115);
+  GRADE_CORPO=[];
+  SLOTS.forEach(s=>{
+    const pos=POSTO[s.id]; if(!pos)return;
+    const x=pos[0]*w, y=pos[1]*h*.86+h*.03;
+    const id=C[s.id];
+    const foco=_slotFoco===s.id;
+    /* moldura: cheia, vazia e em foco se distinguem por FORMA e
+       espessura, não só por cor */
+    CX.fillStyle=id?'rgba(255,235,190,.055)':'rgba(255,255,255,.022)';
+    CX.fillRect(x-cel/2,y-cel/2,cel,cel);
+    CX.strokeStyle=foco?'rgba(201,162,39,.95)'
+      :(id?'rgba(201,162,39,.40)':'rgba(120,110,130,.28)');
+    CX.lineWidth=foco?2.5:1;
+    CX.strokeRect(x-cel/2,y-cel/2,cel,cel);
+    if(id){
+      try{ desItem(id,x,y-cel*.04,cel*.72); }catch(e){}
+      /* barrinha de estado da peça, se ela se gasta */
+      const pc=(typeof peca==='function'&&typeof ehDuravel==='function'&&ehDuravel(id))?peca(id):null;
+      if(pc&&typeof pctDur==='function'){
+        const pct=pctDur(pc), q=(typeof qual==='function')?qual(pct):{cor:'#6E8C55'};
+        CX.fillStyle='rgba(0,0,0,.55)';
+        CX.fillRect(x-cel*.40,y+cel*.34,cel*.80,Math.max(2,cel*.07));
+        CX.fillStyle=q.cor;
+        CX.fillRect(x-cel*.40,y+cel*.34,cel*.80*(pct/100),Math.max(2,cel*.07));
+      }
+    }else{
+      CX.strokeStyle='rgba(120,110,130,.22)'; CX.lineWidth=1;
+      CX.beginPath();
+      CX.moveTo(x-cel*.13,y); CX.lineTo(x+cel*.13,y);
+      CX.moveTo(x,y-cel*.13); CX.lineTo(x,y+cel*.13);
+      CX.stroke();
+    }
+    CX.fillStyle=id?'rgba(232,226,212,.62)':'rgba(232,226,212,.30)';
+    CX.textAlign='center';
+    CX.font=Math.max(7,cel*.19)+'px "Share Tech Mono",monospace';
+    /* rótulo curto: 'Tronco (interno)' cortava no meio da palavra */
+    CX.fillText((s.curto||s.n.toUpperCase()),x,y+cel*.66);
+    GRADE_CORPO.push({slot:s.id,x,y,r:cel*.55});
+  });
+
+  /* peso e penalidade, em número */
+  const inf=(typeof mochilaInfo==='function')?mochilaInfo():{kg:24};
+  const carga=(typeof pesoAtual==='function')?pesoAtual():0;
+  CX.textAlign='center';
+  CX.fillStyle='rgba(201,162,39,.85)';
+  CX.font=Math.max(9,h*.026)+'px "Share Tech Mono",monospace';
+  CX.fillText(`roupa ${P.kg.toFixed(1)} kg · carga ${carga.toFixed(1)}/${inf.kg.toFixed(0)} kg`,w*.5,h*.045);
+  if(P.veloc||P.ruido){
+    CX.fillStyle='rgba(224,112,63,.85)';
+    CX.font=Math.max(8,h*.022)+'px "Share Tech Mono",monospace';
+    CX.fillText(`velocidade ${P.veloc>=0?'+':''}${Math.round(P.veloc*100)}%`
+      +` · ruído +${Math.round(P.ruido*100)}%`,w*.5,h*.072);
+  }
+  vinheta(w,h,1.05);
+}
+
+/* toque: acha o slot e abre as ações dele */
+function toqueCorpo(e){
+  if(!GRADE_CORPO.length||!CV)return;
+  const r=CV.getBoundingClientRect();
+  if(!r.width||!r.height)return;
+  const x=(e.clientX-r.left)*(CV.width/DPR)/r.width;
+  const y=(e.clientY-r.top)*(CV.height/DPR)/r.height;
+  const hit=GRADE_CORPO.find(g=>Math.abs(g.x-x)<=g.r&&Math.abs(g.y-y)<=g.r);
+  if(!hit)return;
+  _slotFoco=hit.slot;
+  if(typeof amToca==='function')amToca('ui_clique');
+  acoesDoSlot(hit.slot);
+}
+document.addEventListener('click',e=>{
+  if(typeof cena==='undefined'||cena.modo!=='corpo')return;
+  if(e.target!==CV)return;
+  toqueCorpo(e);
+});
+
+/* as ações do slot escolhido, na barra de botões do jogo */
+function acoesDoSlot(slot){
+  const S2=SLOTS.find(x=>x.id===slot)||{n:slot};
+  const C=corpo(), id=C[slot];
+  limpar(); AC.innerHTML='';
+  cap(S2.n.toUpperCase());
+  if(id){
+    const e=CATALOGO[id]||{n:id,d:''};
+    const R=ROUPAS[id]||ARMADURAS_REG[id]||{};
+    diz(e.n,'narr');
+    if(e.d)diz(e.d,'fraco');
+    const prot=Object.keys(R.prot||{});
+    diz(prot.length
+      ? 'Protege '+(R.reg||[]).join(', ')+' — '+prot.map(k=>k+' '+Math.round(R.prot[k]*100)+'%').join(' · ')
+      : 'Não protege nada. Está aqui por outro motivo.','sist');
+    if(R.veloc||R.ruido)
+      diz(`Custa: velocidade ${R.veloc>=0?'+':''}${Math.round((R.veloc||0)*100)}%`
+        +` · ruído +${Math.round((R.ruido||0)*100)}%`,'alerta');
+    const pc=(typeof peca==='function'&&typeof ehDuravel==='function'&&ehDuravel(id))?peca(id):null;
+    if(pc&&typeof pctDur==='function')
+      diz('Estado: '+pctDur(pc)+'% — '+qual(pctDur(pc)).n.toLowerCase(),'sist');
+    botao('Tirar '+e.n.toLowerCase(),()=>{
+      const t=desvestir(slot);
+      if(t&&typeof guardar==='function'&&!guardar(t,1))
+        diz('Não coube na mochila. Ficou no chão.','perigo');
+      if(typeof amToca==='function')amToca('porta_maçaneta');
+      acoesDoSlot(slot);
+    },{custo:'volta pra mochila'});
+  }else{
+    diz('Nada aqui.','fraco');
+  }
+  /* o que da mochila cabe NESTE slot */
+  const cabem=(typeof mochila==='function'?mochila().itens:[]).filter(it=>slotDe(it.id)===slot);
+  if(cabem.length){
+    diz('Na mochila:','sist');
+    cabem.forEach(it=>{
+      const e=CATALOGO[it.id]||{n:it.id};
+      const R=ROUPAS[it.id]||ARMADURAS_REG[it.id]||{};
+      const prot=Object.keys(R.prot||{}).map(k=>k+' '+Math.round(R.prot[k]*100)+'%').join(' · ');
+      botao('Vestir '+e.n.toLowerCase(),()=>{
+        const r=vestir(it.id);
+        if(!r.ok)return diz('✕ '+r.porque,'perigo');
+        if(typeof largar==='function')largar(it.id,1);
+        if(typeof amToca==='function')amToca('porta_maçaneta');
+        acoesDoSlot(slot);
+      },{custo:prot||((e.kg||0)+' kg')});
+    });
+  }else if(!id){
+    diz('E você não tem nada que sirva aqui.','fraco');
+  }
+  botao('Voltar ao corpo',()=>telaCorpo(cena.voltaCorpo),{cls:'chave'});
 }
 
 function telaCorpo(volta){
-  estiloCorpo();
-  const el=document.createElement('div');
-  el.id='corpo-ui';
-  el.innerHTML=`<div class="topo"><h2>O que você está vestindo</h2>
-      <div class="peso"></div></div>
-    <div class="corpo2"></div>
-    <div class="rodape"><button class="sai chave">Fechar</button></div>`;
-  document.body.appendChild(el);
-  const c2=el.querySelector('.corpo2');
-
-  function pintar(){
-    const C=corpo(), P=penalidadesDoCorpo();
-    const inf=(typeof mochilaInfo==='function')?mochilaInfo():{kg:24,vol:30};
-    el.querySelector('.peso').textContent=
-      `roupa ${P.kg.toFixed(1)} kg · carga ${(typeof pesoAtual==='function'?pesoAtual():0).toFixed(1)}/${inf.kg.toFixed(0)} kg`
-      +(P.veloc?` · velocidade ${P.veloc>0?'+':''}${Math.round(P.veloc*100)}%`:'')
-      +(P.ruido?` · ruído +${Math.round(P.ruido*100)}%`:'');
-    c2.innerHTML='';
-    SLOTS.forEach(s=>{
-      const id=C[s.id];
-      const e=id?(CATALOGO[id]||{n:id}):null;
-      const R=id?(ROUPAS[id]||ARMADURAS_REG[id]):null;
-      const pc=(id&&typeof peca==='function')?peca(id):null;
-      const est=(pc&&typeof pctDur==='function')?pctDur(pc):null;
-      const d=document.createElement('div');
-      d.className='sl'+(id?'':' vazio');
-      const protTxt=R&&R.prot?Object.keys(R.prot).map(k=>k+' '+Math.round(R.prot[k]*100)+'%').join(' · '):'';
-      d.innerHTML=`<div class="rot">${esc(s.n)}</div>
-        <div class="it">${id?esc(e.n):'— vazio —'}
-          ${id?`<small>${esc(protTxt||'sem proteção')}${est!=null?' · estado '+est+'%':''}</small>`:''}</div>
-        <div>${id?'<button class="tirar">Tirar</button>':''}</div>`;
-      if(id)d.querySelector('.tirar').onclick=()=>{
-        const t=desvestir(s.id);
-        if(t&&typeof guardar==='function')guardar(t,1);
-        if(typeof amToca==='function')amToca('ui_clique');
-        pintar();
-      };
-      c2.appendChild(d);
-    });
-    /* o que a roupa protege, por região — número, não cor */
-    const p=document.createElement('div');
-    p.className='prot';
-    p.innerHTML='<h3>proteção por região</h3>'+REGIOES.map(r=>{
-      const linhas=['corte','pancada','mordida'].map(t=>
-        `${t} <b>${Math.round(protecaoDe(r,t)*100)}%</b>`).join(' · ');
-      return `<div>${r}: ${linhas}</div>`;
-    }).join('');
-    c2.appendChild(p);
-    /* e o que dá pra vestir agora, da mochila */
-    const vestiveis=(typeof mochila==='function'?mochila().itens:[])
-      .filter(it=>slotDe(it.id));
-    if(vestiveis.length){
-      const v=document.createElement('div');
-      v.className='prot';
-      v.innerHTML='<h3>na mochila, dá pra vestir</h3>';
-      vestiveis.forEach(it=>{
-        const b=document.createElement('button');
-        b.style.cssText='display:block;width:100%;text-align:left;background:none;border:0;'
-          +'border-bottom:1px solid #1E1922;color:var(--papel);padding:7px 4px;cursor:pointer;'
-          +'font-family:var(--corpo);font-size:13px';
-        b.textContent=(CATALOGO[it.id]||{n:it.id}).n+' → '+
-          (SLOTS.find(s=>s.id===slotDe(it.id))||{n:'?'}).n;
-        b.onclick=()=>{
-          const r=vestir(it.id);
-          if(!r.ok)return alert(r.porque);
-          if(typeof largar==='function')largar(it.id,1);
-          if(typeof amToca==='function')amToca('porta_maçaneta');
-          pintar();
-        };
-        v.appendChild(b);
-      });
-      c2.appendChild(v);
-    }
-  }
-  el.querySelector('.sai').onclick=()=>{
-    el.remove();
+  cena.voltaCorpo=volta;
+  const antes=cena.modo;
+  cena.modo='corpo';
+  if(typeof dimensionar==='function')dimensionar();
+  limpar(); AC.innerHTML='';
+  cap('O QUE VOCÊ ESTÁ VESTINDO');
+  diz('Toque num slot pra ver o que ele protege e o que custa.','fraco');
+  const P=penalidadesDoCorpo();
+  diz(REGIOES.map(r=>r+' '+Math.round(protecaoDe(r,'corte')*100)+'%').join(' · '),'sist');
+  if(P.volExtra||P.kgExtra)
+    diz(`O que você veste ainda dá +${P.kgExtra} kg e +${P.volExtra} de espaço.`,'bom');
+  botao('Fechar',()=>{
+    cena.modo=(antes==='corpo'?'casa':antes);
+    if(typeof dimensionar==='function')dimensionar();
     if(typeof salvar==='function')salvar();
     if(typeof volta==='function')volta();
+    else if(typeof menuComodo==='function')menuComodo(cena.casa?cena.casa.voce:1);
+  },{cls:'chave'});
+}
+
+/* o modo novo entra pelo desenho de cena desconhecida, que é onde o
+   laço do v48 cai quando não reconhece `cena.modo` */
+if(typeof desenharVazio==='function'){
+  const _dv=desenharVazio;
+  desenharVazio=function(w,h,t){
+    if(typeof cena!=='undefined'&&cena.modo==='corpo')return desenharCorpo(w,h,t);
+    return _dv.apply(this,arguments);
   };
-  pintar();
 }
 
 /* ---------- HUD de combate, compacto ---------- */
