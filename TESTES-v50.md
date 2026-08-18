@@ -128,6 +128,59 @@ erros: (nenhum)```
 
 ---
 
+## `menuteste` — organização dos botões e bônus de roupa
+
+13 verificações, 0 falhas.
+
+```
+BOTÕES
+   SÓTÃO     21 botões → 10 visíveis · neste cômodo(7) ir para(3) você(5)▸ a casa(3)▸ saber(3)▸
+   QUARTO    21 botões →  8 visíveis · neste cômodo(4) ir para(4) você(7)▸ a casa(3)▸ saber(3)▸
+   DESPENSA  19 botões →  8 visíveis · neste cômodo(5) ir para(3) você(5)▸ a casa(3)▸ saber(3)▸
+   OFICINA   24 botões → 13 visíveis · neste cômodo(8) ir para(5) você(5)▸ a casa(3)▸ saber(3)▸
+   SALA      22 botões →  7 visíveis · neste cômodo(2) ir para(5) você(5)▸ a casa(4)▸ saber(6)▸
+   COZINHA   19 botões →  8 visíveis · neste cômodo(4) ir para(4) você(5)▸ a casa(3)▸ saber(3)▸
+   PORÃO     22 botões → 11 visíveis · neste cômodo(8) ir para(3) você(5)▸ a casa(3)▸ saber(3)▸
+   ENTRADA   20 botões →  9 visíveis · neste cômodo(5) ir para(4) você(5)▸ a casa(3)▸ saber(3)▸
+   QUINTAL   23 botões → 12 visíveis · neste cômodo(8) ir para(4) você(5)▸ a casa(3)▸ saber(3)▸
+   TOTAL 191 botões · 86 visíveis de saída (45%)
+  ok    todos os cômodos ficaram organizados em seções
+  ok    a maioria dos botões começa recolhida
+  ok    o que é do cômodo fica aberto
+  ok    nada se perdeu: a soma bate com os 191 do diagnóstico
+
+2. abrir e fechar uma seção funciona
+   visíveis: 7 → 12 → 7
+  ok    abrir mostra mais botões
+  ok    fechar volta ao que era
+
+ROUPA DÁ ATRIBUTO
+   nu: vel 0 furt 0 dest 0 carga 24kg
+   tênis+luva+mochila: vel 1 furt 1 dest 1 carga 27.8kg
+  ok    tênis dá velocidade e furtividade
+  ok    luva dá destreza
+  ok    a mochila dá força, e a força vira carga
+  ok    a parcela aparece separada na ficha
+   trocando tênis por bota: vel 0 furt 0
+  ok    bota troca velocidade por resistência e custa furtividade
+  ok    nem com roupa passa de 10
+  ok    peça quebrada não dá bônus
+
+erros: (nenhum)
+```
+
+A asserção que mais importa aqui é a quarta: **nada se perdeu.** É fácil
+"organizar" um menu perdendo botão pelo caminho — a seção some, a ação some
+junto, e ninguém percebe até precisar dela. O teste soma os botões dentro de
+todas as seções de todos os 9 cômodos e compara com os 191 contados antes de
+qualquer agrupamento existir.
+
+A penúltima cobre o teto: com Velocidade já em 10, tênis não adiciona um
+décimo-primeiro ponto. A última cobre a regra que dá sentido ao desgaste — peça
+quebrada é peso morto, não bônus.
+
+---
+
 ## Regressão das versões anteriores
 
 | suíte | resultado |
@@ -174,6 +227,7 @@ distribuir os pontos e confirmar a ficha antes de seguir.
 | **Interceptação da tela de criação não pegava** | `s19-ficha.js` | embrulhar `pedirNome` não funcionava: a tela é montada por `innerHTML` e o `onclick` é atribuído lá dentro, depois. Trocado por listener em **fase de captura** no documento |
 | **Classe sem desvantagem** | `s19-ficha.js` | o Sobrevivente tinha `mais` e nenhum `menos`. Ganhou −1 Inteligência e −1 Pontaria |
 | **Itens iniciais inexistentes** | `s19-ficha.js` | Médico e Paramédico começavam com `alcool` e `gaze`, que são entradas de `REMEDIOS` e **não existem no `CATALOGO`** |
+| **Roupa não tinha durabilidade nenhuma** | `s15-qualidade.js` | achado ao implementar "peça quebrada não dá bônus": `fichaDesg` não tinha ramo para a categoria `roupa`, então `peca()` devolvia `null` para camiseta e bota. **A proteção nunca decaía**, a peça que segurava o golpe nunca sentia, e a regra nova não tinha como valer. Ganhou taxa por peça e receita de conserto (lona e linha) |
 
 ---
 

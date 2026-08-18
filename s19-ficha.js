@@ -191,9 +191,14 @@ function parcelas(k){
   const f=ficha(), c=classeAtual();
   const investido=f.pontos[k]||0;
   const bonus=c?((c.mais&&c.mais[k])||0)-((c.menos&&c.menos[k])||0):0;
-  /* teto duro: nada passa de 10, nem com ofício */
-  const efetivo=trava(investido+bonus,0,FICHA_MAX);
-  return {investido,bonus,efetivo,cortado:(investido+bonus)>FICHA_MAX};
+  /* o que você está vestindo é a terceira parcela. Vem do §21, por
+     função com nome estável, pra ficha não precisar conhecer roupa. */
+  const equip=(typeof bonusEquipamento==='function')?bonusEquipamento(k):0;
+  /* teto duro: nada passa de 10 — nem ofício, nem equipamento, nem
+     a soma dos três */
+  const bruto=investido+bonus+equip;
+  const efetivo=trava(bruto,0,FICHA_MAX);
+  return {investido,bonus,equip,efetivo,cortado:bruto>FICHA_MAX};
 }
 function atrib(k){ return parcelas(k).efetivo; }
 
@@ -531,7 +536,9 @@ function telaFicha(aoConfirmar){
       const podeMenos=P.investido>0;
       linha.innerHTML=`
         <div class="nm">${esc(A.n)}<small>${esc(A.afeta)}</small></div>
-        <div class="val">${P.efetivo}<u>/10</u><br><u>${P.investido} inv${P.bonus?(P.bonus>0?' +'+P.bonus:' '+P.bonus)+' ofício':''}</u></div>
+        <div class="val">${P.efetivo}<u>/10</u><br><u>${P.investido} inv${
+          P.bonus?(P.bonus>0?' +'+P.bonus:' '+P.bonus)+' ofício':''}${
+          P.equip?(P.equip>0?' +'+P.equip:' '+P.equip)+' roupa':''}</u></div>
         <button class="menos" ${podeMenos?'':'disabled'}>−</button>
         <button class="mais" ${podeMais?'':'disabled'}>+</button>`;
       const prev=document.createElement('div');
@@ -583,6 +590,7 @@ function telaFicha(aoConfirmar){
       const P=parcelas(k);
       return `${esc(ATRIBUTOS[k].n)}: <b>${P.efetivo}</b> <em>(${P.investido} seu`
         +(P.bonus?`, ${P.bonus>0?'+':''}${P.bonus} do ofício`:'')
+        +(P.equip?`, ${P.equip>0?'+':''}${P.equip} da roupa`:'')
         +(P.cortado?', cortado no teto':'')+`)</em>`;
     }));
     bloco('o que isso vale',[

@@ -230,6 +230,47 @@ grosso **impede** colete por cima.
 
 Medido em 800 golpes: 8% segurados sem roupa, 24% com o corpo coberto.
 
+### Cada peça dá atributo — e cada uma cobra
+
+Proteção sozinha não fazia diferença sentida: 6% a mais contra corte é um número
+que não muda decisão nenhuma. Agora **toda peça mexe na ficha**, e quase toda
+peça mexe nos dois sentidos — vestir vira escolha, não acumulação.
+
+| peça | dá | cobra |
+|---|---|---|
+| Camiseta puída | +1 Velocidade | — |
+| Camisa de manga | +1 Vitalidade | — |
+| Calça de brim | +1 Resistência | — |
+| Casaco pesado | +1 Vitalidade | −1 Velocidade |
+| Bota de couro | +1 Resistência | −1 Furtividade |
+| Tênis gasto | +1 Velocidade, +1 Furtividade | — |
+| Luva de raspa | +1 Destreza | — |
+| Capacete de obra | +1 Vitalidade | −1 Percepção |
+| Máscara de pano | +1 Furtividade | — |
+| Joelheira e caneleira | +1 Força | −1 Velocidade |
+| Cinto de ferramenta | +1 Destreza | — |
+| Mochila pequena | +1 Força | — |
+| Colete improvisado | +1 Vitalidade | −1 Furtividade |
+| Avental de couro | +1 Força | −1 Destreza |
+| Jaqueta reforçada | +1 Vitalidade | — |
+
+Duas regras que impedem isso de virar planilha:
+
+1. **O teto de 10 continua valendo.** O equipamento entra como uma terceira
+   parcela em `parcelas()`, ao lado do investido e do ofício, e o total é
+   truncado em 10. Quem já tem Velocidade 10 não ganha nada de tênis.
+2. **Peça quebrada não dá bônus.** Isso obrigou a corrigir um bug que estava lá
+   desde a v48: **roupa não tinha durabilidade nenhuma.** O `§15` não tinha ramo
+   para a categoria `roupa`, então `peca()` devolvia `null` — a proteção nunca
+   decaía, a peça que segurava o golpe nunca sentia, e "quebrada não dá bônus"
+   não tinha como valer. Agora tem, com taxa por peça: máscara de pano (7,0) e
+   camiseta (6,5) rasgam depressa; capacete (1,8) e mochila (2,0) quase não. O
+   conserto de roupa custa **lona e linha**, na mesma bancada.
+
+O painel do corpo mostra a soma no topo e, ao abrir um slot, o que a peça
+vestida dá e **o que a alternativa daria no lugar** — a comparação fica na tela
+na hora de decidir.
+
 ---
 
 ## 6. HUD e painel
@@ -276,18 +317,22 @@ Agora o que decide é haver **classe válida**.
 |---|---|
 | `s19-ficha.js` | atributos, curvas, derivadas, 14 classes, tela de criação, integração e persistência |
 | `s20-armas.js` | calibres, catálogo de armas, validação, registro, carregador/câmara, recarga, disparo, ruído, desenhos |
-| `s21-corpo.js` | slots, roupas, proteção por região, penalidades, painel corporal, bancada de armas, HUD |
+| `s21-corpo.js` | slots, roupas, proteção por região, penalidades, bônus de atributo, painel corporal, bancada de armas, HUD |
+| `s22-menu.js` | agrupamento dos botões do menu de cômodo em seções recolhíveis |
 | `README-v50.md` | este arquivo |
 
 ### Modificados
 
 | arquivo | mudança |
 |---|---|
-| `montar.js` | registra `s19`, `s20`, `s21` |
+| `montar.js` | registra `s19`, `s20`, `s21`, `s22` |
+| `s15-qualidade.js` | roupa passa a ter durabilidade, taxa por peça e receita de conserto |
+| `s19-ficha.js` | `parcelas()` ganha a parcela de equipamento |
 | `index.html` | regerado |
 
-Ordem de injeção (importa): `… → s17 → s18 → s19 → s20 → s21`. A §20 depende da
-§19 (derivadas) e do §15 (desgaste); a §21 depende das duas.
+Ordem de injeção (importa): `… → s17 → s18 → s19 → s20 → s21 → s22`. A §20
+depende da §19 (derivadas) e do §15 (desgaste); a §21 depende das duas; a §22
+embrulha `botao()` e por isso tem de ser a última.
 
 ---
 
@@ -317,8 +362,49 @@ Ordem de injeção (importa): `… → s17 → s18 → s19 → s20 → s21`. A �
 
 ---
 
-## 10. Testes
+## 10. Organização dos botões (§22)
+
+**Diagnóstico, medido antes de mexer:** 191 botões espalhados por 9 cômodos,
+média de 21 por tela. Numa tela de celular isso é uma parede — a ação que você
+quer está sempre a seis rolagens de distância, e as três ou quatro que importam
+naquele cômodo ficam misturadas com "Ajustes" e "O caderno".
+
+O conserto **não é esconder botão**, é separar o que é *deste* cômodo do que
+está sempre disponível em qualquer lugar:
+
+| seção | começa | por quê |
+|---|---|---|
+| **neste cômodo** | aberta | é a razão de você estar nessa tela |
+| **ir para** | aberta, em grade de 2 colunas | atalhos curtos, cabem lado a lado |
+| **você** | recolhida | mochila, roupa, machucados — acessível de qualquer lugar |
+| **a casa** | recolhida | conversar, cobrar, observar quem está junto |
+| **saber** | recolhida | caderno, diário, ajustes, como as coisas funcionam |
+
+Resultado medido, cômodo a cômodo:
+
+```
+SÓTÃO     21 → 10 · QUARTO   21 →  8 · DESPENSA 19 → 8
+OFICINA   24 → 13 · SALA     22 →  7 · COZINHA  19 → 8
+PORÃO     22 → 11 · ENTRADA  20 →  9 · QUINTAL  23 → 12
+TOTAL 191 botões · 86 visíveis de saída (45%)
+```
+
+Nada sumiu: os 191 continuam lá, e o teste soma os botões dentro das seções pra
+provar isso. O que o jogador deixa aberto fica gravado em `S.cfg.grupos`, junto
+com o resto das preferências que a v48 já salva.
+
+**A classificação erra pro lado seguro.** O padrão é `aqui`; só sai da primeira
+seção o que casa com um padrão conhecido. Assim, botão novo que qualquer bloco
+futuro acrescente aparece no cômodo por omissão, em vez de sumir numa gaveta.
+Quem quiser mandar explicitamente passa `botao(txt, fn, {grupo:'saber'})`.
+
+Telas com menos de 8 botões não viram seções — não há o que organizar ali.
+
+---
+
+## 11. Testes
 
 **69 verificações em `v50`, 0 falhas.** Registro completo em `TESTES-v50.md`.
 Regressão: v49 (chuva e luz), qualidade/baú, AudioManager, gerador, corte e
-fuzzer — todos limpos.
+fuzzer — todos limpos. O `menuteste` cobre agrupamento e bônus de roupa: **13
+verificações, 0 falhas.**

@@ -30,51 +30,60 @@ const REGIOES=['cabeca','torso','bracos','pernas','pes'];
 
 /* ---------- as peças ----------
    `prot` é por tipo de dano e vale só nas `reg` da peça. `veloc` e
-   `ruido` são o preço: armadura pesada protege e denuncia. */
+   `ruido` são o preço: armadura pesada protege e denuncia.
+
+   `atr` é o que faz valer a pena escolher: cada peça mexe num
+   atributo, e as pesadas cobram noutro. Tênis corre e é silencioso;
+   bota aguenta caminhada e faz barulho. Colete segura pancada e
+   entrega você. O teto de 10 continua valendo — bônus de peça entra
+   na mesma conta da classe e é preso junto. */
 const ROUPAS={
- camiseta:{n:'Camiseta puída',slot:'tronco1',reg:['torso'],kg:.2,
+ camiseta:{n:'Camiseta puída',slot:'tronco1',reg:['torso'],kg:.2, atr:{velocidade:1},
    prot:{corte:.04,pancada:.02}, veloc:0, ruido:0, calor:.1,
    d:'Serve pra não andar sem camisa. É tudo que ela faz.'},
- camisa:{n:'Camisa de manga',slot:'tronco1',reg:['torso','bracos'],kg:.3,
+ camisa:{n:'Camisa de manga',slot:'tronco1',reg:['torso','bracos'],kg:.3, atr:{vitalidade:1},
    prot:{corte:.06,arranhao:.12}, veloc:0, ruido:0, calor:.2,
    d:'Manga comprida segura mato e unha, não segura dente.'},
- calca:{n:'Calça de brim',slot:'pernas',reg:['pernas'],kg:.6,
+ calca:{n:'Calça de brim',slot:'pernas',reg:['pernas'],kg:.6, atr:{resistencia:1},
    prot:{corte:.10,arranhao:.20,pancada:.04}, veloc:0, ruido:.02, calor:.2,
    d:'Grossa no joelho. Aguenta cerca e mato.'},
- casaco:{n:'Casaco pesado',slot:'tronco2',reg:['torso','bracos'],kg:1.4,
+ casaco:{n:'Casaco pesado',slot:'tronco2',reg:['torso','bracos'],kg:1.4, atr:{vitalidade:1,velocidade:-1},
    prot:{corte:.14,pancada:.10,mordida:.08}, veloc:-.03, ruido:.04, calor:.6,
    d:'Quente demais de dia, e é ele que te salva de madrugada.'},
- bota:{n:'Bota de couro',slot:'pes',reg:['pes'],kg:1.1,
+ bota:{n:'Bota de couro',slot:'pes',reg:['pes'],kg:1.1, atr:{resistencia:1,furtividade:-1},
    prot:{corte:.22,pancada:.16,mordida:.14}, veloc:.02, ruido:.06, calor:.2,
    d:'Cano alto. Pisa em prego e você nem sente.'},
- tenis:{n:'Tênis gasto',slot:'pes',reg:['pes'],kg:.5,
+ tenis:{n:'Tênis gasto',slot:'pes',reg:['pes'],kg:.5, atr:{velocidade:1,furtividade:1},
    prot:{corte:.06}, veloc:.05, ruido:-.06, calor:0,
    d:'Solado macio. Corre melhor e faz menos barulho que bota.'},
- luva:{n:'Luva de raspa',slot:'maos',reg:['bracos'],kg:.2,
+ luva:{n:'Luva de raspa',slot:'maos',reg:['bracos'],kg:.2, atr:{destreza:1},
    prot:{corte:.18,queimadura:.25}, veloc:0, ruido:0, calor:.1,
    d:'Pega vidro e arame sem abrir a mão.'},
- capacete:{n:'Capacete de obra',slot:'cabeca',reg:['cabeca'],kg:.9,
+ capacete:{n:'Capacete de obra',slot:'cabeca',reg:['cabeca'],kg:.9, atr:{vitalidade:1,percepcao:-1},
    prot:{pancada:.35,corte:.12}, veloc:-.02, ruido:.03, calor:0,
    d:'Amarelo e feio. Já segurou telha inteira.'},
- mascara:{n:'Máscara de pano',slot:'rosto',reg:['cabeca'],kg:.1,
+ mascara:{n:'Máscara de pano',slot:'rosto',reg:['cabeca'],kg:.1, atr:{furtividade:1},
    prot:{doenca:.20}, veloc:0, ruido:0, calor:.1,
    d:'Filtra poeira e o cheiro do que apodrece.'},
- joelheira:{n:'Joelheira e caneleira',slot:'pernas',reg:['pernas'],kg:.7,
+ joelheira:{n:'Joelheira e caneleira',slot:'pernas',reg:['pernas'],kg:.7, atr:{forca:1,velocidade:-1},
    prot:{pancada:.22,corte:.14}, veloc:-.02, ruido:.03, calor:0,
    d:'Plástico duro sobre a canela. Chutar porta deixa de doer.'},
- cinto:{n:'Cinto de ferramenta',slot:'cintura',reg:['torso'],kg:.8,
+ cinto:{n:'Cinto de ferramenta',slot:'cintura',reg:['torso'],kg:.8, atr:{destreza:1},
    prot:{}, veloc:-.01, ruido:.05, extra:{vol:4},
    d:'Quatro espaços a mais, pendurados na cintura, batendo na perna.'},
- mochila_leve:{n:'Mochila pequena',slot:'mochila',reg:[],kg:.8,
+ mochila_leve:{n:'Mochila pequena',slot:'mochila',reg:[],kg:.8, atr:{forca:1},
    prot:{}, veloc:0, ruido:.02, extra:{vol:10,kg:6},
    d:'Cabe pouco e não atrapalha nada.'}
 };
 
 /* as armaduras do §15 entram aqui com região e tipo de dano */
 const ARMADURAS_REG={
- colete:{reg:['torso'],prot:{corte:.30,pancada:.34,mordida:.26},veloc:-.05,ruido:.10},
- avental:{reg:['torso','pernas'],prot:{corte:.34,queimadura:.30},veloc:-.06,ruido:.08},
- jaqueta:{reg:['torso','bracos'],prot:{corte:.20,mordida:.18},veloc:-.02,ruido:.04}
+ colete:{reg:['torso'],prot:{corte:.30,pancada:.34,mordida:.26},veloc:-.05,ruido:.10,
+   atr:{vitalidade:1,furtividade:-1}},
+ avental:{reg:['torso','pernas'],prot:{corte:.34,queimadura:.30},veloc:-.06,ruido:.08,
+   atr:{forca:1,destreza:-1}},
+ jaqueta:{reg:['torso','bracos'],prot:{corte:.20,mordida:.18},veloc:-.02,ruido:.04,
+   atr:{vitalidade:1}}
 };
 
 /* põe as roupas no catálogo do jogo, com desenho próprio */
@@ -166,6 +175,34 @@ function protecaoDe(regiao,tipo){
   /* teto: 70%, e a soma nunca é linear */
   return +trava(1-Math.pow(1-trava(soma,0,.95),1),0,.70).toFixed(3);
 }
+/* o bônus de atributo que o que você veste está dando agora.
+   O §19 consulta esta função ao montar as parcelas — por isso ela
+   tem nome estável e devolve 0 pra qualquer coisa desconhecida. */
+function bonusEquipamento(k){
+  let n=0;
+  const C=corpo();
+  SLOTS.forEach(s=>{
+    const id=C[s.id]; if(!id)return;
+    const R=ROUPAS[id]||ARMADURAS_REG[id];
+    if(!R||!R.atr)return;
+    /* peça quebrada não dá bônus nenhum: o que está em pedaços não
+       ajuda, e a penalidade dela continua valendo */
+    const pc=(typeof peca==='function'&&typeof ehDuravel==='function'&&ehDuravel(id))?peca(id):null;
+    const v=R.atr[k]||0;
+    if(v>0&&pc&&typeof quebrado==='function'&&quebrado(pc))return;
+    n+=v;
+  });
+  return n;
+}
+/* tudo que o corpo está dando, pra tela mostrar de uma vez */
+function bonusEquipamentoTudo(){
+  const out={};
+  (typeof ATRIB_IDS!=='undefined'?ATRIB_IDS:[]).forEach(k=>{
+    const v=bonusEquipamento(k); if(v)out[k]=v;
+  });
+  return out;
+}
+
 function penalidadesDoCorpo(){
   let veloc=0, ruido=0, kg=0, volExtra=0, kgExtra=0;
   const C=corpo();
@@ -334,11 +371,18 @@ function desenharCorpo(w,h,t){
   CX.fillStyle='rgba(201,162,39,.85)';
   CX.font=Math.max(9,h*.026)+'px "Share Tech Mono",monospace';
   CX.fillText(`roupa ${P.kg.toFixed(1)} kg · carga ${carga.toFixed(1)}/${inf.kg.toFixed(0)} kg`,w*.5,h*.045);
+  const bonT=(typeof bonusEquipamentoTudo==='function')?bonusEquipamentoTudo():{};
+  const bonTxt=Object.keys(bonT).map(k=>(bonT[k]>0?'+':'')+bonT[k]+' '+ATRIBUTOS[k].n).join(' · ');
+  if(bonTxt){
+    CX.fillStyle='rgba(110,140,85,.95)';
+    CX.font=Math.max(8,h*.023)+'px "Share Tech Mono",monospace';
+    CX.fillText(bonTxt,w*.5,h*.072);
+  }
   if(P.veloc||P.ruido){
     CX.fillStyle='rgba(224,112,63,.85)';
     CX.font=Math.max(8,h*.022)+'px "Share Tech Mono",monospace';
     CX.fillText(`velocidade ${P.veloc>=0?'+':''}${Math.round(P.veloc*100)}%`
-      +` · ruído +${Math.round(P.ruido*100)}%`,w*.5,h*.072);
+      +` · ruído +${Math.round(P.ruido*100)}%`,w*.5,bonTxt?h*.098:h*.072);
   }
   vinheta(w,h,1.05);
 }
@@ -377,6 +421,14 @@ function acoesDoSlot(slot){
     diz(prot.length
       ? 'Protege '+(R.reg||[]).join(', ')+' — '+prot.map(k=>k+' '+Math.round(R.prot[k]*100)+'%').join(' · ')
       : 'Não protege nada. Está aqui por outro motivo.','sist');
+    if(R.atr){
+      const mais=Object.keys(R.atr).filter(k=>R.atr[k]>0)
+        .map(k=>`+${R.atr[k]} ${ATRIBUTOS[k].n}`).join(' · ');
+      const menos=Object.keys(R.atr).filter(k=>R.atr[k]<0)
+        .map(k=>`${R.atr[k]} ${ATRIBUTOS[k].n}`).join(' · ');
+      if(mais)diz('Vestindo: '+mais,'bom');
+      if(menos)diz('Em troca: '+menos,'perigo');
+    }
     if(R.veloc||R.ruido)
       diz(`Custa: velocidade ${R.veloc>=0?'+':''}${Math.round((R.veloc||0)*100)}%`
         +` · ruído +${Math.round((R.ruido||0)*100)}%`,'alerta');
@@ -400,7 +452,9 @@ function acoesDoSlot(slot){
     cabem.forEach(it=>{
       const e=CATALOGO[it.id]||{n:it.id};
       const R=ROUPAS[it.id]||ARMADURAS_REG[it.id]||{};
-      const prot=Object.keys(R.prot||{}).map(k=>k+' '+Math.round(R.prot[k]*100)+'%').join(' · ');
+      const bon=Object.keys(R.atr||{}).map(k=>
+        (R.atr[k]>0?'+':'')+R.atr[k]+' '+ATRIBUTOS[k].n.toLowerCase()).join(' · ');
+      const prot=bon||Object.keys(R.prot||{}).map(k=>k+' '+Math.round(R.prot[k]*100)+'%').join(' · ');
       botao('Vestir '+e.n.toLowerCase(),()=>{
         const r=vestir(it.id);
         if(!r.ok)return diz('✕ '+r.porque,'perigo');

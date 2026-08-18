@@ -28,7 +28,7 @@
    arma, por pancada na armadura, por serviço na ferramenta, por
    dia na comida. Quanto maior, mais rápido acaba. */
 
-const DESGASTE_PADRAO={arma:3.4,armadura:4.0,ferra:2.2,comida:null};
+const DESGASTE_PADRAO={arma:3.4,armadura:4.0,ferra:2.2,roupa:3.2,comida:null};
 
 /* override por item: só o que foge da média da categoria */
 const DESGASTE={
@@ -40,7 +40,11 @@ const DESGASTE={
   martelo:2.0, fenda:3.0, alicate:2.4, inglesa:1.8, serra:4.2,
   pa:2.0, enxada:2.6, lanterna:1.5, escada:1.0,
   /* armaduras */
-  colete:3.2, avental:4.5, jaqueta:5.0
+  colete:3.2, avental:4.5, jaqueta:5.0,
+  /* roupas — pano rasga mais rápido que couro, couro mais que placa */
+  camiseta:6.5, camisa:6.0, calca:4.2, casaco:3.6,
+  bota:2.4, tenis:4.8, luva:5.0, capacete:1.8,
+  mascara:7.0, joelheira:2.6, cinto:2.2, mochila_leve:2.0
 };
 
 /* as armaduras não existiam. A `colete` já aparecia na lista de
@@ -108,6 +112,11 @@ function fichaDesg(id){
     if(cat==='comida'&&e.perece)      f={tipo:'comida', taxa:100/e.perece};
     else if(cat==='arma')             f={tipo:'arma',   taxa:DESGASTE[id]||DESGASTE_PADRAO.arma};
     else if(cat==='armadura')         f={tipo:'armadura',taxa:DESGASTE[id]||DESGASTE_PADRAO.armadura};
+    /* Roupa também se gasta. Sem isto, `peca()` devolvia null pra
+       camiseta e bota: a proteção nunca decaía, a peça que segurava o
+       golpe nunca sentia, e a regra de "quebrada não dá bônus" não
+       tinha como valer. */
+    else if(cat==='roupa')            f={tipo:'roupa',   taxa:DESGASTE[id]||DESGASTE_PADRAO.roupa};
     else if(e.ferra)                  f={tipo:'ferra',  taxa:DESGASTE[id]||DESGASTE_PADRAO.ferra};
   }
   return _fichaCache[id]=f;
@@ -624,6 +633,7 @@ const CUSTO_REPARO={
  arma:    {mat:{arame:1,prego:1}, moeda:1},
  armadura:{mat:{lona2:1,arame:1}, moeda:1},
  ferra:   {mat:{tabua:1,prego:1}, moeda:0},
+ roupa:   {mat:{lona2:1},         moeda:0},   /* remendo de lona e linha */
  comida:  null                     /* comida não se conserta */
 };
 const PERDA_MAX=2;
