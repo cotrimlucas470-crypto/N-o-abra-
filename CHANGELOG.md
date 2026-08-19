@@ -1,5 +1,83 @@
 # CHANGELOG
 
+## v56 — marcos e o Opala
+
+`s29-rumo.js`, com `RUMO_CFG`. Duas coisas que se cruzam de propósito.
+
+### Marcos: o mundo muda a cada 4 dias
+
+O jogo **já tinha** uma "virada do meio" (`VIRADAS`, index.html:2039) que dispara
+uma vez entre os dias 6 e 7. Não dupliquei: generalizei. Os marcos são periódicos
+e reusam as mesmas três forças.
+
+| marco | sinal para o jogador | efeito |
+|---|---|---|
+| A cidade esvaziou mais | *"O rádio não pega mais ninguém no dial de sempre."* | −7% de rendimento no saque, teto −28% |
+| Elas ficaram mais ousadas | *"Bateram antes de escurecer."* + rugido | +5% no risco de invasão, teto +20% |
+| Chegou alguém | o evento é o sinal | 55% alguém entra no abrigo; 45% um grupo passa e repara na casa |
+
+Primeiro marco no dia 5, no máximo 5 por partida, e os três tipos aparecem antes
+de qualquer um repetir.
+
+**Marco não é o multiplicador do §25.** O marco **soma** no risco; o §25
+**multiplica**. Eixos separados, e o teste prova medindo a diferença.
+
+### O objetivo final: o Opala
+
+**Antes de escolher: já existia um.** `telaResgate()` no dia 12 — o caminhão do
+Exército, com quatro finais. Não joguei fora; seria destruir um final que
+funciona por engano de leitura.
+
+O Opala é um **segundo caminho**, e ele existe porque o primeiro tem um problema:
+o caminhão **acontece com você**. Você não faz nada pra merecê-lo. O Opala só sai
+se você construir.
+
+| exigência | como se cumpre |
+|---|---|
+| 2 peças de motor | **só aparecem em oficina e comércio** — expedição específica |
+| 55 de diesel guardado | acúmulo, competindo com o gerador |
+| 4 noites depois de descobrir | o motor precisa de tempo parado |
+
+**Descoberto no jogo, não anunciado:** você entra no quintal e levanta a lona — e
+só repara que dá pra mexer nele se tiver oficina. **Checklist rastreável:** a
+entrada "O Opala" aparece no quintal e diz o que falta, item a item. **Final
+próprio:** cena `saida`, desenhada por função — a estrada fugindo, as faixas
+passando, e a casa encolhendo no retrovisor com a luz ainda acesa.
+
+Narrativamente distinto dos dois lados: no caminhão alguém te salva; no Opala
+você sai por conta, e a cidade fica com o que você deixou.
+
+### A prova de que o objetivo continua alcançável
+
+Com **200 marcos de cada tipo** (muito além do teto de 5):
+
+1. rendimento do saque para em **0,72** — nunca chega a zero
+2. os dois locais que têm a peça **continuam existindo**
+3. risco de invasão no pior caso possível: **0,88** — nunca chega a 1, sempre dá
+   pra passar a noite
+4. o diesel exigido (55) cabe no máximo que o tanque guarda (100)
+5. as noites exigidas passam sozinhas com o tempo
+
+### Três defeitos que os testes acharam
+
+1. **`industrial` não existe.** Eu escrevi que a peça apareceria em "oficina e
+   industrial"; os tipos de casa deste jogo são `simples, abandonada, boa, sitio,
+   comercio, oficina, tocada`. A peça estava indo pra **uma fonte só**, e a
+   promessa de "expedições específicas" ficava vazia. Corrigido pra oficina e
+   comércio.
+2. **Uma asserção varria scrollback compartilhado.** O teste do final procurava a
+   *ausência* da palavra "morreu" em `#texto` — e ela estava lá, escrita por
+   outro teste no mesmo buffer. Trocada por afirmar a identidade do final.
+3. **`RUMO_CFG` referenciado fora da página** no próprio teste.
+
+### Testes
+
+`rumoteste`: **30 verificações, 0 falhas**. Regressão: `progteste`, `portateste`,
+`anomteste`, `difteste`, `fugateste`, `expteste`, `v50`, `qual`, `baktest` — 0
+falhas. `varre`: 0 estouros, 0 invariantes violados.
+
+---
+
 ## v55 — experiência por uso
 
 `s28-progresso.js`, com `PROG_CFG`. Nada de XP por abate.
