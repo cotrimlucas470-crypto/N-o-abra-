@@ -1,5 +1,78 @@
 # CHANGELOG
 
+## v54 — a silhueta debaixo da porta
+
+`s27-porta.js`, com `PORTA_CFG`.
+
+### A tensão de design, dita em voz alta
+
+Foi pedido que cada anomalia fosse **"reconhecível de relance"**. Ao pé da letra,
+isso **mata o jogo**: a dúvida na porta é o coração dele, e se dá pra identificar
+a coisa num relance não existe dilema — é só olhar e decidir.
+
+O que fiz no lugar: a sombra dá **categoria, não identidade**. Você vê que tem
+coisa alta demais, ou baixa e comprida, ou larga demais pro vão, ou mais de uma.
+É o bastante pra desconfiar e escolher olhar; não é o bastante pra ter certeza.
+
+**Quinze criaturas caem em seis formas**, e compartilhar é de propósito.
+
+| forma | criaturas | como se lê |
+|---|---|---|
+| gente | vizinho, mae, casca, fome | duas manchas de sapato |
+| alto demais | alto, magro, dobra | manchas estreitas, sombra longa no chão |
+| baixo e comprido | rastejo, raiz | a fresta some quase inteira |
+| largo demais | inchado, batedor | vai de um batente ao outro |
+| mais de um | matilhaC, crianca | mais pés do que cabe numa pessoa |
+| não dá pra dizer | fundo, aquilo | não fecha formato nenhum |
+
+### O que não foi mexido
+
+O olho mágico **já tinha** revelação progressiva por zonas, e as 15 criaturas
+**já tinham** defeitos próprios (`DEFEITO_CRIATURA`). Isso funciona e ficou como
+estava. O que faltava era a sombra debaixo da porta — a primeira coisa que você
+vê, antes de decidir se vale gastar o olho mágico — que era retângulo preto igual
+pra todo mundo.
+
+### Ritmo de batida por forma
+
+Largo bate forte e devagar (`0s 0.9s`, força 1.5); rastejo bate fraco e miúdo
+(`0s .16s .30s .52s`, força .55); "errado" bate fora de qualquer tempo
+(`0s .31s .37s 1.1s`). Seis compassos, nenhum repetido.
+
+### Escala relativa, verificada
+
+Medido em **320, 390, 540, 768 e 1080 px**: nenhuma forma sai do canvas e nenhuma
+escapa do enquadramento da porta, nem no pior caso do balanço.
+
+### Galeria
+
+    portaGaleria()          as seis formas lado a lado, no canvas do jogo
+    portaMostrar('inchado') põe aquela criatura na porta agora
+
+A galeria é **no canvas do jogo**, não numa página separada — página separada
+teria de copiar a tabela `FORMA`, e cópia diverge do original no primeiro ajuste.
+
+### Dois defeitos que os testes acharam
+
+1. **Eu chutei a geometria da porta.** A primeira versão usava `w*.52` e `h*.12`;
+   os valores reais são `Math.min(w*.60,h*.52)` e `h*.055`, com `chao=h*.90`. A
+   mancha saía deslocada. Agora está copiada linha por linha do original, com o
+   endereço no comentário.
+2. **A medição de custo deu número negativo** (−0,8 ms: desenhar com a sombra
+   "mais rápido" que sem). Era aquecimento de JIT. Com aquecimento e medindo nas
+   duas ordens: **0,024 ms**, dentro do próprio ruído das amostras — o que é uma
+   afirmação mais forte que "menos de 1 ms".
+
+**Isto é proxy, não medição em celular.** Não há instrumentação de quadro no
+projeto e eu meço em Chromium headless num servidor.
+
+### Testes
+
+`portateste`: **17 verificações, 0 falhas**. Regressão: `anomteste`, `difteste`,
+`fugateste`, `v50` — 0 falhas. `varre`: 184 cliques, 0 estouros.
+
+---
+
 ## v53 — as anomalias viram a ameaça
 
 `s26-anomalias.js`, com `ANOM_CFG`. A dificuldade vem do §25 — este bloco
