@@ -204,13 +204,105 @@ function textoDaFase(){
   return 'Acabou.';
 }
 
+/* ---------- a casa vista de fora ----------
+   O briefing pede "observar a casa e ver a silhueta da anomalia se
+   movendo". Aqui não há mundo 3D pra isso: o que existe é o canvas do
+   jogo. Então a casa é desenhada de fora, e a JANELA DO CÔMODO EM QUE
+   ELA ESTÁ acende. É a mesma informação, pela via que este projeto tem
+   — e é diegética: você está olhando a sua casa da rua. */
+const JANELAS={           /* cômodo -> posição da janela na fachada */
+  0:[.50,.20], 1:[.30,.42], 2:[.70,.42],
+  3:[.22,.62], 4:[.50,.62], 5:[.78,.62],
+  6:[.22,.82], 7:[.50,.84], 8:[.80,.82]
+};
+function desenharFora(w,h,t){
+  const F=fuga();
+  const g=CX.createLinearGradient(0,0,0,h);
+  g.addColorStop(0,'#0A0910'); g.addColorStop(1,'#050409');
+  CX.fillStyle=g; CX.fillRect(0,0,w,h);
+
+  /* a casa: mais longe se você está na rua */
+  const longe=F&&F.onde==='rua';
+  const cw=w*(longe?.46:.66), ch=h*(longe?.52:.72);
+  const cx=w*.5, cy=h*(longe?.52:.56);
+  const x0=cx-cw/2, y0=cy-ch/2;
+
+  CX.fillStyle='rgba(18,16,26,.96)';
+  CX.strokeStyle='rgba(120,112,138,.34)';
+  CX.lineWidth=1.2;
+  /* telhado */
+  CX.beginPath();
+  CX.moveTo(x0-cw*.08,y0+ch*.22); CX.lineTo(cx,y0-ch*.06);
+  CX.lineTo(x0+cw+cw*.08,y0+ch*.22); CX.closePath();
+  CX.fill(); CX.stroke();
+  /* corpo */
+  CX.fillRect(x0,y0+ch*.22,cw,ch*.78);
+  CX.strokeRect(x0,y0+ch*.22,cw,ch*.78);
+
+  /* as janelas: apagadas, menos a do cômodo em que ela está */
+  const jw=cw*.15, jh=ch*.12;
+  for(const k of Object.keys(JANELAS)){
+    const id=+k, pos=JANELAS[id];
+    const jx=x0+pos[0]*cw-jw/2, jy=y0+ch*.22+pos[1]*ch*.72-jh/2;
+    const dela=F&&F.comodoDela===id&&F.fase==='VASCULHANDO';
+    if(dela){
+      /* pulso lento: a lanterna dela varrendo o cômodo */
+      const pulso=.55+.45*Math.sin((t||0)/380);
+      CX.fillStyle='rgba(201,162,39,'+(0.16+pulso*.30).toFixed(3)+')';
+      CX.fillRect(jx,jy,jw,jh);
+      /* e a silhueta atravessando */
+      CX.fillStyle='rgba(8,7,12,.86)';
+      const sw=jw*.26, sx=jx+jw*(.2+.5*(0.5+0.5*Math.sin((t||0)/900)));
+      CX.fillRect(sx,jy+jh*.10,sw,jh*.90);
+    }else{
+      CX.fillStyle='rgba(40,36,52,.55)';
+      CX.fillRect(jx,jy,jw,jh);
+    }
+    CX.strokeStyle='rgba(120,112,138,.26)';
+    CX.strokeRect(jx,jy,jw,jh);
+  }
+
+  /* a porta por onde ela vai sair pisca no turno de SAINDO */
+  if(F&&F.fase==='SAINDO'){
+    const pos=F.saiPor==='fundos'?JANELAS[8]:JANELAS[7];
+    const px=x0+pos[0]*cw, py=y0+ch*.22+pos[1]*ch*.72;
+    const p=.5+.5*Math.sin((t||0)/160);
+    CX.strokeStyle='rgba(224,112,63,'+(0.35+p*.6).toFixed(3)+')';
+    CX.lineWidth=2.4;
+    CX.beginPath(); CX.arc(px,py,Math.min(cw,ch)*.13,0,7); CX.stroke();
+  }
+
+  /* onde VOCÊ está: um vulto no canto de baixo */
+  CX.fillStyle='rgba(150,142,166,.30)';
+  const vx=F&&F.onde==='rua'?w*.14:w*.84;
+  CX.beginPath();
+  CX.arc(vx,h*.90,w*.026,0,7); CX.fill();
+  CX.fillRect(vx-w*.022,h*.92,w*.044,h*.08);
+
+  CX.textAlign='center';
+  CX.fillStyle='rgba(201,162,39,.80)';
+  CX.font=Math.max(9,h*.028)+'px "Share Tech Mono",monospace';
+  CX.fillText(F?(F.onde==='rua'?'DA RUA':'DO QUINTAL'):'',w*.5,h*.06);
+  if(typeof vinheta==='function')vinheta(w,h,1.05);
+}
+if(typeof desenharVazio==='function'){
+  const _dv=desenharVazio;
+  desenharVazio=function(w,h,t){
+    if(typeof cena!=='undefined'&&cena.modo==='fora')return desenharFora(w,h,t);
+    return _dv.apply(this,arguments);
+  };
+}
+
 async function telaFora(){
   const F=fuga();
   if(!F)return;
   if(F.fase==='RESET')return voltarPraCasaDepoisDaFuga(true);
   limpar(); AC.innerHTML='';
-  cena.modo='casafora';
+  cena.modo='fora';
   if(typeof dimensionar==='function')dimensionar();
+  /* o relógio e os recursos precisam estar certos enquanto você espera
+     lá fora: é por eles que você decide se dá pra aguentar mais um turno */
+  if(typeof atualizarPainel==='function')try{atualizarPainel();}catch(e){}
   cap((F.onde==='quintal'?'QUINTAL':'RUA')+' · '+(typeof horaTexto==='function'?horaTexto():''));
   diz(F.onde==='quintal'
     ? 'Você está atrás da casa, agachado atrás da caixa d\'água. Daqui dá pra ver a janela da cozinha.'
