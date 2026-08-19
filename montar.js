@@ -26,6 +26,7 @@ const BLOCOS=[
   {arq:'s23-expedicao.js',      ini:'<!-- s23:inicio -->',  fim:'<!-- s23:fim -->'},
   {arq:'s24-fuga.js',           ini:'<!-- s24:inicio -->',  fim:'<!-- s24:fim -->'},
   {arq:'s25-dificuldade.js',    ini:'<!-- s25:inicio -->',  fim:'<!-- s25:fim -->'},
+  {arq:'s26-anomalias.js',      ini:'<!-- s26:inicio -->',  fim:'<!-- s26:fim -->'},
 ];
 
 /* A voz da abertura entra embutida. O jogo é um arquivo só — é o que a

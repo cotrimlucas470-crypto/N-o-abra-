@@ -1,5 +1,82 @@
 # CHANGELOG
 
+## v53 — as anomalias viram a ameaça
+
+`s26-anomalias.js`, com `ANOM_CFG`. A dificuldade vem do §25 — este bloco
+**não cria multiplicador próprio**, como foi pedido.
+
+### O que existia
+
+Seis criaturas com nome, aparência e uma frase de fraqueza — e **uma perseguição
+só para todas**: `moverMonstro` andava pro vizinho mais perto de `I.ruidoEm`
+enquanto `I.memoria > 0`, senão sorteava. `vel` e `mem` só mudavam números dentro
+dessa mesma regra, e o campo `fraco` era **texto exibido, nunca regra**.
+
+### Ciclo de estado explícito
+
+```
+RONDA → SUSPEITA → CACA → PERDEU → (volta a RONDA)
+```
+
+`PERDEU` é fase de verdade: ela vasculha **em volta** do último lugar conhecido
+antes de desistir. Há teto de turnos em `CACA` — nenhuma perseguição é eterna — e
+`cooldown` depois de desistir, que é a janela de respiro do jogador.
+
+### Regra única por criatura, com contra-jogo descobrível
+
+| criatura | reage a | contra-jogo |
+|---|---|---|
+| o Magro | **luz** | não entra em cômodo aceso; a lanterna o afasta |
+| o que Rasteja | **rastro** | ignora barulho, segue por onde você pisou |
+| Muitas Bocas | **som** | barulho alto separa as duas metades |
+| o que Chama | **resposta** | sem resposta vai pro barulho; responder entrega sua posição exata |
+| o Inchado | **passagem** | perde turno em cômodo apertado |
+| aquilo | **olhar** | olhar direto o aproxima e custa sanidade |
+
+A dica de cada uma aparece em **"Escutar onde ele está"** — descoberta jogando,
+sem wiki.
+
+### Aviso antes do dano, garantido
+
+Um turno antes de encostar, a criatura é **obrigada** a emitir sinal, com texto
+próprio por criatura. `ANOM_CFG.distanciaAviso` nunca pode ser zero.
+
+### Presença fora do combate
+
+Cada criatura deixa uma marca diferente na casa, e a marca **ainda está lá dias
+depois** — aparece ao entrar no cômodo, com quanto tempo faz. Teto de 6 marcas.
+
+### Dois bugs que o teste de 2000 turnos achou — e que teriam passado
+
+O teste roda cada criatura por 2000 turnos e acusa se alguma passa 200 turnos
+seguidos na mesma fase. Ele pegou **duas criaturas completamente inertes**:
+
+1. **O imitador ficava preso em RONDA pra sempre.** A primeira versão fazia ele
+   ignorar ruído enquanto `respondeu` fosse falso — e nada no jogo jamais setava
+   esse campo. Corrigido: ele ouve como as outras, e o que a resposta muda é a
+   **precisão** (barulho vs. sua posição exata). O chamado também virou mecânica
+   de verdade: antes era só texto de clima dentro de `turnoMonstro`, sem marcar
+   nada.
+2. **O rastejante ficava preso em RONDA pela mesma razão estrutural.** Ele recusa
+   som (certo) e não tinha nenhuma outra porta de entrada (errado). Ganhou
+   `anomPisou()`: quem lê o chão acorda quando você anda, não quando você faz
+   barulho.
+
+Uma criatura que nunca sai de ronda é uma criatura que não existe. As duas teriam
+sido publicadas inofensivas.
+
+### Debug
+
+    anomInvocar('coro')    começa uma invasão com aquela criatura
+    anomEstado(I)          fase, turnos, trilha, cooldown, marcas
+
+### Testes
+
+`anomteste`: **28 verificações, 0 falhas**. Regressão: `difteste`, `fugateste`,
+`expteste`, `v50`, `qual` — 0 falhas. `varre`: 205 cliques, 0 estouros.
+
+---
+
 ## v52 — curva de dificuldade
 
 Multiplicador **único e centralizado** em `s25-dificuldade.js`, com `DIF_CFG`.
