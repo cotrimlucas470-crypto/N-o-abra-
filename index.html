@@ -23068,7 +23068,15 @@ function baus(){
   return S.baus;
 }
 function bauDe(id){return baus()[id];}
-function capacidade(id){
+/* NOME PRÓPRIO, e isto é a correção de um bug crítico: esta função se
+   chamava `capacidade`, igual à da expedição (index.html:9972), que diz
+   quantos QUILOS você carrega e recebe o PARCEIRO. O jogo é um escopo
+   global só; este bloco é injetado depois, então ele apagava a outra.
+   A partir daí toda expedição estourava em `etapaCarga` com
+   "Cannot read properties of undefined (reading 'slots')", porque
+   `BAUS[parceiro]` não existe — e o jogador voltava pra casa sem nada,
+   já que o loot só é creditado no fim. */
+function capacidadeBau(id){
   return BAUS[id].slots+bauDe(id).nivel*SLOTS_POR_MELHORIA;
 }
 function usados(id){return bauDe(id).itens.length;}
@@ -23100,7 +23108,7 @@ function porNoBau(id,item,q){
   for(let i=0;i<(q||1);i++){
     const alvo=b.itens.find(x=>podeEmpilhar(x,item));
     if(alvo){alvo.q++;posto++;continue;}
-    if(b.itens.length>=capacidade(id))break;
+    if(b.itens.length>=capacidadeBau(id))break;
     const novo={id:item.id,q:1,dia:item.dia||S.dia};
     if(ehDuravel(item.id)){novo.dur=item.dur;novo.durMax=item.durMax;}
     carimbar(novo);
@@ -23325,7 +23333,7 @@ function desenharBau(){
   const inf=mochilaInfo();
   el.querySelector('.tit').textContent=B.n;
   el.querySelector('.cont-bau').innerHTML=
-    `<b>${usados(UI.bau)}</b>/${capacidade(UI.bau)}`;
+    `<b>${usados(UI.bau)}</b>/${capacidadeBau(UI.bau)}`;
   /* "vol" atrás do volume porque, colado no contador de slots do
      armário, um "18/60" solto se lê como espaço de slot */
   el.querySelector('.cont-moch').innerHTML=
@@ -23466,12 +23474,12 @@ menuComodo=function(id){
   if(bid){
     const b=bauDe(bid);
     botao(BAUS[bid].n,()=>abrirBau(bid,()=>menuComodo(id)),
-      {custo:usados(bid)+'/'+capacidade(bid)+' · tecla E'});
+      {custo:usados(bid)+'/'+capacidadeBau(bid)+' · tecla E'});
     if(b.nivel<MAX_MELHORIAS)
       botao('Montar mais prateleira',acaoDia(2,async()=>{
         if(!melhorarBau(bid)){diz('Faltou tábua ou prego.','perigo');return;}
         martelada(5,-.15);await pausa(1200);
-        diz(`${BAUS[bid].n} agora cabe ${capacidade(bid)} coisas.`,'bom');
+        diz(`${BAUS[bid].n} agora cabe ${capacidadeBau(bid)} coisas.`,'bom');
       }),{custo:'2h · 3 tábuas + 2 pregos · +'+SLOTS_POR_MELHORIA+' espaços',
           falta:(temMat('tabua',3)&&temMat('prego',2))?'':'falta tábua ou prego'});
   }
@@ -24552,8 +24560,16 @@ const CLASSES={
 };
 const CLASSE_IDS=Object.keys(CLASSES);
 
-/* ================= O ESTADO DA FICHA ================= */
-function ficha(){
+/* ================= O ESTADO DA FICHA =================
+   NOME PRÓPRIO, e isto é a correção de um bug crítico: esta função se
+   chamava `ficha`, igual à do index.html:869, que DESENHA UMA LINHA DE
+   TELA e recebe (nome, tag, texto). O jogo é um escopo global só; este
+   bloco é injetado depois, então ele apagava a outra — e as 20 e tantas
+   chamadas de UI espalhadas pelo jogo (lista de gente, lista do loot,
+   bancada de armas) passaram a não desenhar coisa nenhuma, sem erro
+   nenhum, porque esta versão aceita qualquer argumento e devolve a
+   ficha do personagem. */
+function fichaJogador(){
   if(!S.ficha||typeof S.ficha!=='object')S.ficha={classe:null,pontos:{},versao:1};
   if(!S.ficha.pontos||typeof S.ficha.pontos!=='object')S.ficha.pontos={};
   ATRIB_IDS.forEach(k=>{
@@ -24565,20 +24581,20 @@ function ficha(){
   if(!CLASSES[S.ficha.classe])S.ficha.classe=S.ficha.classe===null?null:'civil';
   return S.ficha;
 }
-function classeAtual(){ const f=ficha(); return f.classe?CLASSES[f.classe]:null; }
+function classeAtual(){ const f=fichaJogador(); return f.classe?CLASSES[f.classe]:null; }
 function pontosTotais(){
   const c=classeAtual();
   return FICHA_PONTOS+((c&&c.passiva.id==='sem-vicio')?2:0);
 }
 function pontosGastos(){
-  const f=ficha();
+  const f=fichaJogador();
   return ATRIB_IDS.reduce((s,k)=>s+f.pontos[k],0);
 }
 function pontosLivres(){ return pontosTotais()-pontosGastos(); }
 
 /* as três parcelas, separadas — é o que a tela mostra em colunas */
 function parcelas(k){
-  const f=ficha(), c=classeAtual();
+  const f=fichaJogador(), c=classeAtual();
   const investido=f.pontos[k]||0;
   const bonus=c?((c.mais&&c.mais[k])||0)-((c.menos&&c.menos[k])||0):0;
   /* o que você está vestindo é a terceira parcela. Vem do §21, por
@@ -24857,7 +24873,7 @@ let _fichaAba='classe', _fichaFoco=null;
 
 function telaFicha(aoConfirmar){
   estiloFicha();
-  const f=ficha();
+  const f=fichaJogador();
   if(!f.classe)f.classe='sobrevivente';
   const el=document.createElement('div');
   el.id='ficha';
@@ -24895,7 +24911,7 @@ function telaFicha(aoConfirmar){
     CLASSE_IDS.forEach(id=>{
       const C=CLASSES[id];
       const b=document.createElement('button');
-      b.className='cl'+(ficha().classe===id?' on':'');
+      b.className='cl'+(fichaJogador().classe===id?' on':'');
       const mais=Object.keys(C.mais||{}).map(k=>`+${C.mais[k]} ${ATRIBUTOS[k].n}`).join(' · ');
       const menos=Object.keys(C.menos||{}).map(k=>`−${C.menos[k]} ${ATRIBUTOS[k].n}`).join(' · ');
       const itens=(C.itens||[]).map(i=>(CATALOGO[i]||{n:i}).n.toLowerCase()).join(', ');
@@ -24905,7 +24921,7 @@ function telaFicha(aoConfirmar){
         +`<i style="color:var(--lampiao)">passiva · ${esc(C.passiva.n)}: ${esc(C.passiva.d)}</i>`
         +`<i style="color:var(--mofo)">começa com: ${esc(itens)}${C.veste?' · vestindo '+esc((CATALOGO[C.veste]||{n:C.veste}).n.toLowerCase()):''}</i>`;
       b.onclick=()=>{
-        ficha().classe=id;
+        fichaJogador().classe=id;
         if(typeof amToca==='function')amToca('ui_clique');
         /* trocar de ofício pode estourar o teto de um atributo: o
            investimento excedente volta pro bolso em vez de sumir */
@@ -24946,14 +24962,14 @@ function telaFicha(aoConfirmar){
         _fichaFoco=k;
         if(pontosLivres()<=0)return avisar('Não sobrou ponto pra gastar.');
         if(P.efetivo>=FICHA_MAX)return avisar(`${A.n} já está no teto de ${FICHA_MAX}.`);
-        ficha().pontos[k]++;
+        fichaJogador().pontos[k]++;
         if(typeof amToca==='function')amToca('ui_clique');
         avisar(''); pintar();
       };
       linha.querySelector('.menos').onclick=()=>{
         _fichaFoco=k;
-        if(ficha().pontos[k]<=0)return avisar('Não há ponto seu pra tirar daqui.');
-        ficha().pontos[k]--;
+        if(fichaJogador().pontos[k]<=0)return avisar('Não há ponto seu pra tirar daqui.');
+        fichaJogador().pontos[k]--;
         if(typeof amToca==='function')amToca('ui_clique');
         avisar(''); pintar();
       };
@@ -25006,7 +25022,7 @@ function telaFicha(aoConfirmar){
 
   el.querySelectorAll('.aba').forEach(a=>a.onclick=()=>{ _fichaAba=a.dataset.a; avisar(''); pintar(); });
   el.querySelector('.zerar').onclick=()=>{
-    ATRIB_IDS.forEach(k=>ficha().pontos[k]=0);
+    ATRIB_IDS.forEach(k=>fichaJogador().pontos[k]=0);
     avisar('Distribuição zerada.'); pintar();
   };
   el.querySelector('.ok').onclick=()=>{
@@ -25034,7 +25050,7 @@ function telaFicha(aoConfirmar){
 
 /* pontos que passaram do teto por causa do ofício voltam pro bolso */
 function devolverExcesso(){
-  const f=ficha();
+  const f=fichaJogador();
   ATRIB_IDS.forEach(k=>{
     const c=classeAtual();
     const bonus=c?((c.mais&&c.mais[k])||0)-((c.menos&&c.menos[k])||0):0;
@@ -25054,7 +25070,7 @@ function devolverExcesso(){
 /* a validação que o botão de confirmar usa. Devolve a mensagem do
    problema, ou '' quando está tudo certo. */
 function validarFicha(){
-  const f=ficha();
+  const f=fichaJogador();
   if(!CLASSES[f.classe])return 'Escolha um ofício.';
   for(const k of ATRIB_IDS){
     const v=f.pontos[k];
@@ -25073,7 +25089,7 @@ function validarFicha(){
 function aplicarFicha(){
   const C=classeAtual();
   if(!C)return;
-  const f=ficha();
+  const f=fichaJogador();
   if(f.aplicada)return;              /* nunca duas vezes: duplicaria item */
   f.aplicada=true;
   (C.itens||[]).forEach(id=>{
@@ -25167,7 +25183,7 @@ if(typeof carregar==='function'){
         /* `aplicada:true` de propósito: save antigo já tem os itens
            que juntou, e não pode ganhar kit inicial de brinde agora */
       }
-      ficha();                        /* prende valores fora da faixa */
+      fichaJogador();                        /* prende valores fora da faixa */
     }
     return r;
   };
@@ -25175,7 +25191,7 @@ if(typeof carregar==='function'){
 
 /* atalho de leitura pro resto do jogo e pros testes */
 function fichaEstado(){
-  const f=ficha(), C=classeAtual();
+  const f=fichaJogador(), C=classeAtual();
   return {classe:f.classe, classeNome:C?C.n:null, passiva:C?C.passiva.id:null,
     pontos:{...f.pontos}, gastos:pontosGastos(), livres:pontosLivres(),
     total:pontosTotais(), aplicada:!!f.aplicada,
@@ -26807,5 +26823,305 @@ function menuEstado(){
 
 </script>
 <!-- s22:fim -->
+<!-- s23:inicio -->
+<script>
+/* ============ §23 — EXPEDIÇÃO TRANSACIONAL E ERRO QUE NÃO PUNE ============
+
+   O QUE ESTAVA ERRADO
+   -------------------
+   O que você juntava numa expedição vivia em duas variáveis locais —
+   `ctx.achados` (o que tinha no chão) e `levar` (o que você escolheu
+   carregar) — e só virava recurso de verdade na ÚLTIMA função da
+   cadeia, `recolher()`. Entre escolher e creditar havia telas, esperas,
+   sorteios e encontros. Qualquer exceção em qualquer ponto desse
+   caminho apagava 100% do saque, e o vigia (`socorro`) oferecia
+   "Voltar pra dentro de casa" — que devolvia o jogador pra casa de mãos
+   vazias sem nunca dizer o que aconteceu.
+
+   O QUE MUDA AQUI
+   ---------------
+   1. O `levar` deixa de ser variável local e passa a ser `S.exped.levar`
+      — dentro do estado salvo. Mesma referência, então tudo que já mexia
+      nele (a fuga que corta 40%, o susto que corta pela metade) continua
+      funcionando sem uma linha alterada. A diferença é que agora ele
+      sobrevive a um travamento.
+   2. Cada pegada marca o save como sujo. O que está na sua mão está no
+      disco.
+   3. Se o jogo cair no meio da rua, na próxima abertura o que você já
+      tinha pegado volta com você. Não some.
+   4. `socorro()` para de ser um teleporte que descarta trabalho: com
+      expedição aberta, ele credita o que você pegou antes de te levar
+      pra casa, e diz isso na tela.
+   5. Erro deixa de ser engolido: vai pro console com contexto e fica
+      num anel de 20 em `S.erros`, visível na tela de socorro.
+
+   O QUE NÃO MUDA
+   --------------
+   Perder saque para um bicho continua sendo regra do jogo. Fugir custa
+   40% do que você carregava — isso é design, não defeito, e continua
+   valendo. O que não pode mais acontecer é perder por causa de bug.
+   ======================================================================= */
+
+/* ---------- registro de erro, que antes não existia ---------- */
+const ERROS_MAX=20;
+function registrarErro(e,onde){
+  try{
+    S.erros=S.erros||[];
+    const reg={quando:Date.now(), dia:S.dia, onde:onde||'?',
+      msg:(e&&e.message)||String(e),
+      pilha:((e&&e.stack)||'').split('\n').slice(0,4).join(' | ')};
+    S.erros.push(reg);
+    while(S.erros.length>ERROS_MAX)S.erros.shift();
+    /* no console com contexto: é o único jeito de alguém consertar */
+    console.error('[não abra] '+reg.onde+':', e);
+  }catch(x){}
+}
+
+/* ---------- validação defensiva de achado ----------
+   Item sem nome, sem quantidade ou com peso maluco não pode derrubar a
+   tela: é registrado e ignorado. */
+function achadoValido(a,i){
+  if(!a||typeof a!=='object'){registrarErro(new Error('achado nulo no índice '+i),'achadoValido');return false;}
+  if(typeof a.n!=='string'||!a.n){registrarErro(new Error('achado sem nome no índice '+i),'achadoValido');return false;}
+  const q=Number(a.q), kg=Number(a.kg);
+  if(!isFinite(q)||q<=0){registrarErro(new Error('achado "'+a.n+'" com quantidade '+a.q),'achadoValido');return false;}
+  if(!isFinite(kg)||kg<0){registrarErro(new Error('achado "'+a.n+'" com peso '+a.kg),'achadoValido');return false;}
+  if(a.item&&!a.item.id){registrarErro(new Error('achado "'+a.n+'" tem item sem id'),'achadoValido');return false;}
+  return true;
+}
+
+/* ---------- o livro-caixa da expedição ----------
+   Projeção enxuta e serializável do que `recolher()` realmente lê. Não
+   guardo o objeto do item inteiro: guardo os campos que viram recurso,
+   pra recuperação não depender de nada que possa ter mudado de formato
+   entre versões. */
+function projetarAchado(a){
+  const p={n:a.n, q:Number(a.q)||0, kg:Number(a.kg)||0};
+  if(a.estragada)p.estragada=1;
+  if(a.item){
+    const it=a.item;
+    p.item={id:it.id, n:it.n};
+    ['diesel','remedio','oficina','lanterna','semente','reforco','especial','dano']
+      .forEach(k=>{ if(it[k]!==undefined)p.item[k]=it[k]; });
+  }
+  return p;
+}
+function abrirLivro(ctx){
+  const bons=(ctx.achados||[]).filter(achadoValido);
+  if(bons.length!==(ctx.achados||[]).length)
+    ctx.achados=bons;                       /* achado inválido some do chão */
+  S.exped={ativa:1, local:(ctx.l&&ctx.l.id)||'?', dia:S.dia,
+    achados:bons.map(projetarAchado), levar:{}};
+  if(typeof marcarSujo==='function')marcarSujo();
+  return S.exped.levar;
+}
+function anotarNoLivro(){
+  /* chamado a cada pegar/largar: o que está na sua mão vai pro disco */
+  if(typeof marcarSujo==='function')marcarSujo();
+}
+function fecharLivro(){
+  if(S.exped)S.exped.ativa=0;
+  S.exped=null;
+  if(typeof marcarSujo==='function')marcarSujo();
+}
+function livroAberto(){ return !!(S.exped&&S.exped.ativa); }
+function livroTemCoisa(){
+  if(!livroAberto())return false;
+  return Object.keys(S.exped.levar||{}).some(k=>(S.exped.levar[k]|0)>0);
+}
+
+/* ---------- creditar o livro ----------
+   Mesmas regras de `recolher()`, aplicadas sobre a projeção. Usado na
+   recuperação depois de travamento e no socorro. `recolher()` normal
+   continua fazendo o dele; aqui só existe pra quando ele NÃO chegou. */
+function creditarLivro(){
+  if(!livroAberto())return null;
+  const L=S.exped.levar||{}, A=S.exped.achados||[];
+  let d=0,c=0,r=0; const armas=[], obs=[];
+  A.forEach((a,i)=>{
+    const q=Math.max(0,L[i]|0); if(!q)return;
+    try{
+      if(a.n==='diesel')d+=q;
+      else if(a.n==='comida')c+=q;
+      else if(a.n==='remedio')r+=q;
+      else if(a.estragada){S.estragadas=(S.estragadas||0)+q;S.comida+=q;}
+      else if(a.item){
+        const it=a.item;
+        if(it.dano){S.armas=S.armas||[];
+          if(!S.armas.includes(it.id)){S.armas.push(it.id);armas.push(it.n||it.id);}}
+        if(it.diesel)d+=it.diesel;
+        if(it.remedio)r+=it.remedio;
+        if(it.oficina&&S.oficinaNivel<2)S.oficinaNivel++;
+        if(it.lanterna)S.lanterna=true;
+        if(it.semente)S.temSemente=true;
+        if(it.reforco&&typeof pregar==='function')pregar(it.reforco);
+        if(it.especial==='peca')S.peca=true;
+      }
+    }catch(e){ registrarErro(e,'creditarLivro['+i+'] '+a.n); }
+  });
+  S.diesel=trava(S.diesel+d,0,100); S.comida+=c; S.remedio+=r;
+  if(typeof ganhou==='function')ganhou({diesel:d,comida:c,remedio:r});
+  fecharLivro();
+  return {diesel:d,comida:c,remedio:r,armas,obs};
+}
+
+/* ---------- etapaCarga, agora escrevendo no livro ----------
+   Substituída inteira porque o `levar` dela era uma variável local: não
+   dá pra alcançar por embrulho. O comportamento visível é o mesmo — a
+   diferença é onde o número mora. */
+if(typeof etapaCarga==='function'){
+  etapaCarga=function(E,ctx){
+    let cap;
+    try{ cap=capacidade(ctx.par); }
+    catch(e){
+      /* nunca mais deixar esta tela morrer calada: sem capacidade
+         confiável, usa o que a mochila declara e segue */
+      registrarErro(e,'etapaCarga/capacidade');
+      cap=(typeof mochilaInfo==='function')?Math.round(mochilaInfo().kg):20;
+    }
+    const levar=abrirLivro(ctx);
+    limpar();cap2('O que você carrega');
+    diz(`Você acha mais do que consegue levar. Cabem ${cap} quilos${ctx.par?' entre os dois':' nas suas costas'}.`,'sist');
+    const render=()=>{
+      let peso=0;
+      ctx.achados.forEach((a,i)=>{peso+=(levar[i]||0)*a.kg;});
+      limpar();cap2('O que você carrega');
+      diz(`${Math.round(peso)} de ${cap} quilos.`,peso>cap?'perigo':'sist');
+      ctx.achados.forEach((a,i)=>{
+        const q=levar[i]||0;
+        ficha(a.n,q+' de '+a.q,a.kg+' kg cada');
+      });
+      AC.innerHTML='';
+      ctx.achados.forEach((a,i)=>{
+        const q=levar[i]||0;
+        if(q<a.q&&peso+a.kg<=cap)
+          botao('Pegar mais '+a.n,()=>{levar[i]=q+1;anotarNoLivro();render();},{custo:'+'+a.kg+' kg'});
+        if(q>0)botao('Largar '+a.n,()=>{levar[i]=q-1;anotarNoLivro();render();},{custo:'−'+a.kg+' kg'});
+      });
+      botao('Encher a mochila com o que cabe',()=>{
+        let p=0;
+        ctx.achados.forEach((a,i)=>{
+          levar[i]=0;
+          while(levar[i]<a.q&&p+a.kg<=cap){levar[i]++;p+=a.kg;}
+        });
+        anotarNoLivro();render();
+      },{custo:'automático'});
+      botao('Ir embora com isso',()=>etapaSair(E,ctx,levar),{cls:'prim'});
+    };
+    render();
+  };
+}
+
+/* ---------- o livro fecha quando a expedição termina de verdade ---------- */
+if(typeof recolher==='function'){
+  const _recolher=recolher;
+  recolher=async function(ctx,levar,ferido){
+    let r;
+    try{ r=await _recolher.call(this,ctx,levar,ferido); }
+    catch(e){
+      /* se `recolher` cair no meio, o que já estava no livro ainda é
+         seu: credita o que sobrou em vez de perder tudo */
+      registrarErro(e,'recolher');
+      const cr=creditarLivro();
+      if(cr&&(cr.diesel||cr.comida||cr.remedio))
+        diz(`Deu problema na volta, mas o que você carregava chegou: ${cr.diesel} de diesel, ${cr.comida} de comida.`,'alerta');
+      throw e;
+    }
+    fecharLivro();
+    return r;
+  };
+}
+
+/* ---------- recuperação depois de travamento ----------
+   Abriu o jogo e havia expedição aberta? Você estava na rua com coisa na
+   mão. Ela volta com você. */
+function recuperarExpedicao(){
+  if(!livroAberto())return null;
+  if(!livroTemCoisa()){ fecharLivro(); return null; }
+  const cr=creditarLivro();
+  if(!cr)return null;
+  const partes=[];
+  if(cr.diesel)partes.push(cr.diesel+' de diesel');
+  if(cr.comida)partes.push(cr.comida+' de comida');
+  if(cr.remedio)partes.push(cr.remedio+' de remédio');
+  if(cr.armas.length)partes.push(cr.armas.join(', '));
+  if(!partes.length)return null;
+  return partes.join(', ');
+}
+
+/* ---------- socorro que não descarta trabalho ----------
+   O vigia continua existindo — sem ele o jogador fica olhando uma tela
+   morta. O que muda é que ele deixou de ser um teleporte que joga fora o
+   que estava em curso, e passou a dizer o que aconteceu. */
+if(typeof socorro==='function'){
+  const _socorro=socorro;
+  socorro=function(){
+    const tinha=livroTemCoisa();
+    let recuperado=null;
+    if(tinha){
+      try{ recuperado=recuperarExpedicao(); }
+      catch(e){ registrarErro(e,'socorro/recuperar'); }
+    }
+    const r=_socorro.apply(this,arguments);
+    try{
+      if(recuperado)
+        diz('O que você já tinha pegado veio junto: '+recuperado+'. Isso não se perde.','bom');
+      const ult=(S.erros||[])[ (S.erros||[]).length-1 ];
+      if(ult)diz('Anota isso se for me contar: '+ult.onde+' — '+ult.msg,'fraco');
+    }catch(e){}
+    return r;
+  };
+}
+
+/* ---------- o erro global para de ser jogado fora ---------- */
+addEventListener('error',e=>{
+  registrarErro(e.error||new Error(e.message||'erro sem mensagem'),
+    'window.error '+((e.filename||'').split('/').pop()||'')+':'+(e.lineno||0));
+});
+addEventListener('unhandledrejection',e=>{
+  registrarErro(e.reason||new Error('promessa rejeitada sem motivo'),'unhandledrejection');
+});
+
+/* ---------- persistência ---------- */
+if(typeof salvar==='function'){
+  const _sv=salvar;
+  salvar=function(){
+    _sv.apply(this,arguments);
+    try{
+      const d=JSON.parse(localStorage.getItem(CHAVE)||'{}');
+      d.exped=S.exped||null;
+      d.erros=S.erros||[];
+      localStorage.setItem(CHAVE,JSON.stringify(d));
+    }catch(e){}
+  };
+}
+
+/* Migração: save antigo não tem `exped` nem `erros`, e a ausência já é o
+   estado correto — ninguém estava no meio de uma expedição. Nada a
+   converter, e nada quebra. */
+if(S.exped===undefined)S.exped=null;
+if(!Array.isArray(S.erros))S.erros=[];
+
+/* Ao carregar um save com expedição aberta, o saque volta pra casa junto
+   com você. Fica pro primeiro quadro depois da carga, pra `diz` já ter
+   uma tela onde escrever. */
+setTimeout(()=>{
+  try{
+    if(!livroAberto())return;
+    const t=recuperarExpedicao();
+    if(t)diz('Você tinha saído e o jogo caiu no meio. O que estava com você chegou: '+t+'.','bom');
+    else fecharLivro();
+  }catch(e){ registrarErro(e,'recuperarExpedicao'); }
+},2500);
+
+function expedEstado(){
+  return {aberto:livroAberto(), temCoisa:livroTemCoisa(),
+    levar:S.exped?{...S.exped.levar}:null,
+    achados:S.exped?S.exped.achados.length:0,
+    erros:(S.erros||[]).length};
+}
+
+</script>
+<!-- s23:fim -->
 </body>
 </html>

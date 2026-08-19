@@ -37,7 +37,15 @@ function baus(){
   return S.baus;
 }
 function bauDe(id){return baus()[id];}
-function capacidade(id){
+/* NOME PRÓPRIO, e isto é a correção de um bug crítico: esta função se
+   chamava `capacidade`, igual à da expedição (index.html:9972), que diz
+   quantos QUILOS você carrega e recebe o PARCEIRO. O jogo é um escopo
+   global só; este bloco é injetado depois, então ele apagava a outra.
+   A partir daí toda expedição estourava em `etapaCarga` com
+   "Cannot read properties of undefined (reading 'slots')", porque
+   `BAUS[parceiro]` não existe — e o jogador voltava pra casa sem nada,
+   já que o loot só é creditado no fim. */
+function capacidadeBau(id){
   return BAUS[id].slots+bauDe(id).nivel*SLOTS_POR_MELHORIA;
 }
 function usados(id){return bauDe(id).itens.length;}
@@ -69,7 +77,7 @@ function porNoBau(id,item,q){
   for(let i=0;i<(q||1);i++){
     const alvo=b.itens.find(x=>podeEmpilhar(x,item));
     if(alvo){alvo.q++;posto++;continue;}
-    if(b.itens.length>=capacidade(id))break;
+    if(b.itens.length>=capacidadeBau(id))break;
     const novo={id:item.id,q:1,dia:item.dia||S.dia};
     if(ehDuravel(item.id)){novo.dur=item.dur;novo.durMax=item.durMax;}
     carimbar(novo);
@@ -294,7 +302,7 @@ function desenharBau(){
   const inf=mochilaInfo();
   el.querySelector('.tit').textContent=B.n;
   el.querySelector('.cont-bau').innerHTML=
-    `<b>${usados(UI.bau)}</b>/${capacidade(UI.bau)}`;
+    `<b>${usados(UI.bau)}</b>/${capacidadeBau(UI.bau)}`;
   /* "vol" atrás do volume porque, colado no contador de slots do
      armário, um "18/60" solto se lê como espaço de slot */
   el.querySelector('.cont-moch').innerHTML=
@@ -435,12 +443,12 @@ menuComodo=function(id){
   if(bid){
     const b=bauDe(bid);
     botao(BAUS[bid].n,()=>abrirBau(bid,()=>menuComodo(id)),
-      {custo:usados(bid)+'/'+capacidade(bid)+' · tecla E'});
+      {custo:usados(bid)+'/'+capacidadeBau(bid)+' · tecla E'});
     if(b.nivel<MAX_MELHORIAS)
       botao('Montar mais prateleira',acaoDia(2,async()=>{
         if(!melhorarBau(bid)){diz('Faltou tábua ou prego.','perigo');return;}
         martelada(5,-.15);await pausa(1200);
-        diz(`${BAUS[bid].n} agora cabe ${capacidade(bid)} coisas.`,'bom');
+        diz(`${BAUS[bid].n} agora cabe ${capacidadeBau(bid)} coisas.`,'bom');
       }),{custo:'2h · 3 tábuas + 2 pregos · +'+SLOTS_POR_MELHORIA+' espaços',
           falta:(temMat('tabua',3)&&temMat('prego',2))?'':'falta tábua ou prego'});
   }

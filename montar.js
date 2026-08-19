@@ -23,6 +23,7 @@ const BLOCOS=[
   {arq:'s20-armas.js',          ini:'<!-- s20:inicio -->',  fim:'<!-- s20:fim -->'},
   {arq:'s21-corpo.js',          ini:'<!-- s21:inicio -->',  fim:'<!-- s21:fim -->'},
   {arq:'s22-menu.js',           ini:'<!-- s22:inicio -->',  fim:'<!-- s22:fim -->'},
+  {arq:'s23-expedicao.js',      ini:'<!-- s23:inicio -->',  fim:'<!-- s23:fim -->'},
 ];
 
 /* A voz da abertura entra embutida. O jogo é um arquivo só — é o que a
@@ -45,6 +46,68 @@ const EMBUTIR={
      embutir 0,84 MB de base64 que ninguém toca era peso morto no HTML.
      O arquivo continua no repositório caso a voz volte. */
 };
+
+/* ============ TRAVA DE COLISÃO DE NOME ============
+   O jogo é um escopo global só: index.html e os 14 blocos dividem os
+   mesmos ~1200 nomes de topo. Redefinir um nome NÃO dá erro — o último
+   vence, calado, e quem chamava o primeiro passa a chamar outra coisa.
+
+   Foi assim que `capacidade` do baú (§16) apagou a `capacidade` da
+   expedição e fez toda saída pra rua estourar na tela de carga, e assim
+   que `ficha()` do §19 apagou a `ficha(nome,tag,texto)` que desenha
+   linha de tela e deixou 20 e tantas listas do jogo em branco.
+
+   Nenhum dos dois apareceu em teste nenhum durante versões inteiras,
+   porque não produzem erro na carga. Então a checagem virou parte da
+   montagem: colisão nova QUEBRA O BUILD.
+
+   A lista abaixo são as substituições deliberadas — casos em que o
+   index.html deixa um gancho vazio de propósito esperando o bloco. Pra
+   acrescentar uma, escreva por que ela é intencional. */
+const COLISAO_OK=new Set([
+  'passo',       /* v48 troca o passo sintetizado pelo sistema de superfícies */
+  'gastarArma',  /* index.html:4696 é stub {} que o §15 preenche */
+  'chanceArma',  /* index.html:4697 é stub `return p` */
+  'usarFerra',   /* index.html:4698 é stub `return true` */
+  'vestir',      /* §15 só armadura → §21 com os 14 slots, sucessor legítimo */
+]);
+
+function nomesDeTopo(txt){
+  const out=new Map();
+  txt.split('\n').forEach((l,i)=>{
+    let m=/^function\s+([A-Za-z_$][\w$]*)\s*\(/.exec(l);
+    if(m){ if(!out.has(m[1]))out.set(m[1],i+1); return; }
+    m=/^(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=/.exec(l);
+    if(m&&!out.has(m[1]))out.set(m[1],i+1);
+  });
+  return out;
+}
+function checarColisoes(){
+  const vistos=new Map();      /* nome -> 'arquivo:linha' */
+  const ruins=[];
+  /* o index.html conta sem os blocos já injetados */
+  const base=fs.readFileSync('index.html','utf8')
+    .replace(/<!-- (v48|s\d+|cine|corte|am):inicio -->[\s\S]*?<!-- \1:fim -->/g,
+      m=>m.replace(/[^\n]/g,' '));
+  const fontes=[['index.html',base]].concat(
+    BLOCOS.map(b=>[b.arq,fs.readFileSync(b.arq,'utf8')]));
+  for(const [arq,txt] of fontes){
+    for(const [nome,linha] of nomesDeTopo(txt)){
+      if(vistos.has(nome)&&!COLISAO_OK.has(nome))
+        ruins.push(`  ${nome}\n      ${vistos.get(nome)}\n      ${arq}:${linha}`);
+      else if(!vistos.has(nome))vistos.set(nome,arq+':'+linha);
+    }
+  }
+  if(ruins.length){
+    console.error('\nCOLISÃO DE NOME GLOBAL — o segundo apaga o primeiro em silêncio:\n');
+    console.error(ruins.join('\n'));
+    console.error('\nRenomeie um dos dois, ou registre em COLISAO_OK dizendo por quê.\n');
+    process.exit(1);
+  }
+  console.log('sem colisão de nome ('+vistos.size+' nomes de topo, '
+    +COLISAO_OK.size+' substituições declaradas)');
+}
+checarColisoes();
 
 let html=fs.readFileSync('index.html','utf8');
 

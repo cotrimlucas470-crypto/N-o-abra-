@@ -162,8 +162,16 @@ const CLASSES={
 };
 const CLASSE_IDS=Object.keys(CLASSES);
 
-/* ================= O ESTADO DA FICHA ================= */
-function ficha(){
+/* ================= O ESTADO DA FICHA =================
+   NOME PRÓPRIO, e isto é a correção de um bug crítico: esta função se
+   chamava `ficha`, igual à do index.html:869, que DESENHA UMA LINHA DE
+   TELA e recebe (nome, tag, texto). O jogo é um escopo global só; este
+   bloco é injetado depois, então ele apagava a outra — e as 20 e tantas
+   chamadas de UI espalhadas pelo jogo (lista de gente, lista do loot,
+   bancada de armas) passaram a não desenhar coisa nenhuma, sem erro
+   nenhum, porque esta versão aceita qualquer argumento e devolve a
+   ficha do personagem. */
+function fichaJogador(){
   if(!S.ficha||typeof S.ficha!=='object')S.ficha={classe:null,pontos:{},versao:1};
   if(!S.ficha.pontos||typeof S.ficha.pontos!=='object')S.ficha.pontos={};
   ATRIB_IDS.forEach(k=>{
@@ -175,20 +183,20 @@ function ficha(){
   if(!CLASSES[S.ficha.classe])S.ficha.classe=S.ficha.classe===null?null:'civil';
   return S.ficha;
 }
-function classeAtual(){ const f=ficha(); return f.classe?CLASSES[f.classe]:null; }
+function classeAtual(){ const f=fichaJogador(); return f.classe?CLASSES[f.classe]:null; }
 function pontosTotais(){
   const c=classeAtual();
   return FICHA_PONTOS+((c&&c.passiva.id==='sem-vicio')?2:0);
 }
 function pontosGastos(){
-  const f=ficha();
+  const f=fichaJogador();
   return ATRIB_IDS.reduce((s,k)=>s+f.pontos[k],0);
 }
 function pontosLivres(){ return pontosTotais()-pontosGastos(); }
 
 /* as três parcelas, separadas — é o que a tela mostra em colunas */
 function parcelas(k){
-  const f=ficha(), c=classeAtual();
+  const f=fichaJogador(), c=classeAtual();
   const investido=f.pontos[k]||0;
   const bonus=c?((c.mais&&c.mais[k])||0)-((c.menos&&c.menos[k])||0):0;
   /* o que você está vestindo é a terceira parcela. Vem do §21, por
@@ -467,7 +475,7 @@ let _fichaAba='classe', _fichaFoco=null;
 
 function telaFicha(aoConfirmar){
   estiloFicha();
-  const f=ficha();
+  const f=fichaJogador();
   if(!f.classe)f.classe='sobrevivente';
   const el=document.createElement('div');
   el.id='ficha';
@@ -505,7 +513,7 @@ function telaFicha(aoConfirmar){
     CLASSE_IDS.forEach(id=>{
       const C=CLASSES[id];
       const b=document.createElement('button');
-      b.className='cl'+(ficha().classe===id?' on':'');
+      b.className='cl'+(fichaJogador().classe===id?' on':'');
       const mais=Object.keys(C.mais||{}).map(k=>`+${C.mais[k]} ${ATRIBUTOS[k].n}`).join(' · ');
       const menos=Object.keys(C.menos||{}).map(k=>`−${C.menos[k]} ${ATRIBUTOS[k].n}`).join(' · ');
       const itens=(C.itens||[]).map(i=>(CATALOGO[i]||{n:i}).n.toLowerCase()).join(', ');
@@ -515,7 +523,7 @@ function telaFicha(aoConfirmar){
         +`<i style="color:var(--lampiao)">passiva · ${esc(C.passiva.n)}: ${esc(C.passiva.d)}</i>`
         +`<i style="color:var(--mofo)">começa com: ${esc(itens)}${C.veste?' · vestindo '+esc((CATALOGO[C.veste]||{n:C.veste}).n.toLowerCase()):''}</i>`;
       b.onclick=()=>{
-        ficha().classe=id;
+        fichaJogador().classe=id;
         if(typeof amToca==='function')amToca('ui_clique');
         /* trocar de ofício pode estourar o teto de um atributo: o
            investimento excedente volta pro bolso em vez de sumir */
@@ -556,14 +564,14 @@ function telaFicha(aoConfirmar){
         _fichaFoco=k;
         if(pontosLivres()<=0)return avisar('Não sobrou ponto pra gastar.');
         if(P.efetivo>=FICHA_MAX)return avisar(`${A.n} já está no teto de ${FICHA_MAX}.`);
-        ficha().pontos[k]++;
+        fichaJogador().pontos[k]++;
         if(typeof amToca==='function')amToca('ui_clique');
         avisar(''); pintar();
       };
       linha.querySelector('.menos').onclick=()=>{
         _fichaFoco=k;
-        if(ficha().pontos[k]<=0)return avisar('Não há ponto seu pra tirar daqui.');
-        ficha().pontos[k]--;
+        if(fichaJogador().pontos[k]<=0)return avisar('Não há ponto seu pra tirar daqui.');
+        fichaJogador().pontos[k]--;
         if(typeof amToca==='function')amToca('ui_clique');
         avisar(''); pintar();
       };
@@ -616,7 +624,7 @@ function telaFicha(aoConfirmar){
 
   el.querySelectorAll('.aba').forEach(a=>a.onclick=()=>{ _fichaAba=a.dataset.a; avisar(''); pintar(); });
   el.querySelector('.zerar').onclick=()=>{
-    ATRIB_IDS.forEach(k=>ficha().pontos[k]=0);
+    ATRIB_IDS.forEach(k=>fichaJogador().pontos[k]=0);
     avisar('Distribuição zerada.'); pintar();
   };
   el.querySelector('.ok').onclick=()=>{
@@ -644,7 +652,7 @@ function telaFicha(aoConfirmar){
 
 /* pontos que passaram do teto por causa do ofício voltam pro bolso */
 function devolverExcesso(){
-  const f=ficha();
+  const f=fichaJogador();
   ATRIB_IDS.forEach(k=>{
     const c=classeAtual();
     const bonus=c?((c.mais&&c.mais[k])||0)-((c.menos&&c.menos[k])||0):0;
@@ -664,7 +672,7 @@ function devolverExcesso(){
 /* a validação que o botão de confirmar usa. Devolve a mensagem do
    problema, ou '' quando está tudo certo. */
 function validarFicha(){
-  const f=ficha();
+  const f=fichaJogador();
   if(!CLASSES[f.classe])return 'Escolha um ofício.';
   for(const k of ATRIB_IDS){
     const v=f.pontos[k];
@@ -683,7 +691,7 @@ function validarFicha(){
 function aplicarFicha(){
   const C=classeAtual();
   if(!C)return;
-  const f=ficha();
+  const f=fichaJogador();
   if(f.aplicada)return;              /* nunca duas vezes: duplicaria item */
   f.aplicada=true;
   (C.itens||[]).forEach(id=>{
@@ -777,7 +785,7 @@ if(typeof carregar==='function'){
         /* `aplicada:true` de propósito: save antigo já tem os itens
            que juntou, e não pode ganhar kit inicial de brinde agora */
       }
-      ficha();                        /* prende valores fora da faixa */
+      fichaJogador();                        /* prende valores fora da faixa */
     }
     return r;
   };
@@ -785,7 +793,7 @@ if(typeof carregar==='function'){
 
 /* atalho de leitura pro resto do jogo e pros testes */
 function fichaEstado(){
-  const f=ficha(), C=classeAtual();
+  const f=fichaJogador(), C=classeAtual();
   return {classe:f.classe, classeNome:C?C.n:null, passiva:C?C.passiva.id:null,
     pontos:{...f.pontos}, gastos:pontosGastos(), livres:pontosLivres(),
     total:pontosTotais(), aplicada:!!f.aplicada,
