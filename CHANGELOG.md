@@ -1,5 +1,72 @@
 # CHANGELOG
 
+## v52 — curva de dificuldade
+
+Multiplicador **único e centralizado** em `s25-dificuldade.js`, com `DIF_CFG`.
+
+    dia 1 → 0.60     sobe (smoothstep, 12 dias)     satura → 0.80
+
+Nunca volta a 1.00, nunca passa de 0.80. A redução permanente de 20% é o teto;
+os 40% do dia 1 são a rampa.
+
+### Cinco pontos de aplicação, um embrulho cada
+
+| função | o que controla | modo |
+|---|---|---|
+| `riscoInvasao` | frequência das anomalias | direto |
+| `escassez` | escassez de recursos | direto |
+| `pegarMal` | dano recebido (duração do mal) | direto |
+| `gastoComida` | custo de fome | direto |
+| `folegoPorta` | agressividade suportada | **inverso** |
+
+**Por que `folegoPorta` é inverso:** ele diz quantos encontros você aguenta numa
+invasão. Multiplicar por 0.60 ali teria deixado o jogo **mais difícil**, não
+menos. Existe `difInverso()` separado, com nome diferente, pra ninguém aplicar o
+errado por distração.
+
+### Prova de que não há dupla aplicação
+
+O teste instrumenta `dif()` e conta quantas vezes ela é chamada por invocação de
+cada função embrulhada. **Todas devolvem exatamente 1.** Além disso
+`embrulharUmaVez()` recusa um segundo embrulho e avisa no console — o teste
+tenta embrulhar `escassez` de novo e prova que o valor não muda.
+
+### Uma coisa que foi pedida e NÃO existe neste jogo
+
+**"Tempo de reação exigido em eventos".** Não há nenhuma decisão com prazo: o
+jogo é de menu e espera indefinidamente pelo toque. A varredura achou um único
+`setTimeout` resolvendo promessa, e é o vigia anti-travamento. A tela do resgate
+diz "você tem uns quarenta segundos pra decidir", mas é texto — não há contagem.
+Está declarado em vez de fingido. Se um dia existir decisão com prazo, ela usa
+`difInverso()` e nada mais precisa mudar.
+
+### Um defeito que o teste achou
+
+`dificuldadeNoDia(1e9)` saturava em 0.80 mas `dificuldadeNoDia(Infinity)` caía
+em 0.60 — duas respostas opostas para "número absurdo". A regra virou explícita:
+**não-número é save corrompido e cai no dia 1** (o mais fácil: diante de estado
+quebrado o benefício é do jogador); **número válido, ainda que absurdo, satura**.
+
+### Save
+
+Nada a migrar. A dificuldade é função pura de `S.dia`, que todo save já tem.
+Quem estava no dia 7 entra na curva no ponto do dia 7 — nem punido nem
+presenteado. Guardar o multiplicador no save criaria um segundo lugar onde a
+verdade mora, e um save velho ficaria preso numa curva antiga pra sempre.
+
+### Debug
+
+    difDia(20)     pula pro dia 20 e mostra o multiplicador na tela
+    difTabela()    imprime a curva inteira
+    difEstado()    dia, valor, inverso, config e os cinco pontos
+
+### Testes
+
+`difteste`: **24 verificações, 0 falhas**. Regressão: `fugateste`, `expteste`,
+`v50`, `qual` — 0 falhas.
+
+---
+
 ## v51 — auditoria, expedição transacional e fuga jogável
 
 Quatro fases, quatro commits. O resumo do que quebrou, por que quebrou e o que
