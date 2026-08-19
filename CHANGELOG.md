@@ -1,5 +1,85 @@
 # CHANGELOG
 
+## v55 — experiência por uso
+
+`s28-progresso.js`, com `PROG_CFG`. Nada de XP por abate.
+
+| atributo | sobe ao | quanto |
+|---|---|---|
+| Velocidade | correr | 9 por cômodo **novo** na invasão |
+| Força | carregar peso | 0,55 por (kg−6) × hora |
+| Destreza | consertar | 26 por reparo |
+| Furtividade | escapar sem ser visto | 60 por fuga limpa |
+
+**Usa `S.ficha.pontos` e `parcelas()` do §19.** Não existe objeto novo de
+atributo nem contador paralelo — `S.prog` guarda **só o progresso parcial** rumo
+ao próximo ponto; quando fecha, o ponto entra em `S.ficha.pontos`, o mesmo lugar
+de sempre.
+
+### A curva desacelera
+
+`custo(n) = 100 × n^1,55`. Do 1º ao 8º ponto: **100 → 293 → 549 → 857 → 1212 →
+1607 → 2041 → 2511**. O salto também cresce, não só o custo.
+
+### Os quatro anti-exploits, um por atributo
+
+| exploit | proteção | medido |
+|---|---|---|
+| correr em círculo | só conta cômodo **novo** na invasão | 40 idas e vindas entre 2 cômodos = 18 de XP (os 2 primeiros), não 360 |
+| largar/pegar o mesmo objeto | o crédito é por **hora**, e hora só passa em `gastarHoras` | 60 ciclos = **0** |
+| consertar/quebrar o mesmo item | um item conta **uma vez por dia** | 30 reparos da mesma faca = 26, o de um |
+| re-disparar a mesma fuga | uma vez por fuga, e só com `avisos === 0` | 20 disparos = 60, o de uma. Fuga com detecção = 0 |
+
+Mais um teto diário de 140 por atributo, pra sessão longa não virar corrida de
+paciência.
+
+### O teto de 10, provado em quatro caminhos
+
+Doação gigante de uma vez, ganho ao longo de 400 dias, quem já está em 10, e o
+caso de o **efetivo** estar em 10 por roupa enquanto o **investido** está baixo —
+nesse ainda faz sentido treinar, porque tirar a roupa não pode derrubar o que
+você treinou.
+
+### Duas correções ao pedido, ditas em vez de fingidas
+
+1. **A barra de progresso é DOM, não canvas.** Foi pedida "desenhada por função
+   no canvas". A ficha deste jogo **não é canvas**: `telaFicha` monta um `<div
+   id="ficha">` com innerHTML (§19:476). Desenhar em canvas exigiria uma segunda
+   tela de ficha só pra barra — mais código, duas telas pra manter, zero ganho.
+   A barra fica onde o número do atributo já está. (O §19 ganhou um `data-atr`
+   por atributo, que é a âncora — a lista era string montada, sem elemento por
+   atributo.)
+2. **O teste do teto de 10 estava errado, não o código.** A primeira versão
+   esperava que uma doação gigante de uma vez chegasse a 10; o teto **diário**
+   morde antes, e está certo — uma doação gigante não pode furar o limite do dia.
+   O teste agora prova as duas coisas separadamente.
+
+### Um teste que era sorteio
+
+`portateste` exigia `custo > 0` na medição de desempenho da silhueta. O efeito é
+~0,04 ms e o ruído da bancada é ~0,5 ms: afirmar o **sinal** de algo 25× menor
+que o ruído não é teste. Agora ele mede o ruído (diferença entre duas leituras da
+mesma condição) e afirma o que dá pra afirmar: **o custo é menor que o ruído**.
+
+### Migração
+
+Save antigo não tem `prog`. O valor neutro é **zero progresso parcial**: não zera
+atributo nenhum (o que foi investido na criação continua em `S.ficha.pontos`) e
+não presenteia com XP por um passado que ninguém mediu.
+
+### Testes
+
+`progteste`: **28 verificações, 0 falhas**. Regressão: `portateste`, `anomteste`,
+`difteste`, `v50`, `qual` — 0 falhas.
+
+### Ainda não feito deste prompt
+
+Partes 2 (objetivo final) e 3 (marcos intermediários). O objetivo final **já
+existe** — `telaResgate()` no dia 12, o caminhão do Exército, com quatro finais.
+Aprofundar isso é trabalho separado e não foi começado.
+
+---
+
 ## v54 — a silhueta debaixo da porta
 
 `s27-porta.js`, com `PORTA_CFG`.

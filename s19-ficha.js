@@ -596,10 +596,15 @@ function telaFicha(aoConfirmar){
     ]);
     bloco('atributos',ATRIB_IDS.map(k=>{
       const P=parcelas(k);
-      return `${esc(ATRIBUTOS[k].n)}: <b>${P.efetivo}</b> <em>(${P.investido} seu`
+      /* o `data-atr` é âncora pro §28 pendurar a barra de progresso do
+         atributo que sobe por uso. Sem ele o bloco de progressão não
+         tem onde escrever — a lista é string montada, sem elemento por
+         atributo. */
+      return `<span data-atr="${k}">${esc(ATRIBUTOS[k].n)}: <b>${P.efetivo}</b> `
+        +`<em>(${P.investido} seu`
         +(P.bonus?`, ${P.bonus>0?'+':''}${P.bonus} do ofício`:'')
         +(P.equip?`, ${P.equip>0?'+':''}${P.equip} da roupa`:'')
-        +(P.cortado?', cortado no teto':'')+`)</em>`;
+        +(P.cortado?', cortado no teto':'')+`)</em></span>`;
     }));
     bloco('o que isso vale',[
       `Carga máxima: <b>${D.carga} kg</b>`,

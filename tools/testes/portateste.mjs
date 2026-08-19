@@ -125,13 +125,22 @@ d=await p.evaluate(()=>{
   cena.sombra.dentro=false; const b2=roda(400);
   cena.sombra.dentro=true;  const a2=roda(400);
   const comSombra=(a1+a2)/2, semSombra=(b1+b2)/2;
+  /* O RUÍDO da bancada: a diferença entre duas medidas da MESMA
+     condição. É o piso do que dá pra afirmar aqui. */
+  const ruido=Math.max(Math.abs(a1-a2),Math.abs(b1-b2));
   return {comSombra:+comSombra.toFixed(3), semSombra:+semSombra.toFixed(3),
-    custo:+(comSombra-semSombra).toFixed(3),
+    custo:+(comSombra-semSombra).toFixed(3), ruido:+ruido.toFixed(3),
     amostras:{a1:+a1.toFixed(3),a2:+a2.toFixed(3),b1:+b1.toFixed(3),b2:+b2.toFixed(3)}};
 });
 console.log('   ',JSON.stringify(d),'ms por quadro');
-ok('a silhueta custa menos de 1 ms por quadro',d.custo<1);
-ok('e o custo medido é positivo (senão a medida não vale nada)',d.custo>0);
+/* A afirmação honesta não é "o custo é X": é que o custo está ABAIXO DO
+   PISO DE MEDIÇÃO desta bancada. A versão anterior deste teste exigia
+   `custo > 0`, e falhava metade das vezes — o efeito (~0.04 ms) é umas
+   25 vezes menor que o ruído (~0.5 ms), e afirmar o SINAL de uma coisa
+   menor que o ruído não é teste, é sorteio. */
+ok('o custo da silhueta é menor que o ruído da medição (não dá pra separar)',
+  Math.abs(d.custo)<=d.ruido);
+ok('e é menor que 1 ms em qualquer leitura',Math.abs(d.custo)<1);
 ok('o quadro inteiro cabe em 16 ms (60 fps)',d.comSombra<16);
 
 console.log('\n7. O ATALHO DE DEBUG');
