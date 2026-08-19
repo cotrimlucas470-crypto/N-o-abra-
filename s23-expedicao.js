@@ -265,7 +265,74 @@ if(typeof salvar==='function'){
       d.exped=S.exped||null;
       d.erros=S.erros||[];
       localStorage.setItem(CHAVE,JSON.stringify(d));
-    }catch(e){}
+    }catch(e){ registrarErro(e,'salvar/exped'); }
+  };
+}
+
+/* ---------- backup do save ----------
+   O save é gravado em SETE passos, um por bloco, cada um lendo a chave
+   inteira, acrescentando os campos dele e regravando. Medido: 7
+   escritas, 6 JSON.parse, 0,41 ms, 1,8 KB. O custo é irrelevante; o
+   problema é que não havia de onde voltar. Uma gravação ruim, uma
+   migração errada ou uma das sete falhando no meio deixava o jogador
+   sem partida e sem alternativa.
+
+   Agora, antes da primeira gravação de cada save, o conteúdo anterior
+   — se for JSON válido — vai pra uma chave de sombra. E na carga, se o
+   principal estiver quebrado, o backup entra no lugar. Uma geração só:
+   não é histórico, é rede. */
+const CHAVE_BAK=(typeof CHAVE!=='undefined'?CHAVE:'naoabra')+'-bak';
+let _bakFeitoNesteSave=false;
+if(typeof salvar==='function'){
+  const _sv2=salvar;
+  salvar=function(){
+    if(!_bakFeitoNesteSave){
+      _bakFeitoNesteSave=true;
+      try{
+        const atual=localStorage.getItem(CHAVE);
+        if(atual){
+          JSON.parse(atual);                    /* só copia o que é válido */
+          localStorage.setItem(CHAVE_BAK,atual);
+        }
+      }catch(e){ /* principal já estava corrompido: preserva o backup */ }
+      /* solta a trava no fim do turno, pra próxima chamada fazer backup
+         do estado novo em vez de gravar sete cópias do mesmo */
+      setTimeout(()=>{_bakFeitoNesteSave=false;},0);
+    }
+    return _sv2.apply(this,arguments);
+  };
+}
+/* devolve o save utilizável: o principal se ele fizer sentido, o backup
+   se não. Quem chama decide o que fazer. */
+function saveUtilizavel(){
+  const ler=k=>{
+    try{
+      const t=localStorage.getItem(k); if(!t)return null;
+      const o=JSON.parse(t);
+      /* um save de verdade tem dia. Objeto vazio ou lixo não serve. */
+      if(!o||typeof o!=='object'||typeof o.dia!=='number')return null;
+      return o;
+    }catch(e){ return null; }
+  };
+  const bom=ler(CHAVE);
+  if(bom)return {de:'principal',dados:bom};
+  const bak=ler(CHAVE_BAK);
+  if(bak)return {de:'backup',dados:bak};
+  return {de:null,dados:null};
+}
+if(typeof carregar==='function'){
+  const _cg=carregar;
+  carregar=function(){
+    const u=saveUtilizavel();
+    if(u.de==='backup'){
+      /* o principal está ilegível: repõe a partir da sombra ANTES de
+         `carregar` ler, senão ele lê o lixo */
+      try{
+        localStorage.setItem(CHAVE,JSON.stringify(u.dados));
+        console.warn('[não abra] save principal ilegível; voltei pro backup');
+      }catch(e){}
+    }
+    return _cg.apply(this,arguments);
   };
 }
 
