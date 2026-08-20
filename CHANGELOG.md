@@ -1,5 +1,107 @@
 # CHANGELOG
 
+## v58 — orquestrador de tensão (Fase 2)
+
+`s31-orquestrador.js`. A camada que faltava: até aqui cada sistema sorteava
+sozinho, e o jogador vivia a soma de dados independentes — às vezes três
+sustos colados, às vezes uma noite morta. Isso **é** aleatoriedade, que é o
+que a regra de ouro proíbe. Agora existe **um** lugar que autoriza evento.
+
+### O silêncio é conteúdo
+
+Os vales de silêncio são agendados **antes** de qualquer permissão ser pedida.
+Não é o que sobra da noite: é o que foi reservado dela. Dentro do vale nada
+passa — nem o primordial. É o único bloqueio absoluto do sistema, porque
+silêncio que qualquer prioridade fura deixa de ser silêncio reservado.
+
+Fora de invasão o relógio de turnos não anda, e turno 0 não é vale: a casa
+continua podendo estragar de dia. Sem essa porta, uma noite que acabasse
+dentro de um vale deixaria a casa congelada até a noite seguinte.
+
+### Critério de aceite — 10.000 noites simuladas
+
+```
+[orq] 10000 noites · média 5.91 · min 3 · p50 6 · p90 7 · max 9
+[orq] noites zeradas: 0 · estouros de orçamento: 0 · faixa alvo 4–8 · DENTRO
+  3 eventos | # 20
+  4 eventos | ##### 461
+  5 eventos | ############################# 2711
+  6 eventos | ############################################## 4293
+  7 eventos | ######################## 2227
+  8 eventos | ### 282
+  9 eventos | # 6
+```
+
+`orqHistograma(n, semente)` no console imprime isso a qualquer hora.
+
+### Noite zerada é impossível por construção, não por sorte
+
+No turno 1 de uma noite nova não há cooldown, não há vale (o primeiro começa
+no turno 3) e o orçamento está inteiro. O primeiro candidato elegível **sempre**
+passa. Um teste de 500 noites confere justamente isso — e foi ele que pegou o
+defeito: `orqTentar` desistia do turno inteiro quando o sorteio caía num
+candidato de precondição falha. Agora a negativa **do candidato** (precondição,
+incompatibilidade) tira ele do pool e o turno segue; só a negativa **do turno**
+(vale, cooldown, orçamento) encerra a tentativa.
+
+### A autoridade é real — ninguém fura a fila
+
+| quem | como pede |
+|---|---|
+| invasão | `checarInvasao` pede permissão pelo bicho sorteado |
+| avaria espontânea | `abrirAvaria` pede permissão antes de inserir |
+| avaria de cadeia | **não pede** — foi ganha pelo descuido, negá-la apagaria consequência |
+
+A linha 1 do `checarInvasao` original é um segundo sorteio que passaria por
+cima da negativa. Ele é silenciado zerando `riscoInvasao` enquanto o original
+decide (`chance(0)` é falso sempre). Sem isso o orquestrador não seria
+autoridade, seria sugestão.
+
+### Nada se perde, nada se empilha
+
+Evento negado volta ao pool com peso maior (+0,45 por negativa, teto 1,8), uma
+entrada por id — não uma por negativa — e some da fila quando é concedido. A
+janela de repetição encarece o que acabou de sair (×0,25) sem proibir.
+
+### As cinco faixas de prioridade, agora com conteúdo em todas
+
+A primeira versão de `classeDe` olhava `duracaoTurnos[1]>=20` e classificava
+**toda** avaria como persistente: duas das cinco faixas ficavam vazias —
+parâmetro morto travestido de design. A faixa agora sai do que a coisa custa ao
+jogador, lida dos dados que a `AVARIAS` já tem:
+
+| faixa | prioridade | quantos | regra |
+|---|---|---|---|
+| primordial | 100 | 1 | o primordial |
+| criatura | 80 | 5 | as outras criaturas |
+| persistente | 55 | 11 | avaria com `pior` (piora sozinha) ou `efeito` (cobra toda noite) |
+| comum | 30 | 2 | avaria terminal de cadeia, mas inerte por noite |
+| ambiental | 10 | 2 | avaria que não piora nem cobra: textura |
+
+Preempção só acontece com Δprioridade ≥ 25 (`ORQ_CFG.deltaPreempcao`): trocar
+um evento por outro quase igual confunde mais do que ajuda.
+
+**Desvio declarado:** o prompt chamava a faixa mais baixa de "clima ambiental".
+O clima e os ruídos ambientes da casa **não** passam pelo orquestrador — o
+`RUIDOS_CASA` é desenho de som contínuo, e fazê-lo pedir permissão calaria a
+casa. A faixa existe e tem conteúdo (avaria inerte), mas não é o clima.
+
+### Ciclo de vida do que está no ar
+
+`S.anomAtivasLista` agora fecha o ciclo: criatura sai ao fim da invasão (em
+`finally`, dê no que der — fuga, morte, amanhecer) e no início de cada noite;
+avaria sai quando é reparada e **fica** quando não é, porque ela é a casa
+quebrada. Sem isso um id de criatura pendurado barraria as outras cinco pra
+sempre — cada uma lista as outras em `incompativelCom`.
+
+### Testes
+
+`tools/testes/orqteste.mjs` — 51 asserções, 0 falhas. Orçamento como teto,
+cooldown global e de categoria isolados um do outro, matriz de coexistência
+simétrica nos 420 pares, preempção, fila de adiados, vales, as 10.000 noites,
+determinismo por semente, estado puro no save, save legado sem orquestrador, e
+a autoridade não sendo furada.
+
 ## v57 — núcleo de governança (Fase 1)
 
 `s30-nucleo.js`. Contrato, não conteúdo: schema, máquina de estados, RNG

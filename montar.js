@@ -31,6 +31,7 @@ const BLOCOS=[
   {arq:'s28-progresso.js',      ini:'<!-- s28:inicio -->',  fim:'<!-- s28:fim -->'},
   {arq:'s29-rumo.js',           ini:'<!-- s29:inicio -->',  fim:'<!-- s29:fim -->'},
   {arq:'s30-nucleo.js',         ini:'<!-- s30:inicio -->',  fim:'<!-- s30:fim -->'},
+  {arq:'s31-orquestrador.js',   ini:'<!-- s31:inicio -->',  fim:'<!-- s31:fim -->'},
 ];
 
 /* A voz da abertura entra embutida. O jogo é um arquivo só — é o que a

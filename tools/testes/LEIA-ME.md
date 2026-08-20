@@ -6,6 +6,8 @@ depois de `node montar.js`:
     node tools/testes/expteste.mjs     # expedição transacional (19)
     node tools/testes/fugateste.mjs    # ciclo da invasão e fuga (30)
     node tools/testes/baktest.mjs      # backup do save (6)
+    node tools/testes/nucleoteste.mjs  # núcleo de governança §30 (50)
+    node tools/testes/orqteste.mjs     # orquestrador de tensão §31 (51)
     node tools/testes/varre.mjs 5 400  # varredura ampla: estouros e invariantes
     node tools/testes/cacaexp.mjs 6 12 # caçador de estouros na expedição
 
@@ -24,5 +26,11 @@ A trava de colisão também roda dentro de `montar.js` e **quebra o build**.
   (`FUGA_CFG`), não na função.
 - Várias telas são `async` e limpam a barra de ações enquanto narram. Esperar
   um tempo fixo dá teste instável; espere os botões aparecerem.
+- Rodar oito harnesses em paralelo **starva o Chromium**: a abertura tem tempos
+  fixos e `#nm` não chega a aparecer. Duas ou três em paralelo, no máximo — a
+  falha parece regressão e não é.
+- No `pedirPermissao` a ordem das barreiras importa pro teste: cooldown global
+  vem antes do de categoria. Pra medir o de categoria isolado, zere o global à
+  mão antes de pedir, senão o global mascara.
 - `riscoDaArea()` é limitado a 0,9 de propósito: nada neste jogo é certeza.
   Teste que exige o encontro precisa insistir.
