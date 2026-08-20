@@ -95,8 +95,36 @@ de `Math.random` durante uma noite inteira simulada: 0 usos), que o estado é
 dado puro que sobrevive a JSON ida e volta, e que save legado carrega com a
 casa sem saber nada de você — que é o estado correto.
 
-Regressão completa depois do §32: 353 asserções em 11 harnesses, 0 falhas,
+Regressão completa depois do §32: 354 asserções em 11 harnesses, 0 falhas,
 varredura ampla com 0 estouros e 0 invariantes violados.
+
+### De quebra: `diasAteTeto` não queria dizer o que dizia
+
+A fumaça no pacote pegou. O comentário do §25 prometia que `dia >= diasAteTeto`
+devolve o teto; a conta dividia por `diasAteTeto` e o teto só chegava no **dia
+13**. O erro sobreviveu a uma suíte inteira porque a asserção que "provava" a
+saturação era:
+
+```js
+ok('satura em 0.80', d.t[d.diasAteTeto]===0.80 || d.t[d.diasAteTeto-1+1]===0.80);
+```
+
+Os dois lados são o **mesmo índice**. Ela passava sempre e não media nada.
+
+Agora a conta divide por `diasAteTeto-1` e o dia 12 devolve exatamente 0,80 —
+nome, comentário e código dizendo a mesma coisa. E o teste passou a conferir
+**dois** pontos: que o dia 12 chegou no teto e que o dia 11 ainda não.
+
+| dia | 1 | 5 | 9 | 11 | **12** | 13 | 40 |
+|---|---|---|---|---|---|---|---|
+| multiplicador | 0,600 | 0,660 | 0,764 | 0,795 | **0,800** | 0,800 | 0,800 |
+
+### Pacote
+
+`v59.zip` — 65 arquivos, 2,8 MB, validado em diretório limpo: descompacta,
+`node montar.js` reconstrói o `index.html` sozinho, e o jogo abre e joga a
+partir do que saiu do zip (13 asserções de fumaça sobre o pacote, não sobre a
+cópia de trabalho).
 
 ## v58 — orquestrador de tensão (Fase 2)
 

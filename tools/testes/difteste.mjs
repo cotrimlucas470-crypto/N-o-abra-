@@ -25,7 +25,11 @@ console.log('   dias 1-14:',d.t.slice(0,14).join(' '));
 console.log('   dias 15-30:',d.t.slice(14).join(' '));
 ok('dia 1 retorna exatamente 0.60',d.dia1===0.60);
 ok('a curva cresce monotonicamente',d.t.every((v,i)=>i===0||v>=d.t[i-1]));
-ok('satura em 0.80',d.t[d.diasAteTeto]===0.80||d.t[d.diasAteTeto-1+1]===0.80);
+/* t[] é indexado do dia 1, então o dia N está em t[N-1]. A versão
+   antiga comparava t[diasAteTeto] com t[diasAteTeto-1+1] — o mesmo
+   índice dos dois lados: passava sempre e não media nada. */
+ok('satura exatamente no dia '+d.diasAteTeto,d.t[d.diasAteTeto-1]===0.80);
+ok('e no dia anterior ainda NÃO chegou lá',d.t[d.diasAteTeto-2]<0.80);
 ok('permanece em 0.80 em dias muito altos',d.t[29]===0.80&&d.t[24]===0.80);
 ok('nunca passa de 0.80',Math.max(...d.t)<=0.80);
 ok('nunca cai abaixo de 0.60',Math.min(...d.t)>=0.60);

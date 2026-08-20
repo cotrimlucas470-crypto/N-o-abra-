@@ -27773,8 +27773,10 @@ const DIF_CFG={
      Aumentar aproxima do jogo original; NUNCA ponha acima de 1.00. */
   teto: 0.80,
 
-  /* quantos dias até encostar no teto. Maior = rampa mais longa e o
-     jogador tem mais tempo antes do jogo endurecer. */
+  /* em que DIA se encosta no teto — dia 12, não "12 dias depois do dia
+     1". A conta usa `diasAteTeto-1` justamente por isso: o dia 1 é o
+     começo da rampa, não o primeiro passo dela. Maior = rampa mais
+     longa e o jogador tem mais tempo antes do jogo endurecer. */
   diasAteTeto: 12,
 
   /* 'linear' sobe em linha reta; 'suave' sobe devagar no começo e
@@ -27790,7 +27792,12 @@ const DIF_CFG={
 
 /* ---------- a curva ----------
    `dia` 1 devolve exatamente DIF_CFG.inicio; `dia` >= diasAteTeto
-   devolve exatamente DIF_CFG.teto. Entre os dois, interpola. */
+   devolve exatamente DIF_CFG.teto. Entre os dois, interpola.
+
+   Esta frase era mentira até a v59: a conta dividia por `diasAteTeto`
+   e o teto só chegava no dia 13. Ninguém percebeu porque a asserção do
+   difteste comparava `t[diasAteTeto]` com `t[diasAteTeto-1+1]` — os
+   dois são o MESMO índice, então ela passava sempre, medindo nada. */
 function dificuldadeNoDia(dia){
   const d=Number(dia);
   /* Duas categorias diferentes, e a distinção é de propósito — o teste
@@ -27804,7 +27811,7 @@ function dificuldadeNoDia(dia){
 
      `Infinity` entra na primeira: não é um dia, é um sintoma. */
   const n=(isFinite(d)&&d>=1)?d:1;
-  const total=Math.max(1,DIF_CFG.diasAteTeto);
+  const total=Math.max(1,DIF_CFG.diasAteTeto-1);
   let t=(n-1)/total;                       /* 0 no dia 1 */
   if(t<0)t=0; if(t>1)t=1;
   if(DIF_CFG.curva==='suave')t=t*t*(3-2*t);   /* smoothstep */

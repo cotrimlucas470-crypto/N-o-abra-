@@ -9,6 +9,10 @@ depois de `node montar.js`:
     node tools/testes/nucleoteste.mjs  # núcleo de governança §30 (50)
     node tools/testes/orqteste.mjs     # orquestrador de tensão §31 (60)
     node tools/testes/memteste.mjs     # memória cognitiva da casa §32 (59)
+
+Fumaça no PACOTE, não na cópia de trabalho — descompacte o zip e aponte:
+
+    PACOTE=/tmp/limpo node tools/testes/fumaca.mjs   # (13)
     node tools/testes/varre.mjs 5 400  # varredura ampla: estouros e invariantes
     node tools/testes/cacaexp.mjs 6 12 # caçador de estouros na expedição
 
