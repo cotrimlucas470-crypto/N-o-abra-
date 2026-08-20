@@ -107,6 +107,38 @@ construção, e media uma animação de 984 ms contra um limite de 1000. Passava
 falhava por sorte. Corrigido **no teste**, não no jogo — a animação continua com
 os mesmos 984 ms.
 
+### M5 · A autoridade do orquestrador era furável ✅ CORRIGIDO
+`index.html:16511` — a primeira linha do `checarInvasao` original é
+`if(S.dia>1&&chance(riscoInvasao()))return invasao()`. O §31 embrulha a função e
+pede permissão antes, mas quando a permissão era **negada** a chamada caía no
+original, que sorteava de novo e podia invadir assim mesmo. O orquestrador não
+era autoridade, era sugestão. Corrigido zerando `riscoInvasao` enquanto o
+original decide — `chance(0)` é falso sempre.
+
+### M6 · Duas das cinco faixas de prioridade estavam vazias ✅ CORRIGIDO
+`classeDe` olhava `duracaoTurnos[1]>=20` e as 15 avarias têm todas `[6,40]`:
+**toda** avaria era "persistente", e `comum` e `ambiental` nunca continham nada.
+Parâmetro morto travestido de design. A faixa agora sai de `pior` e `efeito`,
+dados que a `AVARIAS` já tinha. Fica a **ressalva declarada**: a faixa mais
+baixa foi pedida como "clima ambiental", e o clima **não** passa pelo
+orquestrador — quem cai nela é avaria inerte.
+
+### M7 · `orqTentar` matava o turno no primeiro candidato inelegível ✅ CORRIGIDO
+Sorteava um id, pedia permissão, e devolvia `null` se fosse negado — mesmo
+quando a negativa era da precondição **daquele** candidato e outros passariam.
+Um teste de 500 noites pegou 2 turnos 1 mortos por isso, e com eles a promessa
+de "noite nunca zerada por construção" caía pra sorte. Negativa do candidato
+agora tira ele do pool e o turno segue; só negativa do turno (vale, cooldown,
+orçamento) encerra.
+
+### M8 · A isca da memória era inalcançável em jogo real ✅ CORRIGIDO
+`tensaoBaixa` barrava qualquer `ativas().length`. Só que o relógio de turnos do
+orquestrador **só anda durante a invasão**, e durante a invasão inteira o id da
+criatura está no ar — então a condição nunca podia ser verdadeira jogando. O
+teste passava porque montava o estado à mão, que é exatamente o tipo de teste
+que não prova nada. Calmaria passou a ser o bicho **longe** (≥ 3 cômodos, num
+diâmetro de 4), que é a calmaria que este jogo realmente tem.
+
 ---
 
 ## BAIXO — código morto, números mágicos

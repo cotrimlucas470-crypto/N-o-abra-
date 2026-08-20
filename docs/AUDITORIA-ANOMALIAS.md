@@ -210,3 +210,43 @@ vai deixar explícito, por arquivo, o que é permitido.
 
 **Parado aqui, conforme pedido.** Nenhuma linha do jogo foi alterada. Aguardo sua
 confirmação sobre os quatro pontos do §6.
+
+---
+
+# ENCERRAMENTO — as quatro fases entregues
+
+Você respondeu *"por sua conta"*. As quatro perguntas do §6 foram decididas
+assim, e cada decisão está registrada no CHANGELOG da fase em que virou código:
+
+| pergunta | decisão | onde |
+|---|---|---|
+| conjunto das "33" | 15 AVARIAS + 6 criaturas = **21 governados**; as 12 de `ANOMALIAS` ficam fora porque **são** os tells da porta | v57 |
+| RNG 100% semeado | **não** — semeado no que decide jogo, `Math.random` fica no cosmético | v57 |
+| as 12 no schema | **não** — precisariam de um tell do tell | v57 |
+| invasão serializável | **sim** — era variável local, fechar o app perdia a noite | v57 |
+
+| fase | bloco | asserções | estado |
+|---|---|---|---|
+| 0 · auditoria | *(este documento)* | — | entregue |
+| 1 · vocabulário | `s30-nucleo.js` | 50 | entregue |
+| 2 · orquestrador | `s31-orquestrador.js` | 60 | entregue |
+| 3 · memória | `s32-memoria.js` | 59 | entregue |
+
+**Os oito parâmetros mortos que a auditoria listou foram implementados ou
+removidos, nenhum ficou como estava.** Quatro defeitos novos apareceram durante
+as fases 2 e 3 e estão em `docs/BUGS.md` como M5–M8 — dois deles (a autoridade
+furável e a isca inalcançável) eram sistemas inteiros que **pareciam** funcionar
+porque só o teste os alcançava.
+
+**As oito proibições absolutas foram respeitadas.** Nenhuma das anomalias
+existentes foi reescrita: as 21 são envelopadas por adaptadores que apontam pra
+fonte (`fonte:{tabela,chave}`). Save legado carrega e joga — há teste pra isso
+em cada fase. `Math.random` não é chamado nenhuma vez pelo sistema de
+anomalias, com contador instalado por cima dele durante uma noite simulada
+inteira. O estado serializável é dado puro. Nenhuma biblioteca entrou.
+
+**Uma ressalva declarada, não escondida:** a faixa de prioridade mais baixa foi
+pedida como *"clima ambiental"*. O clima e o `RUIDOS_CASA` **não** passam pelo
+orquestrador — o `RUIDOS_CASA` é desenho de som contínuo, e fazê-lo pedir
+permissão calaria a casa. A faixa existe e tem conteúdo (avaria inerte), mas
+não é o clima.
