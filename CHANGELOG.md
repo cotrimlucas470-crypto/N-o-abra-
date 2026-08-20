@@ -1,5 +1,103 @@
 # CHANGELOG
 
+## v59 — memória cognitiva da casa (Fase 3)
+
+`s32-memoria.js`. A casa passa a lembrar de **como** você joga — e a cobrar
+por isso. Nada aqui é conteúdo novo: os três comportamentos são feitos com o
+que o jogo já tinha, e o único registro novo (a isca) existe porque o
+comportamento pedido precisava de um.
+
+### Média móvel, não contador
+
+Contador é injusto duas vezes: nunca esquece e nunca perdoa. Quem se escondeu
+trinta vezes no dia 3 continuaria sendo "o que se esconde" no dia 20. A média
+móvel exponencial (α = 0,28, **meia-vida de ~2 noites** medida em teste)
+resolve os dois — e o esquecimento **é** a própria média sendo alimentada com
+zero nas noites em que o método não apareceu. Não existe um segundo mecanismo
+de decaimento pra discordar deste.
+
+### A casa só age com certeza
+
+`memLer` é a **única** porta de leitura e devolve **zero** — não "um pouco" —
+enquanto a confiança não passa de 0,6. Confiança é `n/(n+4)`: **seis noites de
+evidência** antes de a casa mexer uma palha. Sem isso ela reagiria a
+coincidência, e perseguição sem causa é aleatoriedade com outro nome.
+
+| n | 1 | 3 | 6 | 7 |
+|---|---|---|---|---|
+| confiança | 0,20 | 0,43 | 0,60 | **0,64** |
+| lido | 0 | 0 | 0 | **0,90** |
+
+### Os três comportamentos
+
+**1 · Encarece, não elimina.** Método usado sempre torna a contra-anomalia dele
+mais provável. O multiplicador é **sempre ≥ 1** e tem teto (1 + 0,70 × 1,4 =
+1,98): no máximo dobra o peso de escolha, nunca zera nenhum outro. Testado em
+todo o catálogo — mínimo 1,0, máximo 1,961.
+
+A tabela `MEM_CONTRA` tem sete linhas e cada uma aponta pro conteúdo que já
+existe: quem resolve com luz acesa fica mais sujeito a `avaria_fiacao` e
+`avaria_curto`; quem se esconde, ao Imitador e ao Rastejante; quem corre, ao
+Coro. Onde o jogo não tem contra pro método, a linha não existe — inventar uma
+seria conteúdo novo disfarçado de balanceamento.
+
+A rotina de cômodo não tem tabela nenhuma: **o cômodo mais pisado é o que
+estraga**, lido do `AVARIAS[k].onde` que o jogo já tinha escrito.
+
+**2 · A isca.** Quem resolve tudo com luz acesa nunca precisou do escuro. Com
+`metodos.luz > 0,75` e confiança, numa calmaria, a casa apaga uma luminária
+perto de você. Tem piscada antes (`tell`), paga orçamento pelo orquestrador
+como qualquer evento, deixa cicatriz, e não volta antes de 5 noites.
+
+Calmaria neste jogo **não** é "não há bicho na casa": fora da invasão o jogador
+nem anda pela casa. É o bicho **longe** — 3 cômodos ou mais, num casarão de
+diâmetro 4 — no meio da noite, sem evento nos últimos 4 turnos e fora do vale.
+A primeira versão barrava qualquer coisa no ar e com isso a isca ficou
+**inalcançável em jogo real**: o teste passava porque montava o estado à mão.
+Comportamento que nenhum caminho real alcança é comportamento morto.
+
+**3 · O ciclo quebrado.** Quatro noites seguidas de invasão ensinam um ritmo.
+Na quinta a casa não faz nada:
+
+> Nada bateu na porta.
+> **Nenhum susto. Só silêncio.**
+> Você fica acordado até de manhã esperando o que não veio.
+
+A noite inteira vira vale, nada pede permissão porque nada é concedido, e não
+acontece duas vezes seguidas (cooldown de 8 noites). Só dispara com o ritmo
+**aprendido** — quebrar um ritmo que ninguém percebeu é bug com nome bonito.
+Uma única noite sem invasão zera a contagem.
+
+### Vazia por decisão ≠ vazia por azar
+
+`orqSimular` passou a separar as duas. Com a memória limpa: 10.000 noites, 0
+zeradas, 0 por decisão. Com o ritmo aprendido: 3.000 noites, **4 por decisão, 0
+zeradas**. A única noite sem eventos é a que a casa escolheu esvaziar.
+
+### Hostilidade com teto
+
+Sobe quando você ganha a noite (+0,12 por ponto forte), desce quando a casa
+acerta, decai 0,06 por noite sozinha, e **para em 0,70**. Por melhor que você
+jogue, existe um limite de quanto a casa aperta — jogar bem nunca vira punição
+infinita.
+
+### Consolidação sem apagar em silêncio
+
+Balde cheio (16 entradas) não apaga o passado: as mais fracas viram uma só,
+`outros`, que carrega a massa delas. A casa deixa de saber **qual** era e
+continua sabendo **quanto** era.
+
+### Testes
+
+`tools/testes/memteste.mjs` — 59 asserções, 0 falhas. Inclui a prova de que
+**nada no sistema de memória chama `Math.random`** (contador instalado por cima
+de `Math.random` durante uma noite inteira simulada: 0 usos), que o estado é
+dado puro que sobrevive a JSON ida e volta, e que save legado carrega com a
+casa sem saber nada de você — que é o estado correto.
+
+Regressão completa depois do §32: 353 asserções em 11 harnesses, 0 falhas,
+varredura ampla com 0 estouros e 0 invariantes violados.
+
 ## v58 — orquestrador de tensão (Fase 2)
 
 `s31-orquestrador.js`. A camada que faltava: até aqui cada sistema sorteava

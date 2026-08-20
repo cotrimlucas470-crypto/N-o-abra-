@@ -446,7 +446,10 @@ function orqSimular(noites,seed){
   S.rng=criarRNG((seed>>>0)||123456789);
   const ids=Object.keys(CATALOGO_ANOM);
   const hist={}, porNoite=[];
-  let zeradas=0, estouros=0, comVale=0;
+  /* a noite de ciclo quebrado (§32) é vazia DE PROPÓSITO: contá-la
+     junto com as vazias por acidente esconderia justamente a diferença
+     entre design e azar, que é a única coisa que este número mede. */
+  let zeradas=0, estouros=0, comVale=0, quebradas=0;
   for(let n=0;n<N;n++){
     S.dia=1+(n%30);
     S.anomAtivasLista=[];
@@ -459,7 +462,8 @@ function orqSimular(noites,seed){
       if(id){ eventos++; encerrarAtiva(id); }
     }
     if(O.gasto>O.orcamentoNoite)estouros++;
-    if(!eventos)zeradas++;
+    if(O.noiteQuebrada)quebradas++;
+    else if(!eventos)zeradas++;
     if(O.vales.length)comVale++;
     porNoite.push(eventos);
     hist[eventos]=(hist[eventos]||0)+1;
@@ -475,7 +479,7 @@ function orqSimular(noites,seed){
     dentroDaFaixa:(media>=pisoAlvo&&media<=tetoAlvo),
     min:ord[0], max:ord[ord.length-1],
     p50:ord[Math.floor(N*.5)], p90:ord[Math.floor(N*.9)],
-    zeradas, estouros, comVale, hist};
+    zeradas, quebradas, estouros, comVale, hist};
 }
 /* imprime o histograma no console, como pedido */
 function orqHistograma(noites,seed){
@@ -484,7 +488,8 @@ function orqHistograma(noites,seed){
   const maxN=Math.max(...ks.map(k=>r.hist[k]));
   console.log('[orq] '+r.noites+' noites · média '+r.media
     +' · min '+r.min+' · p50 '+r.p50+' · p90 '+r.p90+' · max '+r.max);
-  console.log('[orq] noites zeradas: '+r.zeradas+' · estouros de orçamento: '+r.estouros
+  console.log('[orq] noites zeradas: '+r.zeradas+' · vazias por decisão: '+r.quebradas
+    +' · estouros de orçamento: '+r.estouros
     +' · faixa alvo '+r.faixaAlvo[0]+'–'+r.faixaAlvo[1]
     +' · '+(r.dentroDaFaixa?'DENTRO':'FORA'));
   ks.forEach(k=>{

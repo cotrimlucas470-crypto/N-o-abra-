@@ -7,7 +7,8 @@ depois de `node montar.js`:
     node tools/testes/fugateste.mjs    # ciclo da invasão e fuga (30)
     node tools/testes/baktest.mjs      # backup do save (6)
     node tools/testes/nucleoteste.mjs  # núcleo de governança §30 (50)
-    node tools/testes/orqteste.mjs     # orquestrador de tensão §31 (51)
+    node tools/testes/orqteste.mjs     # orquestrador de tensão §31 (60)
+    node tools/testes/memteste.mjs     # memória cognitiva da casa §32 (59)
     node tools/testes/varre.mjs 5 400  # varredura ampla: estouros e invariantes
     node tools/testes/cacaexp.mjs 6 12 # caçador de estouros na expedição
 
@@ -32,5 +33,8 @@ A trava de colisão também roda dentro de `montar.js` e **quebra o build**.
 - No `pedirPermissao` a ordem das barreiras importa pro teste: cooldown global
   vem antes do de categoria. Pra medir o de categoria isolado, zere o global à
   mão antes de pedir, senão o global mascara.
+- A SALA é o miolo da planta: nada fica a mais de 2 cômodos dela, e o diâmetro
+  da casa é 4. Teste que precisa de distância grande tem de escolher o par mais
+  distante, não chutar dois números.
 - `riscoDaArea()` é limitado a 0,9 de propósito: nada neste jogo é certeza.
   Teste que exige o encontro precisa insistir.
