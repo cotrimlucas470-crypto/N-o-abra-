@@ -1,5 +1,77 @@
 # CHANGELOG
 
+## v57 — núcleo de governança (Fase 1)
+
+`s30-nucleo.js`. Contrato, não conteúdo: schema, máquina de estados, RNG
+determinístico e âncoras de percepção. **Nenhuma das anomalias existentes foi
+reescrita** — elas são envelopadas por adaptadores que apontam pra fonte.
+
+### As quatro decisões que tomei
+
+| pergunta | decisão |
+|---|---|
+| qual é o conjunto das "33"? | **15 AVARIAS + 6 criaturas = 21 eventos governados.** As 12 de `ANOMALIAS` ficam fora: elas já **são** os tells da porta. 12+15+6=33 é de onde veio o número |
+| RNG 100% semeado? | **não.** Semeado no que decide jogo; cosmético (jitter de áudio, grão, oscilação) fica com `Math.random` |
+| as 12 entram no schema? | **não** — erro de categoria: precisariam de um tell do tell |
+| a invasão vira serializável? | **sim.** Era variável local; fechar o app perdia a noite |
+
+### O que o núcleo entrega
+
+- **`criarRNG(seed)`** — mulberry32. Estado é **um número**, então cabe no save.
+  `next`, `inteiro`, `escolher`, `pesado`, `chance`. Semente de `saveId + noite`.
+- **`S.debug.replay(seed, acoes)`** — reproduz uma sessão idêntica. Ações são
+  dado puro (`{fn, args}`), nunca closure.
+- **`validarAnomalia`** — **anomalia sem `tell` é rejeitada**, e a mensagem diz
+  "SEM TELL — anomalia sem aviso é bug".
+- **`transicionar`** com as 10 fases e validação: transição inválida lança em
+  modo dev, registra em produção, e **não muda o estado**.
+- **`vigiarEstados`** — teto de turnos por estado. Softlock deixa de depender de
+  sorte.
+- **`PERCEPCAO_INVIOLAVEL`** congelado: relógio, inventário e porta da frente
+  nunca são falsificados. Sem âncora, o jogador conclui que nada é confiável e
+  **para de investigar**.
+- **`espelharInvasao` / `reidratarInvasao`** — o `I` vira dado puro em `S.inv`.
+  Função e nó de DOM são **filtrados na saída**, não confiados ao chamador.
+
+### Os parâmetros mortos da auditoria, agora implementados
+
+| era | virou |
+|---|---|
+| `I.divididas` (Coro) — escrito 2×, lido 0× | as metades **realmente** param de convergir enquanto divididas |
+| `I.recuo` (Magro) — escrito 2×, lido 0× | ele **anda pra longe** de você enquanto recua |
+| `BICHOS.raro` — declarado, nunca lido | o campo manda; `estreia` também. O id deixou de estar cravado |
+| chamado do imitador duplicado | o do jogo base fica calado enquanto o mecânico fala |
+
+### O achado que me fez mudar o design do Magro
+
+Ao testar `I.recuo` descobri que **a casa começa com todas as luminárias
+acesas**. O filtro "não entra em cômodo aceso" esvaziava as opções toda vez e
+`moverMonstro` devolvia a posição atual: **o Magro nunca andava.** Inerte no jogo
+normal — o mesmo defeito do imitador e do rastejante, e eu tinha subestimado como
+"exploit de borda" na auditoria.
+
+Luz agora **deter, não paralisa**: ele prefere o escuro e paga um turno pra
+atravessar o aceso, com aviso na tela. O contra-jogo fica melhor — atrasar é
+diferente de congelar, e congelar é o que dava exploit.
+
+### E uma contradição minha que o teste pegou
+
+`resolvida` tinha teto finito **e** era isenta do vigia. Ou tem teto e o vigia
+age, ou é terminal. `resolvida` é descanso, não fim: agora volta pra `dormente`,
+senão a anomalia nunca mais dispara. Só `cicatriz` é terminal.
+
+### Testes
+
+`nucleoteste`: **50 verificações, 0 falhas**. Regressão: `anomteste`,
+`rumoteste`, `progteste`, `difteste`, `fugateste`, `v50` — 0 falhas. `varre`: 0
+estouros, 0 invariantes violados.
+
+### Ainda não feito
+
+Fase 2 (orquestrador de tensão) e Fase 3 (memória cognitiva da casa).
+
+---
+
 ## v56 — marcos e o Opala
 
 `s29-rumo.js`, com `RUMO_CFG`. Duas coisas que se cruzam de propósito.

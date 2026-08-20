@@ -139,6 +139,9 @@ function luzLigadaEm(id){
 const FASES_ANOM=['RONDA','SUSPEITA','CACA','PERDEU'];
 
 function anomIniciar(I){
+  /* cópia do bicho: a partir daqui dá pra mexer em campo dele sem
+     escrever na tabela BICHOS, que é compartilhada por toda a partida */
+  if(I.bicho&&!I.bicho._copia)I.bicho={...I.bicho,_copia:1};
   I.fase='RONDA';
   I.faseTurnos=0;
   I.trilha=[cena.casa?cena.casa.voce:4];
@@ -148,6 +151,7 @@ function anomIniciar(I){
   I.olhou=false;
   I.divididas=0;
   I.atraso=0;
+  I.pagouLuz=0;
   I.cooldown=0;
   return I;
 }
@@ -226,16 +230,61 @@ if(typeof moverMonstro==='function'){
     if(!opts.length)return pos;
     const R=regraDe(I);
 
-    /* o Magro não entra em cômodo aceso — e se a luz do SEU cômodo
-       estiver acesa, ele fica rondando em volta sem entrar */
-    if(R.evita)opts=opts.filter(o=>!R.evita(o))||opts;
-    if(!opts.length)return pos;              /* cercado de luz: fica onde está */
+    /* O MAGRO E A LUZ — corrigido depois da auditoria da Fase 0.
+       A primeira versão filtrava fora todo cômodo aceso e, se não
+       sobrasse nenhum, ele ficava parado. Só que A CASA COMEÇA COM
+       TODAS AS LUZES ACESAS: na prática o filtro esvaziava as opções
+       toda vez e o Magro NUNCA ANDAVA. Inerte no jogo normal, como o
+       imitador e o rastejante estavam.
+
+       Luz agora DETER, não paralisa. Ele prefere o escuro; entrar no
+       aceso custa um turno. O contra-jogo continua real e fica melhor:
+       manter aceso o caminho até você o atrasa — e atrasar é diferente
+       de congelar, que é o que dava exploit. */
+    if(R.evita){
+      const escuros=opts.filter(o=>!R.evita(o));
+      if(escuros.length){
+        opts=escuros;
+      }else if(!I.pagouLuz){
+        /* tudo aceso: ele para UM turno pra atravessar a luz, e o
+           jogador é avisado de que a luz está segurando */
+        I.pagouLuz=1;
+        if(typeof diz==='function')
+          diz('Ele para na porta do cômodo aceso. Não gosta, mas não desiste.','bom');
+        return pos;
+      }else{
+        I.pagouLuz=0;                        /* pagou: atravessa mesmo assim */
+      }
+    }
+    if(!opts.length)return pos;
 
     /* o Inchado perde turno pra passar em vão apertado */
     if(R.atrasaEm&&I.atraso>0){ I.atraso--; return pos; }
 
+    /* O MAGRO RECUANDO. `I.recuo` era escrito duas vezes e lido zero —
+       a auditoria pegou. `ANOM_CFG.magroRecuaTurnos` não tinha efeito
+       nenhum. Agora tem: enquanto recua, ele ANDA PRA LONGE de você, e
+       não fica só sem alvo. É a diferença entre "a lanterna funcionou"
+       e "a lanterna resetou a fase". */
+    if(I.recuo>0){
+      I.recuo--;
+      const longe=opts.reduce((a,o)=>
+        distancia(o,cena.casa.voce)>distancia(a,cena.casa.voce)?o:a, pos);
+      return longe;
+    }
+
     /* rondando ou em cooldown: anda sem rumo */
     if(I.fase==='RONDA'||I.cooldown>0)return sortear([...opts,pos]);
+
+    /* AS DUAS METADES DO CORO DESENCONTRADAS. `I.divididas` era escrito
+       duas vezes e lido zero — e o jogo ESCREVIA NA TELA que elas se
+       desencontravam. Era mentira ao jogador, que é o pecado exato da
+       regra de ouro. Agora, enquanto divididas, cada metade anda sem
+       rumo: elas param de convergir e o vão entre elas abre. */
+    if(I.divididas>0){
+      I.divididas--;
+      return sortear([...opts,pos]);
+    }
 
     const alvo=R.alvo(I,cena.casa);
     if(alvo==null||alvo===undefined)return sortear([...opts,pos]);
@@ -300,10 +349,22 @@ if(typeof turnoMonstro==='function'){
       diz(`Você ouve ${quem?quem.n:'uma voz conhecida'} chamando do ${
         PLANTA[I.chamouEm].nome.toLowerCase()}: “vem, é seguro aqui”.`,'perigo');
       await pausa(1100);
+      /* O JOGO BASE TEM O PRÓPRIO CHAMADO (index.html:16797), e ele não
+         marca nada — é só clima. Os dois disparando no mesmo turno era
+         chamado duplicado, achado na auditoria. Enquanto o meu fala, o
+         dele fica calado; volta logo depois. A cópia do bicho existe pra
+         isso não vazar pra tabela. */
+      I._calarChamaBase=1;
     }
 
     const textos=anomAvancar(I);
-    const r=await _tm.call(this,I);
+    const chamaSalva=I.bicho?I.bicho.chama:undefined;
+    if(I._calarChamaBase&&I.bicho)I.bicho.chama=false;
+    let r;
+    try{ r=await _tm.call(this,I); }
+    finally{
+      if(I._calarChamaBase&&I.bicho){ I.bicho.chama=chamaSalva; I._calarChamaBase=0; }
+    }
     textos.forEach(t=>diz(t,'sist'));
     return r;
   };
