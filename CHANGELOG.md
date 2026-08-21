@@ -1,5 +1,69 @@
 # CHANGELOG
 
+## v62 — mais fôlego nas falas da porta
+
+### Medi antes de reescrever
+
+A queixa era que as frases soam robotizadas. Fui olhar, e o problema não é a
+qualidade do que está escrito — é a **quantidade**:
+
+```
+antes:  16 perguntas · 38 respostas boas · 45 ruins
+depois: 16 perguntas · 86 respostas boas · 77 ruins
+```
+
+Com 2 respostas boas por pergunta, você vê a **mesma frase certa** na segunda
+vez que faz a mesma pergunta. E resposta certa repetida é pior que errada
+repetida, porque a certa é a que você mais ouve: quem sobrevive faz muita
+pergunta e abre pouco.
+
+Então nada foi reescrito. Foi **acrescentado**: +3 boas e +2 ruins por
+pergunta, no mesmo tom do que já existia. Nenhuma pergunta ficou com menos de
+4 de cada.
+
+### O que faz uma resposta errada ser boa
+
+Ela tem de ser explicável **depois**. O jogador erra, abre a porta, e no dia
+seguinte consegue dizer em voz alta o que deixou passar. Os moldes que o jogo
+já usava e que eu segui: espelho, vago, preciso demais, nega o universal, sabe
+da casa, a frase quebra.
+
+O molde novo: **responde outra pergunta.**
+
+> — Encosta a mão na fresta, com a palma pra cima.
+> — *Ele põe a mão, e a palma está virada pro chão.*
+> ⚠ Você pediu palma pra cima. Ela ouviu o som do pedido, não o pedido.
+
+### O morto que já bateu aqui estourava
+
+`gerarVisitante` tem um ramo raro e bonito — alguém que já bateu na sua porta,
+morreu, e volta:
+
+```js
+v2.respostas[k]={txt: errado ? sortear(PERG[k].ruim(ant))
+                             : sortear(PERG[k].bom(ant)), …}
+```
+
+`ruim` é **array**, não função. E `bom` **não existe** — o campo se chama `ok`.
+Duas chamadas de função em cima de coisas que não são função.
+
+Sobreviveu tanto tempo porque o ramo só roda com 6% de chance, e só depois que
+alguém que já visitou morreu. Quando acontecia, o jogador via a porta
+simplesmente não responder.
+
+Provado em teste antes de consertar (`typeof PERG[k].ruim === 'object'`,
+`typeof PERG[k].bom === 'undefined'`), e depois: **200 visitantes gerados, 0
+estouros**, todos com respostas montadas e as erradas com a explicação junto.
+
+### Testes
+
+`tools/testes/falasteste.mjs` — 18 asserções. Uma delas confere que **toda**
+resposta errada explica por que estava errada; outra, que nenhuma fala repete
+literalmente dentro da mesma pergunta; outra, que aplicar o bloco duas vezes
+não infla a lista.
+
+424 asserções em 17 harnesses, 0 falhas.
+
 ## v61 — o ouvido na porta, e o final no dia 30
 
 ### "Eu não escuto nada, e mesmo quando escuto não significa nada"
