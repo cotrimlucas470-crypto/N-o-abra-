@@ -12,6 +12,7 @@ depois de `node montar.js`:
     node tools/testes/fimteste.mjs     # o final §33 (18)
     node tools/testes/ouvteste.mjs     # o ouvido na porta §34 + dia 30 (20)
     node tools/testes/falasteste.mjs   # as falas da porta §35 (18)
+    node tools/testes/itensteste.mjs   # os verbos das armas §36 (26)
     node tools/testes/aberturateste.mjs # a abertura narrada e a guarda do save (14)
 
 Fumaça no PACOTE, não na cópia de trabalho — descompacte o zip e aponte:

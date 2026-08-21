@@ -1,5 +1,73 @@
 # CHANGELOG
 
+## v63 — cada arma faz uma coisa que só ela faz
+
+### O problema, medido
+
+São 12 armas. Nove delas diferem em `dano` e `kg` — e mais nada. Tirando esses
+dois campos, ficam **indistinguíveis**. E o jogo consulta todas por uma função
+só:
+
+```js
+melhorArma() → a de maior dano
+```
+
+Existe **uma** arma útil por vez, e as outras onze são peso. Achar um facão
+depois de já ter uma marreta não era achado, era lixo.
+
+### Duas descrições prometiam mecânica que não existia
+
+| item | dizia | fazia |
+|---|---|---|
+| foice | "Alcance bom e corta o que encostar." | nada além de dano 3 |
+| espeto | "Feita em casa. Mantém a coisa longe." | nada além de dano 2,2 |
+
+Promessa escrita e não cumprida é a forma mais barata de mentir pro jogador.
+Agora as duas cumprem, e as descrições de todas as nove foram reescritas pra
+dizer o que a coisa faz de verdade.
+
+### Os verbos
+
+**A arma serve de ferramenta.** Nove armas cobrem seis ferramentas. Sai do que
+a coisa É, não de tabela inventada: machado corta como serrote e cava como pá,
+barra faz alavanca, faca tem ponta fina de chave de fenda.
+
+Antes, faltando o serrote, você só tinha "Improvisar com o que tem" — **24% de
+dar certo**. Agora tem um conserto de verdade, com preço: uma hora a mais, e a
+arma sai pior do que entrou.
+
+E os limites são duros, porque sem limite isso viraria chave-mestra:
+
+- ferramenta sem substituto (a **escada**) continua faltando;
+- cobrir só uma das duas ferramentas **não basta**;
+- **arma não vira cimento** — faltando material, não há plano.
+
+**A faca vai no cinto.** É a única arma que não ocupa a mão, e mão ocupada
+atrapalha tudo que exige mão livre. É por isso que ela vale, com dano 1.
+
+**O taco não quebra.** Madeira maciça, sem fio pra perder. 40 golpes e ele está
+igual — enquanto o facão, nos mesmos 40, foi de 100 a 0.
+
+**A foice chega antes.** Alcance vira vantagem na chance de acertar.
+
+**O espeto não mata — te tira de lá.** 82% de sair inteiro, com tudo, sem
+barulho. É uma vitória diferente, e às vezes melhor.
+
+### Revólver e espingarda não ganharam verbo, de propósito
+
+`municao` **já é** o verbo delas: são as únicas armas que acabam, e as únicas
+que trazem o resto da rua junto (+14 de ruído no tiro dentro de casa). Alto,
+finito e definitivo separa mais uma arma das outras do que qualquer coisa que
+eu pendurasse por cima. A primeira versão do meu teste não contava isso e
+reprovou o desenho por causa da régua — a régua é que estava errada.
+
+### Testes
+
+`tools/testes/itensteste.mjs` — 26 asserções. A primeira delas **mede o
+problema**: tira `dano` e `kg` de cada arma e conta quantas sobram idênticas.
+
+450 asserções em 16 harnesses, 0 falhas.
+
 ## v62 — mais fôlego nas falas da porta
 
 ### Medi antes de reescrever
