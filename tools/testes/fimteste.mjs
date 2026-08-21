@@ -34,10 +34,8 @@ ok('termina na frase de fechamento',/pensamento só\.$/.test(d.ultima));
 ok('está encaixado no fim do Opala',d.encaixado);
 ok('tem atalho de depuração',d.atalho);
 
-console.log('\n2. CAMINHO EM TEXTO — QUANDO A PASTA NÃO ESTÁ DO LADO');
+console.log('\n2. A CENA RODA INTEIRA DENTRO DO JOGO');
 d=await p.evaluate(async()=>{
-  FIM_CFG.pasta='pasta-que-nao-existe/';
-  FIM_CFG.esperaMs=900;
   FIM_CFG.msPorLetra=2; FIM_CFG.msMinimo=30; FIM_CFG.pularApos=0.2;
   const t0=Date.now();
   const via=await finalNarrado();
@@ -46,7 +44,7 @@ d=await p.evaluate(async()=>{
     semBotao:!document.getElementById('fim-pular')};
 });
 console.log('   ',JSON.stringify(d));
-ok('sem a pasta, cai pro texto em vez de tela em branco',d.via==='texto');
+ok('o final no jogo é a cena lida',d.via==='texto');
 ok('a cena roda até o fim',d.seg>2);
 ok('e limpa tudo depois',d.limpou&&d.semBotao);
 
@@ -67,24 +65,20 @@ ok('o botão de pular aparece',d.tinha);
 ok('e encerra na hora, sem esperar os 2 minutos',d.seg<8);
 ok('e limpa a tela',d.limpou);
 
-console.log('\n4. CAMINHO COMPLETO — COM A PASTA DO LADO');
-d=await p.evaluate(async()=>{
-  FIM_CFG.pasta='final/'; FIM_CFG.esperaMs=9000; FIM_CFG.pularApos=0.1;
-  const pr=finalNarrado();
-  await new Promise(r=>setTimeout(r,5000));
-  const ifr=document.getElementById('fim-cena');
-  const achou=!!ifr;
-  const bt=document.getElementById('fim-pular');
-  if(bt)bt.click();
-  const via=await pr;
-  return {achou, via};
-});
+console.log('\n4. O CAMINHO DO IFRAME FOI REMOVIDO, NÃO ESQUECIDO');
+d=await p.evaluate(()=>({
+  semIframe:typeof tentarCenaCompleta==='undefined',
+  semPasta:FIM_CFG.pasta===undefined,
+  semEspera:FIM_CFG.esperaMs===undefined,
+  cssSemIframe:!(document.getElementById('css-final')||{textContent:''}).textContent.includes('iframe')
+}));
 console.log('   ',JSON.stringify(d));
-ok('com a pasta, a cena filmada carrega',d.achou&&d.via==='cena');
+ok('a função do iframe não existe mais',d.semIframe);
+ok('e nem a config órfã dela',d.semPasta&&d.semEspera);
+ok('nem o CSS que só ela usava',d.cssSemIframe);
 
 console.log('\n5. NÃO RODA DUAS VEZES AO MESMO TEMPO');
 d=await p.evaluate(async()=>{
-  FIM_CFG.pasta='pasta-que-nao-existe/'; FIM_CFG.esperaMs=400;
   FIM_CFG.msPorLetra=200; FIM_CFG.msMinimo=4000; FIM_CFG.pularApos=0.1;
   const a=finalNarrado();
   await new Promise(r=>setTimeout(r,900));

@@ -11,26 +11,24 @@
    estava fugindo. Se a estatística viesse antes, o jogador já teria
    saído do transe pra ler números.
 
-   DOIS CAMINHOS, PORQUE O JOGO É UM ARQUIVO SÓ
-   --------------------------------------------
-   A cena de verdade tem narração, vozes gravadas, música e vídeo — uns
-   30 MB, que não cabem embutidos num HTML que a pessoa guarda no
-   celular. Então:
+   POR QUE AQUI É TEXTO, E O FILME É ARQUIVO SEPARADO
+   --------------------------------------------------
+   A cena filmada tem narração, vozes gravadas, música e vídeo: ~30 MB,
+   que não cabem embutidos num HTML que a pessoa guarda no celular. A
+   primeira tentativa foi abrir `final/final.html` num iframe por cima
+   do jogo. Ela foi ABANDONADA, e vale dizer por quê em vez de deixar o
+   código morto no arquivo: dentro da página do jogo o iframe nunca
+   completava a carga — nenhum erro, nenhum aviso, nem o evento `load`.
+   Fora do jogo, a mesmíssima página carrega em 1,5 s. Não achei a
+   causa, e caminho que só funciona no teste é pior que caminho nenhum.
 
-     · com a pasta `final/` do lado, toca a cena inteira;
-     · sem ela, toca a MESMA cena em texto, no tempo certo, dentro do
-       jogo. Não é aviso de erro nem tela em branco: é o final, lido.
-
-   O texto e os tempos são os mesmos nos dois caminhos, porque saem da
-   mesma tabela aqui embaixo.
+   Então o final DENTRO do jogo é este: a mesma cena, o mesmo texto, os
+   mesmos tempos, lida na tela. Não é consolo nem aviso de erro — é a
+   história inteira, e ela fecha o jogo. O filme existe à parte, como
+   arquivo de vídeo, pra quem quiser ver com as vozes.
    ====================================================================== */
 
 const FIM_CFG={
-  /* pasta onde a cena mora, relativa ao index.html */
-  pasta:'final/',
-  /* quanto esperar a cena dizer que carregou antes de cair pro texto.
-     4 s é folgado pra disco local e curto pra não parecer travamento. */
-  esperaMs:4000,
   /* o botão de pular aparece depois disto. Não aparece de cara porque
      a primeira coisa que o jogador vê não pode ser a saída. */
   pularApos:6.0,
@@ -92,7 +90,6 @@ function estiloFinal(){
    '#cena-fim{position:fixed;inset:0;z-index:120;background:#0B0A0D;'
   +'display:flex;align-items:center;justify-content:center;padding:34px 26px}'
   +'#cena-fim.claro{background:#E8E2D4}'
-  +'#cena-fim iframe{position:absolute;inset:0;width:100%;height:100%;border:0}'
   +'#fim-txt{max-width:640px;text-align:center;font-family:var(--corpo);'
   +'font-size:20px;line-height:1.62;color:#E8E2D4;opacity:0;'
   +'transition:opacity .75s ease}'
@@ -112,28 +109,6 @@ function estiloFinal(){
   document.head.appendChild(s);
 }
 
-/* ---------- a cena completa, se a pasta estiver do lado ---------- */
-/* A página avisa que carregou por postMessage. Sem aviso em
-   FIM_CFG.esperaMs, cai pro texto — checar a existência do arquivo com
-   fetch não serve, porque em file:// fetch é bloqueado e daria "não
-   existe" mesmo com a pasta ali. */
-function tentarCenaCompleta(caixa){
-  return new Promise(resolve=>{
-    let resolvido=false;
-    const fim=v=>{ if(!resolvido){ resolvido=true; window.removeEventListener('message',ouvir); resolve(v); } };
-    const ouvir=e=>{ if(e.data==='final-pronto')fim(true);
-                     if(e.data==='final-acabou')document.dispatchEvent(new Event('final-acabou')); };
-    window.addEventListener('message',ouvir);
-    const ifr=document.createElement('iframe');
-    ifr.id='fim-cena';
-    ifr.allow='autoplay';
-    ifr.src=FIM_CFG.pasta+'final.html?jogo=1';
-    ifr.onerror=()=>fim(false);
-    caixa.appendChild(ifr);
-    setTimeout(()=>{ if(!resolvido){ ifr.remove(); fim(false); } },FIM_CFG.esperaMs);
-  });
-}
-
 /* ---------- a cena em texto, dentro do jogo ---------- */
 function duracaoDaLinha(l){
   const n=(l.t||l.c||'').length;
@@ -143,7 +118,18 @@ async function cenaEmTexto(caixa,cancelado){
   const alvo=document.createElement('div');
   alvo.id='fim-txt';
   caixa.appendChild(alvo);
-  const dorme=ms=>new Promise(r=>setTimeout(r,ms));
+  /* A espera tem de ser interrompivel. Com um setTimeout seco, apertar
+     "pular" no meio de uma linha longa ainda obrigava a aguentar ela
+     inteira — ate 4 s parado depois de pedir pra sair. Aqui a espera
+     acorda a cada 120 ms e olha se o jogador desistiu. */
+  const dorme=ms=>new Promise(r=>{
+    const fim=Date.now()+ms;
+    const bater=()=>{
+      if(cancelado()||Date.now()>=fim)return r();
+      setTimeout(bater,Math.min(120,Math.max(10,fim-Date.now())));
+    };
+    bater();
+  });
   for(let i=0;i<FIM_CENA.length;i++){
     if(cancelado())return;
     const l=FIM_CENA[i];
@@ -194,19 +180,7 @@ async function finalNarrado(){
   document.body.appendChild(bt);
   setTimeout(()=>bt.classList.add('on'),FIM_CFG.pularApos*1000);
 
-  const completa=await tentarCenaCompleta(caixa);
-  if(completa){
-    await new Promise(r=>{
-      const pronto=()=>{ document.removeEventListener('final-acabou',pronto); r(); };
-      document.addEventListener('final-acabou',pronto);
-      /* o pular também encerra */
-      const vigia=setInterval(()=>{ if(pulou){ clearInterval(vigia); pronto(); } },250);
-      /* trava de segurança: nenhuma cena passa de 7 minutos */
-      setTimeout(pronto,7*60*1000);
-    });
-  }else{
-    await cenaEmTexto(caixa,()=>pulou);
-  }
+  await cenaEmTexto(caixa,()=>pulou);
 
   bt.remove();
   caixa.style.transition='opacity 1.4s ease';
@@ -214,7 +188,7 @@ async function finalNarrado(){
   await new Promise(r=>setTimeout(r,1500));
   caixa.remove();
   _fimRodando=false;
-  return completa?'cena':'texto';
+  return 'texto';
 }
 
 /* ---------- o encaixe ----------
@@ -251,6 +225,6 @@ function fimEstado(){
   return {linhas:FIM_CENA.length,
     falas:FIM_CENA.filter(l=>l.f!==undefined).length,
     duracaoTexto:+(FIM_CENA.reduce((a,l)=>a+duracaoDaLinha(l),0)/1000).toFixed(1)+'s',
-    pasta:FIM_CFG.pasta, rodando:_fimRodando,
+    rodando:_fimRodando,
     encaixado:typeof fimOpala==='function'};
 }

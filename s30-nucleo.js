@@ -421,7 +421,12 @@ if(typeof salvar==='function'){
     _sv.apply(this,arguments);
     try{
       S.rngEstado=rngEstadoPuro();
-      const d=JSON.parse(localStorage.getItem(CHAVE)||'{}');
+      /* o bloco ANEXA a um save; nunca CRIA um. Se a funcao base
+         desistiu (partida que ainda nao comecou), nao ha o que
+         anexar — e criar aqui ressuscitaria o save fantasma. */
+      const cru=localStorage.getItem(CHAVE);
+      if(!cru)return;
+      const d=JSON.parse(cru);
       d.saveId=S.saveId;
       d.rngSemente=S.rngSemente;
       d.rngEstado=S.rngEstado;

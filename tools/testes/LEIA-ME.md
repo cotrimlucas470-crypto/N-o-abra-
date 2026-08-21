@@ -9,6 +9,8 @@ depois de `node montar.js`:
     node tools/testes/nucleoteste.mjs  # núcleo de governança §30 (50)
     node tools/testes/orqteste.mjs     # orquestrador de tensão §31 (60)
     node tools/testes/memteste.mjs     # memória cognitiva da casa §32 (59)
+    node tools/testes/fimteste.mjs     # o final §33 (18)
+    node tools/testes/aberturateste.mjs # a abertura narrada e a guarda do save (14)
 
 Fumaça no PACOTE, não na cópia de trabalho — descompacte o zip e aponte:
 
@@ -25,6 +27,15 @@ produz erro na carga, só na hora de jogar.
 A trava de colisão também roda dentro de `montar.js` e **quebra o build**.
 
 ## Notas de armadilha
+
+- **Bloco ANEXA a um save; bloco nunca CRIA um save.** Onze blocos embrulham
+  `salvar()` e gravavam com `JSON.parse(localStorage.getItem(CHAVE)||'{}')`.
+  Esse `||'{}'` cria save de partida que não começou, e foi assim que a
+  abertura narrada sumiu por várias versões sem dar erro nenhum.
+- Os harnesses agora falam com `http://127.0.0.1:8900`. Suba o servidor antes:
+  `node tools/servidor.mjs . 8900`. Em `file://` o `fetch` é bloqueado e
+  qualquer teste que leia mídia falha por motivo errado.
+- Não use `pkill` aqui: ele casa com o processo do próprio shell da sessão.
 
 - `chance` é `const arrow`, **não** é propriedade de `window`. Trocar
   `window.chance` não afeta nada. Pra forçar um resultado, mexa na config

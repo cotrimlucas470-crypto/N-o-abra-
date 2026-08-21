@@ -753,7 +753,13 @@ const _salvar=salvar;
 salvar=function(){
   _salvar.apply(this,arguments);
   try{
-    const d=JSON.parse(localStorage.getItem(CHAVE)||'{}');
+    /* o bloco ANEXA a um save; nunca CRIA um. Sem save na mao,
+       nao ha o que anexar — e criar aqui faria nascer um save
+       de partida que ainda nao comecou, que e o que apagou a
+       abertura narrada. */
+    const cru=localStorage.getItem(CHAVE);
+    if(!cru)return;
+    const d=JSON.parse(cru);
     d.pecas=S.pecas; d.efeitos=S.efeitos; d.armadura=S.armadura;
     d.armaduras=S.armaduras; d.ultDiaQual=S.ultDiaQual; d.baus=S.baus;
     localStorage.setItem(CHAVE,JSON.stringify(d));

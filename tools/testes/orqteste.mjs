@@ -6,7 +6,7 @@ const ok=(c,v)=>{console.log((v?'  ok    ':'  FALHA ')+c); if(!v)process.exitCod
 const b=await chromium.launch({args:['--autoplay-policy=no-user-gesture-required']});
 const p=await b.newPage({viewport:{width:390,height:844}});
 const erros=[]; p.on('pageerror',e=>erros.push(e.message));
-await p.goto('file:///home/user/N-o-abra-/index.html'); await p.waitForTimeout(900);
+await p.goto('http://127.0.0.1:8900/index.html'); await p.waitForTimeout(900);
 await p.click('#btn-boot'); await p.waitForTimeout(1300);
 {const x=await p.$('#cine-pular'); if(x){await x.click(); await p.waitForTimeout(1500);}}
 await p.fill('#nm','N'); await p.click('#go');

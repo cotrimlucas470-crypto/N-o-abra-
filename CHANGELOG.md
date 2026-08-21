@@ -1,5 +1,108 @@
 # CHANGELOG
 
+## v60 — o final, e a abertura de volta
+
+### O final
+
+`s33-final.js` + `final/`. O jogo tinha fim; não tinha final. `fimOpala`
+levava direto pra tela de estatística — você fugia e o jogo te mostrava
+números. Entre uma coisa e a outra agora tem a história inteira: a irmã que
+sai buscar comida, o mês contando coisas que não aconteceram, as três batidas,
+a voz certa demais, a luz — e o hospital.
+
+### Alinhar 274 s de narração sem poder ouvi-los
+
+A narração são 274 s contínuos e eu não escuto áudio. Os tempos das 46 frases
+saíram de **medir**: o mp3 foi decodificado no Chromium (Web Audio tem
+decodificador de verdade), reduzido a um envelope de RMS a cada 20 ms, e as 46
+frases foram encaixadas nas 95 pausas detectadas por **programação dinâmica** —
+custo = (tempo previsto pela contagem de letras − tempo da pausa)².
+
+Erro médio de **1,09 s**, máximo 3,12 s. E o erro é o teste: se a hipótese
+sobre qual texto foi narrado estivesse errada, ele explodiria.
+
+### A trilha sai da mesma linha do tempo que os quadros
+
+Uma lista só manda na tela e no áudio. Duas listas que pudessem discordar era
+o jeito garantido de a voz entrar por cima da narração.
+
+Nada de ganho no olho: cada arquivo foi medido e o alvo é em LUFS.
+
+| arquivo | RMS medido | tratamento |
+|---|---|---|
+| narração | −21,3 dB | loudnorm −19 |
+| gravações de celular | −41,6 a −47,7 dB | passa-alta 95 Hz + redutor de ruído + loudnorm −17 |
+| áudio do vídeo | −43,0 dB | loudnorm −23 |
+
+As gravações estavam **20 a 26 dB** abaixo da narração. Subir 26 dB de um mp3
+de WhatsApp sobe o chiado junto, por isso o passa-alta e o redutor vêm antes.
+
+Música em **dois movimentos**, com silêncio entre eles: ela sai antes da porta
+e volta quando a porta abre. As três batidas precisam cair no silêncio.
+
+### Verificar por medida, já que não dá por escuta
+
+```
+cada pedaço no seu lugar ......... 16/16
+voz no mesmo peso da narração .... 5/5 (dentro de 5 dB)
+clipe ............................ nenhum (pico 0,896)
+buraco de silêncio ............... nenhum
+```
+
+### A abertura narrada tinha sumido — e a culpa era minha
+
+Você notou. Estava certo, e a causa é do §31.
+
+`orqNovaNoite()` roda na carga da página pra preparar o orçamento da primeira
+noite, e chama `marcarSujo()`. O save debounced disparava 1,2 s depois e
+**gravava um save antes de o jogador digitar o nome**. Aí `temSave()` dizia que
+havia partida, o boot mostrava "Tem uma casa esperando" na **primeira vez que
+alguém abria o jogo**, e a abertura nunca tocava.
+
+Nenhum erro. Nenhum aviso. Só a abertura sumindo.
+
+**Não era um bloco: eram onze.** Todo bloco que embrulha `salvar()` escrevia
+direto no localStorage com `JSON.parse(localStorage.getItem(CHAVE)||'{}')` — e
+esse `||'{}'` é justamente a licença pra criar um save do nada. A regra agora é
+uma frase:
+
+> **Bloco ANEXA a um save. Bloco nunca CRIA um save.**
+
+Mais duas guardas: `salvar()` desiste sem `S.nomeJogador`, e `temSave()` trata
+save sem nome como lixo e apaga — quem já pegou a versão com o defeito não
+fica preso na tela de "Voltar pra lá" com uma casa que nunca existiu.
+
+`tools/testes/aberturateste.mjs` — 14 asserções, e a primeira delas é
+"nada é escrito no localStorage antes de a partida começar".
+
+### Dois defeitos que só os quadros renderizados pegaram
+
+- `bloco()` recebia `cor` e **nunca aplicava `fillStyle`**: o texto herdava a
+  cor do último gradiente pintado e ficava roxo-escuro sobre roxo-escuro.
+- grão e vinheta eram pintados **por último**, ou seja, por cima das letras. A
+  narração inteira estava ilegível.
+
+### O caminho do iframe foi removido, não esquecido
+
+A ideia era abrir `final/final.html` num iframe por cima do jogo. Dentro da
+página do jogo o iframe **nunca completava a carga** — nenhum erro, nenhum
+aviso, nem o evento `load`. Fora do jogo, a mesma página carrega em 1,5 s. Não
+achei a causa, e caminho que só funciona no teste é pior que caminho nenhum.
+
+O final dentro do jogo é a mesma cena lida na tela, com os mesmos tempos. O
+filme existe à parte, como arquivo de vídeo.
+
+### Três falas sem gravação
+
+Dois pares de arquivos enviados eram **byte a byte idênticos** (mesmo md5).
+Faltam "A comida tá acabando…", "Eu também vou." e "Mas…". Elas aparecem
+escritas com o tempo respeitado — é só largar o mp3 na pasta e apontar em
+`FALAS`.
+
+### Testes
+
+383 asserções em 15 harnesses, 0 falhas.
+
 ## v59 — memória cognitiva da casa (Fase 3)
 
 `s32-memoria.js`. A casa passa a lembrar de **como** você joga — e a cobrar

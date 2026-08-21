@@ -261,7 +261,13 @@ if(typeof salvar==='function'){
   salvar=function(){
     _sv.apply(this,arguments);
     try{
-      const d=JSON.parse(localStorage.getItem(CHAVE)||'{}');
+      /* o bloco ANEXA a um save; nunca CRIA um. Sem save na mao,
+         nao ha o que anexar — e criar aqui faria nascer um save
+         de partida que ainda nao comecou, que e o que apagou a
+         abertura narrada. */
+      const cru=localStorage.getItem(CHAVE);
+      if(!cru)return;
+      const d=JSON.parse(cru);
       d.exped=S.exped||null;
       d.erros=S.erros||[];
       localStorage.setItem(CHAVE,JSON.stringify(d));
