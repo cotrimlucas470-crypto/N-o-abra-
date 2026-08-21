@@ -5,7 +5,7 @@ const SEEDS=+(process.argv[2]||6), VOLTAS=+(process.argv[3]||14);
 const b=await chromium.launch({args:['--autoplay-policy=no-user-gesture-required']});
 const p=await b.newPage({viewport:{width:390,height:844}});
 p.on('pageerror',e=>{ if(!/ERR_|file:/.test(e.message))console.log('PAGEERROR', e.message); });
-await p.goto('http://127.0.0.1:8900/index.html'); await p.waitForTimeout(900);
+await p.goto('http://127.0.0.1:8901/index.html'); await p.waitForTimeout(900);
 await p.click('#btn-boot'); await p.waitForTimeout(1200);
 {const x=await p.$('#cine-pular'); if(x){await x.click(); await p.waitForTimeout(1500);}}
 await p.fill('#nm','R'); await p.click('#go');

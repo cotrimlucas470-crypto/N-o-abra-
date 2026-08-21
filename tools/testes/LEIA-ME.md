@@ -10,6 +10,7 @@ depois de `node montar.js`:
     node tools/testes/orqteste.mjs     # orquestrador de tensão §31 (60)
     node tools/testes/memteste.mjs     # memória cognitiva da casa §32 (59)
     node tools/testes/fimteste.mjs     # o final §33 (18)
+    node tools/testes/ouvteste.mjs     # o ouvido na porta §34 + dia 30 (20)
     node tools/testes/aberturateste.mjs # a abertura narrada e a guarda do save (14)
 
 Fumaça no PACOTE, não na cópia de trabalho — descompacte o zip e aponte:

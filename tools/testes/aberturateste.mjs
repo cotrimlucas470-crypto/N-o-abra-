@@ -6,7 +6,7 @@
    exceção, nenhum aviso — só a abertura nunca mais tocando. */
 import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
 const ok=(c,v)=>{console.log((v?'  ok    ':'  FALHA ')+c); if(!v)process.exitCode=1;};
-const URL=process.env.JOGO||'http://127.0.0.1:8900/index.html';
+const URL=process.env.JOGO||'http://127.0.0.1:8901/index.html';
 const b=await chromium.launch({args:['--autoplay-policy=no-user-gesture-required']});
 
 console.log('\n1. A CARGA NÃO GRAVA SAVE NENHUM');

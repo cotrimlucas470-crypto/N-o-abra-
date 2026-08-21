@@ -1,5 +1,69 @@
 # CHANGELOG
 
+## v61 — o ouvido na porta, e o final no dia 30
+
+### "Eu não escuto nada, e mesmo quando escuto não significa nada"
+
+As duas metades da queixa estavam certas, e por motivos diferentes.
+
+**Não escuto nada.** São 12 s de respiração sintetizada, num celular, com o
+gerador roncando por baixo. O som existe e é bem feito — mas depender só dele
+é apostar o miolo do jogo no alto-falante do aparelho.
+
+Agora o que se ouve também se **vê**: um traço desenhado a partir do *mesmo
+perfil* que gera o som. Não é legenda — é o mesmo dado, noutro sentido.
+
+| no som | no traço |
+|---|---|
+| respiração | onda, com a régua pontilhada de "como é gente" atrás |
+| passo | barra com altura de peso — sem peso, vira toco vermelho |
+| roupa | o risco ao lado do passo; sem roupa, o risco some |
+| engolir, fungar, tossir | pontos no alto; corpo mudo não desenha nenhum |
+| ar sem peito atrás | a onda vira linha oca |
+
+**Não significa nada.** Três defeitos de desenho, todos reais:
+
+1. **O original sorteava 3 das 4 camadas pra perguntar.** Medido em 4.000
+   sorteios: em **22,6% dos casos** o único defeito do mímico caía justamente
+   na camada que ficou de fora — a resposta certa *não existia na tela*. Isso
+   não é dificuldade, é armadilha, e é o que a regra de ouro proíbe.
+   Agora as quatro camadas aparecem sempre.
+2. **Não havia referência.** "Rápida demais" comparada com o quê? Agora existe
+   um botão que lembra como é gente respirando, de graça — cobrar por isso
+   seria cobrar pra ler a regra do jogo.
+3. **Uma escuta só, julgada de memória.** Agora dá pra ouvir de novo quantas
+   vezes quiser, a +3 de ruído cada. É decisão, não brinde: quem fica com a
+   cara colada na porta ouve o jogo dizer que lá fora sabem disso.
+
+E a ordem dos botões parou de ser sorteada a cada vez. Embaralhar as opções
+impedia o jogador de aprender onde as coisas ficam.
+
+### A variação é de tempo, não só de altura
+
+Na primeira versão do traço a variação da respiração só mexia na **altura** do
+pico — e no papel "gente de verdade" e "metrônomo" saíram quase idênticos. O
+defeito existia no som e não existia no desenho.
+
+Gente nunca repete o mesmo intervalo entre duas respiradas; metrônomo repete
+sempre. Agora cada ciclo tem duração própria, e o **espaçamento desigual** é a
+primeira coisa que o olho pega.
+
+### O final também acontece no dia 30
+
+A fuga no Opala é uma saída; chegar até o dia 30 é outra. Quem nunca achou o
+carro também merece o final — e depois de um mês trancado nessa casa, é o
+final que faz sentido: não houve mês nenhum.
+
+`S.viuFinal` é dado puro e vai no save, então fechar o app no meio não faz o
+final repetir na próxima abertura.
+
+### Testes
+
+`tools/testes/ouvteste.mjs` — 20 asserções, incluindo a medição dos 22,6% de
+respostas impossíveis do desenho antigo.
+
+406 asserções em 16 harnesses, 0 falhas.
+
 ## v60 — o final, e a abertura de volta
 
 ### O final

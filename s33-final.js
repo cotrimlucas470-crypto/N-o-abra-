@@ -29,6 +29,11 @@
    ====================================================================== */
 
 const FIM_CFG={
+  /* O DIA EM QUE A HISTORIA FECHA SOZINHA.
+     A fuga no Opala e uma saida; chegar ate aqui e outra. Quem nunca
+     achou o carro tambem merece o final — e depois de um mes trancado
+     nessa casa, e o final que faz sentido: nao houve mes nenhum. */
+  diaDoFinal:30,
   /* o botão de pular aparece depois disto. Não aparece de cara porque
      a primeira coisa que o jogador vê não pode ser a saída. */
   pularApos:6.0,
@@ -217,6 +222,40 @@ if(typeof fimOpala==='function'){
   };
 }
 
+/* ---------- o outro caminho: o dia 30 ----------
+   Entra no amanhecer do dia, antes de a casa pedir qualquer coisa. Uma
+   vez so: `S.viuFinal` e dado puro e vai no save, entao fechar o app
+   no meio nao faz o final repetir na proxima abertura. */
+if(typeof cenaDia==='function'){
+  const _fimCD=cenaDia;
+  cenaDia=async function(){
+    if((S.dia|0)>=FIM_CFG.diaDoFinal&&!S.viuFinal){
+      S.viuFinal=true;
+      if(typeof marcarSujo==='function')marcarSujo();
+      try{
+        if(typeof AC!=='undefined')AC.innerHTML='';
+        if(typeof limpar==='function')limpar();
+        if(typeof cap==='function')cap('Dia '+(S.dia|0));
+        if(typeof diz==='function'){
+          diz('Um mês. Você conta nos dedos e sobra dedo.','sist');
+          await pausa(1600);
+        }
+        await finalNarrado();
+        if(typeof AC!=='undefined'&&typeof botao==='function'){
+          AC.innerHTML='';
+          botao('Ver o que sobrou',()=>{
+            if(typeof fim==='function')fim('dia30');
+            else if(typeof telaFim==='function')telaFim('dia30');
+            else _fimCD.call(this);
+          },{cls:'chave'});
+          return;
+        }
+      }catch(e){ if(typeof registrarErro==='function')registrarErro(e,'final/dia30'); }
+    }
+    return _fimCD.apply(this,arguments);
+  };
+}
+
 /* atalho: ver o final sem jogar até o fim */
 S.debug=S.debug||{};
 S.debug.final=finalNarrado;
@@ -225,6 +264,6 @@ function fimEstado(){
   return {linhas:FIM_CENA.length,
     falas:FIM_CENA.filter(l=>l.f!==undefined).length,
     duracaoTexto:+(FIM_CENA.reduce((a,l)=>a+duracaoDaLinha(l),0)/1000).toFixed(1)+'s',
-    rodando:_fimRodando,
+    rodando:_fimRodando, diaDoFinal:FIM_CFG.diaDoFinal, jaViu:!!S.viuFinal,
     encaixado:typeof fimOpala==='function'};
 }
