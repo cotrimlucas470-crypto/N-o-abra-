@@ -54,7 +54,7 @@ const SALDO_CFG={
      chuvisco e o jogador pararia de ler — que é o problema de origem. */
   minimo: { ruido:3, moral:4 },
   /* quantas linhas de saldo seguidas antes de o sistema calar a boca
-     por um instante. Vale contra laço de evento que mexe em recursó. */
+     por um instante. Vale contra laço de evento que mexe em recurso. */
   maxSeguidas: 4
 };
 

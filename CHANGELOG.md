@@ -1,5 +1,131 @@
 # CHANGELOG
 
+## v65 — a sanidade vira sintoma
+
+### O pedido
+
+*"Quero melhorias gigantescas na parte da sanidade e ilusões, elas tão muito
+sutis e sem sentido."*
+
+Os dois adjetivos estavam certos, e por motivos diferentes. Fui medir antes de
+escrever qualquer linha.
+
+### Sutil: o estágio onde o jogador mais vive produzia zero
+
+O jogo tem 23 ilusões (6 de tela, 8 de rua, 9 de som). `talvezIlusao` roda uma
+vez por dia, com trava de uma por dia, e a chance é o próprio valor de ilusão
+do estágio. Numa campanha inteira de 12 a 30 dias o jogador vê **entre duas e
+seis**.
+
+Isso já é pouco. O que estava embaixo é pior:
+
+```
+estágio        san≥   ilusão   ilusões no pool
+  lúcido         90     0.00        0   (correto — lúcido é lúcido)
+  tenso          70     0.08        0   ← MORTO
+  fissurado      45     0.22       13
+  rachado        20     0.40       20
+  desfeito        0     0.55       23
+```
+
+O menor `min` das três tabelas é `0.10`. O estágio `tenso` vale `0.08`.
+
+```js
+pool = ILUSOES.filter(i => 0.08 >= i.min)   //  →  []
+```
+
+**Um off-by-0.02 apagava a faixa inteira de sanidade 70–89** — que é onde o
+jogador passa a maior parte do jogo. E o estágio prometia por escrito, na
+tela dele:
+
+```js
+'tenso': 'Você ouve passo onde não tem passo.'
+```
+
+O jogo dizia que ia acontecer e o filtro garantia que não acontecesse.
+
+### Sem sentido: não havia chão pra duvidar em cima
+
+O §30 congelou três coisas que **nunca** mentem — o relógio, o inventário e a
+porta da frente. Está lá, funciona, e o jogador nunca soube: a tabela
+`PERCEPCAO_INVIOLAVEL` só era lida por função de depuração.
+
+Sem um chão firme conhecido, duvidar não é jogar — é ruído. *"Nada é
+confiável"* não é uma regra, é a ausência de uma. Com três âncoras que o
+jogador conhece pelo nome, a dúvida vira trabalho: você tem onde pisar pra
+medir o resto.
+
+E as ilusões grandes **se anunciavam**: abriam uma tela com o título "Você tem
+certeza?". Alucinação que chega com crachá de alucinação não assusta ninguém.
+
+### O que entrou — `s38-sanidade.js`
+
+**1 · Os sussurros.** 18 ilusões pequenas, 8 delas desenhadas para `min: 0.02`,
+que é a faixa do `tenso`. Elas chegam ao jogador por `diz(..., 'narr')` — a
+**mesma classe de qualquer outra linha de narração**, de propósito. Não têm
+tela, não têm título, não têm confirmação. Chegam ao trocar de cômodo, que é o
+batimento natural do jogo dentro de casa, com teto de 5 por dia e 2 turnos de
+intervalo.
+
+O número do estágio **não foi inflado**: `tenso` continua valendo 0.08. O que
+mudou é que agora existe conteúdo desenhado pra essa faixa.
+
+```
+estágio        antes   agora
+  lúcido           0       0     (continua correto)
+  tenso            0       8     ← a promessa escrita virou verdade
+  fissurado       13      26
+  rachado         20      38
+  desfeito        23      41
+```
+
+**2 · As três âncoras chegam ao jogador, e viram verbo.** `CHAO_FIRME` — o
+relógio, o inventário e a porta. `ensinarAncoras()` conta pro jogador uma vez
+só, depois do segundo sussurro, quando ele já tem motivo pra querer saber.
+Depois disso, `conferirAncora()` é um botão no cômodo: custa **10 minutos** do
+relógio, devolve **2 pontos** de sanidade e liga `S._verdade` por 1,8s — que é
+o intervalo em que a interface para de mentir.
+
+Não cura. O preço é tempo, e o tempo é o recurso que o jogo cobra mais caro.
+Conferir é escolher não fazer outra coisa.
+
+*(O nome não é `ANCORAS`: o jogo já tem uma tabela com esse nome e com o
+sentido **oposto** — as âncoras afetivas, que são justamente as que se
+contaminam. Duas tabelas com o mesmo nome, num escopo global de 1445 nomes, é
+uma delas sumir em silêncio.)*
+
+**3 · A sanidade vira sintoma na tela.** Antes ela era o nome de um estágio
+numa ficha. Agora `sanIntensidade()` mapeia sanidade 82→15 em 0→1 e um véu
+`#san-veu` responde a isso continuamente: grão, vinheta que fecha, pulso que
+desacelera, e acima de 0.30 um tremor de 1,4px no texto. O jogador vê a
+sanidade cair **antes** de ir olhar o número.
+
+Tem chave de desligar (`S.semSintoma`), porque tremor de tela não é opcional
+pra quem precisa que não seja.
+
+**4 · A ilusão fala do seu cômodo.** A ilusão passa a ler onde o jogador está.
+"Alguém falou o seu nome em outro cômodo" é uma frase; a mesma frase quando
+você sabe que só tem você na casa é outra coisa.
+
+### Regra de ouro
+
+Nada aqui é aleatório de graça. Sussurro só chega em estágio que o jogo já
+disse que produz sussurro; a âncora sempre diz a verdade e o jogador sabe
+disso; o véu é função contínua da sanidade e de mais nada. Se o jogador for
+conferir depois, tudo tem explicação.
+
+### Verificação
+
+`tools/testes/santeste.mjs` — 30 asserções, incluindo a medição do pool vazio
+antes e depois. Regressão completa: **506 asserções, 0 falhas, 18 harnesses.**
+
+Um aviso do processo, que ficou anotado no `LEIA-ME` dos testes: as primeiras
+rodadas passavam sem provar nada porque estavam sendo feitas **com sanidade
+cheia**, onde `lúcido` não produz nada por definição. E `mexerSan(-22)` sozinho
+não muda estágio nenhum — `v9().escudo` são 30 pontos que absorvem a primeira
+queda inteira.
+
+
 ## v64 — a linha de saldo
 
 ### A medição contradisse a suspeita óbvia

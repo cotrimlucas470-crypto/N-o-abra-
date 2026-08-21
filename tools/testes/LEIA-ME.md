@@ -14,6 +14,7 @@ depois de `node montar.js`:
     node tools/testes/falasteste.mjs   # as falas da porta §35 (18)
     node tools/testes/itensteste.mjs   # os verbos das armas §36 (26)
     node tools/testes/saldoteste.mjs   # a linha de saldo §37 (26)
+    node tools/testes/santeste.mjs     # a sanidade como sintoma §38 (30)
     node tools/testes/aberturateste.mjs # a abertura narrada e a guarda do save (14)
 
 Fumaça no PACOTE, não na cópia de trabalho — descompacte o zip e aponte:
@@ -62,3 +63,10 @@ A trava de colisão também roda dentro de `montar.js` e **quebra o build**.
   distante, não chutar dois números.
 - `riscoDaArea()` é limitado a 0,9 de propósito: nada neste jogo é certeza.
   Teste que exige o encontro precisa insistir.
+
+- Teste de sanidade **com sanidade cheia não prova nada**: `lúcido` produz zero
+  por definição, e é o certo. Derrube a sanidade antes de medir qualquer coisa.
+- `mexerSan(-22)` sozinho não muda estágio: `v9().escudo` são 30 pontos que
+  absorvem a primeira queda inteira. Zere o escudo ou bata duas vezes.
+- O jogo dobra letra de propósito em sanidade baixa ("mmais"). Isso **não** é
+  bug de digitação — é a linha passando pelo mesmo filtro da narração real.
