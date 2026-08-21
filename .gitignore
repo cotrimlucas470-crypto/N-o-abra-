@@ -1,5 +1,10 @@
-# pacote de deploy: derivado do index.html, refeito a cada build
-naoabra-*.zip
 
+# pacote de deploy: derivado do index.html, refeito a cada build
 # subsistema anomalia
 anomalia/node_modules/
+ffmpeg2pass*
+final/conferir.mp3
+final/ffmpeg2pass*
+final/trilha*.m4a
+final/vq/
+naoabra-*.zip

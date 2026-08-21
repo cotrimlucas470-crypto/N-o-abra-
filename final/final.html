@@ -1,0 +1,816 @@
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Não Abra — o final</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,700;1,6..96,400&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
+<style>
+  html,body{margin:0;padding:0;background:#000;height:100%;overflow:hidden}
+  body{display:flex;align-items:center;justify-content:center}
+  canvas{display:block;max-width:100%;max-height:100%;background:#0B0A0D}
+  #ir{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+      background:#0B0A0D;z-index:9;cursor:pointer;font-family:'Share Tech Mono',monospace;
+      color:#C9A227;letter-spacing:.28em;font-size:13px;text-transform:uppercase}
+  #ir.some{display:none}
+</style>
+
+<canvas id="c" width="1080" height="1920"></canvas>
+<div id="ir">tocar</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════
+   NÃO ABRA — O FINAL
+   ══════════════════════════════════════════════════════════════════
+
+   Uma cena só, dirigida por relógio. Existe em dois modos:
+
+     · AO VIVO   — toca no navegador, áudio de verdade, tempo real.
+     · RENDER    — `window.__T` manda no relógio e nada se move sozinho.
+                   É assim que o vídeo é gerado: quadro por quadro, no
+                   instante exato. Sincronia não é sorte.
+
+   Todo sorteio sai de uma semente ligada ao número do quadro, então o
+   mesmo instante desenha sempre igual. É a mesma regra do jogo: se não
+   dá pra explicar depois, está errado.
+   ══════════════════════════════════════════════════════════════════ */
+
+const P={breu:'#0B0A0D',parede:'#16131A',lampiao:'#C9A227',mofo:'#7A8B7F',
+         ferrugem:'#8C2F1E',papel:'#E8E2D4'};
+
+/* ---------- as falas gravadas ---------- */
+/* `arq:null` = a gravação não chegou. A fala aparece escrita e o tempo
+   dela é respeitado, então é só largar o mp3 na pasta e apontar aqui. */
+const FALAS={
+  comida:   {quem:'IRMÃ', txt:'A comida tá acabando. Eu vou buscar suprimento.',
+             arq:null,                  dur:3.40},
+  tambem:   {quem:'ELE',  txt:'Eu também vou.',
+             arq:null,                  dur:1.80},
+  perigoso: {quem:'IRMÃ', txt:'É perigoso. Eu vou sozinha.',
+             arq:'v-perigoso.mp3',      dur:4.30},
+  mas:      {quem:'ELE',  txt:'Mas…',
+             arq:null,                  dur:1.50},
+  maisnada: {quem:'IRMÃ', txt:'Mais nada.',
+             arq:'v-mais-nada.mp3',     dur:3.40},
+  euvolto:  {quem:'IRMÃ', txt:'Eu volto. Eu sempre volto.',
+             arq:'v-eu-volto.mp3',      dur:4.60},
+  euvoltei: {quem:'?',    txt:'Eu voltei.',
+             arq:'v-eu-voltei.mp3',     dur:5.20},
+  acordar:  {quem:'',     txt:'Hora de acordar.',
+             arq:'v-hora-de-acordar.mp3',dur:4.20}
+};
+
+/* ---------- a narração, frase a frase ----------
+   Os tempos NÃO foram escritos à mão: saíram de alinhar as 46 frases
+   contra as 95 pausas medidas no mp3, por programação dinâmica. Erro
+   médio de 1,09 s. `t` é o segundo em que a frase começa no arquivo. */
+const N=[
+ [  0.00,'A comida estava acabando fazia dois dias, e ninguém tinha coragem de dizer isso em voz alta primeiro.'],
+ [  8.38,'Foi a irmã quem disse.'],
+ [ 10.82,'Ele pegou o casaco antes dela terminar a frase.'],
+ [ 16.44,'Ela já estava na porta quando disse a última coisa, sem virar pra trás, como quem não quer que a resposta pareça um pedido.'],
+ [ 28.22,'A porta bateu.'],
+ [ 30.78,'O trinco caiu no lugar sozinho, do jeito que só cai quando alguém sai com pressa.'],
+ [ 34.18,'Ele ficou olhando pra madeira por um tempo maior do que devia.'],
+ [ 38.28,'Horas viraram um dia.'],
+ [ 42.58,'Um dia virou três.'],
+ [ 45.36,'Três viraram uma semana, e na semana ele parou de contar em dias e passou a contar em coisas que não aconteceram: ela não voltou pra dormir, ela não voltou pra comer o que sobrou, ela não voltou pra dizer que tinha sido bobagem ter ido sozinha.'],
+ [ 62.60,'O gerador continuou rodando porque alguém tinha que cuidar dele, e cuidar do gerador virou a única coisa que fazia sentido fazer.'],
+ [ 73.04,'As semanas viraram um mês.'],
+ [ 78.70,'O mês virou o hábito de deixar um prato a mais na mesa, sem ninguém comentar, até que parar de fazer isso também virou um hábito.'],
+ [ 91.56,'Ninguém mais falava o nome dela em voz alta.'],
+ [ 94.76,'Não porque tinham esquecido.'],
+ [ 96.98,'Porque lembravam demais.'],
+ [ 98.48,'§A noite das três batidas'],
+ [100.52,'Foi numa noite comum, sem nada de diferente nela até aquele momento, que a porta recebeu três batidas.'],
+ [108.44,'Pausadas.'],
+ [111.24,'Do jeito que se bate quando não se tem pressa de ser atendido.'],
+ [118.14,'Ele reconheceu o ritmo antes de reconhecer qualquer outra coisa.'],
+ [123.04,'Encostou o ouvido na madeira.'],
+ [125.62,'A respiração do outro lado era regular, cansada, humana.'],
+ [130.24,'Do jeito certo de cansada.'],
+ [132.84,'Perguntou o que só ela saberia responder — uma coisa pequena, de antes de tudo isso, que nenhum estranho teria como adivinhar.'],
+ [141.98,'A resposta veio certa.'],
+ [144.24,'Exatamente certa.'],
+ [146.24,'E foi exatamente por estar certa que ele não teve coragem de abrir.'],
+ [152.82,'Porque ele já tinha ouvido, no rádio, quantas vezes a resposta certa não era garantia de nada.'],
+ [161.78,'Porque ele já sabia que existia coisa lá fora capaz de aprender uma voz e usar ela pra bater numa porta.'],
+ [170.60,'Do outro lado, a voz dela — a voz dela de verdade, ou algo que tinha decorado cada detalhe dela — disse a única frase que ele mais queria e mais temia ouvir.'],
+ [184.82,'Ele ficou parado com a mão a um centímetro do trinco.'],
+ [187.70,'A hesitação durou o tempo de três respirações — as dele, não as de quem esperava do outro lado.'],
+ [196.08,'Não foi coragem que fez a mão virar a maçaneta.'],
+ [202.36,'Foi cansaço de duvidar.'],
+ [204.02,'A porta abriu.'],
+ [207.42,'E antes que qualquer coisa do outro lado tomasse forma — antes de rosto, antes de mais voz nenhuma — veio a luz.'],
+ [213.34,'Branca.'],
+ [217.88,'Forte demais pra vir de rua nenhuma sem eletricidade.'],
+ [222.30,'Alguém disse, de um lugar sem direção:'],
+ [223.94,'Ele abriu os olhos.'],
+ [229.46,'Teto branco.'],
+ [230.90,'Um aparelho apitando num ritmo que não era o dele.'],
+ [232.38,'Uma cadeira ao lado da cama, com o formato de quem tinha dormido ali recente demais pra ser confortável.'],
+ [241.04,'Quatro anos foi a primeira coisa que disseram — antes ainda de perguntarem o nome dele.'],
+ [248.28,'Quatro anos, e a casa, o gerador, a irmã que saiu buscar comida e nunca mais voltou, cada batida, cada noite contando as horas até clarear — nada daquilo tinha acontecido fora da própria cabeça dele, sozinha no escuro, tentando dar um formato pra alguma coisa grande demais pra caber num pensamento só.']
+];
+const NARR_DUR=274.21;
+
+/* ---------- onde a narração para pra alguém falar ---------- */
+const PARADAS=[
+  {em: 10.14, falas:['comida']},
+  {em: 14.86, falas:['tambem','perigoso','mas','maisnada']},
+  {em: 27.10, falas:['euvolto']},
+  {em:184.42, falas:['euvoltei']},
+  {em:223.77, falas:['acordar']},
+  {em:228.08, video:true}
+];
+
+const ABERTURA=5.0, FECHO=11.0, VIDEO_DUR=7.87;
+
+/* ══════════════ MONTAGEM DA LINHA DO TEMPO ══════════════
+   Uma passada só, e ela é a fonte da verdade: a tela, o áudio e o
+   render leem daqui. Duas listas de tempos que pudessem discordar era
+   o jeito garantido de a voz entrar em cima da narração. */
+const LINHA=[];         /* {t0,t1,tipo,...} em tempo de VÍDEO */
+let T=ABERTURA, corte=0;
+for(const par of PARADAS){
+  if(par.em>corte){
+    LINHA.push({tipo:'narra',t0:T,t1:T+(par.em-corte),n0:corte,n1:par.em});
+    T+=par.em-corte;
+  }
+  if(par.video){
+    LINHA.push({tipo:'video',t0:T,t1:T+VIDEO_DUR});
+    T+=VIDEO_DUR;
+  }else{
+    for(const k of par.falas){
+      const f=FALAS[k];
+      LINHA.push({tipo:'fala',t0:T,t1:T+f.dur,chave:k});
+      T+=f.dur;
+    }
+  }
+  corte=par.em;
+}
+LINHA.push({tipo:'narra',t0:T,t1:T+(NARR_DUR-corte),n0:corte,n1:NARR_DUR});
+T+=NARR_DUR-corte;
+const FIM_NARRA=T;
+const DURACAO=T+FECHO;
+
+/* tempo de vídeo -> tempo de narração, e o contrário */
+function narraEm(t){
+  for(const s of LINHA) if(s.tipo==='narra'&&t>=s.t0&&t<s.t1) return s.n0+(t-s.t0);
+  return null;
+}
+function videoDoNarra(tn){
+  for(const s of LINHA) if(s.tipo==='narra'&&tn>=s.n0&&tn<=s.n1) return s.t0+(tn-s.n0);
+  return null;
+}
+/* a frase da narração que está sendo dita agora */
+function fraseEm(t){
+  const tn=narraEm(t);
+  if(tn===null)return null;
+  let a=null;
+  for(let i=0;i<N.length;i++){ if(N[i][0]<=tn)a={i,t:N[i][0],txt:N[i][1]}; else break; }
+  return a;
+}
+function falaEm(t){
+  for(const s of LINHA) if(s.tipo==='fala'&&t>=s.t0&&t<s.t1)
+    return {...FALAS[s.chave],t0:s.t0,t1:s.t1,chave:s.chave};
+  return null;
+}
+function videoEm(t){
+  for(const s of LINHA) if(s.tipo==='video'&&t>=s.t0&&t<s.t1) return t-s.t0;
+  return null;
+}
+/* marcas do roteiro, em tempo de VÍDEO — calculadas, nunca digitadas */
+const M={};
+[['porta',28.22],['gerador',38.28],['prato',78.70],['cartao',98.48],
+ ['batidas',100.52],['ouvido',123.04],['pergunta',132.84],['certa',141.98],
+ ['abriu',204.02],['luz',207.42],['branca',213.34],['olhos',223.94],
+ ['tetobranco',229.46],['quatroanos',241.04]]
+  .forEach(([k,v])=>{ M[k]=videoDoNarra(v); });
+M.videoIni=LINHA.find(s=>s.tipo==='video').t0;
+M.videoFim=LINHA.find(s=>s.tipo==='video').t1;
+
+/* ══════════════ SORTEIO PRESO AO QUADRO ══════════════ */
+function rnd(s){ s=(s*1664525+1013904223)>>>0; return ((s>>>8)/16777216); }
+function ruido(i,k){ return rnd(((i*2654435761)^(k*40503))>>>0); }
+
+/* ══════════════ TELA ══════════════ */
+const c=document.getElementById('c'), x=c.getContext('2d');
+const W=c.width, H=c.height, S=W/1080;      /* tudo desenhado em 1080 de largura */
+function px(v){ return v*S; }
+
+function limpar(cor){ x.fillStyle=cor; x.fillRect(0,0,W,H); }
+function alfa(a){ return Math.max(0,Math.min(1,a)); }
+function suave(t){ t=alfa(t); return t*t*(3-2*t); }
+/* entra e sai */
+function janela(t,ini,fim,ent,sai){
+  if(t<ini||t>fim)return 0;
+  return Math.min(suave((t-ini)/ent), suave((fim-t)/sai));
+}
+
+function grao(q,forca){
+  const n=Math.round(2600*forca);
+  x.save();
+  for(let i=0;i<n;i++){
+    const a=ruido(q,i*3), b=ruido(q,i*3+1), v=ruido(q,i*3+2);
+    x.fillStyle='rgba('+(v>.5?'232,226,212,':'0,0,0,')+(0.020+v*0.05)+')';
+    x.fillRect(a*W,b*H,2.2,2.2);
+  }
+  x.restore();
+}
+function vinheta(f){
+  const g=x.createRadialGradient(W/2,H*0.44,W*0.18,W/2,H*0.46,W*0.86);
+  g.addColorStop(0,'rgba(0,0,0,0)');
+  g.addColorStop(1,'rgba(0,0,0,'+(0.82*f)+')');
+  x.fillStyle=g; x.fillRect(0,0,W,H);
+}
+
+/* ---------- texto ---------- */
+function quebra(txt,fonte,larg){
+  x.font=fonte;
+  const pal=txt.split(' '), li=[]; let l='';
+  for(const p of pal){
+    const t=l?l+' '+p:p;
+    if(x.measureText(t).width>larg&&l){ li.push(l); l=p; } else l=t;
+  }
+  if(l)li.push(l);
+  return li;
+}
+function bloco(txt,{y,tam=42,fonte='Crimson Pro',cor=P.papel,op=1,larg=px(800),
+                    alt=1.5,peso='400',estilo='',centro=true,sombra=0}={}){
+  if(op<=0.002)return y;
+  const f=estilo+' '+peso+' '+px(tam)+'px "'+fonte+'", Georgia, serif';
+  const li=quebra(txt,f,larg);
+  x.save();
+  x.font=f; x.textAlign=centro?'center':'left'; x.textBaseline='middle';
+  x.fillStyle=cor;
+  x.globalAlpha=alfa(op);
+  if(sombra){ x.shadowColor='rgba(0,0,0,.9)'; x.shadowBlur=px(sombra); }
+  const passo=px(tam*alt);
+  li.forEach((l,i)=>x.fillText(l,centro?W/2:(W-larg)/2,y+i*passo));
+  x.restore();
+  return y+li.length*passo;
+}
+function alturaDe(txt,tam,larg,alt=1.5){
+  const f='400 '+px(tam)+'px "Crimson Pro", Georgia, serif';
+  return quebra(txt,f,larg).length*px(tam*alt);
+}
+/* O texto tem de ser lido. A vinheta é forte de propósito — é o jogo
+   inteiro — então em vez de enfraquecer a atmosfera, o texto ganha um
+   véu próprio, escuro e macio, exatamente onde ele está. */
+function veu(y,h,op,claro){
+  if(op<=0.01)return;
+  const m=px(150);
+  const g=x.createLinearGradient(0,y-m,0,y+h+m);
+  const c=claro?'232,226,212':'6,5,8';
+  g.addColorStop(0,'rgba('+c+',0)');
+  g.addColorStop(.32,'rgba('+c+','+(0.62*op)+')');
+  g.addColorStop(.68,'rgba('+c+','+(0.62*op)+')');
+  g.addColorStop(1,'rgba('+c+',0)');
+  x.fillStyle=g; x.fillRect(0,y-m,W,h+m*2);
+}
+function rotulo(txt,y,op,cor){
+  if(op<=0.002)return;
+  x.save();
+  x.globalAlpha=alfa(op);
+  x.font='400 '+px(19)+'px "Share Tech Mono", monospace';
+  x.textAlign='center'; x.fillStyle=cor||P.mofo;
+  x.fillText(txt.split('').join('  '),W/2,y);
+  x.restore();
+}
+
+/* ---------- a fresta debaixo da porta ---------- */
+/* A imagem que dá nome ao jogo. Geometria copiada do §27: a porta é
+   .60 da largura, o chão em .90 da altura. */
+function porta(t,{abertura=0,brilho=1,vultos=null,tremor=0,q=0}={}){
+  const chao=H*0.90;
+  const pw=Math.min(W*0.52,H*0.46), pxx=(W-pw)/2, py=H*0.175, ph=chao-py;
+  const fh=Math.max(px(6),H*0.022);
+  const fy=py+ph;
+  const sac=tremor?(ruido(q,7)-0.5)*tremor*px(9):0;
+  const a=suave(abertura);
+
+  x.save(); x.translate(sac,0);
+
+  /* ── o vao: o que existe atras da porta ──
+     Precisa estar desenhado ANTES da folha, senao quando ela abre nao
+     ha o que aparecer — na versao antiga a luz era pintada por cima da
+     propria porta, e por isso a abertura parecia uma mancha e nao um
+     buraco. */
+  x.fillStyle='#070609';
+  x.fillRect(pxx-px(4),py-px(4),pw+px(8),ph+px(4));
+  if(a>0.002){
+    const lg=x.createLinearGradient(pxx,py,pxx+pw,py);
+    lg.addColorStop(0,'rgba(255,255,255,'+(0.99*Math.min(1,a*2))+')');
+    lg.addColorStop(.55,'rgba(255,252,244,'+(0.92*Math.min(1,a*1.6))+')');
+    lg.addColorStop(1,'rgba(240,236,226,'+(0.70*a)+')');
+    x.fillStyle=lg; x.fillRect(pxx,py,pw,ph);
+    /* raios: a luz nao e chapada, ela sai em leques do vao */
+    x.save(); x.globalCompositeOperation='lighter';
+    for(let i=0;i<9;i++){
+      const s=ruido(q*3+i,i*11);
+      const yy=py+ph*(0.08+0.84*((i+s*0.5)/9));
+      const g2=x.createLinearGradient(pxx,yy,pxx+pw*2.2*a,yy);
+      g2.addColorStop(0,'rgba(255,255,255,'+(0.30*a)+')');
+      g2.addColorStop(1,'rgba(255,255,255,0)');
+      x.fillStyle=g2;
+      x.beginPath();
+      x.moveTo(pxx,yy);
+      x.lineTo(pxx+pw*2.4*a,yy-px(120)*a);
+      x.lineTo(pxx+pw*2.4*a,yy+px(120)*a);
+      x.closePath(); x.fill();
+    }
+    x.restore();
+  }
+
+  /* ── batente ── */
+  const bw=px(22);
+  const gb=x.createLinearGradient(pxx-bw,0,pxx,0);
+  gb.addColorStop(0,'#0B0A0D'); gb.addColorStop(1,'#1B1620');
+  x.fillStyle=gb; x.fillRect(pxx-bw,py-bw,bw,ph+bw);
+  const gb2=x.createLinearGradient(pxx+pw,0,pxx+pw+bw,0);
+  gb2.addColorStop(0,'#1B1620'); gb2.addColorStop(1,'#0B0A0D');
+  x.fillStyle=gb2; x.fillRect(pxx+pw,py-bw,bw,ph+bw);
+  x.fillStyle='#141118'; x.fillRect(pxx-bw,py-bw,pw+bw*2,bw);
+
+  /* ── a folha, que gira na dobradica da esquerda ──
+     Abrir = encolher a largura pelo cosseno do angulo. E o mesmo que o
+     olho ve: a porta nao desliza, ela vira. */
+  const fw2=pw*Math.cos(a*Math.PI*0.42);
+  if(fw2>px(3)){
+    x.save();
+    x.beginPath(); x.rect(pxx,py-px(2),fw2,ph+px(2)); x.clip();
+    /* madeira: base, veio, e a luz que sobe do chao */
+    const gp=x.createLinearGradient(0,py,0,fy);
+    gp.addColorStop(0,'#0E0C11'); gp.addColorStop(.55,'#161219');
+    gp.addColorStop(.88,'#211A19'); gp.addColorStop(1,'#2E241E');
+    x.fillStyle=gp; x.fillRect(pxx,py,fw2,ph);
+    /* a face que abre pega a luz de dentro na quina */
+    if(a>0.01){
+      const gq=x.createLinearGradient(pxx+fw2-px(60),0,pxx+fw2,0);
+      gq.addColorStop(0,'rgba(255,246,228,0)');
+      gq.addColorStop(1,'rgba(255,246,228,'+(0.55*a)+')');
+      x.fillStyle=gq; x.fillRect(pxx+fw2-px(60),py,px(60),ph);
+    }
+    const k=fw2/pw;
+    /* veio da madeira */
+    for(let i=0;i<26;i++){
+      const s=ruido(i,3), s2=ruido(i,9);
+      x.strokeStyle='rgba(0,0,0,'+(0.10+s*0.16)+')';
+      x.lineWidth=px(0.8+s2*2.2);
+      const xa=pxx+fw2*((i+s*0.6)/26);
+      x.beginPath(); x.moveTo(xa,py);
+      x.bezierCurveTo(xa+px(6)*k,py+ph*0.3,xa-px(8)*k,py+ph*0.7,xa+px(3)*k,fy);
+      x.stroke();
+    }
+    /* almofadas com quina de luz em cima e sombra embaixo */
+    [[0.05,0.28],[0.38,0.28],[0.71,0.22]].forEach(([f,h2])=>{
+      const ry=py+ph*f, rh=ph*h2, rx=pxx+fw2*0.13, rw=fw2*0.74;
+      x.fillStyle='rgba(0,0,0,.30)'; x.fillRect(rx,ry,rw,rh);
+      x.strokeStyle='rgba(0,0,0,.62)'; x.lineWidth=px(3)*k+0.6;
+      x.strokeRect(rx,ry,rw,rh);
+      x.strokeStyle='rgba(232,226,212,.055)'; x.lineWidth=px(2)*k+0.5;
+      x.beginPath(); x.moveTo(rx,ry+rh); x.lineTo(rx,ry); x.lineTo(rx+rw,ry); x.stroke();
+      x.strokeStyle='rgba(255,240,210,.035)';
+      x.beginPath(); x.moveTo(rx+rw,ry); x.lineTo(rx+rw,ry+rh); x.lineTo(rx,ry+rh); x.stroke();
+    });
+    /* marcas de uso: arranhoes rasos, sempre nos mesmos lugares */
+    for(let i=0;i<16;i++){
+      const s=ruido(i,21), s2=ruido(i,33), s3=ruido(i,44);
+      x.strokeStyle='rgba(0,0,0,'+(0.10+s3*0.14)+')';
+      x.lineWidth=px(1.2);
+      const xa=pxx+fw2*(0.08+s*0.84), ya=py+ph*(0.10+s2*0.86);
+      x.beginPath(); x.moveTo(xa,ya);
+      x.lineTo(xa+px(4+s3*26)*k,ya+px(-8+s*18)); x.stroke();
+    }
+    /* tabuas pregadas atravessadas */
+    [[0.335,34],[0.565,30]].forEach(([f,hh])=>{
+      const ty=py+ph*f, th=px(hh);
+      const gt=x.createLinearGradient(0,ty,0,ty+th);
+      gt.addColorStop(0,'#3A2E22'); gt.addColorStop(.5,'#2A2119'); gt.addColorStop(1,'#191310');
+      x.fillStyle=gt; x.fillRect(pxx-px(14),ty,fw2+px(28),th);
+      x.fillStyle='rgba(201,162,39,.10)'; x.fillRect(pxx-px(14),ty,fw2+px(28),px(3));
+      x.fillStyle='rgba(0,0,0,.55)'; x.fillRect(pxx-px(14),ty+th-px(3),fw2+px(28),px(3));
+      /* pregos */
+      for(let i=0;i<4;i++){
+        const nx=pxx+fw2*(0.12+i*0.25);
+        if(nx>pxx+fw2-px(6))continue;
+        x.fillStyle='rgba(232,226,212,.16)';
+        x.beginPath(); x.arc(nx,ty+th*0.5,px(3.2),0,7); x.fill();
+        x.fillStyle='rgba(0,0,0,.5)';
+        x.beginPath(); x.arc(nx+px(1),ty+th*0.5+px(1),px(2),0,7); x.fill();
+      }
+    });
+    /* macaneta e dobradicas */
+    if(k>0.30){
+      const mx=pxx+fw2*0.88, my=py+ph*0.52;
+      x.fillStyle='rgba(20,16,12,.9)';
+      x.beginPath(); x.ellipse(mx,my,px(15)*k,px(15),0,0,7); x.fill();
+      const gm=x.createRadialGradient(mx-px(4)*k,my-px(4),0,mx,my,px(15));
+      gm.addColorStop(0,'rgba(201,162,39,.55)'); gm.addColorStop(1,'rgba(120,95,30,.10)');
+      x.fillStyle=gm;
+      x.beginPath(); x.ellipse(mx,my,px(12)*k,px(12),0,0,7); x.fill();
+      x.fillStyle='rgba(0,0,0,.45)';
+      x.fillRect(pxx+px(3),py+ph*0.16,px(16)*k,px(30));
+      x.fillRect(pxx+px(3),py+ph*0.80,px(16)*k,px(30));
+    }
+    x.restore();
+    /* a quina viva da folha aberta */
+    if(a>0.01){
+      x.fillStyle='rgba(255,248,232,'+(0.75*a)+')';
+      x.fillRect(pxx+fw2-px(3),py,px(3),ph);
+    }
+  }
+
+  /* ── a fresta ── */
+  const fb=brilho*(1+a*2.2);
+  const g=x.createLinearGradient(pxx,fy,pxx+pw,fy);
+  g.addColorStop(0,'rgba(201,162,39,0)');
+  g.addColorStop(.16,'rgba(201,162,39,'+(0.55*fb)+')');
+  g.addColorStop(.5,'rgba(255,228,158,'+(0.90*fb)+')');
+  g.addColorStop(.84,'rgba(201,162,39,'+(0.55*fb)+')');
+  g.addColorStop(1,'rgba(201,162,39,0)');
+  x.fillStyle=g; x.fillRect(pxx,fy,pw,fh);
+  const s=x.createLinearGradient(0,fy,0,fy+px(230));
+  s.addColorStop(0,'rgba(201,162,39,'+(0.36*fb)+')');
+  s.addColorStop(.42,'rgba(201,162,39,'+(0.10*fb)+')');
+  s.addColorStop(1,'rgba(201,162,39,0)');
+  x.fillStyle=s; x.fillRect(pxx-px(160),fy,pw+px(320),px(230));
+  const s2=x.createRadialGradient(W/2,fy+px(24),0,W/2,fy+px(24),W*0.80);
+  s2.addColorStop(0,'rgba(201,162,39,'+(0.13*fb)+')');
+  s2.addColorStop(1,'rgba(201,162,39,0)');
+  x.fillStyle=s2; x.fillRect(0,fy-px(8),W,H-fy+px(8));
+
+  /* ── os vultos na fresta ── */
+  if(vultos)for(const v of vultos){
+    const vw=pw*v.w, vx2=pxx+pw*v.x-vw/2;
+    const al=(v.a==null?0.94:v.a);
+    x.fillStyle='rgba(5,4,7,'+al+')';
+    x.fillRect(vx2,fy-px(3),vw,fh+px(5));
+    const sb=x.createLinearGradient(0,fy,0,fy+px(140));
+    sb.addColorStop(0,'rgba(5,4,7,'+(0.80*al)+')');
+    sb.addColorStop(1,'rgba(5,4,7,0)');
+    x.fillStyle=sb; x.fillRect(vx2-px(8),fy,vw+px(16),px(140));
+  }
+
+  /* ── a luz tomando o quarto quando a porta abre ── */
+  if(a>0.002){
+    x.save(); x.globalCompositeOperation='lighter';
+    const b2=x.createRadialGradient(pxx+pw*0.30,py+ph*0.44,0,
+                                    pxx+pw*0.30,py+ph*0.44,W*1.25*a);
+    b2.addColorStop(0,'rgba(255,255,255,'+(0.85*a)+')');
+    b2.addColorStop(.35,'rgba(255,252,242,'+(0.30*a)+')');
+    b2.addColorStop(1,'rgba(255,255,255,0)');
+    x.fillStyle=b2; x.fillRect(0,0,W,H);
+    /* poeira no facho */
+    for(let i=0;i<90;i++){
+      const s3=ruido(q+i*7,i), s4=ruido(q+i*7,i+500), s5=ruido(i,q);
+      const dx=pxx+pw*(0.05+s3*1.6*a), dy=py+ph*(0.05+s4*0.92);
+      x.fillStyle='rgba(255,250,238,'+(0.05+s5*0.28)*a+')';
+      x.beginPath(); x.arc(dx,dy,px(1.2+s5*2.6),0,7); x.fill();
+    }
+    x.restore();
+  }
+  x.restore();
+}
+
+/* ---------- o gerador: a única coisa que continuou ---------- */
+function gerador(t,forca){
+  if(forca<=0.002)return;
+  const pulso=0.72+0.28*Math.sin(t*2.1)+0.06*Math.sin(t*7.3);
+  const g=x.createRadialGradient(W*0.5,H*0.965,0,W*0.5,H*0.965,W*0.72);
+  g.addColorStop(0,'rgba(201,162,39,'+(0.20*forca*pulso)+')');
+  g.addColorStop(.55,'rgba(140,90,25,'+(0.07*forca*pulso)+')');
+  g.addColorStop(1,'rgba(201,162,39,0)');
+  x.fillStyle=g; x.fillRect(0,H*0.55,W,H*0.45);
+}
+
+/* ---------- a mesa com o prato a mais ---------- */
+function mesa(t,op,somem){
+  if(op<=0.002)return;
+  x.save(); x.globalAlpha=alfa(op);
+  const y=H*0.60, w=W*0.66, xx=(W-w)/2;
+  const g=x.createLinearGradient(0,y-px(30),0,y+px(120));
+  g.addColorStop(0,'rgba(201,162,39,.10)'); g.addColorStop(1,'rgba(201,162,39,0)');
+  x.fillStyle=g; x.fillRect(xx-px(40),y-px(30),w+px(80),px(150));
+  x.strokeStyle='rgba(232,226,212,.16)'; x.lineWidth=px(2);
+  x.beginPath(); x.moveTo(xx,y); x.lineTo(xx+w,y); x.stroke();
+  /* dois pratos: elipses. O da direita vai embora. */
+  [[0.30,1],[0.70,1-somem]].forEach(([f,a])=>{
+    if(a<=0.004)return;
+    x.save(); x.globalAlpha=alfa(op*a);
+    x.strokeStyle='rgba(232,226,212,.42)'; x.lineWidth=px(2.5);
+    x.beginPath(); x.ellipse(xx+w*f,y-px(16),px(62),px(19),0,0,7); x.stroke();
+    x.strokeStyle='rgba(232,226,212,.20)'; x.lineWidth=px(1.5);
+    x.beginPath(); x.ellipse(xx+w*f,y-px(16),px(38),px(11),0,0,7); x.stroke();
+    x.restore();
+  });
+  x.restore();
+}
+
+/* ---------- o quadro do vídeo (render usa jpg, ao vivo usa <video>) ---------- */
+let VID=null, VQ=[];
+/* Enquanto o vídeo TOCA ele toma a tela inteira: os quadros pretos da
+   animação são cortes dela, e cortar pra preto é leitura de cinema. Só
+   depois que ele acaba é que o último quadro sobe pro alto e abre lugar
+   pro texto. Numa caixa fixa, o corte pra preto virava um retângulo
+   preto boiando no creme — parecia defeito, não decisão. */
+function desenharVideo(tv,op,cheio){
+  let fonte=null, fw=0, fh=0;
+  if(VID&&VID.readyState>=2){ fonte=VID; fw=VID.videoWidth; fh=VID.videoHeight; }
+  else{
+    const i=Math.min(VQ.length-1,Math.max(0,Math.round(tv*24)));
+    if(VQ[i]&&VQ[i].complete&&VQ[i].naturalWidth){ fonte=VQ[i]; fw=VQ[i].naturalWidth; fh=VQ[i].naturalHeight; }
+  }
+  if(!fonte)return false;
+  const cw=W, ch=cheio?H:H*0.58;
+  const esc=Math.max(cw/fw,ch/fh);
+  const dw=fw*esc, dh=fh*esc;
+  x.save(); x.globalAlpha=alfa(op);
+  x.beginPath(); x.rect(0,0,cw,ch); x.clip();
+  x.drawImage(fonte,(W-dw)/2,ch/2-dh/2,dw,dh);
+  if(!cheio){
+    /* a borda de baixo desmancha no creme em vez de cortar seco */
+    const fd=x.createLinearGradient(0,ch-px(150),0,ch);
+    fd.addColorStop(0,'rgba(232,226,212,0)'); fd.addColorStop(1,'rgba(232,226,212,1)');
+    x.fillStyle=fd; x.fillRect(0,ch-px(150),cw,px(150));
+  }
+  x.restore();
+  return true;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   O DESENHO DE UM INSTANTE
+   ══════════════════════════════════════════════════════════════════ */
+function pintar(t,q){
+  const fr=fraseEm(t), fa=falaEm(t), tv=videoEm(t);
+
+  /* quanto a cena já virou luz branca */
+  const luz = t<M.luz ? 0
+            : t<M.branca ? suave((t-M.luz)/(M.branca-M.luz))*0.42
+            : Math.min(1,0.42+suave((t-M.branca)/1.8)*0.58);
+  const claro = t>=M.olhos-0.6;
+
+  limpar(claro?P.papel:P.breu);
+
+  /* ─── ABERTURA ─── */
+  if(t<ABERTURA){
+    const o=janela(t,0.5,ABERTURA,1.3,1.0);
+    grao(q,0.5); vinheta(1);
+    rotulo('NÃO ABRA',H*0.46,o*0.9,P.lampiao);
+    bloco('o final',{y:H*0.505,tam:34,fonte:'Bodoni Moda',estilo:'italic',
+      cor:P.papel,op:o*0.55});
+    return;
+  }
+
+  /* ─── FECHO ─── */
+  if(t>=FIM_NARRA){
+    const u=t-FIM_NARRA;
+    limpar(P.breu);
+    grao(q,0.55); vinheta(1);
+    const o1=janela(u,0.8,FECHO,1.6,1.4);
+    x.save();
+    x.font='400 '+px(96)+'px "Bodoni Moda", Georgia, serif';
+    x.textAlign='center'; x.textBaseline='middle';
+    x.globalAlpha=alfa(o1); x.fillStyle=P.papel;
+    x.fillText('NÃO ABRA',W/2,H*0.44);
+    x.restore();
+    const o2=janela(u,2.6,FECHO,1.4,1.4);
+    rotulo('UM FINAL',H*0.50,o2*0.8,P.lampiao);
+    const o3=janela(u,4.2,FECHO,1.4,1.4);
+    bloco('vozes gravadas por quem escreveu a história, e pela irmã dele.',
+      {y:H*0.565,tam:29,estilo:'italic',cor:P.mofo,op:o3,larg:px(680)});
+    return;
+  }
+
+  /* ─── FUNDO POR ATO ─── */
+  const fPorta = janela(t,M.porta-0.4,M.abriu+7.6,1.4,1.6);
+  const fGer   = janela(t,M.gerador-1,M.cartao-1,2.2,2.0);
+
+  if(!claro){
+    /* atos 1 e 2: o quarto no escuro, com o lampião de canto */
+    if(t<M.porta){
+      const g=x.createRadialGradient(W*0.24,H*0.34,0,W*0.24,H*0.34,W*0.9);
+      g.addColorStop(0,'rgba(201,162,39,.10)');
+      g.addColorStop(1,'rgba(201,162,39,0)');
+      x.fillStyle=g; x.fillRect(0,0,W,H);
+    }
+    gerador(t,fGer*0.9);
+    mesa(t,janela(t,M.prato-0.6,M.prato+11,2.0,2.4),
+         suave((t-(M.prato+3.4))/4.2));
+
+    /* ato 3: a porta */
+    if(fPorta>0){
+      x.save(); x.globalAlpha=fPorta;
+      const bat=[0,0.78,1.56].map(d=>M.batidas+1.4+d);
+      let tremor=0, extra=1;
+      for(const b of bat){
+        if(t>=b&&t<b+0.42){ const k=1-(t-b)/0.42; tremor=Math.max(tremor,k*1.6); extra=1+k*0.7; }
+      }
+      /* os vultos aparecem depois da terceira batida e ficam parados */
+      let vultos=null;
+      const apar=suave((t-(M.batidas+3.9))/2.6);
+      if(apar>0.02&&t<M.abriu+0.4){
+        /* respiração: as pernas quase não se mexem. Quase. */
+        const resp=Math.sin((t-M.batidas)*0.9)*0.006;
+        vultos=[{x:0.40+resp,w:0.085,a:0.94*apar},{x:0.585-resp,w:0.085,a:0.94*apar}];
+      }
+      const aber=t>=M.abriu?suave((t-M.abriu)/5.2):0;
+      porta(t,{abertura:aber,brilho:extra*(1+aber*1.6),vultos,tremor,q});
+      x.restore();
+    }
+  }
+
+  /* ─── O VÍDEO ─── */
+  if(tv!==null){ limpar(P.breu); desenharVideo(tv,1,true); }
+  else if(t>=M.videoFim&&t<M.videoFim+3.2){
+    /* Quando a animação acaba ela DESAPARECE. Antes o último quadro
+       ficava pendurado no alto e o texto embaixo, e a tela virava duas
+       faixas — uma escura e uma clara. Agora ela se apaga em 3 s e o
+       que sobra é só o texto no branco, que é onde a história termina. */
+    desenharVideo(VIDEO_DUR-0.05,1-suave((t-M.videoFim)/3.2),true);
+  }
+
+  /* ─── A LUZ QUE INVADE ─── */
+  if(luz>0&&!claro){
+    x.save(); x.globalCompositeOperation='lighter';
+    x.fillStyle='rgba(255,255,255,'+(luz*0.92)+')';
+    x.fillRect(0,0,W,H); x.restore();
+  }
+
+  /* ─── ATMOSFERA ───
+     Vem ANTES do texto de propósito. Na primeira versão o grão e a
+     vinheta eram os últimos a pintar e apagavam as letras: a narração
+     inteira ficou ilegível e só apareceu quando olhei os quadros. */
+  if(tv!==null){
+    grao(q,0.30);
+    vinheta(0.42);
+  }else{
+    grao(q,claro?0.35:0.75);
+    if(!claro)vinheta(0.80-luz*0.45);
+    else{
+      const gv=x.createRadialGradient(W/2,H*0.42,W*0.30,W/2,H*0.46,W*0.95);
+      gv.addColorStop(0,'rgba(0,0,0,0)'); gv.addColorStop(1,'rgba(90,80,66,.20)');
+      x.fillStyle=gv; x.fillRect(0,0,W,H);
+    }
+  }
+
+  /* ─── CARTÃO DE ATO ─── */
+  if(fr&&fr.txt[0]==='§'){
+    const o=janela(t,M.cartao-0.3,M.cartao+3.6,1.0,1.1);
+    if(o>0){
+      limpar(P.breu);
+      x.save();
+      x.font='400 '+px(62)+'px "Bodoni Moda", Georgia, serif';
+      x.textAlign='center'; x.textBaseline='middle'; x.globalAlpha=alfa(o);
+      x.fillStyle=P.papel;
+      const li=quebra(fr.txt.slice(1),x.font,px(820));
+      li.forEach((l,i)=>x.fillText(l,W/2,H*0.46+i*px(84)));
+      x.restore();
+      x.save(); x.globalAlpha=alfa(o*0.7);
+      x.strokeStyle=P.lampiao; x.lineWidth=px(2);
+      x.beginPath(); x.moveTo(W*0.40,H*0.53); x.lineTo(W*0.60,H*0.53); x.stroke();
+      x.restore();
+      return;
+    }
+  }
+
+  /* ─── A NARRAÇÃO NA TELA ─── */
+  if(fr&&fr.txt[0]!=='§'){
+    const prox=N[fr.i+1];
+    const tvIni=videoDoNarra(fr.t), tvFim=prox?videoDoNarra(prox[0]):null;
+    const ini=tvIni!=null?tvIni:t, fim=tvFim!=null?tvFim:FIM_NARRA;
+    const o=janela(t,ini-0.25,fim+0.30,0.65,0.55);
+    if(o>0){
+      const tam = fr.txt.length<40 ? 56 : fr.txt.length<90 ? 48 : 41;
+      const larg=px(830);
+      const h=alturaDe(fr.txt,tam,larg);
+      /* no escuro o texto fica no meio; com a porta na tela, sobe */
+      let y = fPorta>0.25 ? H*0.165 : H*0.50 - h/2 + px(tam*0.72);
+      if(claro)y=H*0.50 - h/2 + px(tam*0.72);
+      veu(y-px(tam*0.9),h,o*(claro?0.55:0.95),claro);
+      bloco(fr.txt,{y,tam,cor:claro?'#171310':P.papel,op:o,larg,
+        sombra:claro?0:30,alt:1.46});
+    }
+  }
+
+  /* ─── AS FALAS ─── */
+  if(fa){
+    const o=janela(t,fa.t0-0.1,fa.t1,0.55,0.55);
+    const dentro=(t-fa.t0)/(fa.t1-fa.t0);
+    veu(H*0.375,H*0.13,o*(claro?0.5:0.98),claro);
+    if(fa.quem)rotulo(fa.quem,H*0.385,o*0.72,fa.quem==='?'?P.ferrugem:P.mofo);
+    const cor = fa.chave==='euvoltei' ? P.papel
+              : fa.chave==='acordar'  ? (claro?'#241F1A':P.papel)
+              : P.lampiao;
+    bloco('— '+fa.txt,{y:H*0.455,tam:fa.txt.length<26?58:48,
+      estilo:'italic',cor,op:o,larg:px(840),sombra:30});
+    /* a que não tem gravação mostra que é silêncio, não erro */
+    if(!fa.arq)rotulo('sem gravação',H*0.545,o*0.30,P.mofo);
+    /* "Eu voltei." — a linha de luz treme uma vez */
+    if(fa.chave==='euvoltei'&&dentro>0.42&&dentro<0.56){
+      x.save(); x.globalCompositeOperation='lighter';
+      x.fillStyle='rgba(201,162,39,'+(0.05*(1-Math.abs(dentro-0.49)/0.07))+')';
+      x.fillRect(0,0,W,H); x.restore();
+    }
+  }
+
+  /* ─── O CONTADOR DO TEMPO QUE PASSA ─── */
+  if(t>=M.gerador-0.5&&t<M.cartao-0.8){
+    const marcas=[[M.gerador,'HORAS'],[videoDoNarra(42.58),'UM DIA'],
+      [videoDoNarra(45.36),'TRÊS DIAS'],[videoDoNarra(62.60),'UMA SEMANA'],
+      [videoDoNarra(73.04),'UM MÊS'],[videoDoNarra(91.56),'E DEPOIS NINGUÉM CONTOU MAIS']];
+    let atual=null;
+    for(const [tt,s] of marcas)if(tt!=null&&t>=tt)atual=[tt,s];
+    if(atual){
+      const o=janela(t,atual[0],atual[0]+9,0.8,1.2);
+      rotulo(atual[1],H*0.135,o*0.62,P.lampiao);
+    }
+  }
+
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   MODO RENDER — o relógio vem de fora
+   ══════════════════════════════════════════════════════════════════ */
+window.__CENA={LINHA,M,DURACAO,ABERTURA,FECHO,FIM_NARRA,NARR_DUR,FALAS,PARADAS,N,
+  narraEm,videoDoNarra};
+window.__pintar=function(t,q){ pintar(t,q); };
+window.__carregarQuadros=async function(n){
+  VQ=[];
+  const ps=[];
+  for(let i=1;i<=n;i++){
+    const im=new Image(); im.src='vq/v'+String(i).padStart(4,'0')+'.jpg';
+    VQ.push(im);
+    ps.push(new Promise(r=>{ im.onload=r; im.onerror=r; }));
+  }
+  await Promise.all(ps);
+  return VQ.filter(i=>i.naturalWidth).length;
+};
+
+/* ══════════════════════════════════════════════════════════════════
+   MODO AO VIVO
+   ══════════════════════════════════════════════════════════════════ */
+const A={};
+function som(nome,arq){ const a=new Audio(arq); a.preload='auto'; A[nome]=a; return a; }
+let tocando=false, t0=0, tocou={};
+
+function aoVivo(){
+  const narr=som('narr','narracao.mp3');
+  const mus=som('mus','musica.mp3'); mus.loop=true; mus.volume=0.22;
+  Object.entries(FALAS).forEach(([k,f])=>{ if(f.arq)som(k,f.arq); });
+  const vid=document.createElement('video');
+  vid.src='final.mp4'; vid.preload='auto'; vid.playsInline=true; VID=vid;
+
+  document.getElementById('ir').addEventListener('click',()=>{
+    document.getElementById('ir').classList.add('some');
+    tocando=true; t0=performance.now()/1000;
+    mus.play().catch(()=>{});
+    laco();
+  });
+
+  function laco(){
+    const t=performance.now()/1000-t0;
+    if(t>=DURACAO){ narr.pause(); mus.pause(); return; }
+    /* narração: liga e desliga conforme o trecho */
+    const seg=LINHA.find(s=>t>=s.t0&&t<s.t1);
+    if(seg&&seg.tipo==='narra'){
+      const alvo=seg.n0+(t-seg.t0);
+      if(narr.paused){ narr.currentTime=alvo; narr.play().catch(()=>{}); }
+      else if(Math.abs(narr.currentTime-alvo)>0.35)narr.currentTime=alvo;
+    }else if(!narr.paused)narr.pause();
+    /* falas */
+    if(seg&&seg.tipo==='fala'&&!tocou[seg.t0]){
+      tocou[seg.t0]=1;
+      const f=FALAS[seg.chave];
+      if(f.arq&&A[seg.chave]){ A[seg.chave].currentTime=0; A[seg.chave].play().catch(()=>{}); }
+    }
+    if(seg&&seg.tipo==='video'&&!tocou['v']){
+      tocou['v']=1; vid.currentTime=0; vid.play().catch(()=>{});
+    }
+    /* a música some quando a luz chega */
+    if(t>M.branca)mus.volume=Math.max(0,0.22*(1-(t-M.branca)/6));
+    pintar(t,Math.round(t*24));
+    requestAnimationFrame(laco);
+  }
+  pintar(0,0);
+}
+/* Quando a cena roda dentro do jogo (§33), ela avisa por postMessage:
+   que carregou, pra o jogo saber que não precisa cair pro texto, e que
+   acabou, pra ele seguir pra tela do que sobrou. */
+function avisar(m){ try{ if(window.parent&&window.parent!==window)window.parent.postMessage(m,'*'); }catch(e){} }
+if(!window.__RENDER){
+  const noJogo=location.search.indexOf('jogo=1')>=0;
+  /* O aviso sai AGORA, não depois das fontes. A pergunta que o jogo faz
+     é "o arquivo existe e está rodando?" — e a resposta pra essa
+     pergunta é este ponto do script. Esperar fonte ou mídia carregar
+     fazia o jogo desistir e cair pro texto com a cena inteira ali. */
+  if(noJogo)avisar('final-pronto');
+  aoVivo();
+  if(noJogo){
+    const ir=document.getElementById('ir');
+    /* dentro do jogo não há tela de "tocar": o clique já veio de lá */
+    document.fonts.ready.then(()=>setTimeout(()=>{ if(ir)ir.click(); },200));
+    setTimeout(()=>avisar('final-acabou'),(DURACAO+1.2)*1000);
+  }
+}
+</script>

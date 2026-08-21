@@ -1,0 +1,177 @@
+{
+ "LINHA": [
+  {
+   "tipo": "narra",
+   "t0": 5,
+   "t1": 15.14,
+   "n0": 0,
+   "n1": 10.14
+  },
+  {
+   "tipo": "fala",
+   "t0": 15.14,
+   "t1": 18.54,
+   "chave": "comida"
+  },
+  {
+   "tipo": "narra",
+   "t0": 18.54,
+   "t1": 23.259999999999998,
+   "n0": 10.14,
+   "n1": 14.86
+  },
+  {
+   "tipo": "fala",
+   "t0": 23.259999999999998,
+   "t1": 25.06,
+   "chave": "tambem"
+  },
+  {
+   "tipo": "fala",
+   "t0": 25.06,
+   "t1": 29.36,
+   "chave": "perigoso"
+  },
+  {
+   "tipo": "fala",
+   "t0": 29.36,
+   "t1": 30.86,
+   "chave": "mas"
+  },
+  {
+   "tipo": "fala",
+   "t0": 30.86,
+   "t1": 34.26,
+   "chave": "maisnada"
+  },
+  {
+   "tipo": "narra",
+   "t0": 34.26,
+   "t1": 46.5,
+   "n0": 14.86,
+   "n1": 27.1
+  },
+  {
+   "tipo": "fala",
+   "t0": 46.5,
+   "t1": 51.1,
+   "chave": "euvolto"
+  },
+  {
+   "tipo": "narra",
+   "t0": 51.1,
+   "t1": 208.42,
+   "n0": 27.1,
+   "n1": 184.42
+  },
+  {
+   "tipo": "fala",
+   "t0": 208.42,
+   "t1": 213.61999999999998,
+   "chave": "euvoltei"
+  },
+  {
+   "tipo": "narra",
+   "t0": 213.61999999999998,
+   "t1": 252.97,
+   "n0": 184.42,
+   "n1": 223.77
+  },
+  {
+   "tipo": "fala",
+   "t0": 252.97,
+   "t1": 257.17,
+   "chave": "acordar"
+  },
+  {
+   "tipo": "narra",
+   "t0": 257.17,
+   "t1": 261.48,
+   "n0": 223.77,
+   "n1": 228.08
+  },
+  {
+   "tipo": "video",
+   "t0": 261.48,
+   "t1": 269.35
+  },
+  {
+   "tipo": "narra",
+   "t0": 269.35,
+   "t1": 315.48,
+   "n0": 228.08,
+   "n1": 274.21
+  }
+ ],
+ "M": {
+  "porta": 52.22,
+  "gerador": 62.28,
+  "prato": 102.7,
+  "cartao": 122.47999999999999,
+  "batidas": 124.51999999999998,
+  "ouvido": 147.04,
+  "pergunta": 156.84,
+  "certa": 165.98,
+  "abriu": 233.22,
+  "luz": 236.61999999999998,
+  "branca": 242.54,
+  "olhos": 257.34000000000003,
+  "tetobranco": 270.73,
+  "quatroanos": 282.31,
+  "videoIni": 261.48,
+  "videoFim": 269.35
+ },
+ "DUR": 326.48,
+ "FIM": 315.48,
+ "ABERTURA": 5,
+ "FALAS": {
+  "comida": {
+   "quem": "IRMÃ",
+   "txt": "A comida tá acabando. Eu vou buscar suprimento.",
+   "arq": null,
+   "dur": 3.4
+  },
+  "tambem": {
+   "quem": "ELE",
+   "txt": "Eu também vou.",
+   "arq": null,
+   "dur": 1.8
+  },
+  "perigoso": {
+   "quem": "IRMÃ",
+   "txt": "É perigoso. Eu vou sozinha.",
+   "arq": "v-perigoso.mp3",
+   "dur": 4.3
+  },
+  "mas": {
+   "quem": "ELE",
+   "txt": "Mas…",
+   "arq": null,
+   "dur": 1.5
+  },
+  "maisnada": {
+   "quem": "IRMÃ",
+   "txt": "Mais nada.",
+   "arq": "v-mais-nada.mp3",
+   "dur": 3.4
+  },
+  "euvolto": {
+   "quem": "IRMÃ",
+   "txt": "Eu volto. Eu sempre volto.",
+   "arq": "v-eu-volto.mp3",
+   "dur": 4.6
+  },
+  "euvoltei": {
+   "quem": "?",
+   "txt": "Eu voltei.",
+   "arq": "v-eu-voltei.mp3",
+   "dur": 5.2
+  },
+  "acordar": {
+   "quem": "",
+   "txt": "Hora de acordar.",
+   "arq": "v-hora-de-acordar.mp3",
+   "dur": 4.2
+  }
+ }
+}

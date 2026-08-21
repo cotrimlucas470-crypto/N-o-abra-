@@ -1,0 +1,370 @@
+[
+ {
+  "i": 0,
+  "t0": 0,
+  "t1": 7.54,
+  "dur": 7.54,
+  "erro": 0.79,
+  "txt": "A comida estava acabando fazia dois dias, e ninguém tinha coragem de dizer isso em voz alta primeiro."
+ },
+ {
+  "i": 1,
+  "t0": 8.38,
+  "t1": 10.14,
+  "dur": 1.76,
+  "erro": 0.51,
+  "txt": "Foi a irmã quem disse."
+ },
+ {
+  "i": 2,
+  "t0": 10.82,
+  "t1": 14.86,
+  "dur": 4.04,
+  "erro": 0.36,
+  "txt": "Ele pegou o casaco antes dela terminar a frase."
+ },
+ {
+  "i": 3,
+  "t0": 16.44,
+  "t1": 27.1,
+  "dur": 10.66,
+  "erro": 1.8,
+  "txt": "Ela já estava na porta quando disse a última coisa, sem virar pra trás, como quem não quer que a resposta pareça um pedido."
+ },
+ {
+  "i": 4,
+  "t0": 28.22,
+  "t1": 29.92,
+  "dur": 1.7,
+  "erro": 2.92,
+  "txt": "A porta bateu."
+ },
+ {
+  "i": 5,
+  "t0": 30.78,
+  "t1": 33.44,
+  "dur": 2.66,
+  "erro": 0.73,
+  "txt": "O trinco caiu no lugar sozinho, do jeito que só cai quando alguém sai com pressa."
+ },
+ {
+  "i": 6,
+  "t0": 34.18,
+  "t1": 37.34,
+  "dur": 3.16,
+  "erro": 2.26,
+  "txt": "Ele ficou olhando pra madeira por um tempo maior do que devia."
+ },
+ {
+  "i": 7,
+  "t0": 38.28,
+  "t1": 41.16,
+  "dur": 2.88,
+  "erro": 0.35,
+  "txt": "Horas viraram um dia."
+ },
+ {
+  "i": 8,
+  "t0": 42.58,
+  "t1": 44.66,
+  "dur": 2.08,
+  "erro": 0.88,
+  "txt": "Um dia virou três."
+ },
+ {
+  "i": 9,
+  "t0": 45.36,
+  "t1": 61.96,
+  "dur": 16.6,
+  "erro": 2.4,
+  "txt": "Três viraram uma semana, e na semana ele parou de contar em dias e passou a contar em coisas que não aconteceram: ela não voltou pra dormir, ela não voltou pra comer o que sobrou, ela não voltou pra dizer que tinha sido bobagem ter ido sozinha."
+ },
+ {
+  "i": 10,
+  "t0": 62.6,
+  "t1": 72.22,
+  "dur": 9.62,
+  "erro": 3.12,
+  "txt": "O gerador continuou rodando porque alguém tinha que cuidar dele, e cuidar do gerador virou a única coisa que fazia sentido fazer."
+ },
+ {
+  "i": 11,
+  "t0": 73.04,
+  "t1": 77.42,
+  "dur": 4.38,
+  "erro": 0.25,
+  "txt": "As semanas viraram um mês."
+ },
+ {
+  "i": 12,
+  "t0": 78.7,
+  "t1": 90.42,
+  "dur": 11.72,
+  "erro": 1.61,
+  "txt": "O mês virou o hábito de deixar um prato a mais na mesa, sem ninguém comentar, até que parar de fazer isso também virou um hábito."
+ },
+ {
+  "i": 13,
+  "t0": 91.56,
+  "t1": 94.16,
+  "dur": 2.6,
+  "erro": 1.03,
+  "txt": "Ninguém mais falava o nome dela em voz alta."
+ },
+ {
+  "i": 14,
+  "t0": 94.76,
+  "t1": 95.98,
+  "dur": 1.22,
+  "erro": 0.32,
+  "txt": "Não porque tinham esquecido."
+ },
+ {
+  "i": 15,
+  "t0": 96.98,
+  "t1": 98.2,
+  "dur": 1.22,
+  "erro": 0.22,
+  "txt": "Porque lembravam demais."
+ },
+ {
+  "i": 16,
+  "t0": 98.48,
+  "t1": 98.94,
+  "dur": 0.46,
+  "erro": 1.31,
+  "txt": "A noite das três batidas."
+ },
+ {
+  "i": 17,
+  "t0": 100.52,
+  "t1": 107.9,
+  "dur": 7.38,
+  "erro": 1.71,
+  "txt": "Foi numa noite comum, sem nada de diferente nela até aquele momento, que a porta recebeu três batidas."
+ },
+ {
+  "i": 18,
+  "t0": 108.44,
+  "t1": 110.28,
+  "dur": 1.84,
+  "erro": 0.28,
+  "txt": "Pausadas."
+ },
+ {
+  "i": 19,
+  "t0": 111.24,
+  "t1": 117,
+  "dur": 5.76,
+  "erro": 0.99,
+  "txt": "Do jeito que se bate quando não se tem pressa de ser atendido."
+ },
+ {
+  "i": 20,
+  "t0": 118.14,
+  "t1": 122.04,
+  "dur": 3.9,
+  "erro": 0.26,
+  "txt": "Ele reconheceu o ritmo antes de reconhecer qualquer outra coisa."
+ },
+ {
+  "i": 21,
+  "t0": 123.04,
+  "t1": 124.72,
+  "dur": 1.68,
+  "erro": 0.08,
+  "txt": "Encostou o ouvido na madeira."
+ },
+ {
+  "i": 22,
+  "t0": 125.62,
+  "t1": 129.64,
+  "dur": 4.02,
+  "erro": 0.19,
+  "txt": "A respiração do outro lado era regular, cansada, humana."
+ },
+ {
+  "i": 23,
+  "t0": 130.24,
+  "t1": 132.18,
+  "dur": 1.94,
+  "erro": 0.19,
+  "txt": "Do jeito certo de cansada."
+ },
+ {
+  "i": 24,
+  "t0": 132.84,
+  "t1": 141.18,
+  "dur": 8.34,
+  "erro": 1.93,
+  "txt": "Perguntou o que só ela saberia responder — uma coisa pequena, de antes de tudo isso, que nenhum estranho teria como adivinhar."
+ },
+ {
+  "i": 25,
+  "t0": 141.98,
+  "t1": 143.86,
+  "dur": 1.88,
+  "erro": 1.7,
+  "txt": "A resposta veio certa."
+ },
+ {
+  "i": 26,
+  "t0": 144.24,
+  "t1": 145.8,
+  "dur": 1.56,
+  "erro": 1.55,
+  "txt": "Exatamente certa."
+ },
+ {
+  "i": 27,
+  "t0": 146.24,
+  "t1": 152.12,
+  "dur": 5.88,
+  "erro": 1.05,
+  "txt": "E foi exatamente por estar certa que ele não teve coragem de abrir."
+ },
+ {
+  "i": 28,
+  "t0": 152.82,
+  "t1": 161.18,
+  "dur": 8.36,
+  "erro": 0.22,
+  "txt": "Porque ele já tinha ouvido, no rádio, quantas vezes a resposta certa não era garantia de nada."
+ },
+ {
+  "i": 29,
+  "t0": 161.78,
+  "t1": 170.24,
+  "dur": 8.46,
+  "erro": 0.28,
+  "txt": "Porque ele já sabia que existia coisa lá fora capaz de aprender uma voz e usar ela pra bater numa porta."
+ },
+ {
+  "i": 30,
+  "t0": 170.6,
+  "t1": 184.42,
+  "dur": 13.82,
+  "erro": 0.55,
+  "txt": "Do outro lado, a voz dela — a voz dela de verdade, ou algo que tinha decorado cada detalhe dela — disse a única frase que ele mais queria e mais temia ouvir."
+ },
+ {
+  "i": 31,
+  "t0": 184.82,
+  "t1": 187.08,
+  "dur": 2.26,
+  "erro": 1.48,
+  "txt": "Ele ficou parado com a mão a um centímetro do trinco."
+ },
+ {
+  "i": 32,
+  "t0": 187.7,
+  "t1": 195.34,
+  "dur": 7.64,
+  "erro": 1.41,
+  "txt": "A hesitação durou o tempo de três respirações — as dele, não as de quem esperava do outro lado."
+ },
+ {
+  "i": 33,
+  "t0": 196.08,
+  "t1": 201.72,
+  "dur": 5.64,
+  "erro": 0.62,
+  "txt": "Não foi coragem que fez a mão virar a maçaneta."
+ },
+ {
+  "i": 34,
+  "t0": 202.36,
+  "t1": 203.4,
+  "dur": 1.04,
+  "erro": 0.03,
+  "txt": "Foi cansaço de duvidar."
+ },
+ {
+  "i": 35,
+  "t0": 204.02,
+  "t1": 206.88,
+  "dur": 2.86,
+  "erro": 1.83,
+  "txt": "A porta abriu."
+ },
+ {
+  "i": 36,
+  "t0": 207.42,
+  "t1": 212.6,
+  "dur": 5.18,
+  "erro": 2.01,
+  "txt": "E antes que qualquer coisa do outro lado tomasse forma — antes de rosto, antes de mais voz nenhuma — veio a luz."
+ },
+ {
+  "i": 37,
+  "t0": 213.34,
+  "t1": 217.1,
+  "dur": 3.76,
+  "erro": 1.51,
+  "txt": "Branca."
+ },
+ {
+  "i": 38,
+  "t0": 217.88,
+  "t1": 220.92,
+  "dur": 3.04,
+  "erro": 0.84,
+  "txt": "Forte demais pra vir de rua nenhuma sem eletricidade."
+ },
+ {
+  "i": 39,
+  "t0": 222.3,
+  "t1": 223.6,
+  "dur": 1.3,
+  "erro": 0.55,
+  "txt": "Alguém disse, de um lugar sem direção:"
+ },
+ {
+  "i": 40,
+  "t0": 223.94,
+  "t1": 228.08,
+  "dur": 4.14,
+  "erro": 2.46,
+  "txt": "Ele abriu os olhos."
+ },
+ {
+  "i": 41,
+  "t0": 229.46,
+  "t1": 230.52,
+  "dur": 1.06,
+  "erro": 2.99,
+  "txt": "Teto branco."
+ },
+ {
+  "i": 42,
+  "t0": 230.9,
+  "t1": 231.86,
+  "dur": 0.96,
+  "erro": 0.15,
+  "txt": "Um aparelho apitando num ritmo que não era o dele."
+ },
+ {
+  "i": 43,
+  "t0": 232.38,
+  "t1": 240.22,
+  "dur": 7.84,
+  "erro": 0.64,
+  "txt": "Uma cadeira ao lado da cama, com o formato de quem tinha dormido ali recente demais pra ser confortável."
+ },
+ {
+  "i": 44,
+  "t0": 241.04,
+  "t1": 247.98,
+  "dur": 6.94,
+  "erro": 0.74,
+  "txt": "Quatro anos foi a primeira coisa que disseram — antes ainda de perguntarem o nome dele."
+ },
+ {
+  "i": 45,
+  "t0": 248.28,
+  "t1": 274.21,
+  "dur": 25.93,
+  "erro": 0,
+  "txt": "Quatro anos, e a casa, o gerador, a irmã que saiu buscar comida e nunca mais voltou, cada batida, cada noite contando as horas até clarear — nada daquilo tinha acontecido fora da própria cabeça dele, sozinha no escuro, tentando dar um formato pra alguma coisa grande demais pra caber num pensamento só."
+ }
+]

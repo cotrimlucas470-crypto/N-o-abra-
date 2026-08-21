@@ -33,6 +33,7 @@ const BLOCOS=[
   {arq:'s30-nucleo.js',         ini:'<!-- s30:inicio -->',  fim:'<!-- s30:fim -->'},
   {arq:'s31-orquestrador.js',   ini:'<!-- s31:inicio -->',  fim:'<!-- s31:fim -->'},
   {arq:'s32-memoria.js',        ini:'<!-- s32:inicio -->',  fim:'<!-- s32:fim -->'},
+  {arq:'s33-final.js',          ini:'<!-- s33:inicio -->',  fim:'<!-- s33:fim -->'},
 ];
 
 /* A voz da abertura entra embutida. O jogo é um arquivo só — é o que a
@@ -158,7 +159,7 @@ fs.writeFileSync('index.html',html);
 // continua servindo a versão velha
 let sw=fs.readFileSync('sw.js','utf8');
 sw=sw.replace(/const VERSAO = '[^']*' \+ '[^']*';/,
-  "const VERSAO = 'v48-' + '20260815a';");
+  "const VERSAO = 'v48-' + '20260821a';");
 fs.writeFileSync('sw.js',sw);
 
 console.log('index.html: '+(html.length/1024).toFixed(0)+' KB');
