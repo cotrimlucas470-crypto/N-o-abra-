@@ -13,6 +13,7 @@ depois de `node montar.js`:
     node tools/testes/ouvteste.mjs     # o ouvido na porta §34 + dia 30 (20)
     node tools/testes/falasteste.mjs   # as falas da porta §35 (18)
     node tools/testes/itensteste.mjs   # os verbos das armas §36 (26)
+    node tools/testes/saldoteste.mjs   # a linha de saldo §37 (26)
     node tools/testes/aberturateste.mjs # a abertura narrada e a guarda do save (14)
 
 Fumaça no PACOTE, não na cópia de trabalho — descompacte o zip e aponte:
@@ -30,6 +31,11 @@ produz erro na carga, só na hora de jogar.
 A trava de colisão também roda dentro de `montar.js` e **quebra o build**.
 
 ## Notas de armadilha
+
+- **Nunca troque acento por substituição cega no arquivo inteiro.** JS aceita
+  acento em identificador, então `S.ruido → S.ruído` não dá erro de sintaxe:
+  dá erro de comportamento, calado. `montar.js` agora quebra o build se achar
+  acento em nome de campo ou variável.
 
 - **Bloco ANEXA a um save; bloco nunca CRIA um save.** Onze blocos embrulham
   `salvar()` e gravavam com `JSON.parse(localStorage.getItem(CHAVE)||'{}')`.

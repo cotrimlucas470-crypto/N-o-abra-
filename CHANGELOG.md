@@ -1,5 +1,94 @@
 # CHANGELOG
 
+## v64 — a linha de saldo
+
+### A medição contradisse a suspeita óbvia
+
+A queixa era: *"quase toda hora enquanto eu jogo, é difícil de entender o que
+acontece pela forma que é dita."* A suspeita natural é frase comprida. Fui
+medir as 851 falas do jogo:
+
+```
+mediana ........ 10 palavras
+p90 ............ 16 palavras
+acima de 28 .... 4 falas (e três delas são o tutorial)
+```
+
+As frases são **curtas**. O problema é outro, e é bem maior:
+
+> **239 falas — 28% do total — acontecem coladas a uma mudança de recurso e
+> não dizem o número.**
+
+Você lê "A febre cedeu." e não sabe se gastou remédio, quanto, nem quanto
+sobrou. Lê "Ele saiu de madrugada sozinho." e não sabe se perdeu uma pessoa.
+A frase conta a **cena** e esconde a **conta**.
+
+### O conserto não é reescrever a prosa
+
+Reescrever 851 falas pra encaixar número em cada uma mataria o sentimento — e
+o pedido foi explícito: mais fácil de entender **sem tirar** o sentimento.
+
+Então a prosa fica intacta e o jogo mostra o saldo numa linha separada, em
+fonte de mostrador, logo abaixo:
+
+> A febre de Marlene cedeu de madrugada.
+> `−1 remédio`
+>
+> Damião chegou no fim da tarde. Trouxe o que tinha nos bolsos.
+> `+2 latas · +Damião`
+
+A prosa é o que aconteceu com as pessoas. O saldo é o que aconteceu com a
+casa. Duas vozes, dois trabalhos.
+
+**Como ele sabe:** não perguntando a ninguém. Fotografa os recursos e mostra a
+diferença quando a foto muda. Isso pega **toda** mudança, inclusive as que
+acontecem em código que ninguém lembra que existe — e é por isso que é assim,
+e não uma chamada manual em 239 lugares.
+
+**A cor segue o significado, não o sinal.** Ganhar comida é dourado; ganhar
+ruído é vermelho, mesmo sendo "+". Perder ruído é dourado, mesmo sendo "−".
+
+**Quem chega e quem morre aparece pelo nome**, não como número.
+
+Mudança pequena demais não vira linha (ruído sobe de 1 em 1 o tempo todo, e
+virar linha a cada ponto transformaria o registro em chuvisco — que é o
+problema de origem). Dá pra desligar, e a escolha vai pro save.
+
+### O guia, uma ideia por linha
+
+As quatro falas que passam de 28 palavras são quase todas da tela de ajuda,
+que empacotava três regras numa frase só. Aqui a reescrita é certa e é a única
+do jogo: isto é texto de **instrução**, não de história. A prosa da casa
+continua intocada — ela não está explicando nada, está contando.
+
+Média caiu pra **9 palavras por linha**, nenhuma acima de 14.
+
+### Uma trava nova, porque eu me queimei
+
+Troquei acentos por script e a substituição cega não distinguiu o **texto** que
+o jogador lê do **identificador** que o código usa:
+
+```
+S.ruido          → S.ruído
+{k:'remedio'}    → {k:'remédio'}
+minimo:{ruido:3} → minimo:{ruído:3}
+cena.casa.voce   → cena.casa.você     ← derrubava o Voltar da ajuda
+```
+
+JavaScript **aceita** acento em identificador, então nada disso deu erro de
+sintaxe: deu erro de comportamento, calado, longe de onde foi escrito. O saldo
+simplesmente parou de reportar remédio, água e ruído, e o teste pegou.
+
+Virou trava de build: `montar.js` agora **quebra** se achar acento em nome de
+campo ou de variável. Texto acentuado dentro de string continua livre — é lá
+que o acento tem de estar.
+
+### Testes
+
+`tools/testes/saldoteste.mjs` — 26 asserções.
+
+476 asserções em 17 harnesses, 0 falhas.
+
 ## v63 — cada arma faz uma coisa que só ela faz
 
 ### O problema, medido

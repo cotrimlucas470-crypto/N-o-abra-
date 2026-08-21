@@ -37,6 +37,7 @@ const BLOCOS=[
   {arq:'s34-ouvido.js',         ini:'<!-- s34:inicio -->',  fim:'<!-- s34:fim -->'},
   {arq:'s35-porta-falas.js',    ini:'<!-- s35:inicio -->',  fim:'<!-- s35:fim -->'},
   {arq:'s36-itens.js',          ini:'<!-- s36:inicio -->',  fim:'<!-- s36:fim -->'},
+  {arq:'s37-saldo.js',          ini:'<!-- s37:inicio -->',  fim:'<!-- s37:fim -->'},
 ];
 
 /* A voz da abertura entra embutida. O jogo é um arquivo só — é o que a
@@ -121,6 +122,50 @@ function checarColisoes(){
     +COLISAO_OK.size+' substituições declaradas)');
 }
 checarColisoes();
+
+/* ============ TRAVA DE ACENTO EM IDENTIFICADOR ============
+   Trocar acento por script e tentador e perigoso: uma substituicao
+   cega de "ruido" por "ruido-com-acento" nao distingue o TEXTO que o
+   jogador le do IDENTIFICADOR que o codigo usa. Foi assim que
+   `S.ruido` virou `S.ruido-acentuado`, `{k:'remedio'}` virou
+   `{k:'remedio-acentuado'}` e `cena.casa.voce` virou
+   `cena.casa.voce-acentuado` — este ultimo derrubava o botao Voltar
+   da tela de ajuda.
+
+   JavaScript ACEITA acento em identificador, entao nada disso da erro
+   de sintaxe: da erro de comportamento, calado, longe do lugar onde
+   foi escrito. Por isso vira trava de build.
+
+   O resto do jogo usa identificador em ASCII. Texto acentuado dentro
+   de string continua livre — e e la que o acento tem de estar. */
+function acentuadoNoCodigo(txt){
+  const semTexto=txt
+    .replace(/\/\*[\s\S]*?\*\//g,'')
+    .replace(/(^|[^:])\/\/[^\n]*/g,'$1')
+    .replace(/'(?:\\.|[^'\\])*'/g,"''")
+    .replace(/"(?:\\.|[^"\\])*"/g,'""')
+    .replace(/`(?:\\.|[^`\\])*`/g,'``');
+  const re=/[.\[]\s*([A-Za-z_$][\w$]*[áéíóúâêôãõàçÁÉÍÓÚÂÊÔÃÕÀÇ][\w$áéíóúâêôãõàçÁÉÍÓÚÂÊÔÃÕÀÇ]*)/g;
+  const achados=new Set();
+  let g; while((g=re.exec(semTexto)))achados.add(g[1]);
+  return [...achados];
+}
+function checarAcentos(){
+  const ruins=[];
+  for(const b of BLOCOS){
+    const a=acentuadoNoCodigo(fs.readFileSync(b.arq,'utf8'));
+    if(a.length)ruins.push('  '+b.arq+': '+a.join(', '));
+  }
+  if(ruins.length){
+    console.error('\nACENTO EM IDENTIFICADOR — o JS aceita e o comportamento quebra calado:\n');
+    console.error(ruins.join('\n'));
+    console.error('\nTexto acentuado vai DENTRO de string. Nome de campo e de variavel, nao.\n');
+    process.exit(1);
+  }
+  console.log('sem acento em identificador');
+}
+checarAcentos();
+
 
 let html=fs.readFileSync('index.html','utf8');
 
