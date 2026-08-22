@@ -435,3 +435,202 @@ Da medição, não do sumário do briefing:
 ---
 
 *Fim da Fase 0. Nenhuma linha dos Módulos A ou B foi escrita.*
+
+---
+
+# ADENDO — A Tabela de Sinais contra o código
+
+*Escrito depois de receber a metade que faltava (Imitador/contato, Inchado,
+Primordial, matriz de degradação, regras de isca e a API `Sinais`). Isto fecha o
+buraco que eu tinha registrado no §9. Continua sendo Fase 0: nenhuma linha
+escrita.*
+
+## A1. As seis, lado a lado
+
+O jogo já declara, para cada criatura, **a que ela reage** (`REGRA[id].sentido`),
+**o que a segura** (`BICHOS[id].fraco`) e **como conta isso ao jogador**
+(`REGRA[id].dica`). Comparando com a tabela nova:
+
+| criatura | `sentido` no código | `dica` que o jogador lê | veredito |
+|---|---|---|---|
+| **Magro** | `luz` | *"Ele para na porta de cômodo aceso e não entra."* | **CONFLITO — ver S1** |
+| **Rastejante** | `rastro` | *"Não segue o barulho. Segue por onde você pisou."* | **bate** |
+| **Coro** | `som` | *"As duas metades vão pro mesmo barulho. Dois barulhos separam elas."* | **bate, com divergência de aridade — ver S2** |
+| **Imitador** | `resposta` | *"Quem anda depois de ouvir se entrega."* | **bate com precisão** |
+| **Inchado** | `passagem` | *"Não passa em vão apertado sem perder tempo."* | **bate** |
+| **Primordial** | `olhar` | (`fraco`: *"Nada que você tem funciona. Só a saída dos fundos."*) | **bate** |
+
+Cinco de seis se encaixam sem torcer nada. O Imitador chega a bater linha por
+linha: `alvo(I,c){ return I.respondeu ? c.voce : I.ruidoEm }` — ele **só sabe
+onde você está se você se moveu depois do chamado**. É literalmente o
+*"o gatilho é a sua confiança"* da tabela, já rodando.
+
+## A2. O item do checklist que já passa
+
+> *"Nenhum contra-jogo é 'atacar'. Todos são posicionamento, preparo ou
+> desistência."*
+
+Medido: as opções que a invasão oferece contra as seis são
+
+```
+Ficar completamente parado · Recuar devagar, de costas
+Jogar alguma coisa pro outro lado · Correr agora
+```
+
+**Não existe botão de atacar contra nenhuma das seis.** O combate do jogo é
+contra ocupante humano na expedição, nunca contra elas. Este item do aceite
+já está satisfeito hoje — e por desenho, não por acaso.
+
+## A3. Um presente que estava escondido
+
+O contra-jogo do Rastejante na tabela é a regra `sal_barra_rastejante`. **Sal não
+existe como item nem como mecânica** — mas os moradores da casa já falam dele,
+como superstição, em duas falas que já estão escritas:
+
+```
+'"Deixa eu botar sal na soleira. Não custa nada."'
+`${p.n} bota sal na soleira e reza uma coisa curta. Ninguém ri.`
+```
+
+Ou seja: a regra que o jogador vai descobrir num documento **já está sendo
+sussurrada pelas pessoas da casa há versões**, tratada como crendice. Descobrir
+o laudo e perceber que a Dona Lurdes estava certa o tempo todo é melhor do que
+qualquer coisa que eu escreveria do zero. Registro como oportunidade, não
+conflito — e sugiro que o documento que revela a regra cite a superstição.
+
+---
+
+## Conflitos novos, com duas saídas cada
+
+### S1 · O Magro está invertido
+
+**O maior desta rodada.** A tabela diz que ele *"reage à luz direta"*, que é
+*"o único que espera você olhar"*, e que o contra-jogo é **apagar a fonte de
+luz** antes da iminência.
+
+No jogo entregue, a luz é **proteção**:
+
+```js
+magro:{ sentido:'luz', dica:'Ele para na porta de cômodo aceso e não entra.',
+        evita(id){ return luzLigadaEm(id); } }
+```
+
+Apagar a luz hoje **abre** o cômodo pra ele. E a `dica` é texto que o jogador já
+leu e já usou para sobreviver. Inverter isso não é mudar um número: é ensinar
+uma regra e depois puni-la — o contrário exato da Regra de Ouro.
+
+**Saída A** — manter a regra do jogo (luz protege) e reescrever a linha da
+tabela: os sinais e as fases continuam, só o contra-jogo vira *"acender antes
+da iminência / manter o cômodo aceso"*. Zero risco, tabela diverge do documento.
+**Saída B** — inverter no jogo, e tratar a inversão como **evolução declarada**:
+o Magro aprende a odiar o clique do interruptor (que é o que a própria tabela já
+propõe em *"sinal de que ele aprendeu"*). Fica fiel ao documento e é bonito, mas
+exige avisar o jogador dentro da ficção, senão é traição de regra.
+
+**Recomendo A** para a v67 e **B como evolução de noite alta**, usando o gancho
+que a sua própria tabela já escreveu.
+
+### S2 · O Coro tem duas bocas, não três
+
+Código: `dois:true`, e a dica ensina *"as duas metades"*, *"dois barulhos separam
+elas"*. Tabela: três vozes, contagem caindo 3 → 2.
+
+**Saída A** — a tabela passa a 2 → 1. A mecânica de separar por dois ruídos
+continua valendo e a dica já escrita continua verdadeira.
+**Saída B** — o jogo passa a três, e a contagem vira informação nova (mais rica,
+combina com *"a contagem é a informação"*), ao custo de mexer no `dois:true` e
+na dica que o jogador já aprendeu.
+
+**Recomendo A.**
+
+### S3 · A matriz de degradação contradiz o A4 do seu próprio briefing
+
+A4 diz, com todas as letras:
+
+> *"Sanidade baixa degrada a pista (some detalhe), **não inventa pista falsa**.
+> Perceber menos é diferente de perceber errado. Escolha perceber menos."*
+
+A matriz nova diz **2–3 sinais falsos por noite** abaixo de 0,29, e o schema
+lista `degradacao: "falsificar"` — usado no Coro e no Imitador.
+
+Isso é resolvível, e o jogo entregue já sugere como. Ele **já mente**, de forma
+escalonada e com chão:
+
+```
+V9_ESTAGIOS: [nome, min, ilusão, MENTIRA DE INTERFACE]
+  lúcido 0.00 · tenso 0.02 · fissurado 0.12 · rachado 0.28
+  desfeito 0.50 · em ruptura 0.90
+```
+
+E `PERCEPCAO_INVIOLAVEL` (§30) protege relógio, inventário e porta da frente —
+com o §38 dando ao jogador o verbo de conferir os três.
+
+**Saída A (a que eu proponho)** — dois escopos explícitos:
+`inspecionarDaPorta`, que é um **verbo deliberado e pago**, nunca mente (A4
+vale); os sinais **ambientais**, que chegam sem o jogador pedir, podem ganhar
+falsos conforme a matriz. Custa uma linha no documento e reconcilia tudo.
+**Saída B** — matriz vence em tudo, e o A4 é revogado por escrito.
+
+Preciso da sua palavra: **A4 vale só para a inspeção, ou para tudo?**
+
+### S4 · Metade dos "sinais de que ela aprendeu" depende de coisas que não existem
+
+Cada criatura tem uma linha de evolução ligada a um campo real — e o checklist
+exige isso. Situação de cada gancho:
+
+| criatura | gancho | existe? |
+|---|---|---|
+| Magro | clique do interruptor | `interruptor()` **sim** |
+| Rastejante | `S.corpo.cicatrizes.length >= 2` | **não** (cicatrizes não existem) |
+| Coro | jogador prefere cômodo de saída única | grau do nó **sim**, preferência **não** |
+| Imitador | ignorar sussurros por 3 noites | **não** (não há contador) |
+| Inchado | `S.exploracao.atalhosDescobertos` | **não** |
+| Primordial | `S.conhecimento.regras` | **não** |
+
+Não é conflito — é a ordem de construção. Só registro para deixar claro que **a
+Tabela de Sinais não pode ser o primeiro arquivo**: quatro das seis evoluções
+dependem de `S.exploracao`, `S.conhecimento` e das cicatrizes. Ela é o
+**contrato**, e entra cedo; as **evoluções** entram depois dos ramos que elas
+leem.
+
+### S5 · A API `Sinais` e o `foiEmitido` como falha de build
+
+A asserção pré-dano é a peça mais valiosa do documento, e hoje **não é
+verificável**: os 14 avisos existentes (8 em `AMEACAS.aviso`, 6 em `REGRA.dica`)
+são texto solto, sem `fase`, `canal`, `antecedencia` nem id. Nada consegue
+perguntar "houve sinal antes".
+
+Isso não conflita com nada — é trabalho novo, e é pequeno: os textos já estão
+escritos, falta dar estrutura a eles. Proponho que `sinais.js` venha **antes** de
+`corpo.js`, para que nenhum ferimento novo nasça sem poder provar que foi
+anunciado.
+
+---
+
+## Ordem de ataque, revisada com a tabela em mãos
+
+1. **Custo de movimento** — a falha crítica; base de camada, pressão e A8.
+2. **Unificar o corpo** (C2) — `S.ferido` vira derivado de `MALES`.
+3. **`sinais.js`** — dar estrutura aos 14 avisos que já existem, com
+   `foiEmitido` quebrando a build. Sem isto, "tell antes de dano" é promessa.
+4. Parâmetros mortos (`custa.atencao`, `custa.agua`, `MALES.dente`) e
+   `S.trilha` no save.
+5. `S.exploracao` (camadas, pressão, achados) e `S.conhecimento`.
+6. Cicatrizes, e só então as seis evoluções do S4.
+
+---
+
+## O que ainda trava a Fase 1
+
+Nenhuma linha de código pode começar antes destas decisões:
+
+- **C1** — `S.corpo` ocupado (recomendo `S.ferimentos`)
+- **C2** — dois sistemas de ferimento (recomendo fachada derivada)
+- **C3** — "zero `Math.random`" × as ~100 cosméticas de política escrita
+- **C5** — os números de verbo na ficha × "nenhum número de vida"
+- **C6** — `grav` 1..4 × `gravidade` 0..1
+- **S1** — **o Magro está invertido** ← o mais urgente
+- **S2** — Coro com duas bocas ou três
+- **S3** — **A4 vale só para a inspeção, ou para tudo?** ← o mais estrutural
+
+*(C4 não precisa de decisão: uso `S.memoriaAnomalias`, que é o nome real.)*
