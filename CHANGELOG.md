@@ -1,5 +1,107 @@
 # CHANGELOG
 
+## v67 — o passo custa (Etapa 1 de 9)
+
+Primeira fatia do plano de Exploração + Ferimentos. Uma etapa por vez, cada uma
+fechando sozinha. O plano inteiro está em `docs/PLANO-EXPLORACAO-CORPO.md`.
+
+### A falha crítica
+
+A auditoria mediu, atravessando os 10 cômodos da casa e voltando:
+
+```
+hora 0 · minutos 0 · ruído 0 · sanidade 0 · diesel 0
+```
+
+**Zero nas cinco dimensões.** `irPara` movia o jogador, redesenhava o cômodo e
+listava quem estava lá — sem chamar `gastarHoras`, sem chamar `gastarRuido`, sem
+tocar sanidade nem bateria. Nada impedia varrer a casa inteira todo turno.
+
+E sem custo de passo, camada, pressão e ponto de não retorno não têm em que se
+apoiar. Por isso esta é a primeira etapa e não a quarta.
+
+### O relógio, antes de tudo
+
+`S.minutos` já existia e já era somado em dois lugares — mas só **um** deles
+fazia o rollover para hora, e `horaTexto()` escrevia `HH:00` sempre, jogando os
+minutos fora na tela.
+
+Com o passo cobrando minutos isso deixa de ser detalhe: se o jogador não vê o
+tempo que gastou andando, o custo é invisível e vira punição sem leitura. Agora
+há um caminho só, `gastarMinutos()`, e o mostrador conta a verdade.
+
+### As camadas
+
+```
+0 núcleo   SALA · QUARTO
+1 casa     COZINHA · ENTRADA
+2 bordas   DESPENSA · OFICINA · SÓTÃO
+3 anexos   PORÃO · QUINTAL
+4 fora     a expedição, que já era outro sistema
+```
+
+O QUINTAL é 3 e não 4 de propósito: tem `saida:true` e é a soleira para a rua,
+mas ainda é o seu quintal.
+
+### O que o passo cobra
+
+| | núcleo | casa | borda | anexo |
+|---|---:|---:|---:|---:|
+| tempo | 4 min | 7 min | 10 min | 13 min |
+| ruído | 0 | 1,1 | 2,2 | 3,3 |
+| sanidade | +0,35 ao voltar | 0 | −0,5 | −1,0 |
+
+Um dia tem 720 minutos. Atravessar a casa de ponta a ponta é barato — o que
+encarece é **insistir**. A intenção não é racionar passo: é o jogador sentir a
+noite chegando enquanto decide.
+
+E o corpo já entra: **ferido anda pior**, medido — 13 min → 20 min e mais
+barulho, lendo `custa.forca` e `custa.ruido` que a tabela `MALES` já tinha. É o
+laço 2 da Fase 3 do briefing, de graça, porque o dado já existia.
+
+### O que não entrou, e por quê
+
+**Luz e exposição.** Os consumidores delas — gasto contínuo de luz e
+`atencaoDaCasa` ligada ao orçamento do §31 — são da Etapa 4. Ligar agora criaria
+dois parâmetros mortos, que é a proibição nº 5 do próprio briefing. Elas aparecem
+no objeto de `custoDeEntrada()` com valor zero e o motivo escrito ao lado: são
+contrato declarado com data de entrada, não esquecimento.
+
+### Eu reintroduzi o save fantasma da v60, e o teste pegou
+
+Vale registrar porque é a mesma armadilha em roupa nova.
+
+O bloco anexa `d.exploracao` ao save. A primeira versão chamava `estadoExp()`,
+que **cria** o ramo quando ele não existe. Resultado: qualquer `marcarSujo()` que
+rodasse no boot, antes de `carregar()`, gravava um ramo vazio **por cima** do que
+estava salvo. Os passos do jogador voltavam a zero.
+
+E havia uma segunda forma do mesmo bug: o `salvar()` da base tem
+`if(!S.nomeJogador)return`, e o meu wrapper não repetia essa guarda — então ele
+gravava mesmo quando a base tinha desistido. Wrapper que grava onde a base não
+gravaria é save fantasma com outro nome.
+
+> **Bloco ANEXA a um save; bloco nunca CRIA estado — e nunca grava onde a base
+> não gravaria.** A regra da v60 ganhou a segunda metade.
+
+Efeito colateral bom: `S.trilha` — o rastro do jogador, que a auditoria achou
+fora do save — agora persiste. É pré-requisito do `rastroSangue` da Etapa 7.
+
+### Migração
+
+`S.exploracao` nasce com `schemaVersion:1` e migração idempotente. Save antigo
+ganha o ramo com **todos os cômodos marcados como conhecidos** — quem já jogava
+conhece a casa, e marcar tudo como nunca visitado transformaria veterano em
+novato. Campo de save futuro que eu não conheço é preservado, não descartado.
+
+### Verificação
+
+`tools/testes/passoteste.mjs` — 30 asserções. Regressão completa: **560 ok, 0 falhas, 20 harnesses.**
+
+Duas falhas da primeira rodada eram bug do teste, e as duas são armadilhas já
+anotadas: medir sanidade sem contar `v9().escudo` (os 30 pontos que absorvem a
+primeira queda), e medir o bônus de voltar ao núcleo indo de núcleo para núcleo.
+
 ## v66 — os consertos
 
 Pedido: *"resolva todos os bugs do jogo, absolutamente tudo."* Fui atrás por

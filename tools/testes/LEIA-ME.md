@@ -16,6 +16,7 @@ depois de `node montar.js`:
     node tools/testes/saldoteste.mjs   # a linha de saldo §37 (26)
     node tools/testes/santeste.mjs     # a sanidade como sintoma §38 (30)
     node tools/testes/bugteste.mjs     # os consertos da v66 (24)
+    node tools/testes/passoteste.mjs    # o passo custa §39 (30)
     node tools/testes/aberturateste.mjs # a abertura narrada e a guarda do save (14)
 
 Fumaça no PACOTE, não na cópia de trabalho — descompacte o zip e aponte:
@@ -71,3 +72,10 @@ A trava de colisão também roda dentro de `montar.js` e **quebra o build**.
   absorvem a primeira queda inteira. Zere o escudo ou bata duas vezes.
 - O jogo dobra letra de propósito em sanidade baixa ("mmais"). Isso **não** é
   bug de digitação — é a linha passando pelo mesmo filtro da narração real.
+
+- **Wrapper de `salvar()` precisa repetir a guarda `if(!S.nomeJogador)return`.**
+  A base tem essa guarda; wrapper que grava onde a base não gravaria anexa
+  estado vazio a um save de sessão anterior durante o boot. É o save fantasma
+  da v60 com outro nome, e o §39 o reintroduziu antes de o teste pegar.
+- Wrapper de save **nunca** pode chamar função que CRIA estado (`estadoExp()`,
+  `sanEstado()`, e parecidas). Grava só o que já existe.

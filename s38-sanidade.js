@@ -210,7 +210,10 @@ async function conferirAncora(id,volta){
     if(!podeMentir)diz('Isso é o que é. Não tem outra leitura.','fraco');
   }
   /* custa tempo e devolve chão */
-  S.minutos=(S.minutos||0)+SAN_CFG.minutosAncora;
+  /* passa pelo relogio unico da v67: antes somava minutos sem rollover
+     e o tempo da ancora sumia da hora do jogo. */
+  if(typeof gastarMinutos==='function')gastarMinutos(SAN_CFG.minutosAncora);
+  else S.minutos=(S.minutos||0)+SAN_CFG.minutosAncora;
   if(typeof mexerSan==='function')mexerSan(SAN_CFG.sanDaAncora);
   /* conferir a âncora limpa a mentira de interface por um momento */
   S._verdade=true;
