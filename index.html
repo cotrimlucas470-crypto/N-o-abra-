@@ -280,6 +280,10 @@ function gerarImpulso(dur,decai){
     const ch=imp.getChannelData(c);
     for(let i=0;i<n;i++){
       const t=i/n;
+      /* cauda de reverb: ruido branco puro, dezenas de milhares de
+         amostras por chamada. Fica com Math.random de proposito — passar
+         isso pelo gerador da partida gastaria o RNG num laco de audio e
+         faria a sequencia do jogo depender de o som ter inicializado. */
       ch[i]=(Math.random()*2-1)*Math.pow(1-t,decai)*(1-t*.3);
     }
     // reflexões discretas: dá impressão de paredes próximas
@@ -813,8 +817,26 @@ const S={
 };
 const $=q=>document.querySelector(q);
 const T=$('#texto'),AC=$('#acoes'),CV=$('#tela'),CX=CV.getContext('2d');
-const sortear=a=>a[Math.floor(Math.random()*a.length)];
-const chance=p=>Math.random()<p;
+/* AS DUAS PRIMITIVAS DE DECISAO DO JOGO.
+   Elas carregam 612 chamadas (397 `chance`, 215 `sortear`) e ate a v65
+   as duas eram `Math.random()` puro — enquanto o RNG semeado existia,
+   era salvo em `d.rngEstado`, era restaurado na carga, e a politica
+   estava escrita em s30-nucleo.js: "RNG SEMEADO no que decide jogo".
+   A maquina toda montada e nenhuma das duas portas de entrada ligada
+   nela. Mesmo formato do estagio `tenso` da sanidade: a promessa no
+   papel e o codigo garantindo que nao acontece.
+
+   `_ale` cai em Math.random enquanto `rng` nao existe — os blocos sao
+   injetados no fim do body, entao qualquer chamada de topo que rode
+   antes do s30 precisa de chao. Depois disso, tudo passa pelo gerador
+   da partida. Distribuicao identica: nenhum numero de balanceamento
+   muda, so para de depender de sorte que o save nao conhece. */
+function _ale(){
+  try{ return (typeof rng==='function') ? rng().next() : Math.random(); }
+  catch(e){ return Math.random(); }
+}
+const sortear=a=>a[Math.floor(_ale()*a.length)];
+const chance=p=>_ale()<p;
 const trava=(v,a,b)=>Math.max(a,Math.min(b,v));
 
 
@@ -1677,6 +1699,17 @@ function amigos(p){
 }
 function morreuAlguem(p,como){
   p.comoMorreu=como;
+  /* o que ela desviou da despensa volta pra casa quando ela sai dela.
+     E a segunda metade da consequencia de `p.escondeu`, que ate a v66
+     era um contador escrito e nunca lido. */
+  if(p.escondeu>0){
+    const q=p.escondeu;
+    S.comida+=q;
+    if(typeof ganhou==='function')ganhou({comida:q});
+    if(typeof diz==='function')
+      diz(`Debaixo do colchão de ${p.n} tinha ${q} ${q===1?'lata':'latas'}. A casa comeu calada.`,'fraco');
+    p.escondeu=0;
+  }
   if(typeof mexerTrilho==='function')mexerTrilho('culpa',9);
   if(typeof marcarNoite==='function'&&(S.hora>=19||S.hora<7))
     marcarNoite({mortos:((S.ultimaNoite&&S.ultimaNoite.mortos)||[]).concat(p.n)});
@@ -1788,7 +1821,7 @@ function resolverTarefas(){
         S.resultados.push(`${p.n} saiu de manhã e não voltou. Ninguém foi atrás.`);
         S.confianca=trava(S.confianca-14,0,100);
       }else{
-        const d=Math.round(14+Math.random()*26),l=Math.round(2+Math.random()*6);
+        const d=Math.round(14+_ale()*26),l=Math.round(2+_ale()*6);
         S.diesel=trava(S.diesel+d,0,100);S.comida+=l;
         S.resultados.push(`${p.n} voltou com ${d} litros e ${l} latas. Não quis contar como foi.`);
         p.moral=trava(p.moral-6,0,100);
@@ -1882,7 +1915,7 @@ function retribuicao(){
   const amigas=S.casas?S.casas.filter(c=>c.viva&&c.ajuda>0):[];
   if(!amigas.length||!chance(.3))return false;
   const c=sortear(amigas);
-  const d=Math.round(18+Math.random()*20),l=Math.round(3+Math.random()*5);
+  const d=Math.round(18+_ale()*20),l=Math.round(3+_ale()*5);
   S.diesel=trava(S.diesel+d,0,100);S.comida+=l;
   ganhou({diesel:d,comida:l});
   diz(`Tem uma caixa no portão de manhã. Bilhete: "Vocês ajudaram primeiro." É ${c.n}.`,'bom');
@@ -1893,7 +1926,7 @@ function retribuicao(){
 S.gerSaude=100;S.peca=false;S.gerQuebrado=false;
 
 function desgastarGerador(){
-  let d=6+Math.random()*7;
+  let d=6+_ale()*7;
   if(tem('mecânica')&&quem('mecânica')!==S.infiltrado)d*=.55;
   if(S.rafaelGer&&S.abrigo.some(p=>p.n==='Rafael'))d*=.5;
   if(S.gerBaixo)d*=.7;
@@ -2017,7 +2050,11 @@ function cobrarObjetivos(){
   (S.objetivos||[]).forEach(o=>{
     if(o.feito)return;
     const p=S.abrigo.find(x=>x.n===o.dono);
-    if(!p)return;
+    /* VAZAMENTO: antes era `if(!p)return`, e a meta de quem saiu do
+       abrigo ficava na lista pra sempre — sem dono, sem prazo e sem
+       fim, contando `ignorado` que ninguem ia cobrar. Agora ela encerra
+       junto com a pessoa. */
+    if(!p){ o.feito=true; o.semDono=true; return; }
     o.ignorado++;
     if(o.ignorado===5)diz(`${p.n} perguntou de novo sobre ${o.n}. Você mudou de assunto.`,'fraco');
     if(o.ignorado>=5)p.moral=trava(p.moral-5,0,100);
@@ -2130,7 +2167,38 @@ const NOTURNOS=[
       ['Não responder',()=>{
     return 'Bate mais quatro vezes ao longo da noite, sempre três. Depois para.';}]]}
 ];
-function gastarRuido(n){S.ruido=trava(S.ruido+n,0,100);}
+/* NICE / `costura`. A ficha dela diz "Remenda tudo. Reforco nao se
+   perde." e ate a v66 `costura` tinha ZERO consultas no codigo inteiro:
+   a habilidade so existia como texto na tela de gente. Terceira do
+   mesmo tipo (junto de `escalada` e `corrida`).
+
+   As tres perdas de tabua por DANO passam por aqui. A tabua que o
+   jogador arranca de proposito pra virar material NAO passa: ali a
+   perda e uma escolha dele, e cancelar seria o jogo desfazendo o que
+   ele mandou fazer. */
+function perderReforco(n){
+  if(!S.porta)return 0;
+  const antes=S.porta.reforco||0;
+  if(antes<=0)return 0;
+  if(typeof tem==='function'&&tem('costura')&&!(S.infiltrado&&S.infiltrado.hab==='costura')){
+    const q=typeof quem==='function'&&quem('costura');
+    if(typeof diz==='function'&&q)
+      diz(`${q.n} remenda a tábua que soltou antes do fim do dia. A porta continua a mesma.`,'bom');
+    return 0;
+  }
+  S.porta.reforco=Math.max(0,antes-n);
+  return antes-S.porta.reforco;
+}
+function gastarRuido(n){
+  /* KELLY / `corrida`. A ficha promete "Expedicoes fazem menos ruido"
+     e a habilidade nao era consultada em lugar nenhum: `corrida` so
+     aparecia como `hab` da tarefa `rua`, onde muda a chance de morrer,
+     nunca o ruido. Agora vale onde a frase diz que vale — fora de casa,
+     com a expedicao aberta — e um terco a menos. */
+  if(typeof livroAberto==='function'&&livroAberto()
+     &&typeof tem==='function'&&tem('corrida'))n=n*(2/3);
+  S.ruido=trava(S.ruido+n,0,100);
+}
 
 async function eventoNoturno(){
   const validos=NOTURNOS.filter(e=>!e.cond||e.cond());
@@ -2231,7 +2299,19 @@ function salvar(){
       usoPergunta:S.usoPergunta,casas:S.casas,contou:S.contou,
       infiltradoNome:S.infiltrado?S.infiltrado.n:null,infiltradoDesde:S.infiltradoDesde,
       acusou:S.acusou,
-      pistasDadas:S.pistasDadas
+      pistasDadas:S.pistasDadas,
+      /* ESTAS TRES SE PERDIAM NUM RECARREGAMENTO DE VERDADE.
+         O bug era invisivel em teste porque `carregar()` copia por cima
+         do S vivo em vez de reconstruir: salvar()+carregar() na mesma
+         pagina preservava ate o que nunca tinha sido gravado. So um
+         page reload mostrava.
+         A pior era `objetivos`: ela carrega o contador `ignorado`, e e
+         ele que decide se a pessoa sai de madrugada atras do que quer e
+         morre. Alguem a 4 passos disso voltava em 0 toda vez que o
+         jogador fechava o app. */
+      objetivos:S.objetivos,
+      tarefas:S.tarefas,
+      vigiou:S.vigiou
     };
     localStorage.setItem(CHAVE,JSON.stringify(d));
   }catch(e){}
@@ -2284,6 +2364,24 @@ function carregar(){
     S.pool=(d.pool||[]).map(p=>({...p,lacos:p.lacos||{},moral:p.moral??70}));
     S.mortos=d.mortos||[];
     S.vozesRoubadas=d.vozesRoubadas||[];
+    /* IDENTIDADE: `S.infiltrado` era uma REFERENCIA pra dentro de
+       `S.abrigo`. Depois de qualquer ida-e-volta por JSON o abrigo tem
+       objetos novos e a referencia aponta pra um fantasma — e nada
+       reclama. Havia remendo dentro de `pistaDoDia` (`p.falso` de
+       backup), mas so valia ali: em `desgastarGerador` a comparacao
+       `quem('mecanica')!==S.infiltrado` virava sempre verdadeira e o
+       Imitador disfarcado de mecanico continuava entregando o bonus de
+       gerador do mecanico.
+       Agora a chave e o NOME, como ja era em tarefas, lacos e dono. */
+    S.infiltrado=null;
+    if(d.infiltradoNome)S.infiltrado=S.abrigo.find(x=>x.n===d.infiltradoNome)||null;
+    if(!S.infiltrado)S.infiltrado=S.abrigo.find(x=>x.falso)||null;
+    if(S.infiltrado)S.infiltrado.falso=true;
+    /* `objetivos`, `tarefas` e `vigiou` agora vem na copia generica la
+       de cima, e `objetivos` ja passa pelo filtro de dono valido. So
+       falta a guarda de tipo pra save meio quebrado. */
+    S.tarefas=(S.tarefas&&typeof S.tarefas==='object')?S.tarefas:{};
+    S.vigiou=(S.vigiou&&typeof S.vigiou==='object')?S.vigiou:null;
     if(typeof logDoSave==='function')logDoSave(d.log);
     if(typeof aplicarCfg==='function')aplicarCfg();
     return true;
@@ -2681,13 +2779,13 @@ async function sabotagem(){
   const o=sortear(opcoes);
   await pausa(900);
   if(o==='porta'){
-    S.porta.reforco=Math.max(0,S.porta.reforco-1);danificarPorta(8);
+    perderReforco(1);danificarPorta(8);
     diz('Uma tábua da porta amanheceu no chão com os pregos entortados pra fora. Ninguém ouviu nada.','perigo');
   }else if(o==='diesel'){
-    const q=Math.round(8+Math.random()*10);S.diesel=trava(S.diesel-q,0,100);ganhou({diesel:-q});
+    const q=Math.round(8+_ale()*10);S.diesel=trava(S.diesel-q,0,100);ganhou({diesel:-q});
     diz(`Tem uma poça de diesel embaixo do tanque. A torneira estava meio aberta.`,'perigo');
   }else if(o==='comida'){
-    const q=Math.min(S.comida,2+Math.floor(Math.random()*2));S.comida-=q;ganhou({comida:-q});
+    const q=Math.min(S.comida,2+Math.floor(_ale()*2));S.comida-=q;ganhou({comida:-q});
     diz(`Sumiram ${q} latas da despensa durante a noite. A porta da despensa estava encostada.`,'perigo');
   }else if(o==='armadilha'){
     S.armadilha=false;
@@ -2763,6 +2861,12 @@ const CANTO={cozinha:5,mecânica:6,carpintaria:3,rádio:0,enfermagem:1,
 function espalharGente(){
   S.abrigo.forEach(p=>{
     p.local=(chance(.6)&&CANTO[p.hab]!=null)?CANTO[p.hab]:sortear([1,2,4,4,5,7,8]);
+    /* Pessoa com `local` fora da planta some de TODO comodo e continua
+       viva: nao aparece em lugar nenhum, nao da erro, e o jogador acha
+       que ela sumiu. Isso so era saneado no `carregar()`, entao quem
+       recebia um local ruim durante a partida ficava invisivel ate
+       fechar e reabrir o jogo. A SALA (4) e o piso. */
+    if(!PLANTA[p.local])p.local=4;
   });
 }
 
@@ -3689,7 +3793,7 @@ function modeloVisitante(v){
     if(S.porta.olho)qtd++;
     if(S.viradaDescobriram)qtd++;
     if(vicioPorta()==='olho'&&chance(.55))qtd=Math.max(0,qtd-1);
-    m.anomalias=ANOM_TODAS().slice().sort(()=>Math.random()-.5).slice(0,Math.min(4,qtd));
+    m.anomalias=ANOM_TODAS().slice().sort(()=>_ale()-.5).slice(0,Math.min(4,qtd));
   }
   return m;
 }
@@ -4114,10 +4218,10 @@ function perfilEscuta(v){
   if(v.mimico){
     let qtd=S.dia<=3?3:S.dia<=6?2:(chance(.72)?1:2);
     if(vicioPorta()==='ouvido'&&chance(.55))qtd=Math.max(1,qtd-1);
-    e.defeitos=DEFEITOS_SOM.slice().sort(()=>Math.random()-.5).slice(0,qtd);
+    e.defeitos=DEFEITOS_SOM.slice().sort(()=>_ale()-.5).slice(0,qtd);
     e.defeitos.forEach(d=>{
-      if(d.id==='rapida'){e.rpm=29+Math.random()*7;e.variacao=.05;}
-      if(d.id==='lenta'){e.rpm=5+Math.random()*2;e.variacao=.06;}
+      if(d.id==='rapida'){e.rpm=29+_ale()*7;e.variacao=.05;}
+      if(d.id==='lenta'){e.rpm=5+_ale()*2;e.variacao=.06;}
       if(d.id==='metronomo')e.variacao=0;
       if(d.id==='sempulmao')e.sopro=true;
     });
@@ -4363,7 +4467,7 @@ function escolherEscuta(v,e,antes,escrito){
     diz('Escolha a camada que te incomodou. Se você errar, você vai anotar uma coisa que não aconteceu.','fraco');
   }
   AC.innerHTML='';
-  const usadas=PERG_ESCUTA.slice().sort(()=>Math.random()-.5).slice(0,3);
+  const usadas=PERG_ESCUTA.slice().sort(()=>_ale()-.5).slice(0,3);
   usadas.forEach(p=>{
     botao(p.q,()=>responderEscuta(v,e,p,antes),{custo:'uma camada'});
   });
@@ -4786,7 +4890,7 @@ const TODOS_LOCAIS=[
 function locaisDeHoje(){
   if(S.locaisDia===S.dia&&S.locaisHoje)return S.locaisHoje;
   const fixos=poolDeLocais().filter(l=>(S.esgotados[l.id]||0)<2&&(!l.trava||tem(l.trava)));
-  const emb=fixos.slice().sort(()=>Math.random()-.5);
+  const emb=fixos.slice().sort(()=>_ale()-.5);
   const sel=emb.slice(0,4);
   if(S.gerQuebrado&&!S.peca){
     const h=poolDeLocais().find(l=>l.id==='hospital');
@@ -4796,8 +4900,8 @@ function locaisDeHoje(){
   return sel;
 }
 function itensDoLocal(l){
-  const n=1+Math.floor(Math.random()*2)+(l.risco>=4?1:0);
-  const bag=(l.itens||[]).slice().sort(()=>Math.random()-.5).slice(0,n);
+  const n=1+Math.floor(_ale()*2)+(l.risco>=4?1:0);
+  const bag=(l.itens||[]).slice().sort(()=>_ale()-.5).slice(0,n);
   return bag.map(id=>ITENS.find(i=>i.id===id)).filter(Boolean);
 }
 
@@ -5849,7 +5953,7 @@ function sortearAnomalia(){
   const escala=1+Math.max(0,S.dia-5)*.30+nivel*.35;
   pool=pool.map(a=>({...a,peso:a.peso*(a.forca>=3?escala:1)}));
   const total=pool.reduce((s,a)=>s+a.peso,0);
-  let r=Math.random()*total;
+  let r=_ale()*total;
   for(const a of pool){r-=a.peso;if(r<=0)return a;}
   return pool[0];
 }
@@ -5921,7 +6025,7 @@ function menuInvestigar(an,comodo,volta){
     if(m.precisa==='memoria'&&!S.anotouCasa)return false;
     return true;
   });
-  disp=disp.sort(()=>Math.random()-.5).slice(0,4+(S.dia>6?1:0));
+  disp=disp.sort(()=>_ale()-.5).slice(0,4+(S.dia>6?1:0));
 
   disp.forEach(k=>{
     const m=METODOS[k];
@@ -6297,7 +6401,7 @@ function sortearClima(){
   if(ant&&chance(.35))return ant;
   e=e.map(([k,v])=>[k,v.p*(k===ant?.4:1)]);
   const t=e.reduce((s,[,p])=>s+p,0);
-  let r=Math.random()*t;
+  let r=_ale()*t;
   for(const [k,p] of e){r-=p;if(r<=0)return k;}
   return 'limpo';
 }
@@ -6407,7 +6511,7 @@ function sortearEvento(){
   });
   if(!val.length)return null;
   const t=val.reduce((s,e)=>s+PESO_R[e.r],0);
-  let r=Math.random()*t;
+  let r=_ale()*t;
   for(const e of val){r-=PESO_R[e.r];if(r<=0)return e;}
   return val[0];
 }
@@ -6456,7 +6560,7 @@ async function visitaComerciante(){
   await pausa(1300);
   diz('“Bom dia. Tenho o que vocês não têm. Vocês têm o que eu não tenho.”','fala');
   await pausa(1100);
-  const ofertas=TROCAS.slice().sort(()=>Math.random()-.5).slice(0,4);
+  const ofertas=TROCAS.slice().sort(()=>_ale()-.5).slice(0,4);
   return new Promise(res=>{
     AC.innerHTML='';
     ofertas.forEach(o=>{
@@ -7535,7 +7639,7 @@ async function vasculharCasa(casa,com,voltar){
   const T=TIPO_CASA[casa.tipo];
   let pool=T.loot.filter(id=>CATALOGO[id]);
   if(com.favor)pool=pool.concat(pool.filter(id=>com.favor.includes(CATALOGO[id].cat)));
-  const qtd=Math.max(0,Math.round((3-com.vasculhado+1)*T.riqueza*(.4+Math.random()*.8))
+  const qtd=Math.max(0,Math.round((3-com.vasculhado+1)*T.riqueza*(.4+_ale()*.8))
     -(casa.estado==='revirada'?1:0));
   if(qtd<=0){
     diz(sortear(['Nada. Já levaram o que prestava.','Só lixo e roupa velha.',
@@ -7546,7 +7650,7 @@ async function vasculharCasa(casa,com,voltar){
     if(chance(.10+(T.riqueza-1)*.06)){
       const tipos=['sacola','escolar','comum','viagem','militar','carrinho'];
       const alvo=tipos[Math.min(tipos.length-1,
-        Math.floor((T.riqueza+S.dia*.15+Math.random()*1.6)))];
+        Math.floor((T.riqueza+S.dia*.15+_ale()*1.6)))];
       const r=acharMochila(alvo);
       if(r)diz(r,'bom');
     }
@@ -7555,7 +7659,7 @@ async function vasculharCasa(casa,com,voltar){
       const e=CATALOGO[id];
       if(!e)continue;
       if(e.raro>=4&&!chance(.35))continue;
-      const q=e.pilha?1+Math.floor(Math.random()*Math.min(3,e.pilha)):1;
+      const q=e.pilha?1+Math.floor(_ale()*Math.min(3,e.pilha)):1;
       achou.push({id,q});
     }
     if(!achou.length)diz('Quase nada. Um ou outro trapo.','narr');
@@ -7893,13 +7997,13 @@ function lerPista(id){
     /* põe uma voz nova no seu repertório: você passa a reconhecer
        de ouvido alguém que você nunca conheceu vivo */
     const n=nomeInventado();
-    const pes={n:n.split(' ')[0],id:30+Math.floor(Math.random()*25),alt:.45+Math.random()*.15,
+    const pes={n:n.split(' ')[0],id:30+Math.floor(_ale()*25),alt:.45+_ale()*.15,
       hab:'—',ef:'—',frase:'Sou eu. Você não lembra de mim?',mem:'uma foto que você achou',
       fala:['Eu morava aqui perto.']};
     registrarVoz(pes,`você achou uma foto dela numa casa vazia, no dia ${dia}`);
     S.vozesOuvidas=S.vozesOuvidas||[];
     if(!S.vozesOuvidas.includes(pes.n))S.vozesOuvidas.push(pes.n);
-    return {t:`Uma família na frente de uma casa azul. Atrás, a caneta desbotada: "${n}, ${2000+Math.floor(Math.random()*20)}".`,
+    return {t:`Uma família na frente de uma casa azul. Atrás, a caneta desbotada: "${n}, ${2000+Math.floor(_ale()*20)}".`,
       efeito:`Agora você conhece a cara de ${pes.n}. Se essa voz bater na sua porta, você vai saber que não é dessa casa.`,
       cls:'sist'};
   }
@@ -8877,7 +8981,7 @@ function sortearCriatura(fam){
     return Math.max(.4,p);
   };
   const tot=l.reduce((s,x)=>s+peso(x),0);
-  let r=Math.random()*tot;
+  let r=_ale()*tot;
   for(const x of l){r-=peso(x);if(r<=0)return x[0];}
   return l[0][0];
 }
@@ -9119,7 +9223,7 @@ async function encontroCriatura(ctx,volta){
   const id=sortearCriatura();
   const C=CRIATURAS[id];
   const loc=perfilLocal(ctx&&ctx.l);
-  const L=leitura(id,{dist:1+Math.floor(Math.random()*3),...ctx});
+  const L=leitura(id,{dist:1+Math.floor(_ale()*3),...ctx});
   marcarVisto(id);
   AC.innerHTML='';limpar();cap('Tem alguma coisa aí');
   if(A.ctx&&C.fam==='surda')assinatura('primordial',0,.5);
@@ -9321,9 +9425,9 @@ function lootDoLocal(l,fator){
   }
   /* MATERIAL */
   if(A.mat.length){
-    const n=1+Math.floor(Math.random()*2*f);
+    const n=1+Math.floor(_ale()*2*f);
     for(let i=0;i<n;i++){
-      const m=sortear(A.mat),q=1+Math.floor(Math.random()*3*f);
+      const m=sortear(A.mat),q=1+Math.floor(_ale()*3*f);
       darMat(m,q);saiu.mat[m]=(saiu.mat[m]||0)+q;
     }
     const lista=Object.keys(saiu.mat).map(k=>
@@ -9345,7 +9449,7 @@ function lootDoLocal(l,fator){
         const cand=cand2;
         const pesos={sacola:40,escolar:30,comum:16,viagem:6,militar:1.6};
         const tot=cand.reduce((s,k)=>s+(pesos[k]||5),0);
-        let r=Math.random()*tot,esc=cand[0];
+        let r=_ale()*tot,esc=cand[0];
         for(const k of cand){r-=(pesos[k]||5);if(r<=0){esc=k;break;}}
         const msg=acharMochila(esc);
         if(msg){saiu.mochila=esc;saiu.texto.push(msg);}
@@ -9359,7 +9463,14 @@ function lootDoLocal(l,fator){
 /* ---------- comida e diesel do lugar certo ---------- */
 function ajusteRecurso(l){
   const A=afinidade(l);
-  return {comida:A.comida||1,diesel:A.diesel||1,med:A.med||0,estraga:A.estraga||1};
+  /* JUNINHO / `escalada`. A ficha dele diz "Expedicoes rendem 25% a
+     mais" desde sempre e ate a v66 a habilidade nao era consultada em
+     lugar NENHUM do codigo: promessa impressa na tela do jogador com
+     zero linhas por tras. Mesma familia do estagio `tenso` da sanidade.
+     Os 25% sao os 25% que a ficha promete — nada inventado. */
+  const esc=(typeof tem==='function'&&tem('escalada'))?1.25:1;
+  return {comida:(A.comida||1)*esc,diesel:(A.diesel||1)*esc,
+          med:A.med||0,estraga:A.estraga||1};
 }
 </script>
 <script>
@@ -9459,6 +9570,39 @@ const ROTINAS=[
     mexerMoral(4);
     return `${p.n} rezou em voz baixa na cozinha. Duas pessoas foram sentar junto sem falar nada.`;
   }},
+ /* SAUDADE — a rotina que faltava, e ela existe por dois motivos
+    medidos, nao por vontade de escrever texto novo.
+
+    1) `p.mem` era PARAMETRO MORTO. As 12 pessoas carregam um campo com
+       aquilo de que sentem falta — "a igreja da praca", "a oficina do
+       pai dele", "o cachorro dele, Pipoca" — e o jogo inteiro nunca
+       leu esse campo uma unica vez. Era o material mais rico do arquivo
+       de dados dos NPCs, inerte desde sempre.
+
+    2) Numa campanha de 30 dias o jogador via 5 das 16 rotinas. O motivo
+       nao e sorte: `conserta` pede avaria, `horta` pede canteiro,
+       `ajuda` pede doente, `lembra` pede morto. Numa casa sem crise o
+       poco seca pra {organiza, cozinha, vigia, ensina, reza} — que sao
+       exatamente as 5 medidas. `saudade` nao pede NADA e vale em toda
+       faixa de moral, entao ela e a variedade que faltava na casa
+       calma, sem mexer no peso de ninguem.
+
+    As frases usam `${p.mem}` com o artigo que ja vem no dado — por isso
+    todas dizem "sobre", "com", "de tanto falar em", e nunca "de". */
+ {id:'saudade',peso:8,moral:[0,100],precisa:p=>!!p.mem,
+  faz:p=>{
+    if(!p.mem)return null;
+    if(p.objFeito)return sortear([
+      `${p.n} falou sobre ${p.mem} de novo. Dessa vez sem aquele peso.`,
+      `${p.n} contou uma história boa sobre ${p.mem} e riu no meio.`]);
+    return sortear([
+      `${p.n} passou a tarde falando sobre ${p.mem}. Ninguém teve coragem de mudar de assunto.`,
+      `Alguém perguntou do que ${p.n} mais sente falta. ${p.n} respondeu na hora: ${p.mem}.`,
+      `${p.n} sonhou com ${p.mem} e acordou pior do que deitou.`,
+      `De madrugada ${p.n} estava acordado, falando sozinho sobre ${p.mem}.`,
+      `${p.n} desenhou ${p.mem} num pedaço de papelão e deixou em cima da geladeira.`,
+      `${p.n} ficou quieto o dia inteiro. À noite disse só uma coisa: ${p.mem}.`]);
+  }},
  {id:'lembra',peso:9,moral:[0,100],precisa:()=>S.mortos.length>0,
   faz:p=>{
     const m=sortear(S.mortos);
@@ -9471,8 +9615,19 @@ const ROTINAS=[
  /* --- ruins: autonomia com preço --- */
  {id:'esconde',peso:7,moral:[0,35],precisa:()=>S.comida>=3,
   faz:p=>{
+    /* `p.escondeu` era PARAMETRO MORTO: escrito aqui e lido em lugar
+       nenhum do jogo. A pessoa desviava lata da casa a campanha inteira
+       e nada acontecia — nem pra ela, nem pra despensa, nem pro
+       jogador. Agora o esconderijo existe de verdade: ela guarda, e o
+       que ela guardou volta pra casa quando ela morre ou vai embora.
+       O terceiro desvio e o que a casa percebe. */
     p.escondeu=(p.escondeu||0)+1;
     S.comida--;
+    if(p.escondeu>=3&&!p.escondeuVisto){
+      p.escondeuVisto=true;
+      aproximar(p,sortear(S.abrigo.filter(x=>x!==p))||p,-12);
+      return `Acharam a lata escondida de ${p.n} embaixo do colchão. Eram três, não uma.`;
+    }
     return chance(.4)
       ?`Faltou uma lata na contagem. ${p.n} desviou o olhar quando você perguntou.`
       :null;  // às vezes você nem fica sabendo
@@ -9503,7 +9658,7 @@ function rotinaDe(p){
   });
   if(!val.length)return null;
   const tot=val.reduce((s,r)=>s+r.peso,0);
-  let x=Math.random()*tot;
+  let x=_ale()*tot;
   for(const r of val){x-=r.peso;if(x<=0)return r;}
   return val[0];
 }
@@ -9695,7 +9850,7 @@ async function cercoSaqueador(){
       diz(`Você passa ${c} latas e ${d} litros pela fresta, uma coisa de cada vez.`,'sist');
       await pausa(1600);
       diz(`${n}: “Tá bom. A gente volta quando acabar.”`,'fala');
-      S.saq.tregua=3+Math.floor(Math.random()*3);
+      S.saq.tregua=3+Math.floor(_ale()*3);
       mexerMoral(-6);S.confianca=trava(S.confianca-5,0,100);
       anotar(`Pagou os saqueadores. Trégua de ${S.saq.tregua} noites.`);
       await pausa(1400);
@@ -9720,7 +9875,7 @@ async function cercoSaqueador(){
         diz(`Eles veem. Contam quantos vocês são e quanto ferro tem na mão de vocês.`,'sist');
         await pausa(1500);
         diz(`${n}: “Depois a gente conversa.” Eles descem a rua sem correr.`,'bom');
-        S.saq.tregua=2+Math.floor(Math.random()*2);
+        S.saq.tregua=2+Math.floor(_ale()*2);
         mexerMoral(9);S.confianca=trava(S.confianca+10,0,100);
         desligarDrone();res(true);
       }else{
@@ -9773,7 +9928,7 @@ async function assalto(qtd,n){
     diz(`${morto} fica caído na entrada. Os outros levam ele e somem na rua.`,'perigo');
     await pausa(1800);
     // a voz dele vira arma dos mímicos
-    const pes={n:morto,id:28+Math.floor(Math.random()*22),alt:.5,hab:'—',ef:'—',
+    const pes={n:morto,id:28+Math.floor(_ale()*22),alt:.5,hab:'—',ef:'—',
       frase:'Abre a porta. A gente não vai machucar ninguém.',mem:'a rua',
       fala:['A gente só queria o que vocês tinham.']};
     registrarVoz(pes,`morreu na sua entrada na noite ${S.dia}, tentando entrar`);
@@ -10113,10 +10268,10 @@ function etapaDentro(E,ctx){
     const f=peso*(gasto?.55:1)*(tem('química')?1.12:1)*(ctx.mult||1)*rendeDist(l);
     /* o tipo do lugar decide o que ele tem de verdade */
     const AJ=ajusteRecurso(l);
-    const qtdC=Math.round((l.comida[0]+Math.random()*(l.comida[1]-l.comida[0]))*f*AJ.comida);
+    const qtdC=Math.round((l.comida[0]+_ale()*(l.comida[1]-l.comida[0]))*f*AJ.comida);
     const cm=acharComida(qtdC,AJ.estraga);
     ctx.achados=[
-      {n:'diesel',q:Math.round((l.diesel[0]+Math.random()*(l.diesel[1]-l.diesel[0]))*f*AJ.diesel),kg:1}
+      {n:'diesel',q:Math.round((l.diesel[0]+_ale()*(l.diesel[1]-l.diesel[0]))*f*AJ.diesel),kg:1}
     ];
     if(cm.boa)ctx.achados.push({n:'comida',q:cm.boa,kg:1.5});
     if(cm.ruim)ctx.achados.push({n:'lata suspeita',q:cm.ruim,kg:1.5,estragada:true,
@@ -10191,51 +10346,9 @@ async function sustoTalvez(ctx,levar){
   if(!chance(r))return false;
   return encontroRua(ctx,levar);
 }
-async function sustoAntigo(ctx,levar){
-  if(true)return false;
-  rugido(1,chance(.5)?-.7:.7);
-  await pausa(1000);
-  diz('Uma coisa te vê antes de você ver ela.','perigo');
-  await pausa(800);AC.innerHTML='';
-  return new Promise(res=>{
-    botao('Correr e largar metade',async()=>{
-      if(levar)Object.keys(levar).forEach(k=>levar[k]=Math.floor(levar[k]/2));
-      passo(1,-.5);passo(1,.5);
-      diz('Você corre. Metade do que carregava fica na calçada.','perigo');
-      S.ruido=trava(S.ruido+14,0,100);
-      await recolher(ctx,levar||{},false);res(true);
-    });
-    botao('Se esconder e esperar',async()=>{
-      if(chance(ctx.par?.62:.5)){
-        diz('Vocês ficam parados atrás de um muro por quarenta minutos. Ela passa.','bom');
-        res(false);
-      }else{
-        diz('Ela para. Cheira o ar. Vem.','perigo');
-        await recolher(ctx,levar||{},true);res(true);
-      }
-    });
-    if(S.coquetel>0)botao('Acender uma garrafa e jogar',async()=>{
-      S.coquetel--;
-      diz('O vidro estoura na calçada e o fogo sobe. Ela recua do calor e vocês passam.','bom');
-      S.ruido=trava(S.ruido+8,0,100);
-      res(false);
-    },{custo:'gasta 1 garrafa'});
-    if(S.lanterna)botao('Lanterna na cara dela',async()=>{
-      S.lanterna=false;
-      diz('O facho pega em cheio. Ela se protege e vocês recolhem tudo com calma.','bom');
-      res(false);
-    },{custo:'gasta a lanterna'});
-    if(ctx.par)botao(`Deixar ${ctx.par.n} distrair ela`,async()=>{
-      diz(`${ctx.par.n} olha pra você uma vez antes de correr pro outro lado gritando.`,'perigo');
-      await pausa(1400);
-      morreuAlguem(ctx.par,`você deixou pra trás pra escapar, na noite ${S.dia}`);
-      S.confianca=trava(S.confianca-32,0,100);
-      diz(`Você volta com tudo. ${ctx.par.n} não volta. A casa vai saber o que você escolheu.`,'perigo');
-      ctx.par=null;
-      await recolher(ctx,levar||{},false);res(true);
-    },{cls:'prim',custo:'ele fica'});
-  });
-}
+/* `sustoAntigo` vivia aqui: 44 linhas comecando com `if(true)return false;`
+   e chamada de lugar NENHUM. Codigo morto que ficou parecendo caminho
+   vivo em toda leitura do arquivo. O susto de verdade e o `encontro`. */
 
 async function recolher(ctx,levar,ferido){
   const l=ctx.l;
@@ -10565,7 +10678,7 @@ async function vigiar(){
   S.ruido=Math.max(0,S.ruido-4);
   diz('Você fica meia hora encostado na janelinha do sótão, olhando a rua.','narr');
   await pausa(1200);
-  const r=Math.random();
+  const r=_ale();
   if(r<.28){
     diz('Nada se mexe. Nem cachorro, nem vento. A rua parece uma foto.','narr');
     S.vigiou={tipo:'nada'};
@@ -10840,7 +10953,7 @@ function gerarVisitante(){
         vozIdx:vz2.vozIdx,pitch:vz2.pitch,rate:vz2.rate,qtd:1,
         alt:ant.alt,larg:.16,dedos:0,tremor:0,x:.5,deAntes:true};
       v2.respostas={};
-      const ruins2=CHAVES.slice().sort(()=>Math.random()-.5).slice(0,2);
+      const ruins2=CHAVES.slice().sort(()=>_ale()-.5).slice(0,2);
       CHAVES.forEach(k=>{
         const errado=ruins2.includes(k);
         v2.respostas[k]={txt:errado?sortear(PERG[k].ruim(ant)):sortear(PERG[k].bom(ant)),
@@ -10865,12 +10978,12 @@ function gerarVisitante(){
   const v={tipo,mimico,pessoa,sinais:[],usadas:[],turnos:0,corrente:false,
     consultou:false,decorada:null,olhou:false,_modelo:null,
     vozIdx:vz.vozIdx,pitch:vz.pitch,rate:vz.rate,
-    alt:pessoa.alt||.45,larg:.24+Math.random()*.07,qtd:1,dedos:0,
+    alt:pessoa.alt||.45,larg:.24+_ale()*.07,qtd:1,dedos:0,
     prazo:t.urgente?5:99,grupo:null,respostas:{}};
 
   if(tipo==='coro'){v.qtd=3;v.rate=.86;}
   if(tipo==='bando'){
-    const outros=S.pool.filter(p=>p!==pessoa).sort(()=>Math.random()-.5).slice(0,chance(.5)?2:1);
+    const outros=S.pool.filter(p=>p!==pessoa).sort(()=>_ale()-.5).slice(0,chance(.5)?2:1);
     v.grupo=[pessoa,...outros].map(p=>({p,mimico:chance(trava(.14+S.dia*.028,.14,.38))}));
     v.qtd=v.grupo.length;
     mimico=v.mimico=v.grupo.some(x=>x.mimico);
@@ -10882,7 +10995,7 @@ function gerarVisitante(){
   /* elas aprendem: os erros migram pras perguntas que você quase não faz */
   const aprendizado=(mimico&&totalUso()>=8)?trava((S.dia-2)*.11,0,.62):0;
   const ordem=CHAVES.slice().sort((a,b)=>
-    (Math.random()-aprendizado*taxaUso(b)*2.6)-(Math.random()-aprendizado*taxaUso(a)*2.6));
+    (_ale()-aprendizado*taxaUso(b)*2.6)-(_ale()-aprendizado*taxaUso(a)*2.6));
   let ruins=ordem.slice(0,qtdRuins);
   if(aprendizado>.25){
     const decoradas=CHAVES.filter(k=>!ruins.includes(k)&&taxaUso(k)>.22);
@@ -11192,7 +11305,7 @@ async function corrente(v){
     }else if(S.porta.reforco>2){
       diz(`As tábuas seguram o baque. Você empurra de volta e tranca.`,'bom');
     }else{
-      S.porta.reforco=Math.max(0,S.porta.reforco-1);ganhou({reforco:-1});
+      if(perderReforco(1))ganhou({reforco:-1});
       diz('Uma tábua se solta com prego e tudo. Você fecha antes que ela ache o vão.','perigo');
     }
   }else{cena.abertura=0;correnteSom(0);diz('Você fecha antes que a coragem acabe.','narr');}
@@ -11462,7 +11575,7 @@ function perguntasDoDia(v){
   /* as menos usadas primeiro: o jogo te empurra a variar */
   return CHAVES.slice()
     .filter(k=>!v.usadas.includes(k))
-    .sort((a,b)=>((usos[a]||0)-(usos[b]||0))||Math.random()-.5);
+    .sort((a,b)=>((usos[a]||0)-(usos[b]||0))||_ale()-.5);
 }
 </script>
 <script>
@@ -12150,7 +12263,7 @@ menuInvestigar=async function(an,comodo,volta){
       if(m.precisa==='lanterna'&&!temFerra('lanterna'))return false;
       if(m.precisa==='memoria'&&!S.anotouCasa)return false;
       return true;
-    }).sort(()=>Math.random()-.5).slice(0,4+(S.dia>6?1:0));
+    }).sort(()=>_ale()-.5).slice(0,4+(S.dia>6?1:0));
     disp.forEach(k=>{
       const m=METODOS[k];
       let p=m.base;
@@ -12393,7 +12506,7 @@ function mundoPerdeGente(){
   const e=escassez();
   /* alguém do pool morre lá fora sem você ver */
   if(S.pool.length>3&&chance(.12+e*.28)){
-    const p=S.pool.splice(Math.floor(Math.random()*S.pool.length),1)[0];
+    const p=S.pool.splice(Math.floor(_ale()*S.pool.length),1)[0];
     if(p){
       S.mortosFora=(S.mortosFora||0)+1;
       registrarVoz(p,`morreu em algum lugar da cidade no dia ${S.dia}, sem você saber`);
@@ -12402,9 +12515,9 @@ function mundoPerdeGente(){
   }
   /* e às vezes um grupo inteiro some */
   if(S.dia>=8&&S.pool.length>4&&chance(.06+e*.14)){
-    const n=Math.min(S.pool.length-2,2+Math.floor(Math.random()*2));
+    const n=Math.min(S.pool.length-2,2+Math.floor(_ale()*2));
     for(let i=0;i<n;i++){
-      const p=S.pool.splice(Math.floor(Math.random()*S.pool.length),1)[0];
+      const p=S.pool.splice(Math.floor(_ale()*S.pool.length),1)[0];
       if(p)registrarVoz(p,`sumiu junto com um grupo inteiro no dia ${S.dia}`);
     }
     S.mortosFora=(S.mortosFora||0)+n;
@@ -14226,7 +14339,7 @@ boletimRadio=async function(){
     return true;
   }
   /* dia comum: a fala do estágio, uma dica, ou o que você fez */
-  const r=Math.random();
+  const r=_ale();
   if(r<.42){
     S.boletimDia=S.dia;
     await pausa(600);
@@ -15457,7 +15570,7 @@ montarLente=function(v){
     if(quantos>0){
       /* troca os genéricos pelos dela, mantendo a quantidade
          que o balanceamento já definiu */
-      const escolhidos=proprios.slice().sort(()=>Math.random()-.5).slice(0,quantos);
+      const escolhidos=proprios.slice().sort(()=>_ale()-.5).slice(0,quantos);
       const faltam=quantos-escolhidos.length;
       if(faltam>0)escolhidos.push(...v._modelo.anomalias.slice(0,faltam));
       v._modelo.anomalias=escolhidos;
@@ -15831,17 +15944,17 @@ async function voltarDeFora(p){
   const g={},txt=[];
   const F=(o&&o.fora)||{comida:[2,5]};
   const mult=1+(escassez()<.4?.2:0);
-  if(F.comida){const q=Math.round((F.comida[0]+Math.random()*(F.comida[1]-F.comida[0]))*mult);
+  if(F.comida){const q=Math.round((F.comida[0]+_ale()*(F.comida[1]-F.comida[0]))*mult);
     if(q>0){S.comida+=q;g.comida=q;txt.push(q+' de comida');}}
-  if(F.diesel){const q=Math.round(F.diesel[0]+Math.random()*(F.diesel[1]-F.diesel[0]));
+  if(F.diesel){const q=Math.round(F.diesel[0]+_ale()*(F.diesel[1]-F.diesel[0]));
     if(q>0){S.diesel=trava(S.diesel+q,0,100);g.diesel=q;txt.push(q+' de diesel');}}
-  if(F.agua){const q=Math.round(F.agua[0]+Math.random()*(F.agua[1]-F.agua[0]));
+  if(F.agua){const q=Math.round(F.agua[0]+_ale()*(F.agua[1]-F.agua[0]));
     if(q>0){S.agua+=q;g.agua=q;txt.push(q+' de água');}}
   if(F.remedio){const q=Array.isArray(F.remedio)
-      ?Math.round(F.remedio[0]+Math.random()*(F.remedio[1]-F.remedio[0]))
+      ?Math.round(F.remedio[0]+_ale()*(F.remedio[1]-F.remedio[0]))
       :(chance(F.remedio)?1:0);
     if(q>0){S.remedio+=q;g.remedio=q;txt.push(q+' remédio');}}
-  if(F.mat){const m=sortear(F.mat),q=2+Math.floor(Math.random()*3);
+  if(F.mat){const m=sortear(F.mat),q=2+Math.floor(_ale()*3);
     darMat(m,q);txt.push(q+' '+MATE[m].un);}
   if(F.semente&&chance(F.semente)){S.temSemente=true;txt.push('semente boa');}
   if(F.peca&&chance(F.peca)){S.temPeca=true;txt.push('uma peça do gerador');}
@@ -16566,7 +16679,7 @@ async function telaResgate(){
     diz('A casa é sua. Enquanto o gerador roncar, ela continua sendo.','sist');
     await pausa(1400);
     S.dia++;S.diaLivre=true;S.recusou=(S.recusou||0)+1;
-    S.proxResgate=S.dia+9+Math.floor(Math.random()*5);
+    S.proxResgate=S.dia+9+Math.floor(_ale()*5);
     diz('Ele disse que passa de novo. Não disse quando.','fraco');
     AC.innerHTML='';
     botao('Continuar vivendo',()=>cenaDia(),{cls:'chave'});
@@ -16601,7 +16714,7 @@ async function invasao(qtd){
   diz(r>=4?'Levaram muito tempo pra arrancar as tábuas. Você teve tempo de acordar todo mundo.'
     :r>=2?'As tábuas cedem uma de cada vez. A porta racha no meio.'
     :'A porta racha no primeiro empurrão. Não bateram dessa vez. Entraram.','perigo');
-  danificarPorta(60);S.porta.reforco=Math.max(0,S.porta.reforco-2);
+  danificarPorta(60);perderReforco(2);
   await pausa(1500);
   diz(`Você aguenta ${I.folego} ${I.folego===1?'encontro':'encontros'} com ele antes de acabar.`,'sist');
   await pausa(900);
@@ -17312,7 +17425,7 @@ function mochilaSorteada(l){
   if(atual===0&&S.semMoch>=5)return 'escolar';
   if(!cand.length)return null;
   const tot=cand.reduce((s,c)=>s+c[1],0);
-  let r=Math.random()*tot;
+  let r=_ale()*tot;
   for(const c of cand){r-=c[1];if(r<=0)return c[0];}
   return null;
 }
@@ -17510,7 +17623,7 @@ function acharEstrat(L){
   const cand=Object.keys(ESTRAT).filter(k=>L>=min[ESTRAT[k].r]&&!(S.estrat||[]).includes(k));
   if(!cand.length)return null;
   const tot=cand.reduce((s,k)=>s+RAR[ESTRAT[k].r].drop,0);
-  let r=Math.random()*tot;
+  let r=_ale()*tot;
   for(const k of cand){r-=RAR[ESTRAT[k].r].drop;if(r<=0){
     S.estrat=S.estrat||[];S.estrat.push(k);return k;}}
   return null;
@@ -17600,7 +17713,7 @@ const FONTES={
  saq:{n:'uma frequência que não devia estar aberta',v:20,c:100}
 };
 function fonteDoDia(){
-  const r=Math.random();
+  const r=_ale();
   if(r<.18)return 'militar';
   if(r<.55)return 'civil';
   if(r<.80)return 'rouca';
@@ -17997,7 +18110,7 @@ if(typeof diz==='function'){
     let t=txt;
     const e=estagio();
     if(typeof t==='string'&&e.drift>0&&t.length>20&&chance(e.ilusao*.35)){
-      const i=Math.floor(Math.random()*(t.length-2))+1;
+      const i=Math.floor(_ale()*(t.length-2))+1;
       if(/[a-záéíóúãõâêôç]/i.test(t[i])){
         t=t.slice(0,i)+t[i]+t.slice(i);   /* letra dobrada, como quem digitou tremendo */
         S.realDebt=debito()+1;
@@ -18278,7 +18391,7 @@ const ROTA=[
    {n:'Apagar com o pé',h:0,f:()=>{mexerSan(-2);return 'Você apaga. Sente que não devia ter feito isso.';}},
    {n:'Deixar como está',h:0,f:()=>'Você desvia e segue.'}]},
  {id:'fila',t:'Uma fila de sapatos na calçada, arrumados, todos virados pro mesmo lado.',
-  op:[{n:'Contar quantos são',h:0,f:()=>{const n=6+Math.floor(Math.random()*20);
+  op:[{n:'Contar quantos são',h:0,f:()=>{const n=6+Math.floor(_ale()*20);
     mexerSan(-3);return `${n} pares. Todos de adulto. Ninguém tira o sapato pra ir embora.`;}},
    {n:'Pegar um par que sirva',h:0,f:()=>{mexerSan(-5);
      if(temMal('bolha'))curarMal('bolha');
@@ -18323,7 +18436,7 @@ async function eventoRota(){
 
 /* ================= 2. O RÁDIO GANHA CORPO ================= */
 const RADIO_FALAS=[
- {c:'boletim',v:80,t:()=>`"Dia ${S.dia+Math.floor(Math.random()*3)-1} desde o começo. Quem estiver ouvindo: a gente ainda tá aqui."`},
+ {c:'boletim',v:80,t:()=>`"Dia ${S.dia+Math.floor(_ale()*3)-1} desde o começo. Quem estiver ouvindo: a gente ainda tá aqui."`},
  {c:'boletim',v:70,t:()=>'"Não bebam água parada. Repito: não bebam água parada. Perdi dois assim."'},
  {c:'boletim',v:90,t:()=>'"Se ela souber o seu nome, isso não quer dizer nada. Elas aprendem nome rápido."'},
  {c:'pessoal',v:60,t:()=>'"Marcinha, se você tiver ouvindo, eu tô na casa da tia. Eu fico aqui. Eu não saio daqui."'},
@@ -18702,8 +18815,8 @@ const ANCORAS=[
 ];
 function ancoras(){
   if(!Array.isArray(S.anc)){
-    const q=2+Math.floor(Math.random()*3);
-    const pool=ANCORAS.slice().sort(()=>Math.random()-.5).slice(0,q);
+    const q=2+Math.floor(_ale()*3);
+    const pool=ANCORAS.slice().sort(()=>_ale()-.5).slice(0,q);
     S.anc=pool.map(a=>({id:a.id,usos:0,ultimo:-9,mortaAte:0}));
   }
   S.anc=S.anc.filter(a=>a&&ANCORAS.some(x=>x.id===a.id));
@@ -18766,7 +18879,7 @@ function decisoesDaRun(){
   if((S.anomPegas||0)>=3)l.push(`Você entendeu ${S.anomPegas} coisas que ninguém mais entendeu.`);
   if((S.ancMortas||[]).length)l.push('Você destruiu o que te segurava, pra parar de ver coisa.');
   if(!l.length)l.push('Você fez o que deu, no dia a dia, e não sobrou grande decisão nenhuma.');
-  return l.sort(()=>Math.random()-.5).slice(0,3);
+  return l.sort(()=>_ale()-.5).slice(0,3);
 }
 const ULTIMO_ATO=[
  {n:'Escrever uma carta',

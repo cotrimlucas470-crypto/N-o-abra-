@@ -1,5 +1,149 @@
 # CHANGELOG
 
+## v66 — os consertos
+
+Pedido: *"resolva todos os bugs do jogo, absolutamente tudo."* Fui atrás por
+medição, não por leitura. O que segue é o que estava quebrado, com a prova.
+
+### O bug de raiz: 612 decisões fora do gerador da partida
+
+O jogo tem um RNG semeado completo. `criarRNG` com `next`, `inteiro`,
+`escolher` e `pesado`. `semearRNG()` deriva a semente de `(saveId, dia)`. O
+estado vai pro save em `d.rngEstado` e volta na carga. E `s30-nucleo.js` declara
+a política por escrito:
+
+> *"RNG SEMEADO no que decide jogo; cosmético fica com `Math.random`."*
+
+Máquina inteira montada, testada, persistida. E então:
+
+```js
+const sortear = a => a[Math.floor(Math.random()*a.length)];
+const chance  = p => Math.random() < p;
+```
+
+**As duas portas de entrada nunca foram ligadas nela.** São 397 chamadas de
+`chance()` e 215 de `sortear()` — **612 decisões**, praticamente todas as do
+jogo — passando por `Math.random()`, enquanto o gerador determinístico rodava ao
+lado sem ninguém chamar.
+
+É exatamente a forma do estágio `tenso` da sanidade: a promessa escrita no
+código e o código garantindo que ela não vale.
+
+Agora as duas passam por `_ale()`, que usa o gerador da partida e cai em
+`Math.random` só enquanto o `rng` ainda não existe (os blocos são injetados no
+fim do body). Mais 71 chamadas diretas em 46 funções que decidem estado — loot,
+clima, evento, criatura, visitante, quem some do mundo. A distribuição é
+idêntica: **nenhum número de balanceamento mudou.** O que muda é que o resultado
+para de depender de sorte que o save não conhece.
+
+Uma ficou de fora de propósito, e está comentada no código: a cauda de reverb em
+`gerarImpulso` gera dezenas de milhares de amostras por chamada. Passar isso pelo
+gerador gastaria o RNG num laço de áudio e faria a sequência do jogo depender de
+o som ter inicializado.
+
+**Guarda de build nova.** Essa regressão seria um caractere, sem erro, sem teste
+vermelho, e só apareceria como "esse save não reproduz". Então o `montar.js`
+agora quebra a build se `sortear`, `chance` ou `_ale` saírem da forma semeada —
+verificado plantando a regressão de propósito.
+
+### Perda de progresso: três estados morriam no recarregamento
+
+Este precisou de duas medições, porque a primeira **passou pelo motivo errado**.
+
+`carregar()` não reconstrói o `S`: copia as chaves do save por cima do `S` que já
+está na memória. Então `salvar(); carregar()` na mesma página preserva tudo —
+inclusive o que nunca foi gravado. Só um `page.reload()` de verdade mostra:
+
+```
+ANTES   tarefas:4  objetivos:1  ignorado:4  vigiou:true  infiltrado:"Rafael"
+DEPOIS  tarefas:0  objetivos:0  ignorado:—  vigiou:false infiltrado:null
+```
+
+A pior é `objetivos`, porque ela carrega o contador `ignorado` — e é ele que
+decide se a pessoa sai de madrugada atrás do que quer e morre. **Alguém a quatro
+passos disso voltava em zero toda vez que o jogador fechava o app.**
+
+### O Imitador disfarçado de mecânico ganhava o bônus do mecânico
+
+`S.infiltrado` era uma **referência** pra dentro de `S.abrigo`. Depois de
+qualquer ida-e-volta por JSON, o abrigo tem objetos novos e a referência aponta
+pra um fantasma. Nada reclama.
+
+Havia remendo dentro de `pistaDoDia` — `p.falso` como backup, com o comentário
+explicando. Mas só valia ali. Em `desgastarGerador`:
+
+```js
+if(tem('mecânica') && quem('mecânica')!==S.infiltrado) d*=.55;
+```
+
+Depois de um recarregamento esse `!==` é sempre verdadeiro, e **a coisa que
+substituiu o Rafael continuava cuidando do gerador como o Rafael.**
+
+Agora a chave é o nome, como já era em tarefas, laços e dono.
+
+### Três habilidades prometiam na ficha e não tinham uma linha de código
+
+`ef` é o texto que o jogador lê na ficha da pessoa. Para três das doze, o texto
+prometia algo que o jogo nunca fazia. Verificado por busca dos pontos de consulta
+(`tem('x')` / `quem('x')`):
+
+| pessoa | habilidade | o que a ficha promete | consultas |
+|---|---|---|---|
+| **Nice** | `costura` | *"Remenda tudo. Reforço não se perde."* | **0** |
+| **Juninho** | `escalada` | *"Expedições rendem 25% a mais."* | **0** |
+| **Kelly** | `corrida` | *"Expedições fazem menos ruído."* | **0** |
+
+As três agora fazem o que está escrito, com os números que já estavam escritos —
+os 25% são os 25% da ficha. A Nice remenda a tábua que soltou por dano; a que o
+jogador arranca de propósito pra virar material continua saindo, porque ali a
+perda é escolha dele.
+
+### Dois parâmetros mortos
+
+**`p.mem`** — as doze pessoas carregam um campo com aquilo de que sentem falta:
+*"a igreja da praça"*, *"a oficina do pai dele"*, *"o cachorro dele, Pipoca"*, *"a
+viatura 14"*. **Lido zero vezes no jogo inteiro.** O material mais rico do
+arquivo de dados dos NPCs, inerte desde sempre.
+
+**`p.escondeu`** — a pessoa desmoralizada desvia lata da despensa, o contador
+sobe, e ninguém nunca lê. Ela podia desviar a campanha toda sem consequência
+nenhuma: nem pra ela, nem pra despensa, nem pro jogador.
+
+Agora o esconderijo é real — o terceiro desvio é descoberto e custa laço, e o que
+ela guardou volta pra casa quando ela morre.
+
+E `p.mem` virou a rotina **`saudade`**, que existe por dois motivos medidos:
+
+> Numa campanha de 30 dias o jogador via **5 das 16 rotinas**. Não é sorte:
+> `conserta` pede avaria, `horta` pede canteiro, `ajuda` pede doente, `lembra`
+> pede morto. Numa casa sem crise o poço seca para
+> `{organiza, cozinha, vigia, ensina, reza}` — que são exatamente as cinco
+> medidas.
+
+`saudade` não pede nada da casa e vale em toda faixa de moral. É variedade na
+casa calma sem mexer no peso de ninguém.
+
+### Vazamentos
+
+- **Objetivo órfão.** `cobrarObjetivos` fazia `return` quando o dono tinha saído
+  do abrigo, e a meta ficava na lista pra sempre — sem dono, sem prazo, contando
+  `ignorado` que ninguém ia cobrar. Agora encerra junto com a pessoa.
+- **`local` fora da planta.** A pessoa some de todo cômodo e continua viva: não
+  aparece em lugar nenhum, não dá erro, e o jogador acha que ela sumiu. Era
+  saneado só no `carregar()`, então quem recebesse um local ruim durante a
+  partida ficava invisível até fechar e reabrir o jogo.
+
+### Verificação
+
+`tools/testes/bugteste.mjs` — 24 asserções, uma por conserto, incluindo o
+recarregamento de página de verdade.
+
+Registro de método: a primeira rodada do teste de determinismo **falhou por bug
+meu** — o gerador de sequência resetava a semente lá dentro, então a comparação
+de "semente diferente" comparava a mesma semente com ela mesma. Corrigido no
+teste; o código estava certo.
+
+
 ## v65 — a sanidade vira sintoma
 
 ### O pedido

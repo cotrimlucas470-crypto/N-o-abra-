@@ -167,6 +167,38 @@ function checarAcentos(){
 }
 checarAcentos();
 
+/* ================= 3a GUARDA: AS PRIMITIVAS DE DECISAO =================
+   `sortear` e `chance` carregam 612 das decisoes do jogo. Ate a v65 as
+   duas eram `Math.random()` puro, com o RNG semeado montado ao lado,
+   salvo em `d.rngEstado`, restaurado na carga — e nunca ligado. A
+   politica estava escrita em s30-nucleo.js e o codigo garantia que ela
+   nao valia.
+
+   Nao da pra confiar em revisao pra isso nao voltar: a regressao seria
+   um caractere, sem erro, sem teste vermelho, e so apareceria como
+   "esse save nao reproduz". Entao a build quebra.
+
+   Cosmetico continua livre: `_ale` so e exigido nas duas primitivas. */
+function checarPrimitivas(){
+  const h=fs.readFileSync('index.html','utf8');
+  const erros=[];
+  const casos=[
+    [/const\s+sortear\s*=\s*a\s*=>\s*a\[Math\.floor\(_ale\(\)\*a\.length\)\]/, 'sortear'],
+    [/const\s+chance\s*=\s*p\s*=>\s*_ale\(\)\s*<\s*p/,                          'chance'],
+    [/function\s+_ale\(\)/,                                                     '_ale']
+  ];
+  for(const [re,nome] of casos)
+    if(!re.test(h))erros.push('  '+nome+' nao esta na forma semeada esperada');
+  if(erros.length){
+    console.error('\nPRIMITIVA DE DECISAO FORA DO RNG SEMEADO:\n');
+    console.error(erros.join('\n'));
+    console.error('\n`sortear` e `chance` decidem 612 coisas. As duas passam por _ale().\n');
+    process.exit(1);
+  }
+  console.log('sortear e chance passam pelo RNG semeado');
+}
+checarPrimitivas();
+
 
 let html=fs.readFileSync('index.html','utf8');
 

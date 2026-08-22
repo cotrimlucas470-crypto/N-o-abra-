@@ -12,6 +12,39 @@ Onde eu não consegui confirmar uma coisa, está escrito que não consegui.
 
 ## CRÍTICO — perda de progresso, crash, softlock
 
+### C6 · As duas primitivas de decisão nunca usaram o RNG semeado ✅ CORRIGIDO v66
+**Onde:** `index.html:816-817`
+**O que:** `sortear` e `chance` eram `Math.random()` puro. São **612 chamadas**
+(397 `chance`, 215 `sortear`) — praticamente todas as decisões do jogo —
+enquanto o gerador semeado existia completo, era salvo em `d.rngEstado`, era
+restaurado na carga, e `s30-nucleo.js` declarava a política por escrito.
+**Impacto:** nenhum save reproduzia. O `saveId`, a semente por dia e o estado
+persistido eram decorativos.
+**Correção:** as duas passam por `_ale()`, mais 71 chamadas diretas em 46
+funções que decidem estado. Distribuição idêntica — nenhum número mudou.
+**Guarda:** `montar.js` quebra a build se saírem da forma semeada. Guarda
+verificada plantando a regressão de propósito.
+
+### C7 · Três estados de progresso morriam no recarregamento ✅ CORRIGIDO v66
+**Onde:** `salvar()` — `S.objetivos`, `S.tarefas`, `S.vigiou` fora do save.
+**Por que passou despercebido:** `carregar()` copia por cima do `S` vivo em vez
+de reconstruir, então `salvar()+carregar()` na mesma página preserva até o que
+nunca foi gravado. Só `page.reload()` mostra.
+**Impacto:** o contador `ignorado` dos objetivos decide se a pessoa sai de
+madrugada e morre. Quem estava a 4 passos disso voltava em 0 toda vez que o
+jogador fechava o app.
+
+### C8 · `S.infiltrado` virava fantasma depois de qualquer save ✅ CORRIGIDO v66
+**Onde:** referência pra dentro de `S.abrigo`; comparação em `desgastarGerador`.
+**Impacto:** depois de um recarregamento, `quem('mecânica')!==S.infiltrado` era
+sempre verdadeiro e **o Imitador disfarçado de mecânico continuava entregando o
+bônus de gerador do mecânico**. Havia remendo em `pistaDoDia` (`p.falso`), mas
+só valia lá dentro.
+**Correção:** a chave é o nome, como já era em tarefas, laços e dono.
+
+---
+
+
 ### C1 · `capacidade` do baú apagou a `capacidade` da expedição ✅ CORRIGIDO
 **Onde:** `s16-armazenamento.js:40` × `index.html:9972`
 **O que:** dois conceitos, um nome. O §16 é injetado depois e vence. A partir daí
@@ -142,6 +175,24 @@ diâmetro de 4), que é a calmaria que este jogo realmente tem.
 ---
 
 ## BAIXO — código morto, números mágicos
+
+### B4 · Três habilidades com efeito impresso e zero código ✅ CORRIGIDO v66
+`costura` (Nice), `escalada` (Juninho) e `corrida` (Kelly) tinham **0 consultas**
+no código inteiro. O texto da ficha prometia e o jogo nunca fazia. Ligadas com os
+números que a própria ficha já dizia.
+
+### B5 · `p.mem` e `p.escondeu` eram parâmetros mortos ✅ CORRIGIDO v66
+`p.mem` — o que cada uma das 12 pessoas sente falta — **lido zero vezes**.
+`p.escondeu` — o contador de lata desviada — escrito e nunca lido. Os dois
+ganharam efeito observável (a rotina `saudade` e o esconderijo que é descoberto
+e volta pra casa).
+
+### B6 · Objetivo órfão e `local` fora da planta ✅ CORRIGIDO v66
+Meta de quem saiu do abrigo ficava na lista pra sempre. Pessoa com `local`
+inválido sumia de todo cômodo e continuava viva — saneado só no `carregar()`.
+
+---
+
 
 ### B1 · `sustoAntigo()` é código morto
 `index.html:10172` — começa com `if(true)return false;` e não é chamada em lugar

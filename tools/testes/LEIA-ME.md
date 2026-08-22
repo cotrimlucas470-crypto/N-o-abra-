@@ -15,6 +15,7 @@ depois de `node montar.js`:
     node tools/testes/itensteste.mjs   # os verbos das armas §36 (26)
     node tools/testes/saldoteste.mjs   # a linha de saldo §37 (26)
     node tools/testes/santeste.mjs     # a sanidade como sintoma §38 (30)
+    node tools/testes/bugteste.mjs     # os consertos da v66 (24)
     node tools/testes/aberturateste.mjs # a abertura narrada e a guarda do save (14)
 
 Fumaça no PACOTE, não na cópia de trabalho — descompacte o zip e aponte:
@@ -42,8 +43,8 @@ A trava de colisão também roda dentro de `montar.js` e **quebra o build**.
   `salvar()` e gravavam com `JSON.parse(localStorage.getItem(CHAVE)||'{}')`.
   Esse `||'{}'` cria save de partida que não começou, e foi assim que a
   abertura narrada sumiu por várias versões sem dar erro nenhum.
-- Os harnesses agora falam com `http://127.0.0.1:8900`. Suba o servidor antes:
-  `node tools/servidor.mjs . 8900`. Em `file://` o `fetch` é bloqueado e
+- Os harnesses agora falam com `http://127.0.0.1:8901`. Suba o servidor antes:
+  `node tools/servidor.mjs . 8901`. Em `file://` o `fetch` é bloqueado e
   qualquer teste que leia mídia falha por motivo errado.
 - Não use `pkill` aqui: ele casa com o processo do próprio shell da sessão.
 
