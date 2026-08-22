@@ -40,6 +40,7 @@ const BLOCOS=[
   {arq:'s37-saldo.js',          ini:'<!-- s37:inicio -->',  fim:'<!-- s37:fim -->'},
   {arq:'s38-sanidade.js',       ini:'<!-- s38:inicio -->',  fim:'<!-- s38:fim -->'},
   {arq:'s39-passo.js',          ini:'<!-- s39:inicio -->', fim:'<!-- s39:fim -->'},
+  {arq:'s40-sinais.js',         ini:'<!-- s40:inicio -->', fim:'<!-- s40:fim -->'},
 ];
 
 /* A voz da abertura entra embutida. O jogo é um arquivo só — é o que a
@@ -199,6 +200,69 @@ function checarPrimitivas(){
   console.log('sortear e chance passam pelo RNG semeado');
 }
 checarPrimitivas();
+
+/* ============ 4a GUARDA: A INTEGRIDADE DA TABELA DE TELLS ============
+   O briefing pede que "tell antes de dano" seja falha de build. Uma
+   guarda de build nao consegue provar EMISSAO, que e coisa de tempo de
+   execucao — isso fica com a assercao do §40 e com o harness. O que ela
+   consegue provar e o contrato da tabela, e sao justamente as regras que
+   separam horror de punicao:
+
+     · toda criatura sinaliza em pelo menos DOIS canais distintos
+     · toda criatura tem uma fase de iminencia
+     · nenhuma iminencia e omitivel
+     · todo sinal falsificavel declara sua inconsistencia
+
+   Sem a ultima, a casa poderia forjar um sinal que o jogador nao tem
+   como desmascarar — e isca cega e proibida. */
+function checarTells(){
+  const t=fs.readFileSync('s40-sinais.js','utf8');
+  /* o fim do array e `];` em INICIO DE LINHA. Procurar o primeiro `];`
+     solto cortava a tabela no meio: dentro de `monta` existe
+     `(S.abrigo||[])[0];`, e o `0];` casava. A guarda entao lia 14 dos 24
+     sinais e acusava o imitador de ter um canal so. Guarda que acusa o
+     inocente e pior que guarda nenhuma. */
+  const ini=t.indexOf('const TELLS=[');
+  const fim=t.indexOf('\n];', ini);
+  const bloco=t.slice(ini, fim<0?t.length:fim);
+  /* fatiar por delimitador, nao por regex com lookahead: os grupos da
+     tabela sao separados por comentario, e o lookahead engolia entradas
+     inteiras — a primeira versao desta guarda leu 14 dos 24 sinais e
+     acusou a tabela de estar errada quando quem estava errado era ela. */
+  const marcas=[];
+  const re=/^ \{id:'/gm;
+  let mm; while((mm=re.exec(bloco))!==null)marcas.push(mm.index);
+  const itens=marcas.map((ini,k)=>{
+    const corpo=bloco.slice(ini, k+1<marcas.length?marcas[k+1]:bloco.length);
+    const c=/id:'([^']+)',criatura:'([^']+)',canal:'([^']+)',fase:'([^']+)'/.exec(corpo);
+    return c?{id:c[1],criatura:c[2],canal:c[3],fase:c[4],corpo}:null;
+  }).filter(Boolean);
+  const erros=[];
+  if(itens.length<20)erros.push('  a tabela tem so '+itens.length+' sinais — algo nao casou no parse');
+  const porCriatura={};
+  itens.forEach(i=>{ (porCriatura[i.criatura]=porCriatura[i.criatura]||[]).push(i); });
+  Object.entries(porCriatura).forEach(([c,l])=>{
+    const canais=new Set(l.map(x=>x.canal));
+    if(canais.size<2)erros.push('  '+c+': sinaliza em '+canais.size+' canal (minimo 2)');
+    const imin=l.filter(x=>x.fase==='iminencia');
+    if(!imin.length)erros.push('  '+c+': nao tem fase de iminencia');
+    imin.forEach(x=>{ if(/degradacao:'omitir'/.test(x.corpo))
+      erros.push('  '+x.id+': iminencia omitivel — nunca'); });
+  });
+  itens.forEach(i=>{
+    if(/falsificavel:true/.test(i.corpo)&&/inconsistencia:null/.test(i.corpo))
+      erros.push('  '+i.id+': falsificavel sem inconsistencia — isca cega');
+  });
+  if(erros.length){
+    console.error('\nTABELA DE TELLS FORA DO CONTRATO:\n');
+    console.error(erros.join('\n'));
+    console.error('\nSinal e promessa ao jogador. Tabela quebrada e punicao.\n');
+    process.exit(1);
+  }
+  console.log('tabela de tells integra ('+itens.length+' sinais, '
+    +Object.keys(porCriatura).length+' criaturas)');
+}
+if(fs.existsSync('s40-sinais.js'))checarTells();
 
 
 let html=fs.readFileSync('index.html','utf8');

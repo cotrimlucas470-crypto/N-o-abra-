@@ -1,5 +1,122 @@
 # CHANGELOG
 
+## v68 — sinais viram contrato (Etapa 2 de 9)
+
+### O problema não era falta de sinal
+
+A auditoria achou **14 sinais já escritos** no jogo: 8 em `AMEACAS.aviso` e 6
+em `REGRA.dica`. Todos bons, todos escritos à mão. E todos **texto solto** — sem
+fase, sem canal, sem antecedência, sem identidade.
+
+Ninguém conseguia perguntar *"houve sinal antes disto?"*. Por isso a asserção
+central do briefing — **tell antes de dano** — não era verificável. Não é que o
+jogo punisse sem avisar: é que ele não tinha como **provar** que avisou.
+
+Esta etapa não inventa prosa por gosto. Dá estrutura ao que existia e completa
+as fases que faltavam.
+
+### As 24 linhas
+
+Seis criaturas × quatro fases: duas de aproximação, uma de iminência, uma de
+contato. Cada uma com canal (áudio, visual, tátil, olfato, ausência),
+antecedência, modo de degradação e — quando falsificável — a **inconsistência**
+pela qual a isca pode ser lida.
+
+Uma aproximação do Inchado, medida:
+
+```
+4 cômodos · nada ainda
+3 cômodos · "Cheiro doce e parado, enjoativo, mais forte do que estava."
+2 cômodos · "Respiração úmida, no mesmo compasso, sem nunca variar."
+1 cômodo  · "A parede do cômodo do lado está escorrendo."   ← IMINÊNCIA
+0         · contato
+```
+
+### Antecedência deixou de ser número morto
+
+Ela vira **distância de disparo**: antecedência 6 aparece a 3 cômodos,
+antecedência 2 aparece a 1. Sanidade baixa encurta a antecedência, então o aviso
+chega mais perto — e o jogador sente isso sem abrir ficha nenhuma.
+
+| sanidade | aproximação | iminência | falsos/noite |
+|---|---:|---:|---:|
+| 1,0 | 4,0 | 2 | 0 |
+| 0,7 | 3,2 | 2 | 1 |
+| 0,4 | 2,4 | 2 | 2 |
+| 0,1 | 1,8 | **2** | 3 |
+
+**As duas travas de justiça, testadas:** a iminência nunca cai abaixo de 2
+turnos, em nenhuma sanidade; e sinal falso **soma**, nunca substitui um
+verdadeiro. Cabeça ruim gera ruído, não cegueira.
+
+O Primordial é o único que **melhora** com a sanidade baixa — quem está inteiro
+não percebe que o som sumiu. É o desenho dele, e está no teste.
+
+### A isca não pode mentir sobre o último aviso
+
+Duas regras, ambas por construção, ambas testadas:
+
+- a casa pode forjar **aproximação**; iminência forjada é recusada pela API;
+- sinal forjado **sem inconsistência declarada** é recusado. Isca cega é
+  proibida — se o jogador não tem como desmascarar, não é jogo, é castigo.
+
+E sinal forjado **não conta como aviso** em `foiEmitido`. A casa não pode
+comprar o direito de te machucar mentindo.
+
+### As duas decisões da tabela, aplicadas
+
+**O Magro não foi invertido.** A tabela pedia "apagar a luz" como contra-jogo.
+No jogo, `REGRA.magro.evita(id)` devolve `luzLigadaEm(id)` e a dica que o
+jogador já leu diz *"ele para na porta de cômodo aceso e não entra"*. Apagar
+hoje **abre** o cômodo pra ele. Os sinais entram inteiros; o contra-jogo fica
+sendo o do jogo.
+
+**O Coro tem duas bocas, não três.** `BICHOS.coro` tem `dois:true`. A contagem
+cai de 2 para 1.
+
+### A trava, dividida em duas metades honestas
+
+O briefing pede que *tell antes de dano* seja **falha de build**. Uma guarda de
+build não consegue provar emissão — isso é tempo de execução. Então:
+
+- **build** (`montar.js`, quarta guarda): a integridade da tabela. Toda criatura
+  em ≥2 canais, toda criatura com iminência, nenhuma iminência omitível, todo
+  falsificável com inconsistência. As três regras foram verificadas quebrando a
+  build de propósito, uma por vez.
+- **execução** (`§40`): `pegarMal` embrulhado. Ferimento causado por criatura sem
+  sinal anterior conta violação, e o teste exige zero.
+
+Escopo declarado: vale para as 6 criaturas da casa. Queda, fogo e obra não são
+criaturas e têm o próprio aviso na cena que os causa.
+
+### Duas armadilhas que eu mesmo já tinha anotado, e caí nas duas
+
+**A guarda de build acusou o inocente.** Ela fatiava a tabela até o primeiro
+`];` — e dentro de `monta` existe `(S.abrigo||[])[0];`, cujo `0];` casou. Lia 14
+dos 24 sinais e acusava o Imitador de ter um canal só. O fim do array é `];` em
+**início de linha**. Guarda que acusa o inocente é pior que guarda nenhuma.
+
+**O teste pôs o jogador na SALA.** A SALA é o miolo da planta: nada fica a mais
+de 2 cômodos dela. Todas as posições davam distância 1, então a fase de
+aproximação nunca acontecia e o teste falhou por construção. O par mais distante
+da casa é SÓTÃO–QUINTAL, distância 4. **Está escrito no LEIA-ME dos testes desde
+o §31**, e eu caí nele mesmo assim.
+
+### Nome
+
+A tabela chama-se `TELLS`, não `SINAIS` — porque `SINAIS` **já existe** em
+`index.html:17685`, e é o cheiro de cada lugar da expedição (*"cheiro de giz e
+amônia"*, *"o ar é doce demais pra um lugar desse"*). Conceito diferente, nome
+igual: num escopo de 1473 nomes, o segundo apagaria o primeiro em silêncio e as
+expedições perderiam o cheiro.
+
+A guarda de colisão pegou na hora. É a **segunda vez** que ela salva uma etapa —
+a primeira foi `ANCORAS`, no §38.
+
+### Verificação
+
+`tools/testes/sinaisteste.mjs` — 33 asserções. Regressão completa: **593 ok, 0 falhas, 21 harnesses.**
+
 ## v67 — o passo custa (Etapa 1 de 9)
 
 Primeira fatia do plano de Exploração + Ferimentos. Uma etapa por vez, cada uma

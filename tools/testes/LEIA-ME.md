@@ -17,6 +17,7 @@ depois de `node montar.js`:
     node tools/testes/santeste.mjs     # a sanidade como sintoma §38 (30)
     node tools/testes/bugteste.mjs     # os consertos da v66 (24)
     node tools/testes/passoteste.mjs    # o passo custa §39 (30)
+    node tools/testes/sinaisteste.mjs   # sinais como contrato §40 (33)
     node tools/testes/aberturateste.mjs # a abertura narrada e a guarda do save (14)
 
 Fumaça no PACOTE, não na cópia de trabalho — descompacte o zip e aponte:
@@ -79,3 +80,9 @@ A trava de colisão também roda dentro de `montar.js` e **quebra o build**.
   da v60 com outro nome, e o §39 o reintroduziu antes de o teste pegar.
 - Wrapper de save **nunca** pode chamar função que CRIA estado (`estadoExp()`,
   `sanEstado()`, e parecidas). Grava só o que já existe.
+
+- Guarda de build que fatia JS com string: o fim de um array é `];` em **início
+  de linha**. Procurar o primeiro `];` solto corta no meio — `(S.abrigo||[])[0];`
+  casa. A quarta guarda leu 14 de 24 sinais e acusou o inocente.
+- `TELLS` é a tabela de sinais das criaturas. `SINAIS` (que já existia) é o
+  cheiro de cada lugar da expedição. Nomes parecidos, conceitos opostos.
