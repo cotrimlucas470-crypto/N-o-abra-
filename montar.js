@@ -41,6 +41,7 @@ const BLOCOS=[
   {arq:'s38-sanidade.js',       ini:'<!-- s38:inicio -->',  fim:'<!-- s38:fim -->'},
   {arq:'s39-passo.js',          ini:'<!-- s39:inicio -->', fim:'<!-- s39:fim -->'},
   {arq:'s40-sinais.js',         ini:'<!-- s40:inicio -->', fim:'<!-- s40:fim -->'},
+  {arq:'s41-corpo.js',          ini:'<!-- s41:inicio -->', fim:'<!-- s41:fim -->'},
 ];
 
 /* A voz da abertura entra embutida. O jogo é um arquivo só — é o que a

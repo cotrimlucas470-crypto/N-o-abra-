@@ -1,5 +1,113 @@
 # CHANGELOG
 
+## v69 — um corpo só (Etapa 3 de 9)
+
+### Dois sistemas de ferimento, e um deles contava a mesma pancada de novo
+
+A auditoria mediu: o jogo tinha `MALES` — 19 entradas com `grav`, `dias`, `faz`,
+`custa`, `trata`, `pior`, `vem`, `urgente`, `pega` e `mata`, onde o "verbo
+perdido" do B3 **já estava implementado**. E tinha `S.ferido`, um inteiro escrito
+em 12 sítios com cura própria em `sararUmPouco`, que não falava com
+`passarSaude`.
+
+Em três desses sítios o código fazia as duas coisas:
+
+```js
+const fer = ferirPor('bicho');                 // cria um mal de verdade
+if(fer) diz(`Você ficou com ${fer.n}...`);
+S.ferido = (S.ferido||0) + f;                  // e conta de novo, à parte
+```
+
+A mesma pancada, duas entradas, dois relógios de cura independentes.
+
+### Os 12 sítios, convertidos um a um
+
+Os três de contabilidade dupla perderam a linha do contador — o mal já existia.
+Os outros nove passaram a criar o mal que a própria ficção deles já nomeava:
+
+> *"Você se corta no caco ao passar."* → `ferirPor('obra')`
+> *"A telha cede e você desce mais rápido do que queria."* → `ferirPor('queda')`
+> *"Ela agarra o cabo e puxa."* → `ferirPor('bicho')`
+
+E a cura paralela morreu: o remédio de `sararUmPouco` agora **trata um ferimento
+de verdade**, escolhendo o pior primeiro. Quem conta os dias é o `passarSaude`,
+que já existia e já fazia isso certo.
+
+**`S.ferido` virou derivado.** As 8 leituras espalhadas pelo jogo — o odor que a
+casa sente, a fala do abrigo *"você tá mancando faz dias"*, o placar do fim —
+continuam funcionando, agora lendo de `MALES`. Escrever nele não quebra nada e
+não faz nada, mas fica registrado: qualquer sítio que eu tenha deixado passar
+aparece no teste em vez de ressuscitar o sistema paralelo em silêncio.
+
+### Toda ferida tem endereço
+
+Sete partes, com lateralidade, e o tipo do mal decide onde cai — não é sorteio
+livre, é o lugar que a ficção já sugeria (`torcao` é "torção no pé", `pancada`
+vai pra cabeça ou o peito):
+
+```
+corte       braco_esq       → bracos
+cortefundo  perna_esq       → pernas
+torcao      perna_esq       → pernas
+fratura     perna_dir       → pernas
+queimadura  mao_dominante   → bracos
+mordida     braco_esq       → bracos
+pancada     torso           → torso
+```
+
+`REGIOES` (as cinco regiões que a armadura já cobria) continua existindo, e
+`regiaoDaParte` liga uma coisa na outra. Onde dói e o que a roupa protege são
+perguntas diferentes.
+
+### Os três parâmetros mortos morreram
+
+**`custa.atencao` era mentira impressa.** Quatro males cobravam, o código travava
+o valor, **escrevia "atenção −35%" na ficha do jogador** — e nenhuma regra lia.
+
+Agora ela custa o que o nome diz: **percepção**. O consumidor nasceu na etapa
+passada — a antecedência dos sinais do §40. Medido:
+
+```
+atenção cobrada 0,55 · antecedência 6 → 2,7
+o cheiro do Inchado vinha a 3 cômodos, agora vem a 1
+```
+
+Cabeça batida faz o aviso chegar mais tarde. A trava de justiça continua valendo
+por cima: **a iminência nunca cai abaixo de 2 turnos**, nem com a cabeça aberta.
+
+**`custa.agua`** só era cobrada por `barriga` e ninguém lia. Agora a barriga
+desidrata: o gole a mais sai do galão, todo dia.
+
+**`MALES.dente`** era o único dos 19 que nenhuma tabela alcançava. Comida ruim e
+meses sem escova são a fonte que a ficção já pedia. **19 de 19.**
+
+### O jogo parou de mostrar número de vida
+
+Três lugares imprimiam porcentagem de corpo. O pior era a ficha:
+
+> ~~No total: força −28% · fugir −30% · atenção −35%~~
+
+Isso falhava em três coisas de uma vez: é número de estado do corpo na tela; não
+diz ao jogador **o que** ele perdeu, que é o teste do B3; e a `atenção −35%` era
+falsa. Agora:
+
+> *"Torção no pé na perna direita. Você manca. Correr é uma decisão, não um
+> reflexo."*
+> *"Corte fundo na mão boa. A mão treme no que exige precisão: tranca,
+> curativo, fósforo."*
+> *"Febre. Você fica fraco e com frio no meio do calor."*
+> *"Você levanta tarde. São 2h a menos de dia útil."*
+
+Varredura final: **zero** porcentagens de corpo no jogo inteiro.
+
+*(A primeira versão escrevia "Torção no pé **em a** perna direita". A contração
+importa mais aqui do que em qualquer outro lugar: esta é a frase que substituiu
+"força −28%", e ela só vale a troca se soar como alguém falando.)*
+
+### Verificação
+
+`tools/testes/corpoteste.mjs` — 29 asserções. Regressão completa: **622 ok, 0 falhas, 22 harnesses.**
+
 ## v68 — sinais viram contrato (Etapa 2 de 9)
 
 ### O problema não era falta de sinal

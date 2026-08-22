@@ -18,6 +18,7 @@ depois de `node montar.js`:
     node tools/testes/bugteste.mjs     # os consertos da v66 (24)
     node tools/testes/passoteste.mjs    # o passo custa §39 (30)
     node tools/testes/sinaisteste.mjs   # sinais como contrato §40 (33)
+    node tools/testes/corpoteste.mjs    # um corpo só §41 (29)
     node tools/testes/aberturateste.mjs # a abertura narrada e a guarda do save (14)
 
 Fumaça no PACOTE, não na cópia de trabalho — descompacte o zip e aponte:
@@ -86,3 +87,7 @@ A trava de colisão também roda dentro de `montar.js` e **quebra o build**.
   casa. A quarta guarda leu 14 de 24 sinais e acusou o inocente.
 - `TELLS` é a tabela de sinais das criaturas. `SINAIS` (que já existia) é o
   cheiro de cada lugar da expedição. Nomes parecidos, conceitos opostos.
+
+- `REGIOES`, `PARTES`, `MALES` e `TELLS` só existem **dentro** de `p.evaluate`.
+  Usar um deles no escopo do Node dá `ReferenceError` — devolva a lista do
+  navegador em vez de referenciá-la de fora.
