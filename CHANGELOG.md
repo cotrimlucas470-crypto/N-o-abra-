@@ -1,5 +1,94 @@
 # CHANGELOG
 
+
+## v70 — pressão, luz e exposição (Etapa 4 de 9)
+
+A Etapa 1 deixou dois campos declarados em `custoDeEntrada()` com valor zero e o
+motivo escrito ao lado: `luz` e `exposicao`. Não foi esquecimento — os
+consumidores delas não existiam, e ligar parâmetro sem consumidor é a proibição
+nº 5 do briefing. Agora os consumidores nascem, e os dois campos cobram.
+
+### A pressão, e os quatro degraus
+
+Sobe fora do núcleo, decai **só** no núcleo, e nunca aparece como número. O que
+o jogador recebe são os quatro degraus do A3, e a casa fala **uma vez por
+subida** — repetir a mesma linha todo turno viraria chuvisco, que é o problema
+que o §37 já tinha diagnosticado na linha de saldo.
+
+> *"A luz oscila uma vez, curta, e volta."*
+> *"A porta que você deixou aberta está encostada."*
+> *"O barulho parou todo de uma vez. Isso é pior do que o barulho."*
+
+### Quatro perfis, um dia cada — medido
+
+Eu desconfiei que os números estivessem altos e fui medir quatro rotas
+plausíveis de um dia inteiro. A medição desmentiu a suspeita:
+
+| perfil | tempo andando | pressão | degrau | atenção | picos |
+|---|---:|---:|---|---:|---:|
+| caseiro (cozinha, quarto, sala) | 49 min | 0,00 | calma | 0,09 | 0 |
+| trabalhador (oficina, despensa) | 87 min | 0,29 | calma | 0,37 | 0 |
+| fuçador (desce ao porão às vezes) | 100 min | 0,42 | estalos | 0,46 | 0 |
+| **obsessivo (vive no porão e no quintal)** | 154 min | **0,94** | **a casa parou de avisar** | 0,86 | **1** |
+
+É exatamente o desenho: quem fica em casa não sente nada; quem vive no fundo
+acorda a casa. A curva virou asserção — ela **é** o contrato, não um efeito
+colateral.
+
+E responde ao critério de aceite *"existe pelo menos uma situação por noite em
+que não explorar é a jogada correta"*: no último degrau, existe.
+
+### O vale obrigatório reusa o silêncio que o §31 já sabia fazer
+
+Cruzar 0,80 abre o pico e dá **crédito de orçamento** ao orquestrador — ele
+passa a poder gastar acima do teto da noite, até um limite declarado. Cair
+abaixo de 0,60 fecha o pico e **empurra um vale na lista do §31**, zerando o
+crédito.
+
+Não inventei mecanismo de silêncio: o §31 já agenda vales em turnos e
+`pedirPermissao` já os consulta. Silêncio continua sendo conteúdo reservado, não
+o que sobra. O teste prova a regra dura: **todo pico gera um vale.**
+
+### Luz: enxergar custa, e o escuro custa outra coisa
+
+```
+cômodo aceso  →  luz 0,61 de diesel · sanidade −1,0
+cômodo escuro →  luz 0     de diesel · sanidade −1,4  ·  +pressão
+```
+
+É o A2 escrito: no escuro é mais barato e muito pior. O consumível é o diesel do
+gerador, que já existia — não inventei recurso novo.
+
+### Exposição: a casa acorda com o que viu
+
+`atencaoDaCasa` sobe com profundidade e barulho, e vira orçamento na noite
+seguinte:
+
+```
+atenção 0,86  →  +24 de orçamento  (113 → 137)
+```
+
+**Sem furar o teto do §31.** Acordar a casa não fura o limite que ela já
+prometia — `ORQ_CFG.orcamentoTeto` continua sendo a última palavra. E a atenção
+esfria sozinha entre noites, senão viraria catraca: quem explorou muito uma vez
+ficaria marcado pra sempre.
+
+### A terceira vez que a guarda de colisão salvou uma etapa
+
+`pressao()` **já existe** em `index.html:12589` — e é outra coisa inteira: a
+pressão da **dificuldade** (*"menos gente lá fora quer dizer mais coisa que não é
+gente"*), que devolve 1 ou mais e alimenta a curva do jogo.
+
+Sombreá-la teria quebrado a dificuldade em silêncio, sem erro nenhum. O acessor
+aqui é `pressaoAgora()`; o campo de estado continua sendo `S.exploracao.pressao`,
+que é o nome do briefing. Colide só o acessor.
+
+Antes desta: `ANCORAS` no §38, `SINAIS` no §40.
+
+### Verificação
+
+`tools/testes/pressaoteste.mjs` — 31 asserções. Regressão completa: **654 ok, 0 falhas, 23 harnesses.**
+
 ## v69 — um corpo só (Etapa 3 de 9)
 
 ### Dois sistemas de ferimento, e um deles contava a mesma pancada de novo

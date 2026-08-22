@@ -62,7 +62,14 @@ console.log('\n3. O PASSO COBRA — E ERA ZERO ANTES');
   ok('camada funda drena sanidade',         d.anexo.sanidade<0&&d.borda.sanidade<0);
   ok('a casa rasa nao drena',               d.casa.sanidade===0);
   ok('voltar do anexo pro nucleo alivia',   d.nucleo.sanidade>0);
-  ok('luz e exposicao declaradas em zero',  d.anexo.luz===0&&d.anexo.exposicao===0);
+  /* Na Etapa 1 estas duas eram ZERO DECLARADO, com o motivo escrito ao
+     lado: os consumidores delas nao existiam ainda, e ligar parametro
+     sem consumidor e a proibicao nº 5 do briefing. A Etapa 4 (§42)
+     criou os consumidores — diesel pra luz, atencaoDaCasa pra exposicao
+     — e as duas passaram a cobrar. A assercao acompanha: o contrato
+     agora e que elas EXISTEM, nao que estao zeradas. */
+  ok('exposicao cobra desde a Etapa 4',     d.anexo.exposicao>0);
+  ok('e luz e um campo real (0 se apagado)', typeof d.anexo.luz==='number');
 }
 
 console.log('\n4. ANDAR A CASA INTEIRA CUSTA DE VERDADE (a falha critica)');

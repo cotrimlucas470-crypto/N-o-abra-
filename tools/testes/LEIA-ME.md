@@ -19,6 +19,7 @@ depois de `node montar.js`:
     node tools/testes/passoteste.mjs    # o passo custa §39 (30)
     node tools/testes/sinaisteste.mjs   # sinais como contrato §40 (33)
     node tools/testes/corpoteste.mjs    # um corpo só §41 (29)
+    node tools/testes/pressaoteste.mjs  # pressão, luz e exposição §42 (31)
     node tools/testes/aberturateste.mjs # a abertura narrada e a guarda do save (14)
 
 Fumaça no PACOTE, não na cópia de trabalho — descompacte o zip e aponte:
@@ -91,3 +92,8 @@ A trava de colisão também roda dentro de `montar.js` e **quebra o build**.
 - `REGIOES`, `PARTES`, `MALES` e `TELLS` só existem **dentro** de `p.evaluate`.
   Usar um deles no escopo do Node dá `ReferenceError` — devolva a lista do
   navegador em vez de referenciá-la de fora.
+
+- Asserção que fixa um estado **temporário** envelhece. `passoteste` afirmava
+  que luz e exposição eram "zero declarado" — verdade na Etapa 1, falso depois
+  que a Etapa 4 criou os consumidores delas. Teste que quebra porque o jogo
+  melhorou precisa ser atualizado, não revertido.
