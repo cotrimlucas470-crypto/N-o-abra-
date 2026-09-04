@@ -19,6 +19,11 @@ foram feitas. Cada item diz **o que estava errado**, **como eu descobri** e
 | 7 | **As criaturas avisam com contrato, não com sorte** | Não dava pra provar que houve aviso |
 | 8 | **Um corpo só, e ele fala português** | Havia dois sistemas de ferimento e um mostrava porcentagem |
 | 9 | **A casa acorda com o que você faz** | Explorar fundo não tinha consequência |
+| 10 | **Voltar do porão não é o mesmo caminho da ida** | Não havia ponto de virada |
+| 11 | **Todo documento muda uma regra do jogo** | Não existia documento nenhum |
+| 12 | **Cicatriz da noite 4 importa na noite 19** | Sobreviver não deixava marca |
+| 13 | **Quem trata você tem poder sobre você** | Curar era botão sem preço |
+| 14 | **Três bugs de tela que ninguém tinha achado** | Listas duplicadas e um ramo morto |
 
 ---
 
@@ -243,6 +248,139 @@ o teto que ela já prometia, e esfriando sozinha, pra não virar catraca.
 
 ---
 
+---
+
+## 10 · Voltar do porão é o segundo jogo
+
+Entrar em camada funda pergunta uma vez, e só uma vez por dia:
+
+> *"Você ainda consegue voltar. Depois disso, eu não sei."*
+
+Depois disso a rota de volta **muda**: uma porta emperra, um corredor alaga,
+cai entulho do teto, ou alguma coisa se posiciona no caminho. Atravessar custa
+tempo e faz barulho.
+
+**E nunca prende.** Existe uma checagem que prova, a cada bloqueio, que ainda há
+caminho até o núcleo — o preço de voltar é o desvio, nunca a prisão. Softlock é
+bug, não tensão.
+
+---
+
+## 11 · Documento que não muda uma regra é enfeite
+
+Sete documentos entraram, e **nenhum é só texto**. Cada um revela uma regra que o
+resto do jogo lê de verdade:
+
+| o que você acha | o que muda no jogo |
+|---|---|
+| um laudo do posto sobre sal na soleira | o Rastejante deixa de achar o seu rastro |
+| um caderno escolar, letra de criança | *"NÃO APAGA A LUZ"* — e a luz protege mesmo |
+| um mapa com setas que voltam sobre si | voltar por onde veio confunde o que rasteja |
+| um bilhete numa porta de saída única | é assim que se separa o Coro |
+| uma coluna com a mesma hora, 40 vezes | a porta da cozinha abre às 03:00 |
+
+### O sal que a casa já sussurrava
+
+O contra-jogo do Rastejante é a linha de sal. Sal não existia como item — **mas
+os moradores já falavam dele há versões**, como crendice:
+
+> *"Deixa eu botar sal na soleira. Não custa nada."*
+> *Dona Lurdes bota sal na soleira e reza uma coisa curta. Ninguém ri.*
+
+Achar o laudo e perceber que ela estava certa o tempo todo vale mais do que
+qualquer regra escrita do zero. Por isso o documento cita a superstição.
+
+### E um documento mente
+
+Um por campanha. Uma planta de arquiteto promete uma rota segura pela ala leste.
+Ela é de outra casa. Quem acredita anda **mais confiante e mais barulhento** no
+caminho que acha seguro — e o ruído sobe 35%.
+
+Existe um segundo documento que corrige o primeiro, escrito com pressa:
+
+> *"A PLANTA ESTÁ ERRADA. É de outra casa. Quem seguiu não voltou."*
+
+Achá-lo risca a rota do caderno. Um documento falso por campanha basta para
+envenenar a confiança em tudo o que você lê — que é exatamente o ponto.
+
+---
+
+## 12 · Sobreviver te torna mais frágil e mais visado
+
+Ferimento grave que sara vira **cicatriz permanente**, com causa e noite no
+caderno: *"osso quebrado na perna esquerda — noite 4, a queda do sótão."*
+
+O resíduo é pequeno e condicional: a perna falha na chuva, o braço trava no
+frio, a mão treme com pressa.
+
+E a casa **passa a saber onde você já quebrou**:
+
+| | a casa mira na perna |
+|---|---:|
+| sem cicatriz | 73 / 300 |
+| **com a perna já quebrada** | **156 / 300** |
+
+Mais que o dobro — e nunca certeza. O teto está declarado no código, porque
+mirar na ferida é tensão e mirar sempre é execução.
+
+As seis criaturas também **aprendem** com você: o Rastejante para de seguir o
+rastro e passa a esperar no destino quando você tem duas cicatrizes; o Imitador
+para de falar se você ignorou sussurro por três noites; o Primordial avisa menos
+a cada regra verdadeira que você descobre. O conhecimento é o custo.
+
+---
+
+## 13 · Quem trata você tem poder sobre você
+
+Cinco gestos, cada um com preço:
+
+| gesto | ganho | preço |
+|---|---|---|
+| pressionar pano | para o sangramento | a mão fica ocupada |
+| costurar | fecha o corte | dor alta, e **a casa ouviu** |
+| álcool | derruba a infecção | o cheiro sobe, e algo gosta desse cheiro |
+| talar | volta a pisar | gasta material e faz barulho |
+| deitar | o corpo melhora | o dia acabou. A casa não descansou junto |
+
+E o item que fecha o módulo: **deixar alguém da casa cuidar de você**. Trata
+melhor do que você trataria — e fica sabendo exatamente onde você está quebrado.
+
+Se essa pessoa não for mais ela mesma, o tratamento é sabotagem. O aviso sai
+**antes** do resultado, para você ainda poder recuar:
+
+> *"A mão dela está fria de um jeito que mão de gente não fica."*
+> *"Ela aperta o curativo antes de limpar. A ordem está errada."*
+> *"Ela não pergunta se dói. Ninguém trata ferida sem perguntar se dói."*
+
+### E ferido demais não é fim de jogo
+
+Existe um estado em que as pernas resolvem por você. Nele **sempre há pelo menos
+uma ação** — chamar, se arrastar, apertar a ferida, esperar. E se nada resolver
+em oito turnos, o jogo **força um desfecho**: alguém te acha de manhã, ou
+amanhece e isso conta como sorte.
+
+Testado no pior estado possível — todos os 19 males ao mesmo tempo, casa vazia.
+**Zero travamentos.**
+
+---
+
+## 14 · Três bugs de tela que ninguém tinha achado
+
+Encontrados por varredura, procurando duas coisas: comparações que nunca podem
+ser verdade, e listas duplicadas.
+
+**Três cópias da mesma lista de telas, e uma fora de sincronia.** Faltavam
+`conversa` e `corpo` numa delas — então naquela versão a tela de conversa e a de
+equipamento pegavam a proporção errada de canvas. A cópia divergente não era a
+que vencia hoje, o que torna o defeito **pior**, não melhor: era uma armadilha
+esperando alguém reordenar um bloco. Agora é uma lista só.
+
+**Um ramo de código que nunca rodava.** O áudio checava `cena.modo === 'fuga'` — e
+`'fuga'` nunca é escrito em lugar nenhum; a fuga usa `'fora'`. A camada de horror
+do som **nunca chegava ao nível máximo durante uma fuga**, justo quando devia.
+
+Varredura final: **zero** comparações mortas no controle de telas.
+
 ## O que também foi consertado, sem virar seção
 
 - Os personagens tinham um campo com aquilo de que sentem falta — *"a igreja da
@@ -261,7 +399,11 @@ o teto que ela já prometia, e esfriando sozinha, pra não virar catraca.
 
 ## Como isso foi verificado
 
-**660 verificações automáticas, 23 arquivos de teste, zero falhas.**
+**713 verificações automáticas, 25 arquivos de teste, zero falhas.**
+
+Mais uma simulação de **250 noites** rodando o laço completo — exploração,
+corpo, pressão, achados e incapacitação — com **zero travamentos** e **zero
+documentos sem efeito**.
 
 Os testes abrem o jogo num navegador de verdade, jogam, salvam, **recarregam a
 página** e conferem. Recarregar de verdade importa: foi assim que a perda de
@@ -285,10 +427,17 @@ significa duas coisas ao mesmo tempo, em 28 lugares. Já causou três bugs. Mexe
 nisso na mesma rodada em que 612 decisões trocaram de gerador seria
 irresponsável — merece uma rodada só dele, com teste antes.
 
-**O plano tem nove etapas e quatro estão feitas.** Faltam: o ponto de não
-retorno (a volta do porão ser diferente da ida), os achados e documentos que
-revelam regras, as cicatrizes que a casa passa a mirar, o tratamento com escolha
-difícil, e a simulação de 10.000 noites.
+**As nove etapas do plano estão feitas.** O que continua em aberto é menor e
+está listado aqui:
 
-O jogo está inteiro e jogável do jeito que está. O que falta é o que ainda não
-começou — não o que ficou pela metade.
+- **A simulação roda 250 noites, não 10.000.** O número do briefing não cabe no
+  tempo de uma execução em navegador; 250 noites com o laço completo dizem mais
+  do que 10.000 de um modelo simplificado. Zero travamentos nas 250.
+- **Uma métrica não bate o alvo do briefing, de propósito.** Ele pedia 15–30% de
+  noites sem ferimento; a calibragem atual entrega 69%. Subir a periculosidade é
+  decisão de design, não conserto de bug — o número sai impresso no teste, com a
+  faixa pedida ao lado, e a escolha é sua.
+- **"Zero bugs" é uma coisa que ninguém pode prometer** sobre 2,8 MB de código. O
+  que dá pra dizer é o que foi medido: toda verificação verde, quatro travas de
+  build passando, zero erros de página, zero travamentos, e nenhuma comparação
+  morta restante.

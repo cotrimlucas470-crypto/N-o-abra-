@@ -43,6 +43,10 @@ const BLOCOS=[
   {arq:'s40-sinais.js',         ini:'<!-- s40:inicio -->', fim:'<!-- s40:fim -->'},
   {arq:'s41-corpo.js',          ini:'<!-- s41:inicio -->', fim:'<!-- s41:fim -->'},
   {arq:'s42-pressao.js',        ini:'<!-- s42:inicio -->', fim:'<!-- s42:fim -->'},
+  {arq:'s43-retorno.js',        ini:'<!-- s43:inicio -->', fim:'<!-- s43:fim -->'},
+  {arq:'s44-achados.js',        ini:'<!-- s44:inicio -->', fim:'<!-- s44:fim -->'},
+  {arq:'s45-cicatriz.js',       ini:'<!-- s45:inicio -->', fim:'<!-- s45:fim -->'},
+  {arq:'s46-tratamento.js',     ini:'<!-- s46:inicio -->', fim:'<!-- s46:fim -->'},
 ];
 
 /* A voz da abertura entra embutida. O jogo é um arquivo só — é o que a

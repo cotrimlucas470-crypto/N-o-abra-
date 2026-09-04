@@ -932,9 +932,20 @@ let cena={escurecer:0,modo:'vazio',t:0,abertura:0,clarao:0,fimTipo:null,falando:
   bater:0,casa:null,rua:null};
 
 let DPR=Math.min(2,(typeof devicePixelRatio==='number'&&devicePixelRatio)||1);
+/* OS MODOS EM QUE A TELA E "CASA" — UMA LISTA SO.
+   Existiam TRES copias desta lista, em tres versoes de `dimensionar` e
+   do calculo de altura do canvas. E uma delas estava FORA DE SINCRONIA:
+   faltavam 'conversa' e 'corpo', entao naquela versao a tela de conversa
+   e a de equipamento pegavam a proporcao errada de canvas.
+
+   Hoje a copia divergente nao era a que vencia — o que torna o defeito
+   pior, nao melhor: era uma armadilha esperando alguem reordenar bloco.
+   Lista duplicada e lista que vai divergir; a unica pergunta e quando. */
+const MODOS_CASA=Object.freeze(['casa','fim','olho','rua','escuta','mapa','mochila',
+  'casafora','conversa','corpo','fora','galeria','saida']);
 function dimensionar(){
   const l=CV.clientWidth||window.innerWidth;
-  const ehCasa=cena&&['casa','fim','olho','rua','escuta','mapa','mochila','casafora','conversa','corpo','fora','galeria','saida'].includes(cena.modo);
+  const ehCasa=cena&&MODOS_CASA.includes(cena.modo);
   const alt=Math.round(trava(window.innerHeight*(ehCasa?.40:.33),140,l*(ehCasa?.95:.70)));
   CV.width=Math.round(l*DPR);CV.height=Math.round(alt*DPR);
   CV.style.height=alt+'px';
@@ -11978,7 +11989,7 @@ dimensionar=function(){
   _dimBase();
   if(!_barraFechada)return;
   const l=CV.clientWidth||window.innerWidth;
-  const ehCasa=cena&&['casa','fim','olho','rua','escuta','mapa','mochila','casafora','fora','galeria','saida'].includes(cena.modo);
+  const ehCasa=cena&&MODOS_CASA.includes(cena.modo);
   const alt=Math.round(trava(window.innerHeight*(ehCasa?.56:.44),140,l*1.25));
   CV.width=Math.round(l*DPR);CV.height=Math.round(alt*DPR);
   CV.style.height=alt+'px';
@@ -13171,7 +13182,7 @@ function alturaCanvas(){
     acoes=42;   // só a aba
   }
   const sobra=H-painel-topoBarra-acoes-(H*MIN_TEXTO);
-  const ehCasa=cena&&['casa','fim','olho','rua','escuta','mapa','mochila','casafora','conversa','corpo','fora','galeria','saida'].includes(cena.modo);
+  const ehCasa=cena&&MODOS_CASA.includes(cena.modo);
   const teto=_barraFechada?H*.54:H*(ehCasa?.40:.33);
   /* em tela pequena o piso do canvas nao pode comer o texto */
   const piso=Math.min(110,H*.16);
@@ -22217,7 +22228,12 @@ function amNivelDeHorror(){
     if(risco>.18||calor>25)n=2;
     if(risco>.30||est.ilusao>=.22)n=3;
     if(risco>.45||calor>70)n=4;
-    if((S&&S.invadindo)||(typeof cena!=="undefined"&&cena.modo==='fuga'))n=5;
+    /* era `cena.modo==='fuga'`, e 'fuga' NUNCA e escrito em cena.modo:
+       a fuga do §24 usa 'fora'. O ramo estava morto, e a camada de horror
+       do audio nunca chegava no 5 durante uma fuga — justo quando devia.
+       (Achado por varredura de comparacao morta: valor lido que nenhum
+       lugar do jogo escreve.) */
+    if((S&&S.invadindo)||(typeof cena!=="undefined"&&cena.modo==='fora'))n=5;
   }catch(e){}
   return n;
 }
@@ -34538,5 +34554,916 @@ function pressaoEstado(){
 
 </script>
 <!-- s42:fim -->
+<!-- s43:inicio -->
+<script>
+/* ============ §43 — O PONTO DE NÃO RETORNO (Etapa 5 de 9) ============
+
+   A8 do briefing: entrar em camada >= 3 pergunta UMA vez, de forma
+   diegetica, e depois a rota de volta muda. Voltar e o segundo jogo.
+
+   O desenho tem uma regra que eu nao quis quebrar: o bloqueio nunca
+   pode fechar TODOS os caminhos. A planta e uma grade 3x3 e sempre tem
+   volta por fora — o preco de voltar e o desvio, nao a prisao. Fechar a
+   unica saida seria softlock, e softlock e bug, nao tensao.
+   ====================================================================== */
+
+const RET_CFG={
+  camadaQuePergunta: 3,
+  /* minutos a mais pra atravessar um comodo bloqueado */
+  custoDoDesvio: 9,
+  /* e o barulho de forcar passagem */
+  ruidoDoDesvio: 3.5,
+  /* quantos turnos o bloqueio dura antes de ceder sozinho */
+  duracao: 14
+};
+
+const RET_BLOQUEIOS=[
+  {id:'porta',   t:id=>`A porta ${DE_ONDE(id)} emperrou. Ela abria pra dentro, e agora não abre.`,
+   forcar:'Você põe o ombro e ela cede com um estalo que a casa inteira ouviu.'},
+  {id:'agua',    t:id=>`${DE_ONDE(id)} alagou. A água está na altura do joelho e escura.`,
+   forcar:'Você atravessa devagar, sem ver onde pisa. Demora o dobro.'},
+  {id:'entulho', t:id=>`Caiu coisa do teto ${DE_ONDE(id)}. Tem uma pilha no meio da passagem.`,
+   forcar:'Você tira tábua por tábua. Cada uma faz barulho.'},
+  {id:'ocupado', t:id=>`Tem alguma coisa parada ${DE_ONDE(id)}. Parada, não passando.`,
+   forcar:'Você passa rente à parede, prendendo a respiração. Ela não se move.'}
+];
+function DE_ONDE(id){ const q=PLANTA[id]; return q?('n'+(/^[AEIOU]/.test(q.nome)?'':'')+'a '+q.nome.toLowerCase()):'no caminho'; }
+
+function estadoRetorno(){
+  const E=estadoExp();
+  if(!E.retorno||typeof E.retorno!=='object')
+    E.retorno={perguntouNoDia:0,atravessou:false,bloqueio:null,desde:0,desvios:0,perguntas:0};
+  return E.retorno;
+}
+
+/* ---------- qual comodo bloquear ----------
+   O bloqueio vai num comodo do caminho MAIS CURTO de volta pro nucleo —
+   e nunca num que seja a unica ligacao. `vizinhos()` da a topologia; um
+   no de grau 1 fecharia o mapa. Na grade 3x3 o menor grau e 2, entao
+   sempre sobra rota; a checagem fica assim mesmo, porque a planta pode
+   crescer e o softlock nao pode voltar. */
+function caminhoAteNucleo(de){
+  const alvo=PLANTA.filter(q=>noNucleo(q.id)).map(q=>q.id);
+  if(alvo.includes(de))return [de];
+  const visto={[de]:true}; const fila=[[de]];
+  while(fila.length){
+    const rota=fila.shift(); const fim=rota[rota.length-1];
+    for(const v of vizinhos(fim)){
+      if(visto[v])continue; visto[v]=true;
+      const nova=rota.concat(v);
+      if(alvo.includes(v))return nova;
+      fila.push(nova);
+    }
+  }
+  return [de];
+}
+function escolherBloqueio(de){
+  const rota=caminhoAteNucleo(de);
+  const meio=rota.slice(1,-1).filter(id=>vizinhos(id).length>=3);
+  const cand=meio.length?meio:rota.slice(1,-1);
+  if(!cand.length)return null;
+  const onde=sortear(cand);
+  return {onde, tipo:sortear(RET_BLOQUEIOS).id, desde:(S.dia|0)*1000+(S.hora|0)};
+}
+
+/* ---------- a pergunta, uma vez por dia ---------- */
+function pontoDeNaoRetorno(id){
+  const R=estadoRetorno();
+  if(camadaDe(id)<RET_CFG.camadaQuePergunta)return false;
+  if(R.perguntouNoDia===(S.dia|0))return false;
+  R.perguntouNoDia=(S.dia|0);
+  R.perguntas=(R.perguntas||0)+1;
+  R.atravessou=true;
+  R.bloqueio=escolherBloqueio(id);
+  R.desde=0;
+  if(typeof diz==='function'){
+    diz('Você para no batente antes de descer.','narr');
+    diz('Você ainda consegue voltar. Depois disso, eu não sei.','alerta');
+  }
+  if(typeof marcarSujo==='function')marcarSujo();
+  return true;
+}
+
+/* ---------- a volta e outra ---------- */
+function bloqueioEm(id){
+  const R=estadoRetorno();
+  return (R.bloqueio&&R.bloqueio.onde===id)?R.bloqueio:null;
+}
+function limparBloqueio(){
+  const R=estadoRetorno();
+  R.bloqueio=null; R.atravessou=false;
+  if(typeof marcarSujo==='function')marcarSujo();
+}
+if(typeof irPara==='function'){
+  const _retIP=irPara;
+  irPara=function(id,semTexto){
+    let b=null;
+    try{
+      if(PLANTA[id]){
+        const R=estadoRetorno();
+        b=bloqueioEm(id);
+        if(b){
+          /* o bloqueio cobra ao ser atravessado — e cede depois */
+          const B=RET_BLOQUEIOS.find(x=>x.id===b.tipo)||RET_BLOQUEIOS[0];
+          if(typeof diz==='function'){ diz(B.t(id),'perigo'); diz(B.forcar,'fraco'); }
+          if(typeof gastarMinutos==='function')gastarMinutos(RET_CFG.custoDoDesvio);
+          if(typeof gastarRuido==='function')gastarRuido(RET_CFG.ruidoDoDesvio);
+          R.desvios=(R.desvios||0)+1;
+          R.desde=(R.desde||0)+1;
+          if(R.desde>=2)limparBloqueio();
+          else if(typeof marcarSujo==='function')marcarSujo();
+        }
+      }
+    }catch(e){ if(typeof registrarErro==='function')registrarErro(e,'retorno/passo'); }
+    const r=_retIP.apply(this,arguments);
+    try{ if(!b)pontoDeNaoRetorno(id); }catch(e){}
+    return r;
+  };
+}
+
+/* o bloqueio cede sozinho com o tempo — nunca vira prisao */
+if(typeof orqNovaNoite==='function'){
+  const _retONN=orqNovaNoite;
+  orqNovaNoite=function(s){
+    const O=_retONN.apply(this,arguments);
+    try{ const R=estadoRetorno(); R.perguntouNoDia=0; limparBloqueio(); }catch(e){}
+    return O;
+  };
+}
+
+/* ---------- prova de que nao ha prisao ---------- */
+function retornoTemSaida(de){
+  const R=estadoRetorno();
+  const bl=R.bloqueio?R.bloqueio.onde:null;
+  const alvo=PLANTA.filter(q=>noNucleo(q.id)).map(q=>q.id);
+  const visto={[de]:true}; const fila=[de];
+  while(fila.length){
+    const x=fila.shift();
+    if(alvo.includes(x))return true;
+    for(const v of vizinhos(x)){ if(!visto[v]&&v!==bl){ visto[v]=true; fila.push(v); } }
+  }
+  return false;
+}
+function retornoEstado(){
+  const R=estadoRetorno();
+  return {perguntas:R.perguntas|0, desvios:R.desvios|0,
+    bloqueio:R.bloqueio?{onde:PLANTA[R.bloqueio.onde].nome,tipo:R.bloqueio.tipo}:null,
+    saidaDoPorao:retornoTemSaida(6), saidaDoQuintal:retornoTemSaida(8)};
+}
+
+</script>
+<!-- s43:fim -->
+<!-- s44:inicio -->
+<script>
+/* ============ §44 — ACHADOS E CONHECIMENTO (Etapa 6 de 9) ============
+
+   A5 pede oito categorias de achado, nenhuma podendo ser "so pontos".
+   A6 pede que documento nao seja colecionavel: todo documento carrega
+   uma REGRA utilizavel, e descobrir a regra tem de mudar o
+   comportamento do sistema — nao so o texto do caderno.
+
+   E A6 pede uma regra FALSA por campanha. Uma so basta pra envenenar a
+   confianca do jogador em tudo que ele le, que e o ponto.
+
+   O PRESENTE QUE ESTAVA ESCONDIDO
+   -------------------------------
+   O contra-jogo do Rastejante e a linha de sal. Sal nao existia como
+   item nem como mecanica — mas os moradores JA FALAVAM dele, como
+   crendice, em duas falas escritas ha versoes:
+
+     '"Deixa eu botar sal na soleira. Nao custa nada."'
+     `${p.n} bota sal na soleira e reza uma coisa curta. Ninguem ri.`
+
+   Descobrir o laudo e perceber que a Dona Lurdes estava certa o tempo
+   todo vale mais do que qualquer regra que eu escrevesse do zero. Por
+   isso o documento do sal CITA a superstição.
+   ====================================================================== */
+
+const ACH_CFG={
+  /* chance base de achar alguma coisa ao vasculhar, por camada */
+  porCamada: .18,
+  /* teto de documentos por campanha: sao poucos e cada um vale */
+  documentosPorCampanha: 6,
+  /* UMA regra falsa por campanha. Uma so. */
+  falsasPorCampanha: 1,
+  /* a regra da escassez honesta: nunca atende mais que isto da falta */
+  atendeNoMaximo: .6
+};
+
+/* ================= AS OITO CATEGORIAS ================= */
+const ACH_CATEGORIAS=['recurso','pessoa','documento','equipamento','atalho','secreto','historia','perigo'];
+
+/* ================= OS DOCUMENTOS =================
+   Cada um revela uma regra que o resto do jogo LE. Se descobrir nao
+   mudar nada, o documento e morto — e essa e a checagem que a guarda de
+   build faz. */
+const DOCUMENTOS=[
+ {id:'doc_sal',regra:'sal_barra_rastejante',camada:2,verdadeiro:true,
+  t:'Um laudo datilografado, três folhas grampeadas, com carimbo do posto.',
+  diz:'"Nas casas em que houve barreira de cloreto na soleira, não houve entrada pelo piso. '
+     +'Trinta e uma casas. Nenhuma exceção."',
+  eco:'Você lembra de alguém botando sal na soleira e ninguém rindo.'},
+ {id:'doc_luz',regra:'luz_para_magro',camada:1,verdadeiro:true,
+  t:'Caderno escolar, letra de criança, a última página escrita com força.',
+  diz:'"O ALTO NÃO ENTRA ONDE TEM LUZ ACESA. ELE PARA NA PORTA E FICA OLHANDO. '
+     +'NÃO APAGA A LUZ. NÃO APAGA A LUZ."',
+  eco:'Está escrito duas vezes. A segunda com mais força que a primeira.'},
+ {id:'doc_trilha',regra:'trilha_dobra_rastejante',camada:3,verdadeiro:true,
+  t:'Um mapa da quadra desenhado no verso de um cartaz, com setas por cima.',
+  diz:'"Ele não segue barulho. Segue pegada. Volte por onde veio — a trilha se dobra '
+     +'em cima dela mesma e ele perde o fio."',
+  eco:'As setas voltam sobre si mesmas, várias vezes, até virar um nó.'},
+ {id:'doc_coro',regra:'saida_unica_contra_coro',camada:2,verdadeiro:true,
+  t:'Bilhete preso com fita numa porta de saída única.',
+  diz:'"São duas. Precisam de duas portas pra te cercar. Fique onde só tem uma."',
+  eco:'A fita está velha. Quem escreveu ficou aqui tempo suficiente pra a fita envelhecer.'},
+ {id:'doc_relogio',regra:'porta_cozinha_0300',camada:1,verdadeiro:true,
+  t:'Folha de caderno com uma coluna de horários, todos iguais.',
+  diz:'"03:00. 03:00. 03:00. 03:00. A porta da cozinha abre sozinha às três. '
+     +'Todo dia. Não é vento."',
+  eco:'A mesma hora, escrita quarenta vezes, cada vez com a letra pior.'},
+ /* --- A FALSA. Uma por campanha. --- */
+ {id:'doc_ala_leste',regra:'mapa_ala_leste',camada:3,verdadeiro:false,
+  t:'Planta de arquiteto, dobrada em quatro, com anotação a lápis.',
+  diz:'"Passagem pela ala leste dá direto no quintal. Rota segura, sem cômodo aberto."',
+  eco:'A planta é de outra casa. Você só vai descobrir isso depois.',
+  corrigidoPor:'doc_ala_leste_erro'},
+ {id:'doc_ala_leste_erro',regra:'mapa_ala_leste_falso',camada:2,verdadeiro:true,corrige:'mapa_ala_leste',
+  t:'Meia folha, escrita com pressa, letra tremida.',
+  diz:'"A PLANTA ESTÁ ERRADA. É de outra casa. Quem seguiu não voltou. '
+     +'Rasguem se acharem."',
+  eco:'Não foi rasgada. Quem escreveu não teve tempo.'}
+];
+const DOC_POR_ID={}; DOCUMENTOS.forEach(d=>DOC_POR_ID[d.id]=d);
+
+/* ================= S.conhecimento ================= */
+function conhecimento(){
+  if(!S.conhecimento||typeof S.conhecimento!=='object')
+    S.conhecimento={schemaVersion:1,regras:{},regrasFalsas:[],fonte:{},lidos:[]};
+  const C=S.conhecimento;
+  if(!C.regras||typeof C.regras!=='object')C.regras={};
+  if(!Array.isArray(C.regrasFalsas))C.regrasFalsas=[];
+  if(!C.fonte||typeof C.fonte!=='object')C.fonte={};
+  if(!Array.isArray(C.lidos))C.lidos=[];
+  return C;
+}
+function sabe(regra){ return !!conhecimento().regras[regra]; }
+function acreditaEmMentira(regra){ return conhecimento().regrasFalsas.indexOf(regra)>=0; }
+
+function lerDocumento(id){
+  const d=DOC_POR_ID[id];
+  if(!d)return null;
+  const C=conhecimento();
+  if(C.lidos.indexOf(id)>=0)return null;
+  C.lidos.push(id);
+  if(typeof diz==='function'){
+    diz(d.t,'narr');
+    diz(d.diz,'fala');
+    if(d.eco)diz(d.eco,'fraco');
+  }
+  if(d.corrige){
+    /* o documento que conserta o outro: a regra falsa cai */
+    delete C.regras[d.corrige];
+    C.regrasFalsas=C.regrasFalsas.filter(x=>x!==d.corrige);
+    C.regras[d.regra]=true; C.fonte[d.regra]=id;
+    if(typeof diz==='function')
+      diz('Você risca a rota da ala leste do caderno. Com força.','alerta');
+  }else{
+    C.regras[d.regra]=true;
+    C.fonte[d.regra]=id;
+    if(!d.verdadeiro)C.regrasFalsas.push(d.regra);
+  }
+  if(typeof anotar==='function')anotar('Leu: '+d.t.slice(0,42));
+  if(typeof marcarSujo==='function')marcarSujo();
+  return d;
+}
+
+/* ================= AS REGRAS MUDAM O SISTEMA =================
+   Sem isto o documento e enfeite. Cada uma e lida por alguem. */
+
+/* sal — a barreira que os moradores ja sussurravam */
+function temSalNaSoleira(){ return !!S.salSoleira; }
+function porSal(){
+  if(!sabe('sal_barra_rastejante'))return false;
+  if(S.comida<1)return false;
+  S.salSoleira=true;
+  if(typeof marcarSujo==='function')marcarSujo();
+  return true;
+}
+if(typeof REGRA!=='undefined'&&REGRA.rastejante){
+  const _alvoRast=REGRA.rastejante.alvo;
+  REGRA.rastejante.alvo=function(I,c){
+    /* com sal na soleira ele nao acha o fio: ronda em vez de seguir */
+    if(temSalNaSoleira()&&sabe('sal_barra_rastejante'))return null;
+    return _alvoRast.apply(this,arguments);
+  };
+  REGRA.rastejante.evita=function(id){ return temSalNaSoleira()&&camadaDe(id)<=1; };
+}
+
+/* trilha dobrada — voltar por onde veio confunde o Rastejante.
+   O jogo JA fazia isso por dentro; o documento e o que conta ao jogador,
+   e saber passa a valer um turno de vantagem. */
+function trilhaDobrada(){ return sabe('trilha_dobra_rastejante'); }
+
+/* porta da cozinha as 03:00 — o ciclo vira previsivel pra quem leu */
+function portaDaCozinhaAbre(){
+  return sabe('porta_cozinha_0300') && (S.hora===3);
+}
+
+/* a mentira: quem acredita na ala leste tem a rota "segura" que nao e */
+function rotaDaAlaLeste(){
+  return acreditaEmMentira('mapa_ala_leste');
+}
+if(typeof custoDeEntrada==='function'){
+  const _achCE=custoDeEntrada;
+  custoDeEntrada=function(id,de){
+    const c=_achCE.apply(this,arguments);
+    try{
+      /* quem acredita na planta errada anda mais confiante — e mais
+         barulhento — no caminho que ele acha que e seguro */
+      if(rotaDaAlaLeste()&&camadaDe(id)>=2){
+        c.ruido=+(c.ruido*1.35).toFixed(2);
+        c.confiancaFalsa=true;
+      }
+      /* quem leu o laudo do sal anda mais tranquilo em casa */
+      if(temSalNaSoleira()&&camadaDe(id)<=1)c.sanidade=+(c.sanidade+.15).toFixed(2);
+    }catch(e){}
+    return c;
+  };
+}
+
+/* ================= gerarAchado =================
+   Deterministico, e as entradas que o A5 exige pesam de verdade:
+   camada, se ja foi saqueado, o que o jogador precisa, o que ele
+   ignora, a noite e o clima. */
+function faltaDoJogador(){
+  const f={};
+  if((S.comida|0)<4)f.recurso=(4-(S.comida|0))/4;
+  if((S.agua|0)<3)f.agua=(3-(S.agua|0))/3;
+  if((S.remedio|0)<1)f.remedio=1;
+  if(typeof saude==='function'&&saude().length)f.remedio=1;
+  return f;
+}
+function gerarAchado(comodoId,noite,rg,mem){
+  const m=marcaComodo(comodoId);
+  const cam=camadaDe(comodoId);
+  const r=rg||((typeof rng==='function')?rng():null);
+  const sorte=()=>r?r.next():_ale();
+
+  /* comodo saqueado nao regenera sozinho. Se voltou a ter coisa, foi a
+     CASA que repos — e isso e sempre suspeito. */
+  if(m.saqueado){
+    const host=(typeof hostilidade==='function')?hostilidade():0;
+    if(sorte()>=host*.5)return null;
+    return {categoria:'perigo',reposto:true,camada:cam,
+      t:'Tem coisa nesta prateleira de novo. Você esvaziou ela ontem.'};
+  }
+  if(sorte()>=ACH_CFG.porCamada*(1+cam))return null;
+
+  const falta=faltaDoJogador();
+  const pesos={};
+  ACH_CATEGORIAS.forEach(c=>{ pesos[c]=1; });
+  pesos.recurso=2+ (falta.recurso?2:0);
+  pesos.documento=(cam>=1&&conhecimento().lidos.length<ACH_CFG.documentosPorCampanha)?2:0;
+  pesos.equipamento=cam>=2?1.5:.5;
+  pesos.atalho=cam>=2?1.2:0;
+  pesos.secreto=cam>=3?1.2:0;
+  pesos.pessoa=cam>=2?1:0;
+  pesos.perigo=.6+cam*.5;
+  pesos.historia=1.2;
+  const cat=r?r.pesado(pesos):'recurso';
+  if(!cat)return null;
+
+  const a={categoria:cat,camada:cam,comodo:comodoId,noite:noite|0};
+  if(cat==='documento'){
+    const livres=DOCUMENTOS.filter(d=>conhecimento().lidos.indexOf(d.id)<0&&d.camada<=cam+1);
+    /* a falsa so aparece depois de o jogador ja ter lido coisa verdadeira,
+       senao ela nao envenena nada — envenenar exige confianca previa */
+    const ok=livres.filter(d=>d.verdadeiro||conhecimento().lidos.length>=2);
+    if(!ok.length)return null;
+    a.doc=(r?r.escolher(ok):ok[0]).id;
+  }
+  if(cat==='recurso'){
+    /* ESCASSEZ HONESTA: sabe da falta, atende parte dela, nunca tudo */
+    const q=Math.max(1,Math.round((falta.recurso?3:2)*ACH_CFG.atendeNoMaximo));
+    a.recurso=falta.remedio&&sorte()<.4?'remedio':(falta.agua&&sorte()<.5?'agua':'comida');
+    a.qtd=a.recurso==='remedio'?1:q;
+    a.parcial=true;
+  }
+  return a;
+}
+
+/* ---------- persistencia ---------- */
+function migrarConhecimento(d){
+  const C={schemaVersion:1,regras:{},regrasFalsas:[],fonte:{},lidos:[]};
+  const v=(d&&d.conhecimento&&typeof d.conhecimento==='object')?d.conhecimento:null;
+  if(v){
+    C.regras=(v.regras&&typeof v.regras==='object')?v.regras:{};
+    C.regrasFalsas=Array.isArray(v.regrasFalsas)?v.regrasFalsas:[];
+    C.fonte=(v.fonte&&typeof v.fonte==='object')?v.fonte:{};
+    C.lidos=Array.isArray(v.lidos)?v.lidos:[];
+    Object.keys(v).forEach(k=>{ if(!(k in C))C[k]=v[k]; });
+  }
+  return C;
+}
+if(typeof salvar==='function'){
+  const _achSalvar=salvar;
+  salvar=function(){
+    _achSalvar.apply(this,arguments);
+    try{
+      if(!S.nomeJogador)return;
+      const cru=localStorage.getItem(CHAVE); if(!cru)return;
+      const d=JSON.parse(cru);
+      if(S.conhecimento&&typeof S.conhecimento==='object')d.conhecimento=S.conhecimento;
+      if(S.salSoleira!==undefined)d.salSoleira=!!S.salSoleira;
+      localStorage.setItem(CHAVE,JSON.stringify(d));
+    }catch(e){ if(typeof registrarErro==='function')registrarErro(e,'salvar/conhecimento'); }
+  };
+}
+if(typeof carregar==='function'){
+  const _achCarregar=carregar;
+  carregar=function(){
+    const r=_achCarregar.apply(this,arguments);
+    try{
+      const cru=localStorage.getItem(CHAVE);
+      S.conhecimento=migrarConhecimento(cru?JSON.parse(cru):null);
+    }catch(e){}
+    return r;
+  };
+}
+
+/* ---------- conferencia ---------- */
+function conhecimentoEstado(){
+  const C=conhecimento();
+  return {lidos:C.lidos.length, regras:Object.keys(C.regras),
+    falsas:C.regrasFalsas.slice(), fonte:C.fonte,
+    documentos:DOCUMENTOS.length, verdadeiros:DOCUMENTOS.filter(d=>d.verdadeiro).length,
+    falsosNaTabela:DOCUMENTOS.filter(d=>!d.verdadeiro).length};
+}
+
+</script>
+<!-- s44:fim -->
+<!-- s45:inicio -->
+<script>
+/* ============ §45 — CICATRIZES, E A CASA MIRA NELAS (Etapa 7 de 9) ============
+
+   B6: ferimento grave curado vira cicatriz permanente, com efeito
+   residual pequeno, entrada no caderno com causa e noite, e — a parte
+   que fecha o arco — a casa passa a SABER onde voce ja quebrou.
+
+   "Sobreviver te torna mais fragil e mais visado." E a memoria de longo
+   prazo aplicada ao corpo, e e o mecanismo mais forte do conjunto.
+
+   Aqui tambem entram as seis evolucoes da Tabela de Sinais, porque so
+   agora existe de onde elas lerem: cicatrizes, S.exploracao e
+   S.conhecimento nasceram nas etapas 1, 6 e nesta.
+   ====================================================================== */
+
+const CIC_CFG={
+  /* gravidade minima pra deixar marca */
+  gravMinima: 3,
+  /* o residuo e pequeno de proposito: cicatriz orienta, nao mutila */
+  residuo: .06,
+  /* quanto a casa passa a preferir atacar a parte ja quebrada */
+  mira: .35,
+  /* teto: nem a casa mais hostil transforma isso em execucao */
+  miraTeto: .55
+};
+
+const CICATRIZ_TEXTO={
+  perna_esq:'A perna esquerda falha na chuva.',
+  perna_dir:'A perna direita falha na chuva.',
+  braco_esq:'O braço esquerdo trava no frio.',
+  braco_dir:'O braço direito trava no frio.',
+  mao_dominante:'A mão treme quando você está com pressa.',
+  torso:'O peito dói quando você respira fundo demais.',
+  cabeca:'A cabeça lateja quando o barulho é constante.'
+};
+
+function cicatrizes(){
+  if(!Array.isArray(S.cicatrizes))S.cicatrizes=[];
+  return S.cicatrizes;
+}
+function marcarCicatriz(m,porque){
+  const e=MALES[m.id];
+  if(!e||e.tipo!=='ferida')return null;
+  if((e.grav||0)<CIC_CFG.gravMinima)return null;
+  if(!m.parte)return null;
+  const L=cicatrizes();
+  const c={parte:m.parte,tipo:m.id,noite:S.dia|0,causa:m.porque||porque||'não anotado',
+    texto:CICATRIZ_TEXTO[m.parte]||'Ficou marca.'};
+  L.push(c);
+  if(typeof anotar==='function')
+    anotar(`Cicatriz: ${MALES[m.id].n} ${typeof naParte==='function'?naParte(m.parte):''} — noite ${c.noite}, ${c.causa}.`);
+  if(typeof diz==='function')
+    diz(`Fechou. Vai ficar marca. ${c.texto}`,'fraco');
+  if(typeof marcarSujo==='function')marcarSujo();
+  return c;
+}
+/* mal que sara e grave o bastante deixa marca */
+if(typeof passarSaude==='function'){
+  const _cicPS=passarSaude;
+  passarSaude=function(){
+    let antes=[];
+    try{ antes=saude().map(m=>({id:m.id,dias:m.dias,parte:m.parte,porque:m.porque})); }catch(e){}
+    const r=_cicPS.apply(this,arguments);
+    try{
+      const agora=saude().map(m=>m.id);
+      antes.forEach(m=>{ if(agora.indexOf(m.id)<0)marcarCicatriz(m); });
+    }catch(e){}
+    return r;
+  };
+}
+
+/* ---------- o residuo: pequeno, permanente, e condicional ---------- */
+function residuoDeCicatriz(){
+  const L=cicatrizes();
+  if(!L.length)return 0;
+  let r=0;
+  L.forEach(c=>{
+    const chuva=(S.clima==='chuva'||S.clima==='tempestade');
+    const frio=(S.clima==='frio');
+    if(String(c.parte).startsWith('perna')&&chuva)r+=CIC_CFG.residuo;
+    else if(String(c.parte).startsWith('braco')&&frio)r+=CIC_CFG.residuo;
+    else if(c.parte==='mao_dominante'&&(S.ruido||0)>50)r+=CIC_CFG.residuo;
+    else if(c.parte==='cabeca'&&(S.ruido||0)>60)r+=CIC_CFG.residuo;
+    else r+=CIC_CFG.residuo*.25;
+  });
+  return trava(r,0,.30);
+}
+if(typeof custoDeEntrada==='function'){
+  const _cicCE=custoDeEntrada;
+  custoDeEntrada=function(id,de){
+    const c=_cicCE.apply(this,arguments);
+    try{
+      const res=residuoDeCicatriz();
+      if(res>0)c.tempo=Math.round(c.tempo*(1+res));
+      c.residuo=+res.toFixed(3);
+    }catch(e){}
+    return c;
+  };
+}
+
+/* ---------- A CASA MIRA NA MARCA ----------
+   `escolherParte` do §41 sorteia entre as partes plausiveis do tipo de
+   ferimento. Agora a casa PESA: parte com cicatriz e mais provavel.
+   Teto declarado — mesmo com o corpo todo marcado, nunca vira certeza. */
+if(typeof escolherParte==='function'){
+  const _cicEP=escolherParte;
+  escolherParte=function(id){
+    try{
+      const l=PARTE_DE[id];
+      if(l&&l.length){
+        const marcadas=cicatrizes().map(c=>c.parte);
+        const alvo=l.filter(x=>marcadas.indexOf(x)>=0);
+        if(alvo.length){
+          const p=trava(CIC_CFG.mira*(1+(marcadas.length-1)*.15),0,CIC_CFG.miraTeto);
+          if(chance(p))return sortear(alvo);
+        }
+      }
+    }catch(e){}
+    return _cicEP.apply(this,arguments);
+  };
+}
+
+/* ================= AS SEIS EVOLUÇÕES =================
+   Cada criatura tem uma linha de "sinal de que ela aprendeu", e cada
+   uma le um campo que agora existe de verdade. */
+function evolucaoDe(criatura){
+  try{
+    const E=(typeof estadoExp==='function')?estadoExp():{};
+    const C=(typeof conhecimento==='function')?conhecimento():{regras:{}};
+    switch(criatura){
+      case 'magro':
+        /* jogador que sempre apaga a luz: ele passa a ler o clique */
+        return (S.apagouLuzVezes|0)>=6;
+      case 'rastejante':
+        /* com duas cicatrizes ele para de seguir o rastro e ESPERA */
+        return cicatrizes().length>=2;
+      case 'coro':
+        /* jogador que so usa comodo de saida unica */
+        return (E.passos|0)>20 && (S.saidaUnicaVezes|0)>=5;
+      case 'imitador':
+        /* ignorar sussurro por 3 noites: ele para de falar */
+        return (S.sussurroIgnorado|0)>=3;
+      case 'inchado':
+        /* ele passa a ocupar o atalho que voce mais usa */
+        return Array.isArray(E.atalhosDescobertos)&&E.atalhosDescobertos.length>0;
+      case 'primordial':
+        /* cada regra verdadeira aprendida encurta o aviso dele */
+        return Object.keys(C.regras||{}).length>=3;
+    }
+  }catch(e){}
+  return false;
+}
+/* o efeito: a antecedencia dos sinais da criatura que aprendeu encurta,
+   com o piso de justica do §40 mantido por cima */
+if(typeof sinDegradar==='function'){
+  const _cicDeg=sinDegradar;
+  sinDegradar=function(sinal,s01){
+    const o=_cicDeg.apply(this,arguments);
+    try{
+      if(sinal.criatura&&evolucaoDe(sinal.criatura)&&sinal.fase!=='contato'){
+        const C=(typeof conhecimento==='function')?conhecimento():{regras:{}};
+        const passos=(sinal.criatura==='primordial')
+          ? Math.min(3,Object.keys(C.regras||{}).length) : 1;
+        o.antecedencia=Math.max(0,+(o.antecedencia-passos).toFixed(2));
+        o.evoluiu=true;
+      }
+      if(sinal.fase==='iminencia')
+        o.antecedencia=Math.max(SIN_CFG.pisoIminencia,o.antecedencia);
+    }catch(e){}
+    return o;
+  };
+}
+
+/* ---------- persistencia ---------- */
+if(typeof salvar==='function'){
+  const _cicSalvar=salvar;
+  salvar=function(){
+    _cicSalvar.apply(this,arguments);
+    try{
+      if(!S.nomeJogador)return;
+      const cru=localStorage.getItem(CHAVE); if(!cru)return;
+      const d=JSON.parse(cru);
+      if(Array.isArray(S.cicatrizes))d.cicatrizes=S.cicatrizes;
+      localStorage.setItem(CHAVE,JSON.stringify(d));
+    }catch(e){ if(typeof registrarErro==='function')registrarErro(e,'salvar/cicatrizes'); }
+  };
+}
+if(typeof carregar==='function'){
+  const _cicCarregar=carregar;
+  carregar=function(){
+    const r=_cicCarregar.apply(this,arguments);
+    try{
+      const cru=localStorage.getItem(CHAVE);
+      const d=cru?JSON.parse(cru):null;
+      S.cicatrizes=(d&&Array.isArray(d.cicatrizes))?d.cicatrizes:[];
+    }catch(e){}
+    return r;
+  };
+}
+function cicatrizEstado(){
+  return {marcas:cicatrizes().map(c=>({parte:c.parte,noite:c.noite,causa:c.causa})),
+    residuo:+residuoDeCicatriz().toFixed(3),
+    evolucoes:['magro','rastejante','coro','imitador','inchado','primordial']
+      .filter(c=>evolucaoDe(c))};
+}
+
+</script>
+<!-- s45:fim -->
+<!-- s46:inicio -->
+<script>
+/* ============ §46 — TRATAMENTO E INCAPACITADO (Etapa 8 de 9) ============
+
+   B5: nada de "usar kit -> 100%". Todo tratamento tem troca. E o ultimo
+   item da tabela e o coracao do modulo:
+
+     "Quem trata voce tem poder sobre voce."
+
+   O jogo ja tinha a peca dificil pronta: `S.infiltrado`, a coisa que
+   toma o lugar de alguem da casa. Curar-se com quem talvez nao seja
+   quem parece ser e a aposta que o briefing pede — e ela ja existia
+   desde o dia 5, so nao tinha sido ligada no tratamento.
+
+   B7: incapacitado NUNCA e softlock. Sempre existe pelo menos uma acao,
+   e um watchdog forca desfecho narrativo. Travar o jogador e bug; matar
+   o jogador e design.
+   ====================================================================== */
+
+const TRAT_CFG={
+  /* pressionar pano: para o sangramento e ocupa a mao */
+  panoTurnos: 3,
+  /* costurar: fecha, doi, e faz barulho involuntario */
+  costuraRuido: 6,
+  /* alcool: derruba infeccao, cheiro forte atrai o Inchado */
+  alcoolAtencao: .12,
+  /* descansar: custa a noite inteira */
+  descansoHoras: 6,
+  /* o NPC trata melhor — e voce fica exposto a ele */
+  bonusDoCuidador: 2,
+  /* incapacitado: turnos ate o watchdog forcar desfecho */
+  watchdogTurnos: 8
+};
+
+/* ================= AS AÇÕES, CADA UMA COM PREÇO ================= */
+const TRATAMENTOS=[
+ {id:'pano',n:'Pressionar pano na ferida',
+  precisa:m=>MALES[m.id]&&MALES[m.id].grav>=2,
+  faz(m){
+    m.sangrando=0;
+    m.dias=Math.max(1,m.dias-1);
+    S.maoOcupada=(S.maoOcupada||0)+TRAT_CFG.panoTurnos;
+    return {t:'Você aperta e segura. Para de sangrar enquanto você segurar.',
+      preco:'a mão fica ocupada por '+TRAT_CFG.panoTurnos+' turnos'};
+  }},
+ {id:'costura',n:'Costurar',
+  precisa:m=>['corte','cortefundo','mordida'].indexOf(m.id)>=0,
+  precisaLuz:true,
+  faz(m){
+    m.tratado=1; m.dias=Math.max(1,Math.round(m.dias*.45));
+    if(typeof gastarRuido==='function')gastarRuido(TRAT_CFG.costuraRuido);
+    if(typeof mexerSan==='function')mexerSan(-3);
+    return {t:'Você fecha com linha, sem anestesia. O som que sai de você não é escolha.',
+      preco:'dor alta, e a casa ouviu'};
+  }},
+ {id:'alcool',n:'Álcool na ferida',
+  precisa:m=>m.id==='infeccao'||MALES[m.id]&&MALES[m.id].pior==='infeccao',
+  faz(m){
+    m.semPior=true; m.dias=Math.max(1,m.dias-2);
+    try{ const E=estadoExp(); E.atencaoDaCasa=trava((E.atencaoDaCasa||0)+TRAT_CFG.alcoolAtencao,0,1); }catch(e){}
+    if(typeof mexerSan==='function')mexerSan(-2);
+    return {t:'Arde de um jeito que embaça a vista. A infecção não vai vingar.',
+      preco:'o cheiro sobe, e alguma coisa gosta desse cheiro'};
+  }},
+ {id:'tala',n:'Talar',
+  precisa:m=>['fratura','torcao'].indexOf(m.id)>=0,
+  precisaMat:'tabua',
+  faz(m){
+    m.tratado=1; m.imobilizado=true; m.dias=Math.max(2,Math.round(m.dias*.6));
+    if(typeof gastarRuido==='function')gastarRuido(2);
+    return {t:'Duas tábuas e pano rasgado. Você volta a pisar, com cuidado.',
+      preco:'gastou material, e o esforço fez barulho'};
+  }},
+ {id:'descanso',n:'Deitar e não fazer mais nada hoje',
+  precisa:()=>true,
+  faz(m){
+    if(typeof gastarHoras==='function')gastarHoras(TRAT_CFG.descansoHoras);
+    (typeof saude==='function'?saude():[]).forEach(x=>{ x.dias=Math.max(0,x.dias-1); });
+    return {t:'Você deita e o teto para de girar depois de um tempo.',
+      preco:'o dia acabou. A casa não descansou junto'};
+  }}
+];
+
+function tratamentosPara(m){
+  return TRATAMENTOS.filter(t=>{
+    try{
+      if(t.precisa&&!t.precisa(m))return false;
+      if(t.precisaLuz&&!(typeof comodoAceso==='function'
+        &&comodoAceso(cena&&cena.casa?cena.casa.voce:4)))return false;
+      if(t.precisaMat&&typeof temMat==='function'&&!temMat(t.precisaMat))return false;
+      return true;
+    }catch(e){ return false; }
+  });
+}
+/* ATENCAO AO NOME: nao e `tratar()`. Essa JA EXISTE em
+   index.html:13957 e e o tratamento por REMEDIO — `tratar(m,k,alvo,nome)`,
+   que confere se o remedio `k` serve pro mal `m`. Sombrear ela quebraria
+   a farmacia inteira em silencio. Aqui e `aplicarTratamento`, e as duas
+   convivem: a de la e "qual remedio", a daqui e "qual gesto, e a que
+   preco". Quarta vez que a guarda de colisao salva uma etapa. */
+function aplicarTratamento(idTrat,mal){
+  const t=TRATAMENTOS.find(x=>x.id===idTrat);
+  if(!t||!mal)return null;
+  const r=t.faz(mal);
+  if(typeof diz==='function'){
+    diz(r.t,'bom');
+    diz('Custou: '+r.preco+'.','fraco');
+  }
+  if(typeof marcarSujo==='function')marcarSujo();
+  return r;
+}
+
+/* ================= QUEM TRATA VOCÊ TEM PODER SOBRE VOCÊ =================
+   O `alvo` do tratamento e uma pessoa do abrigo. Se ela for a coisa,
+   o tratamento vira sabotagem — e o tell existe: a mao fria, o gesto
+   errado, o silencio na hora errada. Quem esta lendo, le. */
+const TELL_DO_CUIDADOR=[
+  'A mão dela está fria de um jeito que mão de gente não fica.',
+  'Ela aperta o curativo antes de limpar. A ordem está errada.',
+  'Ela não pergunta se dói. Ninguém trata ferida sem perguntar se dói.',
+  'Ela olha pra ferida como quem lê, não como quem cuida.'
+];
+function cuidadorDisponivel(){
+  if(typeof quem!=='function')return null;
+  return quem('enfermagem')||((S.abrigo&&S.abrigo.length)?S.abrigo[0]:null);
+}
+function tratarComNPC(mal,p){
+  const cuidador=p||cuidadorDisponivel();
+  if(!cuidador||!mal)return null;
+  const falso=(S.infiltrado&&S.infiltrado.n===cuidador.n)||!!cuidador.falso;
+  /* o tell sai ANTES do resultado: o jogador tem chance de recuar */
+  if(falso&&typeof diz==='function')diz(sortear(TELL_DO_CUIDADOR),'perigo');
+  if(falso){
+    mal.dias=mal.dias+3;
+    mal.tratado=0;
+    mal.sabotado=true;
+    if(typeof diz==='function')
+      diz(`${cuidador.n} enfaixa com capricho. Dois dias depois está pior do que estava.`,'perigo');
+    if(typeof mexerSan==='function')mexerSan(-4);
+    return {ok:false,sabotado:true,por:cuidador.n};
+  }
+  mal.tratado=1;
+  mal.dias=Math.max(1,mal.dias-TRAT_CFG.bonusDoCuidador);
+  if(typeof diz==='function')
+    diz(`${cuidador.n} trata melhor do que você trataria. E fica sabendo exatamente onde você está quebrado.`,'bom');
+  return {ok:true,por:cuidador.n};
+}
+
+/* ================= B7 · INCAPACITADO, NUNCA SOFTLOCK ================= */
+function estadoIncap(){
+  if(!S.incap||typeof S.incap!=='object')
+    S.incap={ativo:false,turnos:0,desfecho:null,chamou:0,arrastou:0};
+  return S.incap;
+}
+function grave(){
+  try{
+    const c=custoSaude();
+    return (c.forca>=.55&&c.fuga>=.5)||feridoDerivado()>=9;
+  }catch(e){ return false; }
+}
+function entrarIncapacitado(){
+  const I=estadoIncap();
+  if(I.ativo)return false;
+  I.ativo=true; I.turnos=0; I.desfecho=null;
+  if(typeof diz==='function'){
+    diz('Você senta porque as pernas resolveram por você.','perigo');
+    diz('Dá pra chamar. Dá pra arrastar. Dá pra esperar. Não dá pra levantar.','sist');
+  }
+  if(typeof marcarSujo==='function')marcarSujo();
+  return true;
+}
+/* SEMPRE ha acao. Esta lista nunca pode voltar vazia — e o teste exige. */
+function acoesIncapacitado(){
+  const l=[{id:'chamar',n:'Chamar por alguém'},
+           {id:'arrastar',n:'Se arrastar até a porta'},
+           {id:'esperar',n:'Ficar quieto e esperar'}];
+  if(typeof saude==='function'&&saude().length)l.push({id:'apertar',n:'Apertar a ferida com o que tiver'});
+  return l;
+}
+function passoIncapacitado(acao){
+  const I=estadoIncap();
+  if(!I.ativo)return null;
+  I.turnos++;
+  let t=null;
+  if(acao==='chamar'){
+    I.chamou++;
+    if(typeof gastarRuido==='function')gastarRuido(8);
+    const p=(S.abrigo&&S.abrigo.length)?sortear(S.abrigo):null;
+    if(p&&chance(.45)){ I.ativo=false; I.desfecho='socorrido';
+      t=`${p.n} chega e te arrasta pra dentro. Não pergunta nada.`; }
+    else t='Você chama. A casa devolve a sua voz e mais nada.';
+  }else if(acao==='arrastar'){
+    I.arrastou++;
+    if(typeof gastarMinutos==='function')gastarMinutos(18);
+    if(I.arrastou>=3){ I.ativo=false; I.desfecho='chegou';
+      t='Você chega no batente e passa. Devagar, mas passa.'; }
+    else t='Você avança o que dá pra avançar. Não é muito.';
+  }else if(acao==='apertar'){
+    const f=(typeof saude==='function')?saude().filter(m=>MALES[m.id]&&MALES[m.id].tipo==='ferida'):[];
+    if(f.length){ f[0].sangrando=0; f[0].dias=Math.max(1,f[0].dias-1); }
+    t='Você aperta com a mão e o pano que tem. Segura por enquanto.';
+  }else{
+    if(typeof gastarMinutos==='function')gastarMinutos(12);
+    t='Você fica quieto. O escuro anda um pouco.';
+  }
+  /* WATCHDOG: sem saida em N turnos, o sistema FORCA um desfecho.
+     Nunca deixa o jogador parado sem fim. */
+  if(I.ativo&&I.turnos>=TRAT_CFG.watchdogTurnos){
+    I.ativo=false;
+    I.desfecho=(S.abrigo&&S.abrigo.length)?'encontrado':'amanheceu';
+    t=(I.desfecho==='encontrado')
+      ? 'Alguém da casa te encontra de manhã. Você não lembra de ter dormido.'
+      : 'Amanhece. Você ainda está aqui, e isso conta como sorte.';
+    if(typeof gastarHoras==='function')gastarHoras(4);
+  }
+  if(typeof diz==='function'&&t)diz(t,I.desfecho?'bom':'narr');
+  if(typeof marcarSujo==='function')marcarSujo();
+  return {texto:t,ativo:I.ativo,desfecho:I.desfecho,turnos:I.turnos};
+}
+/* entra sozinho quando o corpo chega la */
+if(typeof passarSaude==='function'){
+  const _tratPS=passarSaude;
+  passarSaude=function(){
+    const r=_tratPS.apply(this,arguments);
+    try{ if(grave())entrarIncapacitado(); }catch(e){}
+    return r;
+  };
+}
+
+/* ---------- persistencia ---------- */
+if(typeof salvar==='function'){
+  const _tratSalvar=salvar;
+  salvar=function(){
+    _tratSalvar.apply(this,arguments);
+    try{
+      if(!S.nomeJogador)return;
+      const cru=localStorage.getItem(CHAVE); if(!cru)return;
+      const d=JSON.parse(cru);
+      if(S.incap&&typeof S.incap==='object')d.incap=S.incap;
+      if(typeof S.maoOcupada==='number')d.maoOcupada=S.maoOcupada;
+      localStorage.setItem(CHAVE,JSON.stringify(d));
+    }catch(e){ if(typeof registrarErro==='function')registrarErro(e,'salvar/incap'); }
+  };
+}
+function tratamentoEstado(){
+  const I=estadoIncap();
+  return {tratamentos:TRATAMENTOS.length,
+    incapacitado:I.ativo, turnos:I.turnos, desfecho:I.desfecho,
+    acoes:acoesIncapacitado().length, watchdog:TRAT_CFG.watchdogTurnos};
+}
+
+</script>
+<!-- s46:fim -->
 </body>
 </html>

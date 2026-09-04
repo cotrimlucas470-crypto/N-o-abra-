@@ -1,0 +1,599 @@
+<title>A Casa Por Dentro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,400&family=Share+Tech+Mono&display=swap">
+
+<style>
+/* A paleta e as faces sao as DO JOGO, tiradas do :root do index.html.
+   Uma apresentacao sobre Nao Abra que nao parecesse Nao Abra seria uma
+   escolha estranha. */
+:root{
+  --breu:#0B0A0D; --parede:#16131A; --parede2:#1E1A24;
+  --lampiao:#C9A227; --mofo:#7A8B7F; --ferrugem:#8C2F1E; --papel:#E8E2D4;
+  --fraco:#8A8290; --linha:rgba(232,226,212,.14);
+  --display:'Bodoni Moda',Georgia,serif;
+  --corpo:'Crimson Pro',Georgia,serif;
+  --mostrador:'Share Tech Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--breu); color:var(--papel);
+  font-family:var(--corpo); font-size:19px; line-height:1.65;
+  -webkit-font-smoothing:antialiased; overflow-x:hidden;
+}
+
+/* ---------- o lampiao que respira: 7s, o mesmo pulso do veu de
+     sanidade que eu construi no §38 ---------- */
+#luz{position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse 90% 60% at 50% 22%,rgba(201,162,39,.10) 0%,transparent 62%);
+  animation:respira 7s ease-in-out infinite}
+@keyframes respira{0%,100%{opacity:.55}50%{opacity:1}}
+#grao{position:fixed;inset:-20%;pointer-events:none;z-index:1;opacity:.5;
+  background-image:radial-gradient(circle at 30% 40%,rgba(232,226,212,.09) 0 1px,transparent 1px),
+                   radial-gradient(circle at 70% 60%,rgba(0,0,0,.20) 0 1px,transparent 1px);
+  background-size:3px 3px,4px 4px;animation:tremer 1.1s steps(3) infinite}
+@keyframes tremer{0%{transform:translate(0,0)}33%{transform:translate(-2px,1px)}
+  66%{transform:translate(1px,-2px)}100%{transform:translate(0,0)}}
+#vinheta{position:fixed;inset:0;pointer-events:none;z-index:2;
+  background:radial-gradient(ellipse 120% 78% at 50% 45%,transparent 34%,rgba(11,10,13,.85) 100%)}
+
+main{position:relative;z-index:3}
+.faixa{max-width:52rem;margin:0 auto;padding:0 1.6rem}
+
+/* ---------- tipografia ---------- */
+h1,h2,h3{font-family:var(--display);font-weight:400;text-wrap:balance;margin:0}
+h1{font-size:clamp(3rem,10vw,6.4rem);line-height:.94;letter-spacing:-.02em}
+h2{font-size:clamp(1.9rem,4.4vw,3rem);line-height:1.06;letter-spacing:-.01em}
+h3{font-size:clamp(1.25rem,2.6vw,1.6rem);line-height:1.2}
+p{margin:0 0 1.1rem;max-width:34em}
+.olho{font-family:var(--mostrador);font-size:.72rem;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--lampiao);margin:0 0 1rem}
+.olho.verde{color:var(--mofo)}
+.olho.rust{color:var(--ferrugem)}
+strong{font-weight:600;color:#fff}
+em{font-style:italic;color:var(--mofo)}
+code,.num{font-family:var(--mostrador)}
+a{color:var(--lampiao)}
+
+/* ---------- capa ---------- */
+header{min-height:100svh;display:flex;flex-direction:column;justify-content:center;
+  padding:5rem 0 3rem;position:relative}
+.sub{font-size:clamp(1rem,2.2vw,1.3rem);color:var(--fraco);max-width:30em;margin-top:1.6rem}
+.capa-num{display:flex;flex-wrap:wrap;gap:2.6rem;margin-top:3.4rem;
+  padding-top:2rem;border-top:1px solid var(--linha)}
+.capa-num div{min-width:6rem}
+.capa-num b{display:block;font-family:var(--mostrador);font-size:2.1rem;
+  color:var(--lampiao);line-height:1;font-variant-numeric:tabular-nums}
+.capa-num span{font-family:var(--mostrador);font-size:.64rem;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--fraco)}
+.desce{position:absolute;bottom:2rem;left:1.6rem;font-family:var(--mostrador);
+  font-size:.66rem;letter-spacing:.2em;color:var(--fraco);text-transform:uppercase}
+.desce::after{content:'';display:block;width:1px;height:2.6rem;margin-top:.6rem;
+  background:linear-gradient(var(--lampiao),transparent);animation:respira 7s ease-in-out infinite}
+
+/* ---------- secoes ---------- */
+section{padding:5.5rem 0;border-top:1px solid var(--linha)}
+.rev{opacity:0;transform:translateY(22px);
+  transition:opacity .8s cubic-bezier(.2,.6,.2,1),transform .8s cubic-bezier(.2,.6,.2,1)}
+.rev.on{opacity:1;transform:none}
+
+/* ---------- a camada: cada achado e uma descida ---------- */
+.camada{display:grid;grid-template-columns:5.5rem 1fr;gap:1.6rem;
+  padding:2.4rem 0;border-bottom:1px solid var(--linha)}
+.camada:last-child{border-bottom:0}
+.prof{font-family:var(--mostrador);font-size:.66rem;letter-spacing:.14em;
+  color:var(--fraco);text-transform:uppercase;padding-top:.5rem;
+  border-right:1px solid var(--linha)}
+.prof b{display:block;color:var(--lampiao);font-size:1.5rem;letter-spacing:0;margin-bottom:.2rem}
+
+/* ---------- antes e depois ---------- */
+.par{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--linha);
+  border:1px solid var(--linha);margin:1.5rem 0;overflow:hidden}
+.par > div{background:var(--parede);padding:1.1rem 1.2rem}
+.par .rot{font-family:var(--mostrador);font-size:.6rem;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--fraco);margin-bottom:.5rem}
+.par .val{font-family:var(--mostrador);font-size:1.5rem;line-height:1.2;
+  font-variant-numeric:tabular-nums}
+.par .antes .val{color:var(--ferrugem)}
+.par .depois .val{color:var(--mofo)}
+@media(max-width:640px){.par{grid-template-columns:1fr}}
+
+/* ---------- codigo e citacao ---------- */
+pre{background:var(--parede);border-left:2px solid var(--ferrugem);
+  padding:1rem 1.1rem;overflow-x:auto;font-family:var(--mostrador);
+  font-size:.82rem;line-height:1.6;color:var(--papel);margin:1.4rem 0}
+pre.ok{border-left-color:var(--mofo)}
+blockquote{margin:1.6rem 0;padding-left:1.3rem;border-left:2px solid var(--lampiao);
+  font-family:var(--display);font-size:1.28rem;line-height:1.4;color:#fff}
+blockquote small{display:block;font-family:var(--mostrador);font-size:.62rem;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--fraco);margin-top:.7rem}
+
+/* ---------- tabela ---------- */
+.tabw{overflow-x:auto;margin:1.5rem 0}
+table{border-collapse:collapse;width:100%;font-family:var(--mostrador);font-size:.8rem}
+th{text-align:left;font-weight:400;color:var(--fraco);letter-spacing:.12em;
+  text-transform:uppercase;font-size:.62rem;padding:.6rem .8rem;border-bottom:1px solid var(--linha)}
+td{padding:.62rem .8rem;border-bottom:1px solid rgba(232,226,212,.07);
+  font-variant-numeric:tabular-nums}
+td.n{color:var(--lampiao)}
+td.mau{color:var(--ferrugem)}
+td.bom{color:var(--mofo)}
+tr:last-child td{border-bottom:0}
+
+/* ---------- as guardas ---------- */
+.guardas{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));
+  gap:1px;background:var(--linha);border:1px solid var(--linha);margin-top:2rem}
+.g{background:var(--parede);padding:1.4rem}
+.g b{display:block;font-family:var(--mostrador);font-size:.68rem;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--lampiao);margin-bottom:.6rem}
+.g p{font-size:.94rem;margin:0;color:var(--fraco);max-width:none}
+
+/* ---------- os erros ---------- */
+.erro{border-left:2px solid var(--ferrugem);padding:.2rem 0 .2rem 1.3rem;margin:2rem 0}
+.erro h3{color:var(--ferrugem);font-size:1.18rem;margin-bottom:.5rem}
+
+/* ---------- placar ---------- */
+.placar{display:grid;grid-template-columns:repeat(auto-fit,minmax(9rem,1fr));
+  gap:2rem;margin:2.6rem 0}
+.placar div b{display:block;font-family:var(--mostrador);font-size:2.6rem;
+  color:var(--lampiao);line-height:1;font-variant-numeric:tabular-nums}
+.placar div span{font-family:var(--mostrador);font-size:.62rem;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--fraco)}
+
+footer{padding:5rem 0 7rem;border-top:1px solid var(--linha);color:var(--fraco);font-size:.95rem}
+footer p{max-width:36em}
+
+@media (prefers-reduced-motion:reduce){
+  #luz,#grao,.desce::after{animation:none}
+  .rev{opacity:1;transform:none;transition:none}
+}
+</style>
+
+<div id="luz"></div>
+<div id="grao"></div>
+<div id="vinheta"></div>
+
+<main>
+
+<header class="faixa">
+  <p class="olho">Não Abra · relatório de engenharia · v65 → v71</p>
+  <h1>A casa<br>por dentro</h1>
+  <p class="sub">Tudo o que foi medido, quebrado e consertado — e a regra que
+  guiou cada decisão: <em>medir antes de reescrever</em>.</p>
+  <div class="capa-num">
+    <div><b class="cnt" data-n="713">0</b><span>verificações</span></div>
+    <div><b class="cnt" data-n="0">0</b><span>falhas</span></div>
+    <div><b class="cnt" data-n="25">0</b><span>harnesses</span></div>
+    <div><b class="cnt" data-n="4">0</b><span>travas de build</span></div>
+  </div>
+  <p class="desce">role</p>
+</header>
+
+<section class="faixa rev">
+  <p class="olho">o método</p>
+  <h2>Toda vez que eu achei que sabia, a medição me corrigiu</h2>
+  <p>Quatro suspeitas óbvias caíram na mesma semana, e as quatro caíram do mesmo
+  jeito: eu ia consertar o sintoma e o número apontava para outro lugar.</p>
+  <div class="tabw"><table>
+    <tr><th>a queixa</th><th>a suspeita</th><th>o que a medição disse</th></tr>
+    <tr><td>“as falas são robóticas”</td><td>qualidade do texto</td>
+        <td class="n">volume — 38 respostas boas, vistas 2× cada</td></tr>
+    <tr><td>“é difícil entender o que acontece”</td><td>frase comprida</td>
+        <td class="n">mediana de 10 palavras; 239 falas sem o número</td></tr>
+    <tr><td>“as armas são todas iguais”</td><td>faltava variedade</td>
+        <td class="n">9 de 12 idênticas fora dano e peso</td></tr>
+    <tr><td>“a sanidade é sutil demais”</td><td>faltava intensidade</td>
+        <td class="mau">um estágio inteiro produzia zero</td></tr>
+  </table></div>
+  <blockquote>Se eu tivesse escrito prosa melhor, o problema continuaria lá.
+  <small>a lição que se repetiu quatro vezes</small></blockquote>
+</section>
+
+<section class="faixa rev">
+  <p class="olho">a descida</p>
+  <h2>Oito coisas que estavam quebradas</h2>
+  <p>Na ordem em que a casa fica mais funda — como as camadas que o jogo ganhou
+  nesta rodada.</p>
+
+  <div class="camada rev">
+    <div class="prof"><b>01</b>sanidade</div>
+    <div>
+      <h3>O estágio onde você mais joga produzia zero ilusões</h3>
+      <p>O menor limiar das tabelas é <code>0.10</code>. O estágio <code>tenso</code>
+      vale <code>0.08</code>. O filtro devolvia lista vazia — e a ficha dele
+      prometia por escrito: <em>“Você ouve passo onde não tem passo.”</em></p>
+      <pre>pool = ILUSOES.filter(i =&gt; 0.08 &gt;= i.min)   //  →  []</pre>
+      <div class="par">
+        <div class="antes"><div class="rot">antes · faixa tensa</div><div class="val">0</div></div>
+        <div class="depois"><div class="rot">agora</div><div class="val">8</div></div>
+      </div>
+      <p>Um erro de <strong>0,02</strong> apagando a faixa 70–89 inteira, sem dar
+      erro nenhum. Entraram 18 ilusões novas que chegam misturadas com a narração
+      comum — sem tela, sem título, sem confirmação.</p>
+    </div>
+  </div>
+
+  <div class="camada rev">
+    <div class="prof"><b>02</b>sorteio</div>
+    <div>
+      <h3>612 decisões passavam por fora do gerador do jogo</h3>
+      <p>O gerador com semente existia completo, era salvo, era restaurado, e
+      havia uma regra escrita no código mandando usá-lo. As duas funções que
+      decidem tudo:</p>
+      <pre>const sortear = a =&gt; a[Math.floor(<strong>Math.random()</strong>*a.length)];
+const chance  = p =&gt; <strong>Math.random()</strong> &lt; p;</pre>
+      <p><strong>397 <code>chance</code> + 215 <code>sortear</code></strong> — praticamente
+      todas as decisões do jogo. Todo o aparato determinístico era decorativo:
+      nenhum save reproduzia.</p>
+      <pre class="ok">const sortear = a =&gt; a[Math.floor(_ale()*a.length)];
+const chance  = p =&gt; _ale() &lt; p;</pre>
+      <p>Nenhum número de balanceamento mudou. O que mudou é que o resultado
+      parou de depender de sorte que o save não conhece.</p>
+    </div>
+  </div>
+
+  <div class="camada rev">
+    <div class="prof"><b>03</b>promessas</div>
+    <div>
+      <h3>Três pessoas tinham efeito impresso na ficha e zero código</h3>
+      <div class="tabw"><table>
+        <tr><th>pessoa</th><th>o que a ficha dizia</th><th>linhas</th></tr>
+        <tr><td>Nice</td><td>“Remenda tudo. Reforço não se perde.”</td><td class="mau">zero</td></tr>
+        <tr><td>Juninho</td><td>“Expedições rendem 25% a mais.”</td><td class="mau">zero</td></tr>
+        <tr><td>Kelly</td><td>“Expedições fazem menos ruído.”</td><td class="mau">zero</td></tr>
+      </table></div>
+      <p>As três agora fazem, com os números que a própria ficha já dizia. Nada
+      inventado.</p>
+      <p>A mesma família reapareceu duas vezes depois: <code>custa.atencao</code>
+      escrevia <em>“atenção −35%”</em> na sua tela e nenhuma regra lia; e
+      <code>p.mem</code> — o que cada morador sente falta, <em>“a igreja da
+      praça”</em>, <em>“o cachorro dele, Pipoca”</em> — <strong>lido zero
+      vezes</strong> no jogo inteiro.</p>
+    </div>
+  </div>
+
+  <div class="camada rev">
+    <div class="prof"><b>04</b>save</div>
+    <div>
+      <h3>O que sumia toda vez que você fechava o app</h3>
+      <p>Cada morador tem um desejo. Se você ignora nove vezes, ele sai de
+      madrugada e não volta. <strong>O contador dessas vezes não ia pro
+      save.</strong></p>
+      <div class="par">
+        <div class="antes"><div class="rot">antes do reload</div><div class="val">ignorado: 4</div></div>
+        <div class="depois"><div class="rot">depois</div><div class="val">ignorado: —</div></div>
+      </div>
+      <p>Quem estava a quatro passos de perder alguém voltava do zero. Junto iam
+      as tarefas do dia e o que o vigia tinha visto.</p>
+      <blockquote>O teste óbvio — salvar e carregar — passava, porque carregar
+      copia por cima do que já está na memória. Só recarregando a página de
+      verdade o problema aparece.
+      <small>por que ninguém tinha visto</small></blockquote>
+    </div>
+  </div>
+
+  <div class="camada rev">
+    <div class="prof"><b>05</b>identidade</div>
+    <div>
+      <h3>O Imitador ganhava o bônus de quem ele copiou</h3>
+      <p>Quando a coisa toma o lugar de alguém, o jogo guardava uma
+      <em>referência</em> à pessoa. Depois de qualquer save, ela apontava pro
+      vazio — e a comparação que devia pegar o impostor virava sempre
+      verdadeira.</p>
+      <pre>if(tem('mecânica') &amp;&amp; quem('mecânica') !== S.infiltrado) d *= .55;</pre>
+      <p><strong>O Imitador disfarçado de mecânico continuava cuidando do gerador
+      como o mecânico de verdade.</strong></p>
+    </div>
+  </div>
+
+  <div class="camada rev">
+    <div class="prof"><b>06</b>o passo</div>
+    <div>
+      <h3>Andar pela casa inteira era grátis</h3>
+      <p>Atravessei os dez cômodos e voltei, medindo tudo:</p>
+      <pre>hora 0 · minutos 0 · ruído 0 · sanidade 0 · diesel 0</pre>
+      <p>Zero em cinco dimensões. Nada impedia varrer a casa toda todo turno — e
+      sem custo de passo, profundidade e pressão não têm em que se apoiar.</p>
+      <div class="tabw"><table>
+        <tr><th>camada</th><th>tempo</th><th>ruído</th><th>sanidade</th></tr>
+        <tr><td>núcleo</td><td class="n">4 min</td><td>—</td><td class="bom">+ alívio</td></tr>
+        <tr><td>casa</td><td class="n">7 min</td><td>pouco</td><td>—</td></tr>
+        <tr><td>borda</td><td class="n">10 min</td><td>médio</td><td class="mau">−0,5</td></tr>
+        <tr><td>anexo</td><td class="n">13 min</td><td>alto</td><td class="mau">−1,0</td></tr>
+      </table></div>
+      <p>Um dia tem 720 minutos. Atravessar é barato — <strong>insistir</strong> é
+      que encarece. E ferido você anda pior: 13 minutos viram 20.</p>
+    </div>
+  </div>
+
+  <div class="camada rev">
+    <div class="prof"><b>07</b>o aviso</div>
+    <div>
+      <h3>As criaturas avisavam, e não dava pra provar</h3>
+      <p>Havia catorze avisos escritos à mão, todos bons, e nenhum com
+      identidade. Ninguém conseguia perguntar <em>“houve aviso antes disso?”</em></p>
+      <p>Agora são 24 sinais — seis criaturas em quatro fases, cada um com canal
+      e distância. Uma aproximação do Inchado:</p>
+      <pre class="ok">4 cômodos · nada ainda
+3 cômodos · "Cheiro doce e parado, enjoativo, mais forte do que estava."
+2 cômodos · "Respiração úmida, no mesmo compasso, sem nunca variar."
+1 cômodo  · "A parede do cômodo do lado está escorrendo."   ← último aviso
+0         · contato</pre>
+      <p>Duas regras de justiça, garantidas por teste: <strong>o último aviso
+      nunca chega com menos de 2 turnos</strong>, por pior que esteja a sua
+      cabeça; e a casa pode forjar uma aproximação, mas <strong>nunca o último
+      aviso</strong> — e todo sinal forjado carrega uma inconsistência que dá
+      pra aprender a ler.</p>
+    </div>
+  </div>
+
+  <div class="camada rev">
+    <div class="prof"><b>08</b>o corpo</div>
+    <div>
+      <h3>Havia dois sistemas de ferimento, e um contava de novo</h3>
+      <p>Em três lugares o código criava um ferimento de verdade <em>e</em>
+      somava num contador separado. A mesma pancada, duas entradas, duas curas
+      que não se falavam.</p>
+      <p>E a ficha mostrava isto:</p>
+      <pre>No total: força −28% · fugir −30% · atenção −35%</pre>
+      <p>Três problemas de uma vez: número de vida na tela; não diz <em>o que</em>
+      você perdeu; e a atenção era falsa. Agora:</p>
+      <pre class="ok">"Torção no pé na perna direita.
+ Você manca. Correr é uma decisão, não um reflexo."
+
+"Corte fundo na mão boa.
+ A mão treme no que exige precisão: tranca, curativo, fósforo."</pre>
+      <p>Varredura final: <strong>zero</strong> porcentagens de corpo no jogo
+      inteiro.</p>
+    </div>
+  </div>
+</section>
+
+<section class="faixa rev">
+  <p class="olho verde">o que a casa passou a fazer</p>
+  <h2>Ela acorda com o que você faz</h2>
+  <p>Fica uma pressão enquanto você está fora do núcleo. Ela nunca aparece como
+  número — sai em quatro degraus, e a casa fala uma vez por subida.</p>
+  <pre class="ok">calma
+"A luz oscila uma vez, curta, e volta."
+"A porta que você deixou aberta está encostada."
+"O barulho parou todo de uma vez. Isso é pior do que o barulho."</pre>
+  <p>Quatro rotas de um dia inteiro, medidas:</p>
+  <div class="tabw"><table>
+    <tr><th>como você joga</th><th>tempo andando</th><th>pressão</th><th>o que sente</th></tr>
+    <tr><td>fica em casa</td><td>49 min</td><td class="bom">0,00</td><td>nada</td></tr>
+    <tr><td>trabalha nas bordas</td><td>87 min</td><td class="bom">0,29</td><td>nada</td></tr>
+    <tr><td>desce ao porão às vezes</td><td>100 min</td><td class="n">0,42</td><td>estalos</td></tr>
+    <tr><td>vive no porão e no quintal</td><td>154 min</td><td class="mau">0,94</td><td>a casa parou de avisar</td></tr>
+  </table></div>
+  <p>Depois de um pico, o jogo <strong>força um silêncio</strong>. Silêncio é
+  conteúdo, não ausência dele. E a luz agora custa: cômodo aceso queima diesel;
+  no escuro não custa recurso nenhum — e cobra na cabeça.</p>
+</section>
+
+<section class="faixa rev">
+  <p class="olho verde">o arco que fecha</p>
+  <h2>Sobreviver te torna mais frágil e mais visado</h2>
+  <p>Ferimento grave que sara vira cicatriz permanente, com causa e noite no
+  caderno. O resíduo é pequeno e condicional — a perna falha na chuva, a mão
+  treme com pressa. E a casa <strong>passa a saber onde você já quebrou</strong>.</p>
+  <div class="par">
+    <div class="antes"><div class="rot">sem cicatriz · a casa mira na perna</div><div class="val">73 / 300</div></div>
+    <div class="depois"><div class="rot">com a perna já quebrada</div><div class="val">156 / 300</div></div>
+  </div>
+  <p>Mais que o dobro — e nunca certeza. O teto está declarado no código, porque
+  mirar na ferida é tensão; mirar sempre é execução.</p>
+  <blockquote>Uma cicatriz da noite 4 ainda importa na noite 19.
+  <small>critério de aceite, verificado por teste</small></blockquote>
+  <p>E o documento que revela a regra do sal cita a superstição que os moradores
+  <em>já sussurravam há versões</em> — <em>“Deixa eu botar sal na soleira. Não
+  custa nada.”</em> Descobrir o laudo e perceber que a Dona Lurdes estava certa o
+  tempo todo vale mais do que qualquer regra escrita do zero.</p>
+</section>
+
+<section class="faixa rev">
+  <p class="olho verde">o que a casa passou a cobrar</p>
+  <h2>Voltar do porão é o segundo jogo</h2>
+  <p>Descer pergunta uma vez, e só uma vez por dia:</p>
+  <blockquote>Você ainda consegue voltar. Depois disso, eu não sei.</blockquote>
+  <p>Depois disso a rota de volta <strong>muda</strong> — uma porta emperra, um
+  corredor alaga, cai entulho, ou alguma coisa se posiciona no caminho.
+  Atravessar custa tempo e faz barulho.</p>
+  <p><strong>E nunca prende.</strong> Uma checagem prova, a cada bloqueio, que
+  ainda existe caminho até o núcleo. O preço de voltar é o desvio, nunca a
+  prisão — travar o jogador é bug, não tensão.</p>
+
+  <h2 style="margin-top:3.4rem">Nenhum documento é só texto</h2>
+  <p>Sete documentos entraram, e cada um revela uma regra que o resto do jogo
+  <em>lê de verdade</em>.</p>
+  <div class="tabw"><table>
+    <tr><th>o que você acha</th><th>o que muda no jogo</th></tr>
+    <tr><td>um laudo do posto sobre sal na soleira</td><td class="bom">o Rastejante perde o seu rastro</td></tr>
+    <tr><td>caderno escolar, letra de criança</td><td class="bom">“NÃO APAGA A LUZ” — e a luz protege mesmo</td></tr>
+    <tr><td>mapa com setas que voltam sobre si</td><td class="bom">voltar por onde veio confunde o que rasteja</td></tr>
+    <tr><td>bilhete numa porta de saída única</td><td class="bom">é assim que se separa o Coro</td></tr>
+    <tr><td>a mesma hora escrita 40 vezes</td><td class="bom">a porta da cozinha abre às 03:00</td></tr>
+    <tr><td>planta de arquiteto, rota “segura”</td><td class="mau">é de outra casa. Você anda 35% mais barulhento</td></tr>
+  </table></div>
+  <p>O sal é o melhor deles, e não porque eu escrevi bem: <strong>os moradores já
+  falavam de sal há versões</strong>, como crendice — <em>“Deixa eu botar sal na
+  soleira. Não custa nada.”</em> Achar o laudo e perceber que a Dona Lurdes
+  estava certa o tempo todo vale mais do que qualquer regra inventada do zero.</p>
+  <p>E um documento <strong>mente</strong>. Um por campanha. Existe um segundo,
+  escrito com pressa, que o corrige: <em>“A PLANTA ESTÁ ERRADA. É de outra casa.
+  Quem seguiu não voltou.”</em> Um documento falso basta pra envenenar a
+  confiança em tudo o que você lê — que é o ponto.</p>
+
+  <h2 style="margin-top:3.4rem">Quem trata você tem poder sobre você</h2>
+  <p>Cinco gestos, cada um com preço: pressionar pano ocupa a mão; costurar
+  <strong>faz a casa ouvir</strong>; álcool derruba a infecção e o cheiro sobe;
+  talar gasta material; deitar acaba o dia — e a casa não descansa junto.</p>
+  <p>E deixar alguém da casa cuidar de você trata melhor do que você trataria —
+  e essa pessoa fica sabendo exatamente onde você está quebrado. Se ela não for
+  mais ela mesma, o aviso sai <strong>antes</strong> do resultado:</p>
+  <pre>"A mão dela está fria de um jeito que mão de gente não fica."
+"Ela aperta o curativo antes de limpar. A ordem está errada."
+"Ela não pergunta se dói. Ninguém trata ferida sem perguntar se dói."</pre>
+  <p>E ferido demais não é fim de jogo: <strong>sempre há ao menos uma ação</strong>
+  — chamar, se arrastar, apertar a ferida, esperar. Se nada resolver em oito
+  turnos, o jogo força um desfecho. Testado no pior estado possível, com os 19
+  males ao mesmo tempo e a casa vazia: <strong>zero travamentos</strong>.</p>
+</section>
+
+<section class="faixa rev">
+  <p class="olho rust">achados na última varredura</p>
+  <h2>Três bugs de tela que ninguém tinha achado</h2>
+  <p>Procurando duas coisas: comparações que nunca podem ser verdade, e listas
+  duplicadas.</p>
+  <p><strong>Três cópias da mesma lista de telas, e uma fora de sincronia.</strong>
+  Faltavam <code>conversa</code> e <code>corpo</code> numa delas. A cópia
+  divergente não era a que vencia hoje — o que torna o defeito <em>pior</em>, não
+  melhor: era uma armadilha esperando alguém reordenar um bloco.</p>
+  <p><strong>Um ramo que nunca rodava.</strong> O áudio checava
+  <code>cena.modo === 'fuga'</code>, e <code>'fuga'</code> não é escrito em lugar
+  nenhum — a fuga usa <code>'fora'</code>. A camada de horror do som nunca
+  chegava ao máximo durante uma fuga, justo quando devia.</p>
+</section>
+
+<section class="faixa rev">
+  <p class="olho">o que impede a volta</p>
+  <h2>Quatro travas que quebram a construção do jogo</h2>
+  <p>Nenhuma dessas regressões daria erro. Todas seriam um caractere, sem teste
+  vermelho, aparecendo meses depois como “esse save não reproduz”. Então o jogo
+  se recusa a ser construído.</p>
+  <div class="guardas">
+    <div class="g"><b>01 · colisão de nome</b><p>Dois pedaços do código com o
+      mesmo nome: o segundo apaga o primeiro em silêncio. <strong>Salvou quatro
+      etapas</strong> — <code>ANCORAS</code>, <code>SINAIS</code>,
+      <code>pressao</code>, <code>tratar</code>.</p></div>
+    <div class="g"><b>02 · acento em identificador</b><p>O JavaScript aceita
+      <code>S.ruído</code> e só para de funcionar. Nasceu de um erro meu que
+      corrompeu identificadores achando que mexia em texto.</p></div>
+    <div class="g"><b>03 · as primitivas</b><p><code>sortear</code> e
+      <code>chance</code> têm de passar pelo gerador da partida. Verificada
+      plantando a regressão de propósito.</p></div>
+    <div class="g"><b>04 · a tabela de sinais</b><p>Toda criatura em dois canais,
+      toda criatura com um último aviso, nenhum omitível, todo sinal forjável com
+      inconsistência declarada.</p></div>
+  </div>
+</section>
+
+<section class="faixa rev">
+  <p class="olho rust">honestidade</p>
+  <h2>Os erros que eu cometi no caminho</h2>
+  <p>Ficam registrados porque cada um virou uma trava ou uma linha no manual de
+  testes — e porque um relatório que só conta acertos não serve pra nada.</p>
+
+  <div class="erro rev">
+    <h3>Substituí acentos no arquivo inteiro sem olhar</h3>
+    <p>Corrigi texto e corrompi <em>identificadores</em>:
+    <code>S.ruido → S.ruído</code>, <code>voce → você</code>. Nada deu erro — o
+    JavaScript aceita — e o botão de voltar da tela de ajuda parou de funcionar
+    em silêncio. Virou a segunda trava de build.</p>
+  </div>
+
+  <div class="erro rev">
+    <h3>Reintroduzi o bug do save fantasma, no meu próprio bloco</h3>
+    <p>Duas vezes, em duas formas. A regra ganhou a segunda metade:
+    <strong>bloco anexa a um save, nunca cria estado, e nunca grava onde a base
+    não gravaria.</strong></p>
+  </div>
+
+  <div class="erro rev">
+    <h3>Escrevi uma trava que acusou o inocente</h3>
+    <p>Ela fatiava a tabela de sinais até o primeiro <code>];</code> — e casou com
+    o <code>0];</code> dentro de <code>(S.abrigo||[])[0]</code>. Leu 14 dos 24
+    sinais e disse que o Imitador tinha um canal só. Trava que acusa o inocente é
+    pior que trava nenhuma.</p>
+  </div>
+
+  <div class="erro rev">
+    <h3>Testei a sanidade com a sanidade cheia</h3>
+    <p>As rodadas passavam e não provavam nada: no estágio lúcido não sai ilusão
+    nenhuma, por definição. E <code>mexerSan(−22)</code> sozinho não muda nada —
+    há um escudo de 30 pontos que come a primeira queda inteira.</p>
+  </div>
+
+  <div class="erro rev">
+    <h3>Rodei duas regressões em paralelo e li dez “passou” que eram vazio</h3>
+    <p>Dez harnesses reportaram <code>ok=0 falhas=0</code>. Isso não é passar — é
+    não ter rodado nada. Chromium sem recurso. Refiz sozinha.</p>
+  </div>
+</section>
+
+<section class="faixa rev">
+  <p class="olho">o placar</p>
+  <h2>Onde isso chegou</h2>
+  <div class="placar">
+    <div><b class="cnt" data-n="713">0</b><span>verificações</span></div>
+    <div><b class="cnt" data-n="0">0</b><span>falhas</span></div>
+    <div><b class="cnt" data-n="25">0</b><span>harnesses</span></div>
+    <div><b class="cnt" data-n="250">0</b><span>noites simuladas</span></div>
+    <div><b class="cnt" data-n="9">0</b><span>etapas do plano</span></div>
+    <div><b class="cnt" data-n="0">0</b><span>softlocks</span></div>
+    <div><b class="cnt" data-n="0">0</b><span>erros de página</span></div>
+  </div>
+  <p>Os testes abrem o jogo num navegador de verdade, jogam, salvam,
+  <strong>recarregam a página</strong> e conferem. Recarregar de verdade importa:
+  foi assim que a perda de progresso apareceu.</p>
+</section>
+
+<footer class="faixa rev">
+  <p class="olho">o que não está aqui</p>
+  <p>Ser honesto sobre isto importa mais do que a lista de cima. O jogo está
+  inteiro e jogável, e nenhum teste está vermelho — mas <em>“zero bugs”</em> é
+  uma coisa que ninguém pode prometer sobre 2,8 MB de código. O que dá pra dizer
+  é o que foi medido: toda verificação verde, toda trava passando, zero erros de
+  página, zero softlocks em 250 noites simuladas, e nenhuma comparação morta
+  restante no controle de telas.</p>
+  <p style="margin-top:1.6rem;color:var(--fraco)">Não Abra · v71 · relatório
+  gerado a partir do CHANGELOG, das auditorias e das saídas de teste do
+  repositório.</p>
+</footer>
+
+</main>
+
+<script>
+(function(){
+  var reduz = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* revelacao por rolagem */
+  var alvos = document.querySelectorAll('.rev');
+  if (reduz || !('IntersectionObserver' in window)) {
+    alvos.forEach(function(e){ e.classList.add('on'); });
+  } else {
+    var io = new IntersectionObserver(function(ents){
+      ents.forEach(function(en){
+        if (en.isIntersecting) { en.target.classList.add('on'); io.unobserve(en.target); }
+      });
+    }, {rootMargin:'0px 0px -12% 0px', threshold:0.08});
+    alvos.forEach(function(e){ io.observe(e); });
+  }
+
+  /* os numeros contam ate o valor — sao a materia-prima do relatorio */
+  var nums = document.querySelectorAll('.cnt');
+  function contar(el){
+    var alvo = parseInt(el.getAttribute('data-n'), 10) || 0;
+    if (reduz || alvo === 0) { el.textContent = String(alvo); return; }
+    var t0 = null, dur = 1100;
+    function passo(t){
+      if (t0 === null) t0 = t;
+      var k = Math.min(1, (t - t0) / dur);
+      var suave = 1 - Math.pow(1 - k, 3);
+      el.textContent = String(Math.round(alvo * suave));
+      if (k < 1) requestAnimationFrame(passo);
+    }
+    requestAnimationFrame(passo);
+  }
+  if (!('IntersectionObserver' in window) || reduz) {
+    nums.forEach(contar);
+  } else {
+    var io2 = new IntersectionObserver(function(ents){
+      ents.forEach(function(en){
+        if (en.isIntersecting) { contar(en.target); io2.unobserve(en.target); }
+      });
+    }, {threshold:0.5});
+    nums.forEach(function(e){ io2.observe(e); });
+  }
+})();
+</script>

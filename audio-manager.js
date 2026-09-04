@@ -624,7 +624,12 @@ function amNivelDeHorror(){
     if(risco>.18||calor>25)n=2;
     if(risco>.30||est.ilusao>=.22)n=3;
     if(risco>.45||calor>70)n=4;
-    if((S&&S.invadindo)||(typeof cena!=="undefined"&&cena.modo==='fuga'))n=5;
+    /* era `cena.modo==='fuga'`, e 'fuga' NUNCA e escrito em cena.modo:
+       a fuga do §24 usa 'fora'. O ramo estava morto, e a camada de horror
+       do audio nunca chegava no 5 durante uma fuga — justo quando devia.
+       (Achado por varredura de comparacao morta: valor lido que nenhum
+       lugar do jogo escreve.) */
+    if((S&&S.invadindo)||(typeof cena!=="undefined"&&cena.modo==='fora'))n=5;
   }catch(e){}
   return n;
 }
