@@ -24,7 +24,7 @@ foram feitas. Cada item diz **o que estava errado**, **como eu descobri** e
 | 12 | **Cicatriz da noite 4 importa na noite 19** | Sobreviver não deixava marca |
 | 13 | **Quem trata você tem poder sobre você** | Curar era botão sem preço |
 | 14 | **Três bugs de tela que ninguém tinha achado** | Listas duplicadas e um ramo morto |
-| 15 | **O som ganhou distância, material e variação** | Som longe só ficava mais baixo, e passo era um estalo só |
+| 15 | **O passo voltou a saber em que chão você está** | 8 dos 9 cômodos soavam a madeira, inclusive o quintal de terra |
 
 ---
 
@@ -382,63 +382,102 @@ do som **nunca chegava ao nível máximo durante uma fuga**, justo quando devia.
 
 Varredura final: **zero** comparações mortas no controle de telas.
 
-## 15 · O som ganhou distância, material e variação
+## 15 · O passo do jogo voltou a saber em que chão você está
 
 Antes de mexer numa linha, auditei o áudio. E a auditoria mandou **não** mexer na
-maior parte dele: o jogo já tem um contexto de áudio só, compressor no final da
+maior parte dele: o jogo já tem um contexto de áudio só, compressor no fim da
 cadeia, reverberação com reflexões precoces, e um mixer de verdade com cinco
-camadas (voz, drone, evento, ambiente, gerador) que abaixam umas às outras por
-prioridade. Nada disso foi reescrito.
+camadas que abaixam umas às outras por prioridade. Nada disso foi reescrito.
 
-Faltavam três coisas.
+Depois eu ignorei a minha própria auditoria, entreguei errado, e o teste me
+pegou. Conto isso primeiro porque é a parte que importa.
 
-**Som longe só ficava mais baixo.** Mas não é volume que o ouvido usa pra julgar
+### Eu troquei o som bom do passo pelo meu, pior
+
+Eu media o passo do jogo contra uma função que está **morta** — existe uma
+segunda com o mesmo nome, mais adiante no arquivo, e é ela que vale. O próprio
+verificador de montagem tem isso anotado, por escrito, há versões.
+
+Testando contra o cadáver, concluí que o passo do jogo era *"um estalo só, sem
+material, sem variação"* e escrevi um novo. O passo vivo já tinha tudo:
+
+| o que eu "acrescentei" | o que já estava lá |
+|---|---|
+| uma segunda batida 45–75 ms depois | o pé arrastando, 50–90 ms depois |
+| material do piso | quatro superfícies, cada uma com corpo e ressonância |
+| ressonância de assoalho oco | *"a tábua respondendo depois"* — com esse comentário |
+| variação a cada disparo | já variava frequência, ganho e tempo |
+
+**Minha versão foi apagada. O passo do jogo é o do jogo de novo.**
+
+### O que estava mesmo quebrado: o piso não chegava nos cômodos
+
+Este é o achado que valeu a rodada. O jogo escolhia o piso procurando os cômodos
+**9 e 10** — e o abrigo tem os cômodos **0 a 8**. O quintal é o 8, não o 10. O
+porão é o 6, não o 9.
+
+| | antes | agora |
+|---|---:|---:|
+| cômodos que soavam a madeira | **8 de 9** | 3 de 9 |
+| superfícies diferentes no abrigo inteiro | **2** | 6 |
+
+Ou seja: o sistema de superfícies era bom, estava pronto, e **não alcançava quase
+nenhum cômodo**. Você pisava em terra batida no quintal e ouvia assoalho.
+
+As duas superfícies novas saíram do texto que o próprio jogo já escrevia:
+
+> *"Colchões no chão."* → o dormitório virou colchão
+> *"Fogão a gás com meio botijão."* → a cozinha virou ladrilho
+> *"Muro alto, portão soldado, terra batida."* → o quintal virou terra
+
+### E o som ganhou distância
+
+Som longe só ficava mais baixo. Mas não é volume que o ouvido usa pra julgar
 distância — é a **perda de agudo**. O ar come alta frequência, e é por isso que
 trovão perto é um estalo e trovão longe é um ronco. Como todo som do jogo passa
-pelo mesmo roteador, dava pra resolver num lugar só e valer para os 101 pontos
+pelo mesmo roteador, deu pra resolver num lugar só e valer para os **101 pontos**
 que o usam:
 
-| distância | brilho que sobra |
-|---|---:|
-| mesmo cômodo | 18000 Hz |
-| 1 cômodo | 8100 Hz |
-| 2 cômodos | 3645 Hz |
-| 3 cômodos | 1640 Hz |
-| 4 cômodos | 738 Hz |
+| distância | brilho que sobra | soa como |
+|---|---:|---|
+| mesmo cômodo | 18000 Hz | na sua frente |
+| 1 cômodo | 8100 Hz | do outro lado da parede |
+| 2 cômodos | 3645 Hz | no corredor |
+| 3 cômodos | 1640 Hz | no fim da casa |
+| 4 cômodos | 738 Hz | abafado, quase só grave |
 
-**O passo era um estalo só.** Um passo de gente são **duas batidas**: o
-calcanhar, e o peso assentando 45 a 75 ms depois. É esse intervalo que o ouvido
-lê como *uma pessoa andando* em vez de *um ruído*. E não havia material nenhum —
-pisar em tábua soava igual a pisar em terra batida, num jogo que **descreve o
-piso de cada cômodo por escrito**: *"terra batida"*, *"colchões no chão"*,
-*"prateleiras de metal"*. Os seis materiais saíram desse texto, não da minha
-imaginação. Tábua tem ressonância oca; ladrilho é agudo e seco; terra é grave e
-morta; colchão quase não soa.
+Passo distante e porta em outro cômodo passaram a usar isso. Nenhuma camada de
+som se perde — o que se perde é brilho.
 
-**E nada variava.** Dois passos seguidos usavam exatamente os mesmos números.
-Repetição idêntica destrói a ilusão mais rápido que ausência de som — agora cada
-disparo tem variação própria de ganho e de frequência.
+### E dá pra ouvir tudo isso
 
-### O erro que vale contar
+Nada acima é pra você acreditar na minha palavra. `docs/laboratorio-de-som.html`
+é uma página que **toca os sons do jogo** — o passo morto contra o passo vivo, os
+nove cômodos um por um nos dois mapas de piso, a mesma porta a cinco distâncias,
+e as cinco camadas dela separadas.
 
-Escrevi um som de porta novo, em quatro camadas, orgulhoso dele. Fui integrar e
-descobri que **o jogo já tinha um** — com **cinco** camadas: ferrolho em duas
-voltas, rangido, arrasto, lufada de vento e batente. Eu tinha auditado a
-arquitetura e não tinha procurado o catálogo. Entregar a minha por cima seria
-duplicar pior.
+O motor de áudio dessa página é copiado do `index.html` sem alteração de uma
+linha. Não é uma imitação dos sons do jogo: é o jogo tocando fora do jogo. Tem
+osciloscópio ao vivo, e um botão que percorre tudo sozinho, como um vídeo.
 
-Apaguei a minha. No lugar entrou o que faltava **na que já existia**: a
-distância. Verificado com a porta de verdade — dez fontes de som perto e dez a
-três cômodos: **nenhuma camada se perde, o que se perde é brilho.**
+### O custo — contado, porque cronometrado não dá
 
-### O custo, medido
+Eu tinha publicado que o passo ficou **mais barato**: 0,921 → 0,357 ms. Era falso
+duas vezes. Media o *antes* com o áudio já cheio de sons vivos, e o *antes* que eu
+media era o passo morto. Medindo a **mesma** chamada seis vezes seguidas eu
+obtive `1,70 · 2,35 · 4,83 · 4,68 · 6,24 · 6,24 ms` — código idêntico.
 
-O passo ficou **mais barato fazendo o dobro do trabalho**: 0,921 ms → 0,357 ms.
-A porta custa 4,7 ms e **sempre custou** — são dez fontes; não é regressão desta
-rodada, e não vou fingir que virou barata.
+Então todo cronômetro saiu do teste. O que ficou é contagem:
+
+| | perto | com distância |
+|---|---:|---:|
+| pedaços de som por passo | 18 | 22 |
+| pedaços de som por porta | 48 | 58 |
+
+A distância custa exatamente um filtro por camada, nos dois. Nada além disso.
 
 E o áudio cosmético continua sem tocar no gerador da partida, como está escrito
-na política do núcleo desde a v57. Barulho de porta não pode mudar o que a casa
+na política do núcleo desde a v57: barulho de porta não pode mudar o que a casa
 decide.
 
 ## O que também foi consertado, sem virar seção
@@ -459,7 +498,7 @@ decide.
 
 ## Como isso foi verificado
 
-**740 verificações automáticas, 26 arquivos de teste, zero falhas.**
+**774 verificações automáticas, 27 arquivos de teste, zero falhas.**
 
 Mais uma simulação de **250 noites** rodando o laço completo — exploração,
 corpo, pressão, achados e incapacitação — com **zero travamentos** e **zero

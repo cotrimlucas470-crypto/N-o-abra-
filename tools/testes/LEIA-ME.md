@@ -21,8 +21,9 @@ depois de `node montar.js`:
     node tools/testes/corpoteste.mjs    # um corpo só §41 (29)
     node tools/testes/pressaoteste.mjs  # pressão, luz e exposição §42 (31)
     node tools/testes/finalteste.mjs   # retorno, achados, cicatriz, tratamento §43-46 (39)
-    node tools/testes/somteste.mjs     # o som mais perto da realidade §47 (27)
+    node tools/testes/somteste.mjs     # o som mais perto da realidade §47 (35)
     node tools/testes/simulacao.mjs    # 250 noites simuladas, sem asserção de gosto (20)
+    node tools/testes/labteste.mjs     # o site animado docs/laboratorio-de-som.html (26)
     node tools/testes/aberturateste.mjs # a abertura narrada e a guarda do save (14)
 
 Fumaça no PACOTE, não na cópia de trabalho — descompacte o zip e aponte:
@@ -109,6 +110,26 @@ A trava de colisão também roda dentro de `montar.js` e **quebra o build**.
   adicionar. O som da porta tem filtros mais agudos que o de ar, então o máximo
   mal se movia (2763 → 2652 Hz) e a asserção passava pelo motivo errado. Conte
   o filtro pela assinatura dele (lowpass com Q 0,4) e leia o valor desse.
+- **Cronômetro de Web Audio mede acúmulo de nós, não código.** Cada som agendado
+  deixa nós vivos no `AudioContext`, e a mesma chamada repetida fica mais cara a
+  cada rodada: eu medi `1,70 · 2,35 · 4,83 · 4,68 · 6,24 · 6,24 ms` para código
+  **idêntico**. Toda asserção de tempo aqui é frágil por construção. Prefira
+  contagem de nós, que é determinística; se precisar de tempo, aqueça os dois
+  caminhos, meça no **mesmo** contexto, intercalado, e tire a mediana.
+- Consequência: eu publiquei que o passo tinha ficado **mais barato** (0,921 →
+  0,357 ms) porque medi o `antes` num contexto sujo e o `depois` num limpo.
+  Número de desempenho sem método é chute com casa decimal. Todo cronômetro saiu
+  deste harness; o que ficou é contagem de nós.
+- **`COLISAO_OK` é a lista das funções que existem DUAS vezes de propósito. Leia
+  antes de medir qualquer uma delas.** Eu medi o passo contra `passo()` do
+  `index.html`, que está morto — `audio-manager.js` declara outro depois, e o
+  `montar.js` registra a troca com o motivo escrito ao lado. Testei contra o
+  cadáver, concluí que o passo do jogo era pobre, e troquei o bom pelo meu, pior.
+  Só o teste dentro do pacote me pegou. Antes de afirmar o que uma função faz:
+  `grep -n 'function nome' index.html` — se aparecer duas vezes, **a segunda é a
+  que vale**, e `montar.js` diz por quê.
 - Asserção de custo com número mágico (`< 4 ms`) mede o jogo inteiro, não a sua
-  mudança. `somPortaAbrindo` custa 4,7 ms e **sempre custou**. Meça a diferença
-  que você causou: `portaLonge < porta * 1.4`.
+  mudança — mas trocá-la por uma **razão** de tempo (`longe < perto * 1.4`) não
+  resolve: essa também passou uma vez e falhou na seguinte, sem regressão nenhuma
+  no meio. O que sobrou de asserção é contagem: um filtro de ar por camada,
+  nenhuma fonte a mais.

@@ -161,9 +161,9 @@ footer p{max-width:36em}
   <p class="sub">Tudo o que foi medido, quebrado e consertado — e a regra que
   guiou cada decisão: <em>medir antes de reescrever</em>.</p>
   <div class="capa-num">
-    <div><b class="cnt" data-n="740">0</b><span>verificações</span></div>
+    <div><b class="cnt" data-n="774">0</b><span>verificações</span></div>
     <div><b class="cnt" data-n="0">0</b><span>falhas</span></div>
-    <div><b class="cnt" data-n="26">0</b><span>harnesses</span></div>
+    <div><b class="cnt" data-n="27">0</b><span>harnesses</span></div>
     <div><b class="cnt" data-n="4">0</b><span>travas de build</span></div>
   </div>
   <p class="desce">role</p>
@@ -458,19 +458,36 @@ const chance  = p =&gt; _ale() &lt; p;</pre>
 </section>
 
 <section class="faixa rev">
-  <p class="olho verde">o que o ouvido usa pra medir distância</p>
-  <h2>O som ganhou distância, material e variação</h2>
-  <p>Antes de mexer numa linha, auditei o áudio inteiro. E a auditoria mandou
-  <strong>não</strong> mexer na maior parte dele — o jogo já tinha um contexto de
-  áudio só, compressor no fim da cadeia, reverberação com reflexões precoces, e
-  um mixer de verdade com cinco camadas que abaixam umas às outras por
-  prioridade. Nada disso foi reescrito.</p>
+  <p class="olho verde">o achado que valeu a rodada</p>
+  <h2>O passo voltou a saber em que chão você está</h2>
+  <p>O jogo escolhia o piso do passo procurando os cômodos <strong>9 e 10</strong>.
+  O abrigo tem os cômodos <strong>0 a 8</strong>. O quintal é o 8, não o 10; o
+  porão é o 6, não o 9.</p>
 
-  <p><strong>Som longe só ficava mais baixo.</strong> Mas não é volume que o
-  ouvido usa pra julgar distância — é a <em>perda de agudo</em>. O ar come alta
-  frequência, e é por isso que trovão perto é um estalo e trovão longe é um
-  ronco. Como todo som do jogo passa pelo mesmo roteador, deu pra resolver num
-  lugar só e valer para os <strong>101 pontos</strong> que o usam:</p>
+  <div class="par">
+    <div class="antes"><div class="rot">antes · cômodos que soavam a madeira</div><div class="val">8 de 9</div></div>
+    <div class="depois"><div class="rot">agora</div><div class="val">3 de 9</div></div>
+  </div>
+
+  <p>O sistema de superfícies estava lá, pronto, com corpo e ressonância por
+  material — e <strong>não alcançava quase nenhum cômodo</strong>. Você pisava em
+  terra batida no quintal e ouvia assoalho. Duas superfícies novas entraram, e as
+  duas saíram do texto que o próprio jogo já escrevia:</p>
+
+  <div class="tabw"><table>
+    <tr><th>o que o jogo escreve</th><th>o que o passo virou</th></tr>
+    <tr><td>“Colchões no chão.”</td><td class="bom">o dormitório virou colchão</td></tr>
+    <tr><td>“Fogão a gás com meio botijão.”</td><td class="bom">a cozinha virou ladrilho</td></tr>
+    <tr><td>“Muro alto, portão soldado, terra batida.”</td><td class="bom">o quintal virou terra</td></tr>
+    <tr><td>“Prateleiras de metal.”</td><td class="bom">a despensa virou concreto</td></tr>
+  </table></div>
+
+  <h2 style="margin-top:3.4rem">E o som ganhou distância</h2>
+  <p>Som longe só ficava mais baixo. Mas não é volume que o ouvido usa pra julgar
+  distância — é a <em>perda de agudo</em>. O ar come alta frequência, e é por isso
+  que trovão perto é um estalo e trovão longe é um ronco. Como todo som do jogo
+  passa pelo mesmo roteador, deu pra resolver num lugar só e valer para os
+  <strong>101 pontos</strong> que o usam:</p>
 
   <div class="tabw"><table>
     <tr><th>distância</th><th>brilho que sobra</th><th>o que soa como</th></tr>
@@ -481,40 +498,16 @@ const chance  = p =&gt; _ale() &lt; p;</pre>
     <tr><td>4 cômodos</td><td class="n">738 Hz</td><td>abafado, quase só grave</td></tr>
   </table></div>
 
-  <p><strong>O passo era um estalo só.</strong> Um passo de gente são
-  <em>duas batidas</em>: o calcanhar, e o peso assentando 45 a 75 ms depois. É
-  esse intervalo que o ouvido lê como <em>uma pessoa andando</em> em vez de
-  <em>um ruído</em>.</p>
-
-  <p>E não havia material nenhum — pisar em tábua soava igual a pisar em terra
-  batida, num jogo que <strong>descreve o piso de cada cômodo por escrito</strong>.
-  Os seis materiais saíram desse texto, não da minha imaginação:</p>
-
-  <pre class="ok">"Muro alto, portão soldado, terra batida."
-"Colchões no chão."
-"Prateleiras de metal."</pre>
-
-  <div class="tabw"><table>
-    <tr><th>piso</th><th>corte medido</th><th>como soa</th></tr>
-    <tr><td>ladrilho</td><td class="n">1226 Hz</td><td>agudo e seco</td></tr>
-    <tr><td>tábua</td><td class="n">347 Hz</td><td>ressonância oca por baixo</td></tr>
-    <tr><td>terra batida</td><td class="n">177 Hz</td><td>grave e morto</td></tr>
-    <tr><td>colchão</td><td class="n">172 Hz</td><td>quase não soa</td></tr>
-  </table></div>
-
-  <p><strong>E nada variava.</strong> Dois passos seguidos usavam exatamente os
-  mesmos números. Repetição idêntica destrói a ilusão mais rápido que ausência de
-  som — agora cada disparo tem variação própria de ganho e de frequência.</p>
-
-  <div class="par">
-    <div class="antes"><div class="rot">antes · uma batida, sempre igual</div><div class="val">0,921 ms</div></div>
-    <div class="depois"><div class="rot">agora · duas batidas, seis materiais</div><div class="val">0,357 ms</div></div>
-  </div>
-  <p>Ficou <strong>mais barato fazendo o dobro do trabalho</strong> — a segunda
-  batida compartilha caminho e a ressonância só entra às vezes. E o áudio
-  cosmético continua sem tocar no gerador da partida, como está escrito na
-  política do núcleo desde a v57: barulho de porta não pode mudar o que a casa
-  decide.</p>
+  <p>Passo distante e porta em outro cômodo passaram a usar isso. Custa
+  exatamente <strong>um filtro por camada</strong> — 18 → 22 pedaços de som no
+  passo, 48 → 58 na porta. <strong>Nenhuma camada se perde. O que se perde é
+  brilho.</strong></p>
+  <p>E o áudio cosmético continua sem tocar no gerador da partida, como está
+  escrito na política do núcleo desde a v57: barulho de porta não pode mudar o
+  que a casa decide.</p>
+  <blockquote>Nada disto é pra acreditar na minha palavra:
+  <code>docs/laboratorio-de-som.html</code> toca os sons do jogo, som por som.
+  <small>o passo morto contra o vivo · os nove cômodos · a porta a cinco distâncias</small></blockquote>
 </section>
 
 <section class="faixa rev">
@@ -577,6 +570,23 @@ const chance  = p =&gt; _ale() &lt; p;</pre>
   </div>
 
   <div class="erro rev">
+    <h3>Troquei o som bom do passo pelo meu, pior — e publiquei que tinha melhorado</h3>
+    <p>Eu media o passo do jogo contra uma função que está <strong>morta</strong>:
+    existe uma segunda com o mesmo nome, mais adiante, e é ela que vale. O meu
+    próprio verificador de montagem tem isso anotado há versões. Testando contra
+    o cadáver, concluí que o passo era “um estalo só, sem material, sem variação”
+    e escrevi um novo.</p>
+    <p>O passo vivo já tinha o pé arrastando 50–90 ms depois (a “segunda batida”
+    que eu achei que estava inventando), quatro superfícies com corpo e
+    ressonância, e variação a cada disparo. <strong>Apaguei a minha versão.</strong>
+    E o número que eu tinha publicado — “0,921 → 0,357 ms, mais barato fazendo o
+    dobro do trabalho” — era falso duas vezes: contexto sujo contra contexto
+    limpo, e o cadáver como linha de base.</p>
+    <p>Quem me pegou foi uma asserção do próprio teste, falhando dentro do pacote
+    já montado.</p>
+  </div>
+
+  <div class="erro rev">
     <h3>Quase entreguei uma porta pior do que a que já existia</h3>
     <p>Escrevi um som de porta novo, em quatro camadas, orgulhoso dele. Fui
     integrar e descobri que o jogo <strong>já tinha um</strong> — com
@@ -597,9 +607,9 @@ const chance  = p =&gt; _ale() &lt; p;</pre>
   <p class="olho">o placar</p>
   <h2>Onde isso chegou</h2>
   <div class="placar">
-    <div><b class="cnt" data-n="740">0</b><span>verificações</span></div>
+    <div><b class="cnt" data-n="774">0</b><span>verificações</span></div>
     <div><b class="cnt" data-n="0">0</b><span>falhas</span></div>
-    <div><b class="cnt" data-n="26">0</b><span>harnesses</span></div>
+    <div><b class="cnt" data-n="27">0</b><span>harnesses</span></div>
     <div><b class="cnt" data-n="250">0</b><span>noites simuladas</span></div>
     <div><b class="cnt" data-n="9">0</b><span>etapas do plano</span></div>
     <div><b class="cnt" data-n="0">0</b><span>softlocks</span></div>

@@ -4,7 +4,8 @@
 ## v72 — o som mais perto da realidade
 
 Primeira aplicação da skill de direção audiovisual no próprio jogo. Fase 0
-primeiro: auditar antes de tocar em qualquer coisa.
+primeiro: auditar antes de tocar em qualquer coisa. A auditoria funcionou — e
+depois eu a ignorei uma vez, entreguei errado, e o teste me pegou.
 
 ### O que a auditoria achou — e o que ela mandou não fazer
 
@@ -18,16 +19,42 @@ mixer real de 5 camadas (voz, drone, evento, ambiente, gerador)
 saida(no, {pan, rev, vol}) roteia TODOS os sons — 101 sítios
 ```
 
-Três coisas faltavam, e as três foram medidas antes.
+### O erro que este bloco cometeu duas vezes
 
-### 1 · `saida()` não tinha modelo de distância
+**Primeira vez, e eu peguei antes de entregar.** Escrevi um `somDePorta` próprio
+em quatro camadas sem procurar se a porta já tinha som. Ela tem:
+`somPortaAbrindo` monta **cinco** — ferrolho em duas voltas, rangido, arrasto,
+lufada e batente. Removi a minha.
 
-Som longe só ficava mais baixo. Mas o que o ouvido usa para julgar distância é a
-**perda de agudo** — o ar absorve alta frequência, e é por isso que trovão longe
-é um ronco e trovão perto é um estalo.
+**Segunda vez, e eu entreguei.** Fiz exatamente o mesmo com o passo. Eu media
+contra `passo()` da linha 474 do `index.html` e concluí que o passo do jogo era
+*"um estalo só, sem material, sem variação"*. Aquele passo está **morto**: o
+`audio-manager.js` declara outro depois dele, e o meu próprio `montar.js`
+registra a troca por escrito:
 
-Como `saida()` é o roteador universal, resolver ali melhora os 101 sítios de uma
-vez:
+```js
+const COLISAO_OK=new Set([
+  'passo',   // v48 troca o passo sintetizado pelo sistema de superfícies
+```
+
+O passo vivo é `passoEm()`, e ele já tinha tudo o que eu disse que faltava:
+
+| o que eu "acrescentei" | o que já existia lá |
+|---|---|
+| segunda batida 45–75 ms depois | o pé arrastando, 50–90 ms depois |
+| material do piso | quatro superfícies com corte, Q, corpo e ressonância |
+| ressonância de assoalho oco | *"a tábua respondendo depois"*, com esse comentário |
+| variação por disparo | `Math.random` em frequência, ganho e tempo |
+
+Eu troquei o bom pelo meu, mais pobre, e publiquei que tinha melhorado.
+**Minha versão foi removida. O passo do jogo é o `passoEm` de novo.**
+
+### O que sobrou — e que é de verdade o que faltava
+
+**1 · `saida()` não tinha modelo de distância.** Som longe só ficava mais baixo.
+Mas o que o ouvido usa pra julgar distância é a **perda de agudo** — o ar absorve
+alta frequência, e é por isso que trovão longe é um ronco e trovão perto é um
+estalo. Como `saida()` é o roteador universal, resolver ali serve os 101 sítios:
 
 ```
 0 cômodos → 18000 Hz   (transparente)
@@ -37,65 +64,73 @@ vez:
 4 cômodos →   738 Hz
 ```
 
-Com mais reverberação e menos som direto junto. **É opt-in**: sem `dist`, o
-caminho é byte a byte o de antes — medido, zero filtros a mais. Os 101 sítios
-existentes continuam soando igual até alguém passar distância.
+É **opt-in**: sem `dist`, o caminho é byte a byte o de antes — medido, zero nós a
+mais.
 
-### 2 · O passo era um estalo só
+**2 · O sistema de superfícies não chegava nos cômodos.** Este é o achado que
+valeu a rodada. `pisoDaCena()` decidia o piso assim:
 
-Um passo real são **duas batidas**: o calcanhar, e o peso assentando 45–75 ms
-depois. É esse intervalo que o ouvido lê como *uma pessoa* em vez de *um
-estalo*.
-
-E não tinha material nenhum — pisar em tábua soava igual a pisar em terra
-batida, num jogo que **descreve o piso de cada cômodo por escrito**:
-
-> *"Muro alto, portão soldado, terra batida."* · *"Colchões no chão."*
-> *"Prateleiras de metal."* · *"Fogão a gás."*
-
-Os seis materiais saíram desse texto. Tábua tem ressonância oca; ladrilho é
-agudo e seco; terra é grave e morta; colchão quase não soa. Medido:
-
-```
-corte mais alto por piso
-  ladrilho 1226 Hz  ·  tábua 347 Hz  ·  terra 177 Hz  ·  colchão 172 Hz
+```js
+if(c===10)return 'terra';         // quintal
+if(c===0||c===9)return 'escada';  // sótão e porão
+return 'madeira';
 ```
 
-E cada disparo varia — dois passos seguidos não são mais idênticos.
-
-### 3 · Eu quase entreguei uma porta pior do que a que já existia
-
-Vale registrar porque é exatamente o erro que a auditoria existe para impedir.
-
-Escrevi um `somDePorta` próprio, em quatro camadas: contato, mecanismo, corpo,
-batente. Bonito. Depois fui integrar e descobri que **`somPortaAbrindo` já
-existe** — com **cinco** camadas: ferrolho em duas voltas, rangido, arrasto,
-lufada de vento e batente.
-
-Eu tinha auditado o barramento e não tinha procurado se a porta já tinha som.
-Entregar a minha por cima seria duplicar pior.
-
-Removi a minha. No lugar entrou o que faltava **nela**: `comDistancia(d, fn)`,
-uma janela em que tudo o que for agendado sai com absorção de ar. Como `saida()`
-é universal, isso dá distância a qualquer som do jogo sem reescrever nenhum
-deles. Medido na porta real: 10 fontes perto e 10 fontes a três cômodos —
-**nenhuma camada se perde, o que se perde é brilho.**
-
-### Custo — medido, não estimado
+O abrigo tem os cômodos **0 a 8**. O quintal é 8, não 10. O porão é 6, não 9.
+Resultado medido:
 
 | | antes | agora |
 |---|---:|---:|
-| `passo()` | 0,921 ms | **0,357 ms** |
-| `saida()` sem distância | 0,142 ms | 0,199 ms |
-| `saida()` com distância | — | 0,336 ms |
-| `somPortaAbrindo()` | 4,7 ms | 4,7 ms |
+| cômodos que soavam a madeira | **8 de 9** | 3 de 9 |
+| superfícies distintas no abrigo | **2** | 6 |
 
-O passo ficou **mais barato fazendo o dobro de trabalho** — a segunda batida
-compartilha caminho e a ressonância só entra às vezes.
+O motor era bom e estava apontando para índices que não existem. Duas
+superfícies novas entraram, e as duas saíram do texto que o próprio jogo escreve
+em `AMBIENTE`:
 
-A porta custa 4,7 ms e **já custava**: são 10 fontes, cinco camadas, e isso não é
-regressão minha. Num jogo por turno, uma porta que abre uma vez a 4,7 ms não é
-problema — mas não vou fingir que virou barata.
+> cômodo 1 — *"Colchões no chão."* → **colchão**
+> cômodo 5 — *"Fogão a gás com meio botijão."* → **ladrilho**
+> cômodo 8 — *"Muro alto, portão soldado, terra batida."* → **terra**
+
+**3 · Nem passo nem porta tinham distância.** `passoDistante()` existe no jogo, e
+um passo distante só ficava mais baixo. Agora `passo(proximidade, pan)` deriva
+distância da proximidade e o passo atravessa ar. Isto **muda** o som dos sítios
+que já chamavam com proximidade baixa, e muda de propósito. A porta ganhou o
+mesmo por `comDistancia(d, fn)`, sem que uma linha do corpo dela mudasse.
+
+### Custo — contado, não cronometrado
+
+Publiquei antes que o passo tinha ficado mais barato (0,921 → 0,357 ms). Era
+falso **duas vezes**: eu media o *antes* num `AudioContext` já cheio de nós
+vivos, e o *antes* que eu media era o passo morto. Repetindo a **mesma** chamada
+seis vezes seguidas:
+
+```
+1,70 · 2,35 · 4,83 · 4,68 · 6,24 · 6,24 ms
+```
+
+para código idêntico. O cronômetro media acúmulo de nós. **Toda asserção de tempo
+saiu do teste.** O que ficou é contagem, que é determinística:
+
+| | perto | com distância | custo |
+|---|---:|---:|---|
+| passo | 18 nós | 22 nós | +4 — um filtro por camada |
+| porta | 48 nós | 58 nós | +10 — um filtro por camada |
+
+Nenhuma camada se perde em nenhum dos dois. O que se perde é brilho.
+
+### `docs/laboratorio-de-som.html` — dá pra ouvir cada item deste changelog
+
+Uma página que **toca os sons do jogo**, som por som: o passo morto contra o
+passo vivo, os nove cômodos um a um nos dois mapas de piso, a mesma porta a cinco
+distâncias, e as cinco camadas dela separadas. Com osciloscópio ao vivo e um
+botão que percorre tudo sozinho.
+
+O motor de áudio dela é copiado do `index.html` **sem alteração de uma linha** —
+a cadeia, o roteador `saida`, `passoEm` com as superfícies e as cinco camadas da
+porta. Uma página que demonstrasse sons *parecidos* com os do jogo não provaria
+nada. `tools/testes/labteste.mjs` (26 asserções) conta as camadas de cada som e
+confere os cortes do filtro de ar, pra que ela não envelheça em silêncio.
 
 ### Política respeitada
 
@@ -104,13 +139,16 @@ escrito. Nada aqui gasta o RNG da partida.
 
 ### Verificação
 
-`tools/testes/somteste.mjs` — 27 asserções, todas verdes. A regressão
-completa segue em **740 verificações, 26 harnesses, zero falhas**.
+`tools/testes/somteste.mjs` — 35 asserções, mais 26 em `labteste.mjs`. A
+regressão completa fecha em **774 verificações, 27 harnesses, zero falhas**.
 
-Uma delas passava pelo motivo errado na primeira versão: eu comparava o corte
-**máximo entre todos os filtros**, e como os filtros próprios da porta são mais
-agudos que o de ar, o máximo mal se movia — 2763 → 2652 Hz. Agora o teste conta
-os lowpass de Q 0,4, que é a assinatura do filtro de ar, e mede o valor dele.
+O `somteste.mjs` carrega no topo, em comentário, a história de ter testado a
+coisa errada — porque foi ela que custou a entrega.
+
+Três asserções foram trocadas por medida determinística depois de passarem pelo
+motivo errado: o corte máximo entre **todos** os filtros (que escondia o filtro
+que eu tinha acabado de adicionar), e duas razões de tempo que passaram numa
+rodada e falharam na seguinte sem regressão nenhuma no meio.
 
 
 ## v71 — as etapas 5 a 8, e três bugs de tela

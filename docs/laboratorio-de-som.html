@@ -1,0 +1,978 @@
+<title>Laboratório de Som</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,400&family=Share+Tech+Mono&display=swap">
+
+<style>
+/* A paleta e as faces sao as DO JOGO, tiradas do :root do index.html. */
+:root{
+  --breu:#0B0A0D; --parede:#16131A; --parede2:#1E1A24;
+  --lampiao:#C9A227; --mofo:#7A8B7F; --ferrugem:#8C2F1E; --papel:#E8E2D4;
+  --fraco:#8A8290; --linha:rgba(232,226,212,.14);
+  --display:'Bodoni Moda',Georgia,serif;
+  --corpo:'Crimson Pro',Georgia,serif;
+  --mostrador:'Share Tech Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--breu);color:var(--papel);
+  font-family:var(--corpo);font-size:19px;line-height:1.62;
+  -webkit-font-smoothing:antialiased;overflow-x:hidden}
+
+/* ---------- atmosfera ---------- */
+#luz{position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse 90% 60% at 50% 20%,rgba(201,162,39,.10) 0%,transparent 62%);
+  animation:respira 7s ease-in-out infinite}
+@keyframes respira{0%,100%{opacity:.5}50%{opacity:1}}
+#grao{position:fixed;inset:-50%;pointer-events:none;z-index:1;opacity:.045;
+  background-image:repeating-conic-gradient(#fff 0% 25%,#000 0% 50%);
+  background-size:3px 3px;animation:chuvisco .9s steps(4) infinite}
+@keyframes chuvisco{0%{transform:translate(0,0)}25%{transform:translate(-2px,1px)}
+  50%{transform:translate(1px,-2px)}75%{transform:translate(2px,2px)}}
+#vinheta{position:fixed;inset:0;pointer-events:none;z-index:2;
+  background:radial-gradient(ellipse 78% 68% at 50% 50%,transparent 40%,rgba(0,0,0,.72) 100%)}
+@media (prefers-reduced-motion:reduce){
+  #luz,#grao{animation:none}
+}
+
+/* ---------- a barra de reprodução, como a de um vídeo ---------- */
+#barra{position:fixed;top:0;left:0;right:0;z-index:40;
+  background:linear-gradient(#0B0A0Dee,#0B0A0Dcc 70%,transparent);
+  padding:.55rem 1rem .9rem;backdrop-filter:blur(6px)}
+#trilho{height:3px;background:rgba(232,226,212,.13);border-radius:2px;overflow:hidden}
+#preenche{height:100%;width:0;background:var(--lampiao);transition:width .25s linear}
+#ctl{display:flex;align-items:center;gap:.75rem;margin-top:.5rem;
+  font-family:var(--mostrador);font-size:.62rem;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--fraco);flex-wrap:wrap}
+#ctl button{font:inherit;letter-spacing:.14em;text-transform:uppercase;
+  background:transparent;color:var(--papel);border:1px solid var(--linha);
+  padding:.34rem .7rem;cursor:pointer;transition:.18s}
+#ctl button:hover{border-color:var(--lampiao);color:var(--lampiao)}
+#ctl button[aria-pressed="true"]{border-color:var(--lampiao);color:var(--lampiao)}
+#capitulo{color:var(--lampiao)}
+#ctl .sep{flex:1}
+#som-off{color:var(--ferrugem)}
+
+/* ---------- estrutura ---------- */
+main{position:relative;z-index:3}
+.faixa{max-width:52rem;margin:0 auto;padding:0 1.6rem}
+section{padding:5.5rem 0;border-bottom:1px solid var(--linha);scroll-margin-top:5.2rem}
+body{padding-top:1.4rem}
+section:last-child{border-bottom:0}
+:focus-visible{outline:2px solid var(--lampiao);outline-offset:3px}
+h1{font-family:var(--display);font-weight:400;line-height:.94;margin:0;
+  font-size:clamp(3rem,10vw,6.6rem);letter-spacing:-.02em;text-wrap:balance}
+h2{font-family:var(--display);font-weight:400;line-height:1.06;
+  font-size:clamp(1.7rem,4.4vw,2.9rem);margin:0 0 1.3rem;letter-spacing:-.01em;
+  text-wrap:balance}
+h3{font-family:var(--display);font-weight:400;font-size:1.24rem;margin:0 0 .5rem}
+p{max-width:34em;margin:0 0 1.15rem}
+.olho{font-family:var(--mostrador);font-size:.68rem;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--fraco);margin-bottom:1.1rem}
+.olho.verde{color:var(--mofo)} .olho.rust{color:var(--ferrugem)}
+.sub{font-size:clamp(1rem,2.1vw,1.26rem);color:var(--fraco);max-width:30em;margin-top:1.5rem}
+em{color:var(--papel)}
+code{font-family:var(--mostrador);font-size:.86em;color:var(--lampiao)}
+pre{background:var(--parede);border-left:2px solid var(--ferrugem);
+  padding:.95rem 1.05rem;overflow-x:auto;font-family:var(--mostrador);
+  font-size:.78rem;line-height:1.62;color:var(--papel);margin:1.3rem 0}
+pre.ok{border-left-color:var(--mofo)}
+blockquote{margin:1.5rem 0;padding-left:1.2rem;border-left:2px solid var(--lampiao);
+  font-family:var(--display);font-size:1.22rem;line-height:1.4;color:#fff}
+
+/* ---------- revelação ao rolar ----------
+   O estado de REPOUSO é visível. Só o que nasce abaixo da dobra recebe
+   `.espera` no carregamento — assim o primeiro quadro da página (que é o
+   que uma miniatura e um link compartilhado mostram) está inteiro. */
+.rev{opacity:1;transform:none;
+  transition:opacity .85s cubic-bezier(.2,.7,.3,1),transform .85s cubic-bezier(.2,.7,.3,1)}
+.rev.espera{opacity:0;transform:translateY(20px)}
+@media (prefers-reduced-motion:reduce){
+  .rev,.rev.espera{opacity:1;transform:none;transition:none}}
+
+/* ---------- o osciloscópio ---------- */
+.escopo{position:relative;background:var(--parede);border:1px solid var(--linha);
+  margin:1.6rem 0;overflow:hidden}
+.escopo canvas{display:block;width:100%;height:150px}
+.escopo .rot{position:absolute;top:.5rem;left:.7rem;font-family:var(--mostrador);
+  font-size:.58rem;letter-spacing:.16em;text-transform:uppercase;color:var(--fraco)}
+.escopo .hz{position:absolute;bottom:.5rem;right:.7rem;font-family:var(--mostrador);
+  font-size:.62rem;color:var(--lampiao)}
+
+/* ---------- botões de tocar ---------- */
+.tocadores{display:flex;flex-wrap:wrap;gap:.6rem;margin:1.4rem 0}
+.toca{font-family:var(--mostrador);font-size:.68rem;letter-spacing:.1em;
+  text-transform:uppercase;background:var(--parede);color:var(--papel);
+  border:1px solid var(--linha);padding:.62rem .9rem;cursor:pointer;
+  display:flex;align-items:center;gap:.5rem;transition:.16s;text-align:left}
+.toca:hover{border-color:var(--lampiao);color:var(--lampiao)}
+.toca.soando{border-color:var(--lampiao);color:var(--lampiao);
+  box-shadow:0 0 0 1px var(--lampiao) inset}
+.toca b{display:block;font-size:.78rem;letter-spacing:.06em}
+.toca span{display:block;font-size:.6rem;color:var(--fraco);text-transform:none;
+  letter-spacing:.02em;margin-top:.14rem}
+.toca.soando span{color:var(--lampiao)}
+.toca::before{content:'▶';font-size:.68rem;opacity:.6}
+.toca.soando::before{content:'●';opacity:1}
+.toca.mau{border-left:2px solid var(--ferrugem)}
+.toca.bom{border-left:2px solid var(--mofo)}
+
+/* ---------- comparação A/B ---------- */
+.ab{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--linha);
+  border:1px solid var(--linha);margin:1.6rem 0}
+.ab > div{background:var(--parede);padding:1.15rem 1.2rem}
+.ab .rot{font-family:var(--mostrador);font-size:.58rem;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--fraco);margin-bottom:.5rem}
+.ab .val{font-family:var(--mostrador);font-size:1.45rem;line-height:1.2}
+.ab .antes .val{color:var(--ferrugem)} .ab .depois .val{color:var(--mofo)}
+.ab p{font-size:.9rem;margin:.5rem 0 0;color:var(--fraco);max-width:none}
+@media(max-width:640px){.ab{grid-template-columns:1fr}}
+
+/* ---------- tabela ---------- */
+.tabw{overflow-x:auto;margin:1.4rem 0}
+table{border-collapse:collapse;width:100%;font-family:var(--mostrador);font-size:.76rem}
+th{text-align:left;font-weight:400;color:var(--fraco);letter-spacing:.12em;
+  text-transform:uppercase;font-size:.6rem;padding:.55rem .7rem;
+  border-bottom:1px solid var(--linha)}
+td{padding:.55rem .7rem;border-bottom:1px solid rgba(232,226,212,.07);
+  font-variant-numeric:tabular-nums}
+td.n{color:var(--lampiao)} td.mau{color:var(--ferrugem)} td.bom{color:var(--mofo)}
+tr:last-child td{border-bottom:0}
+
+/* ---------- a planta do abrigo ---------- */
+.planta{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;
+  background:var(--linha);border:1px solid var(--linha);margin:1.5rem 0}
+.comodo{background:var(--parede);padding:.85rem .8rem;cursor:pointer;
+  transition:.16s;position:relative;min-height:5.6rem}
+.comodo:hover{background:var(--parede2)}
+.comodo.soando{background:#241d12;box-shadow:0 0 0 1px var(--lampiao) inset}
+.comodo .num{font-family:var(--mostrador);font-size:.56rem;color:var(--fraco);
+  letter-spacing:.14em}
+.comodo .nome{font-family:var(--display);font-size:1.02rem;margin:.15rem 0 .3rem}
+.comodo .piso{font-family:var(--mostrador);font-size:.58rem;letter-spacing:.1em;
+  text-transform:uppercase}
+.comodo .piso.antes{color:var(--ferrugem)}
+.comodo .piso.agora{color:var(--mofo)}
+@media(max-width:520px){.planta{grid-template-columns:repeat(2,1fr)}}
+
+/* ---------- contadores ---------- */
+.placar{display:grid;grid-template-columns:repeat(auto-fit,minmax(8.5rem,1fr));
+  gap:1.6rem;margin:2rem 0}
+.placar b{display:block;font-family:var(--mostrador);font-size:2.3rem;
+  color:var(--lampiao);line-height:1;font-variant-numeric:tabular-nums}
+.placar span{font-family:var(--mostrador);font-size:.58rem;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--fraco);display:block;margin-top:.45rem}
+
+.erro{border-left:2px solid var(--ferrugem);padding:.15rem 0 .15rem 1.2rem;margin:1.8rem 0}
+.erro h3{color:var(--ferrugem)}
+.nota{font-size:.86rem;color:var(--fraco);border-left:1px solid var(--linha);
+  padding-left:1rem;margin:1.3rem 0}
+
+#capa{display:flex;flex-direction:column;justify-content:center;
+  padding:5rem 0 4rem;border-bottom:1px solid var(--linha)}
+#ligar{margin-top:2.6rem;font-family:var(--mostrador);font-size:.78rem;
+  letter-spacing:.2em;text-transform:uppercase;background:transparent;
+  color:var(--lampiao);border:1px solid var(--lampiao);padding:1rem 1.8rem;
+  cursor:pointer;transition:.2s;align-self:flex-start}
+#ligar:hover{background:var(--lampiao);color:var(--breu)}
+#ligar.pronto{border-color:var(--mofo);color:var(--mofo)}
+.aviso{font-family:var(--mostrador);font-size:.62rem;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--fraco);margin-top:1rem}
+</style>
+
+<div id="luz"></div><div id="grao"></div><div id="vinheta"></div>
+
+<div id="barra">
+  <div id="trilho"><div id="preenche"></div></div>
+  <div id="ctl">
+    <button id="bplay" aria-pressed="false">▶ tocar tudo</button>
+    <span id="capitulo">capa</span>
+    <span class="sep"></span>
+    <span id="som-off">som desligado</span>
+  </div>
+</div>
+
+<main>
+<section id="capa" class="faixa" data-cap="capa">
+  <p class="olho">Não Abra · §47 · som por som</p>
+  <h1>Laboratório<br>de Som</h1>
+  <p class="sub">Cada melhoria aqui você <em>ouve</em>. Os sons desta página são
+  os do jogo — as mesmas funções, copiadas do <code>index.html</code>, não
+  imitações delas.</p>
+  <button id="ligar">Ligar o som e começar</button>
+  <p class="aviso">fones ajudam · o navegador só deixa o áudio começar depois de um clique</p>
+</section>
+
+<section class="faixa rev" data-cap="a arquitetura">
+  <p class="olho verde">fase 0 · antes de tocar em qualquer coisa</p>
+  <h2>O que a auditoria mandou não fazer</h2>
+  <p>A arquitetura de áudio deste jogo é boa, e <strong>nada dela foi
+  reescrita</strong>. Um contexto só, compressor no fim da cadeia, reverberação
+  com reflexões precoces, e um roteador universal por onde passa todo som:</p>
+  <pre class="ok">A.ctx único → master com compressor → destino
+     ├── seco ──────────────────────────┐
+     └── molhado → convolver (reflexões)┘
+mixer de 5 camadas: voz · drone · evento · ambiente · gerador
+     com ducking automático por prioridade
+
+saida(no, {pan, rev, vol})  ← 101 sítios passam por aqui</pre>
+  <p>Esse último detalhe decide a rodada inteira: como <em>todo</em> som do jogo
+  sai pelo mesmo lugar, dá pra consertar coisa em um ponto só e valer para os
+  101.</p>
+  <div class="escopo">
+    <span class="rot">osciloscópio · ao vivo</span>
+    <canvas id="escopo-topo"></canvas>
+    <span class="hz" id="hz-topo">—</span>
+  </div>
+  <p class="nota">O traçado acima é o áudio real desta página. Ele se mexe quando
+  você toca alguma coisa.</p>
+</section>
+
+<section class="faixa rev" data-cap="o erro">
+  <p class="olho rust">honestidade · o erro que eu entreguei</p>
+  <h2>Eu troquei o som bom do passo pelo meu, pior</h2>
+  <p>Existem <strong>duas</strong> funções chamadas <code>passo</code> neste
+  jogo. Eu medi contra a primeira e concluí que o passo era “um estalo só, sem
+  material, sem variação”. A primeira está <strong>morta</strong> — a segunda,
+  declarada depois, é a que vale. O meu próprio verificador de montagem tem isso
+  anotado, por escrito, há versões:</p>
+  <pre>const COLISAO_OK=new Set([
+  'passo',   // v48 troca o passo sintetizado pelo sistema de superfícies</pre>
+  <p>Ouça os dois. O da esquerda é o cadáver contra o qual eu media. O da direita
+  é o que o jogo sempre tocou:</p>
+  <div class="tocadores">
+    <button class="toca mau" data-som="passo-morto"><b>o passo morto</b><span>uma camada · sem material · linha 474</span></button>
+    <button class="toca bom" data-som="passo-vivo"><b>o passo vivo</b><span>corpo · solado · ressonância · pé arrastando</span></button>
+  </div>
+  <div class="escopo">
+    <span class="rot">o que cada um manda pro alto-falante</span>
+    <canvas id="escopo-passo"></canvas>
+    <span class="hz" id="hz-passo">—</span>
+  </div>
+  <div class="tabw"><table>
+    <tr><th>o que eu “acrescentei”</th><th>o que já estava lá</th></tr>
+    <tr><td>segunda batida 45–75 ms depois</td><td class="bom">o pé arrastando, 50–90 ms depois</td></tr>
+    <tr><td>material do piso</td><td class="bom">quatro superfícies com corte, Q, corpo e ressonância</td></tr>
+    <tr><td>ressonância de assoalho oco</td><td class="bom">“a tábua respondendo depois” — com esse comentário</td></tr>
+    <tr><td>variação por disparo</td><td class="bom">já variava frequência, ganho e tempo</td></tr>
+  </table></div>
+  <div class="erro">
+    <h3>E eu publiquei que tinha melhorado</h3>
+    <p>Escrevi que o passo tinha ficado “mais barato fazendo o dobro do
+    trabalho”: 0,921 → 0,357 ms. Falso duas vezes — eu media o <em>antes</em> num
+    contexto de áudio já cheio de sons vivos, e o <em>antes</em> era o cadáver.
+    Quem me pegou foi uma asserção do próprio teste, falhando dentro do pacote já
+    montado. <strong>Minha versão foi apagada.</strong></p>
+  </div>
+</section>
+
+<section class="faixa rev" data-cap="o piso">
+  <p class="olho verde">o achado que valeu a rodada</p>
+  <h2>O piso não chegava nos cômodos</h2>
+  <p>O motor de superfícies era bom e estava pronto. Só que o jogo escolhia o
+  piso procurando os cômodos <strong>9 e 10</strong> — e o abrigo tem os cômodos
+  <strong>0 a 8</strong>. O quintal é o 8, não o 10. O porão é o 6, não o 9.</p>
+  <pre>if(c===10)return 'terra';         // quintal  ← não existe
+if(c===0||c===9)return 'escada';  // sótão e porão  ← o porão é 6
+return 'madeira';                 // ← e caía aqui quase sempre</pre>
+  <div class="ab">
+    <div class="antes"><div class="rot">antes · cômodos que soavam a madeira</div>
+      <div class="val">8 de 9</div>
+      <p>duas superfícies no abrigo inteiro</p></div>
+    <div class="depois"><div class="rot">agora</div>
+      <div class="val">3 de 9</div>
+      <p>seis superfícies, e as três de madeira são de madeira mesmo</p></div>
+  </div>
+  <p>Clique em cada cômodo e ouça o passo dele. O botão abaixo troca entre o mapa
+  antigo e o de agora — <strong>é o mesmo motor de som nos dois</strong>, só muda
+  o piso que ele recebe:</p>
+  <div class="tocadores">
+    <button class="toca" id="mapa-toggle" data-modo="agora"><b>mapa: agora</b><span>clique para ouvir como era antes</span></button>
+    <button class="toca" data-som="andar-casa"><b>atravessar a casa</b><span>sótão → quintal, um passo por cômodo</span></button>
+  </div>
+  <div class="planta" id="planta"></div>
+  <div class="escopo">
+    <span class="rot">o passo do cômodo que você tocou</span>
+    <canvas id="escopo-piso"></canvas>
+    <span class="hz" id="hz-piso">—</span>
+  </div>
+  <p>As duas superfícies novas saíram do texto que o próprio jogo já escrevia —
+  não da minha imaginação:</p>
+  <blockquote>“Colchões no chão.” · “Fogão a gás com meio botijão.”<br>
+  “Muro alto, portão soldado, terra batida.”</blockquote>
+</section>
+
+<section class="faixa rev" data-cap="a distância">
+  <p class="olho verde">o que o ouvido usa pra medir distância</p>
+  <h2>Som longe não é som baixo</h2>
+  <p>Antes, um som distante só ficava mais baixo. Mas não é volume que o ouvido
+  usa pra julgar distância — é a <strong>perda de agudo</strong>. O ar come alta
+  frequência. É por isso que trovão perto é um estalo e trovão longe é um
+  ronco.</p>
+  <p>Esta é a <em>mesma</em> porta, com as <em>mesmas</em> dez camadas, a
+  distâncias diferentes. Nenhuma camada some:</p>
+  <div class="tocadores">
+    <button class="toca" data-som="porta-0"><b>0 cômodos</b><span>18000 Hz · na sua frente</span></button>
+    <button class="toca" data-som="porta-1"><b>1 cômodo</b><span>8100 Hz · atrás da parede</span></button>
+    <button class="toca" data-som="porta-2"><b>2 cômodos</b><span>3645 Hz · no corredor</span></button>
+    <button class="toca" data-som="porta-3"><b>3 cômodos</b><span>1640 Hz · no fim da casa</span></button>
+    <button class="toca" data-som="porta-4"><b>4 cômodos</b><span>738 Hz · quase só grave</span></button>
+  </div>
+  <div class="escopo">
+    <span class="rot">espectro · veja o agudo morrer da esquerda pra direita</span>
+    <canvas id="escopo-dist"></canvas>
+    <span class="hz" id="hz-dist">—</span>
+  </div>
+  <p>E o passo distante, que o jogo já usava para dizer que tem alguém andando em
+  outro lugar da casa:</p>
+  <div class="tocadores">
+    <button class="toca" data-som="passo-perto"><b>passo perto</b><span>proximidade 1,0 · sem filtro de ar</span></button>
+    <button class="toca" data-som="passo-longe"><b>passo longe</b><span>proximidade 0,2 · 2648 Hz</span></button>
+  </div>
+</section>
+
+<section class="faixa rev" data-cap="a porta">
+  <p class="olho">o que eu quase estraguei primeiro</p>
+  <h2>A porta que já existia</h2>
+  <p>Antes do passo, eu cometi o mesmo erro com a porta: escrevi uma de quatro
+  camadas sem procurar se já havia uma. Há — e ela tem <strong>cinco</strong>.
+  Ouça camada por camada:</p>
+  <div class="tocadores">
+    <button class="toca" data-som="ferrolho"><b>ferrolho</b><span>duas voltas da tranca</span></button>
+    <button class="toca" data-som="rangido"><b>rangido</b><span>a dobradiça velha</span></button>
+    <button class="toca" data-som="arrasto"><b>arrasto</b><span>a base raspando o chão</span></button>
+    <button class="toca" data-som="lufada"><b>lufada</b><span>o ar do outro lado</span></button>
+    <button class="toca" data-som="batente"><b>batente</b><span>o baque de encostar</span></button>
+    <button class="toca bom" data-som="porta-toda"><b>as cinco juntas</b><span>é isto que eu quase substituí</span></button>
+  </div>
+  <div class="escopo">
+    <span class="rot">camadas da porta</span>
+    <canvas id="escopo-porta"></canvas>
+    <span class="hz" id="hz-porta">—</span>
+  </div>
+  <p>Removi a minha. No lugar entrou o que faltava <em>nela</em>: a distância —
+  que é o que você acabou de ouvir na seção anterior.</p>
+</section>
+
+<section class="faixa rev" data-cap="o custo">
+  <p class="olho">contado, não cronometrado</p>
+  <h2>Por que não tem um único número de tempo aqui</h2>
+  <p>Cada som agendado deixa pedaços vivos no motor de áudio, e a
+  <strong>mesma</strong> chamada repetida fica mais cara a cada rodada. Eu medi,
+  para código idêntico:</p>
+  <pre>1,70 · 2,35 · 4,83 · 4,68 · 6,24 · 6,24 ms</pre>
+  <p>O cronômetro estava medindo entulho, não código. Foi assim que eu produzi o
+  “0,921 → 0,357 ms” que estava errado. <strong>Todo cronômetro saiu do
+  teste.</strong> O que ficou é contagem, que é determinística:</p>
+  <div class="tabw"><table>
+    <tr><th></th><th>perto</th><th>com distância</th><th>o que a distância custa</th></tr>
+    <tr><td>passo</td><td class="n">18 pedaços</td><td class="n">22</td><td class="bom">+4 — um filtro por camada</td></tr>
+    <tr><td>porta</td><td class="n">48 pedaços</td><td class="n">58</td><td class="bom">+10 — um filtro por camada</td></tr>
+  </table></div>
+  <p>Nenhuma camada se perde em nenhum dos dois. O que se perde é brilho.</p>
+  <div class="placar">
+    <div><b class="cnt" data-n="35">0</b><span>asserções no som</span></div>
+    <div><b class="cnt" data-n="101">0</b><span>sítios servidos por saida()</span></div>
+    <div><b class="cnt" data-n="6">0</b><span>superfícies de piso</span></div>
+    <div><b class="cnt" data-n="0">0</b><span>sons reescritos</span></div>
+  </div>
+  <p class="nota">Áudio cosmético continua sorteando com <code>Math.random</code>,
+  como a política do núcleo declarou por escrito na v57. Barulho de porta não
+  pode mudar o que a casa decide.</p>
+</section>
+
+<section class="faixa rev" data-cap="fim">
+  <p class="olho verde">a regra que guiou tudo</p>
+  <h2>Medir antes de reescrever — e conferir se o que você mediu está vivo</h2>
+  <p>A lição desta rodada não foi sobre som. Foi que auditar a arquitetura não é
+  auditar o catálogo, e que uma função pode estar no arquivo, compilar, e não ser
+  a que roda.</p>
+  <blockquote>Se aparecer duas vezes, a segunda é a que vale — e o
+  <code>montar.js</code> diz por quê.</blockquote>
+  <p class="nota">Esta página toca as funções reais do jogo: <code>passoEm</code>,
+  <code>ferrolho</code>, <code>rangido</code>, <code>arrasto</code>,
+  <code>lufada</code>, <code>batente</code> e o roteador <code>saida</code>,
+  copiados do <code>index.html</code> sem alteração. O que você ouviu aqui é o
+  que você ouve jogando.</p>
+</section>
+</main>
+<script>
+/* ======================================================================
+   O MOTOR DE ÁUDIO DESTA PÁGINA É O DO JOGO.
+
+   Tudo daqui até a marca "FIM DO CÓDIGO COPIADO" foi copiado do
+   index.html sem alteração de uma linha: a cadeia de áudio, o roteador
+   `saida`, as cinco camadas da porta e o `passoEm` com as superfícies.
+   Uma página que "demonstrasse" sons parecidos com os do jogo não
+   provaria nada.
+   ====================================================================== */
+
+const A={ctx:null,ruido:null,master:null,seco:null,molhado:null,conv:null,analisador:null};
+
+function iniciarAudio(){
+  if(A.ctx)return;
+  const C=window.AudioContext||window.webkitAudioContext;
+  A.ctx=new C();
+  const sr=A.ctx.sampleRate;
+
+  // ruído rosa
+  const buf=A.ctx.createBuffer(1,sr*3,sr),d=buf.getChannelData(0);
+  let b0=0,b1=0,b2=0;
+  for(let i=0;i<d.length;i++){
+    const w=Math.random()*2-1;
+    b0=.99765*b0+w*.0990460; b1=.96300*b1+w*.2965164; b2=.57000*b2+w*1.0526913;
+    d[i]=(b0+b1+b2+w*.1848)*.28;
+  }
+  A.ruido=buf;
+
+  // cadeia principal
+  const comp=A.ctx.createDynamicsCompressor();
+  comp.threshold.value=-14; comp.ratio.value=4; comp.attack.value=.004; comp.release.value=.25;
+  A.master=A.ctx.createGain(); A.master.gain.value=.9;
+  /* único acréscimo desta página: um analisador pendurado no master,
+     que só lê o sinal — não muda nada do que sai. */
+  A.analisador=A.ctx.createAnalyser();
+  A.analisador.fftSize=2048; A.analisador.smoothingTimeConstant=.72;
+  A.master.connect(A.analisador);
+  A.master.connect(comp); comp.connect(A.ctx.destination);
+
+  // reverberação da casa (impulso procedural)
+  A.conv=A.ctx.createConvolver();
+  A.conv.buffer=gerarImpulso(1.9,3.2);
+  A.molhado=A.ctx.createGain(); A.molhado.gain.value=.30;
+  A.seco=A.ctx.createGain(); A.seco.gain.value=1;
+  A.molhado.connect(A.conv); A.conv.connect(A.master); A.seco.connect(A.master);
+}
+function gerarImpulso(dur,decai){
+  const sr=A.ctx.sampleRate, n=Math.floor(sr*dur);
+  const imp=A.ctx.createBuffer(2,n,sr);
+  for(let c=0;c<2;c++){
+    const ch=imp.getChannelData(c);
+    for(let i=0;i<n;i++){
+      const t=i/n;
+      ch[i]=(Math.random()*2-1)*Math.pow(1-t,decai)*(1-t*.3);
+    }
+    [0.011,0.019,0.031,0.047].forEach((r,k)=>{
+      const p=Math.floor(sr*r); if(p<n) ch[p]+= (0.5-k*.1)*(c?1:-1);
+    });
+  }
+  return imp;
+}
+function ruidoS(){ const s=A.ctx.createBufferSource(); s.buffer=A.ruido; s.loop=true; return s; }
+function agoraS(){ return A.ctx.currentTime; }
+function trava(v,a,b){ return Math.max(a,Math.min(b,v)); }
+
+/* o roteador universal — 101 sítios do jogo passam por ele */
+function saidaBase(no,{pan=0,rev=.35,vol=1}={}){
+  const g=A.ctx.createGain(); g.gain.value=vol;
+  let p=null;
+  if(A.ctx.createStereoPanner){p=A.ctx.createStereoPanner();p.pan.value=Math.max(-1,Math.min(1,pan));}
+  no.connect(g);
+  const alvo=p?(g.connect(p),p):g;
+  const env=A.ctx.createGain(); env.gain.value=rev;
+  alvo.connect(A.seco); alvo.connect(env); env.connect(A.molhado);
+  return g;
+}
+
+/* ---- §47: a distância, que é o que faltava nele ---- */
+const SOM_CFG={agudoPorComodo:0.45,cortePerto:18000,corteMinimo:320,
+  revPorComodo:0.55,ganhoPorComodo:0.72,comodosNoPassoDistante:3};
+function corteDoAr(d){
+  return Math.max(SOM_CFG.corteMinimo,SOM_CFG.cortePerto*Math.pow(SOM_CFG.agudoPorComodo,d));
+}
+let _distAmbiente=0;
+function comDistancia(d,fn){
+  const antes=_distAmbiente; _distAmbiente=+d||0;
+  try{ return fn(); } finally{ _distAmbiente=antes; }
+}
+function saida(no,op){
+  op=op||{};
+  const d=(+op.dist||0)||_distAmbiente;
+  if(d<=0)return saidaBase(no,op);
+  const ar=A.ctx.createBiquadFilter();
+  ar.type='lowpass'; ar.frequency.value=corteDoAr(d); ar.Q.value=0.4;
+  no.connect(ar);
+  return saidaBase(ar,{pan:op.pan||0,
+    rev:Math.min(1,(op.rev==null?.35:op.rev)*(1+d*SOM_CFG.revPorComodo)),
+    vol:(op.vol==null?1:op.vol)*Math.pow(SOM_CFG.ganhoPorComodo,d)});
+}
+
+/* as quatro superfícies que o jogo já tinha, e as duas que o §47 juntou */
+const SUP={
+  madeira : {corte:900 ,q:.9 ,corpo:88,res:[150,230],resVol:.10,scuff:.045},
+  escada  : {corte:1100,q:1.0,corpo:96,res:[190,300],resVol:.13,scuff:.050},
+  concreto: {corte:1700,q:1.1,corpo:74,res:[380,620],resVol:.03,scuff:.075},
+  terra   : {corte:480 ,q:.7 ,corpo:66,res:[110,160],resVol:.02,scuff:.055},
+  colchao : {corte:300 ,q:.5 ,corpo:54,res:[0,0]    ,resVol:0   ,scuff:.012},
+  ladrilho: {corte:2600,q:1.6,corpo:82,res:[520,880],resVol:.05,scuff:.090}
+};
+function curvaTremida(n,de,ate,amp,puxa){
+  const c=new Float32Array(n); let v=de;
+  for(let i=0;i<n;i++){
+    const b=de+(ate-de)*(n>1?i/(n-1):1);
+    v += (Math.random()*2-1)*amp;
+    v += (b-v)*puxa;
+    c[i]=Math.max(20,v);
+  }
+  return c;
+}
+
+function curvaRangido(n){
+  const c=new Float32Array(n); let g=1;
+  for(let i=0;i<n;i++){
+    const t=n>1?i/(n-1):1;
+    if(Math.random()<.035) g=.25+Math.random()*.9;
+    g += (1-g)*.06;
+    c[i]=Math.sin(Math.PI*Math.pow(t,.75))*g;
+  }
+  return c;
+}
+
+function ferrolho(t,pan,vol,rev){
+  const s=ruidoS(),f=A.ctx.createBiquadFilter(),g=A.ctx.createGain();
+  f.type='bandpass'; f.frequency.value=1900+Math.random()*900; f.Q.value=6;
+  g.gain.setValueAtTime(0,t);
+  g.gain.linearRampToValueAtTime(.78*vol,t+.004);
+  g.gain.exponentialRampToValueAtTime(.0008,t+.075);
+  s.connect(f); f.connect(g); saida(g,{pan,rev:rev*.6});
+  s.start(t); s.stop(t+.10);
+
+  const o=A.ctx.createOscillator(),og=A.ctx.createGain();
+  o.type='triangle';
+  o.frequency.setValueAtTime(1150,t);
+  o.frequency.exponentialRampToValueAtTime(520,t+.05);
+  og.gain.setValueAtTime(.28*vol,t);
+  og.gain.exponentialRampToValueAtTime(.0008,t+.09);
+  o.connect(og); saida(og,{pan,rev:rev*.7}); o.start(t); o.stop(t+.11);
+}
+
+function rangido(t,dur,pan,vol,rev){
+  const n=Math.max(64,Math.round(dur*180));
+
+  // madeira sob tensão: o agudo, limitado antes do filtro ressonante
+  const o=A.ctx.createOscillator(); o.type='sawtooth';
+  const pre=A.ctx.createBiquadFilter(); pre.type='lowpass'; pre.frequency.value=2600;
+  const bp=A.ctx.createBiquadFilter(); bp.type='bandpass'; bp.Q.value=13;
+  const g=A.ctx.createGain(); g.gain.value=0;
+  o.frequency.setValueCurveAtTime(curvaTremida(n,52,96,3.2,.10),t,dur);
+  bp.frequency.setValueCurveAtTime(curvaTremida(n,430,1250,90,.12),t,dur);
+  const e1=curvaRangido(n); for(let i=0;i<n;i++) e1[i]*=.24*vol;
+  g.gain.setValueCurveAtTime(e1,t,dur);
+  o.connect(pre); pre.connect(bp); bp.connect(g); saida(g,{pan,rev});
+  o.start(t); o.stop(t+dur+.05);
+
+  // grão da madeira raspando
+  const s=ruidoS(),nf=A.ctx.createBiquadFilter(),ng=A.ctx.createGain();
+  nf.type='bandpass'; nf.Q.value=5;
+  nf.frequency.setValueCurveAtTime(curvaTremida(n,600,1700,140,.12),t,dur);
+  const e2=curvaRangido(n); for(let i=0;i<n;i++) e2[i]*=.15*vol;
+  ng.gain.value=0;
+  ng.gain.setValueCurveAtTime(e2,t,dur);
+  s.connect(nf); nf.connect(ng); saida(ng,{pan,rev});
+  s.start(t); s.stop(t+dur+.05);
+}
+
+function arrasto(t,dur,pan,vol,rev){
+  const s=ruidoS(),f=A.ctx.createBiquadFilter(),g=A.ctx.createGain();
+  f.type='lowpass'; f.Q.value=1.2;
+  f.frequency.setValueAtTime(180,t);
+  f.frequency.linearRampToValueAtTime(420,t+dur*.5);
+  f.frequency.linearRampToValueAtTime(200,t+dur);
+  g.gain.setValueAtTime(0,t);
+  g.gain.linearRampToValueAtTime(.36*vol,t+dur*.28);
+  g.gain.linearRampToValueAtTime(.14*vol,t+dur*.80);
+  g.gain.linearRampToValueAtTime(0,t+dur);
+  s.connect(f); f.connect(g); saida(g,{pan,rev:rev*.8});
+  s.start(t); s.stop(t+dur+.05);
+}
+
+function lufada(t,dur,pan,vol){
+  const s=ruidoS(),f=A.ctx.createBiquadFilter(),g=A.ctx.createGain();
+  f.type='bandpass'; f.frequency.value=340; f.Q.value=.5;
+  g.gain.setValueAtTime(0,t);
+  g.gain.linearRampToValueAtTime(.28*vol,t+dur*.35);
+  g.gain.linearRampToValueAtTime(0,t+dur);
+  s.connect(f); f.connect(g); saida(g,{pan,rev:.85});
+  s.start(t); s.stop(t+dur+.05);
+}
+
+function batente(t,pan,vol,rev){
+  const o=A.ctx.createOscillator(),g=A.ctx.createGain();
+  o.type='sine';
+  o.frequency.setValueAtTime(74,t);
+  o.frequency.exponentialRampToValueAtTime(41,t+.14);
+  g.gain.setValueAtTime(.56*vol,t);
+  g.gain.exponentialRampToValueAtTime(.0008,t+.30);
+  o.connect(g); saida(g,{pan,rev:rev*.9}); o.start(t); o.stop(t+.34);
+
+  const s=ruidoS(),f=A.ctx.createBiquadFilter(),ng=A.ctx.createGain();
+  f.type='lowpass'; f.frequency.value=520;
+  ng.gain.setValueAtTime(0,t);
+  ng.gain.linearRampToValueAtTime(.39*vol,t+.005);
+  ng.gain.exponentialRampToValueAtTime(.0008,t+.18);
+  s.connect(f); f.connect(ng); saida(ng,{pan,rev});
+  s.start(t); s.stop(t+.20);
+}
+
+function passoEm(t,op){
+  const S2=SUP[op.superficie]||SUP.madeira;
+  const f=op.forca, pan=op.pan, rev=op.rev;
+
+  // o peso do corpo chegando no chão
+  const o=A.ctx.createOscillator(),og=A.ctx.createGain();
+  o.type='sine';
+  o.frequency.setValueAtTime(S2.corpo*(.9+Math.random()*.2),t);
+  o.frequency.exponentialRampToValueAtTime(S2.corpo*.52,t+.085);
+  og.gain.setValueAtTime(0,t);
+  og.gain.linearRampToValueAtTime(.30*f,t+.006);
+  og.gain.exponentialRampToValueAtTime(.0008,t+.16);
+  o.connect(og); saida(og,{pan,rev:rev*.7}); o.start(t); o.stop(t+.18);
+
+  // o solado batendo
+  const s=ruidoS(),nf=A.ctx.createBiquadFilter(),ng=A.ctx.createGain();
+  nf.type='lowpass'; nf.frequency.value=S2.corte*(.85+Math.random()*.3); nf.Q.value=S2.q;
+  ng.gain.setValueAtTime(0,t);
+  ng.gain.linearRampToValueAtTime(.24*f,t+.004);
+  ng.gain.exponentialRampToValueAtTime(.0008,t+.10);
+  s.connect(nf); nf.connect(ng); saida(ng,{pan,rev}); s.start(t); s.stop(t+.12);
+
+  // a tábua respondendo depois: é isso que dá o assoalho velho
+  if(S2.resVol>0){
+    const r=A.ctx.createOscillator(),rg=A.ctx.createGain();
+    r.type='triangle';
+    r.frequency.value=S2.res[0]+Math.random()*(S2.res[1]-S2.res[0]);
+    rg.gain.value=0;                                   // sem isso o nó toca em escala cheia
+    rg.gain.setValueAtTime(0,t);                       // até a primeira automação
+    rg.gain.linearRampToValueAtTime(S2.resVol*f,t+.010);
+    rg.gain.exponentialRampToValueAtTime(.0008,t+.34);
+    r.connect(rg); saida(rg,{pan,rev:rev*1.15}); r.start(t); r.stop(t+.36);
+  }
+
+  // o pé arrastando ao sair
+  const t2=t+.05+Math.random()*.04;
+  const s2=ruidoS(),hf=A.ctx.createBiquadFilter(),hg=A.ctx.createGain();
+  hf.type='highpass'; hf.frequency.value=1800;
+  hg.gain.setValueAtTime(0,t2);
+  hg.gain.linearRampToValueAtTime(S2.scuff*f,t2+.012);
+  hg.gain.exponentialRampToValueAtTime(.0008,t2+.07);
+  s2.connect(hf); hf.connect(hg); saida(hg,{pan,rev:rev*.6}); s2.start(t2); s2.stop(t2+.09);
+}
+/* a porta do jogo: cinco camadas, como está no index.html */
+function somPortaAbrindo(op){
+  op=op||{};
+  const t0=agoraS()+(op.atraso||0);
+  const pan=op.pan!==undefined?op.pan:0;
+  const rev=op.rev!==undefined?op.rev:.5;
+  const vol=(op.vol!==undefined?op.vol:1)*1.0;
+  const dur=op.dur||2.4;
+  const corpo=()=>{
+    if(op.tranca!==false){ ferrolho(t0,pan,vol,rev); ferrolho(t0+.17,pan,vol*.8,rev); }
+    const tc=t0+(op.tranca===false?.05:.42);
+    rangido(tc,dur*.62,pan,vol,rev);
+    arrasto(tc,dur*.70,pan,vol*.7,rev);
+    if(op.vento!==false) lufada(tc+dur*.25,dur*.9,pan,vol*.55);
+    batente(t0+dur*.95,pan,vol*.6,rev);
+  };
+  const d=+op.dist||0;
+  if(d>0) comDistancia(d,corpo); else corpo();
+  return dur+.6;
+}
+
+/* o passo VIVO do jogo, pela mesma porta de entrada que ele sempre teve */
+function passo(prox,pan,superficie){
+  const p=prox==null?1:prox;
+  const chamada=()=>passoEm(agoraS()+.02,{
+    forca:trava(p,.05,1.4)*1.30, pan:pan||0,
+    rev:trava(.9-p*.55,.2,.9), superficie:superficie||'madeira'});
+  const d=Math.max(0,(1-Math.min(1,p))*SOM_CFG.comodosNoPassoDistante);
+  return d>0 ? comDistancia(d,chamada) : chamada();
+}
+
+/* o passo MORTO — index.html linha 474. Está aqui só para você ouvir
+   contra o que eu estava medindo quando errei. */
+function passoMorto(prox=1,pan=0){
+  const t=A.ctx.currentTime;
+  const s=ruidoS(),f=A.ctx.createBiquadFilter(),g=A.ctx.createGain();
+  f.type='lowpass'; f.frequency.value=260+prox*180;
+  g.gain.setValueAtTime(.42*prox,t); g.gain.exponentialRampToValueAtTime(.001,t+.16);
+  s.connect(f); f.connect(g); saida(g,{pan,rev:.45}); s.start(t); s.stop(t+.18);
+}
+/* ===================== FIM DO CÓDIGO COPIADO ===================== */
+</script>
+<script>
+/* ================= A PÁGINA ================= */
+
+const COMODOS=[
+  {i:0,nome:'sótão',      texto:'Telhado baixo, poeira.',            antes:'escada',  agora:'escada'},
+  {i:1,nome:'dormitório', texto:'Colchões no chão.',                 antes:'madeira', agora:'colchao'},
+  {i:2,nome:'despensa',   texto:'Prateleiras de metal.',             antes:'madeira', agora:'concreto'},
+  {i:3,nome:'oficina',    texto:'Bancada, madeira empilhada.',       antes:'madeira', agora:'madeira'},
+  {i:4,nome:'sala',       texto:'Sofá encostado na parede.',         antes:'madeira', agora:'madeira'},
+  {i:5,nome:'cozinha',    texto:'Fogão a gás com meio botijão.',     antes:'madeira', agora:'ladrilho'},
+  {i:6,nome:'porão',      texto:'O gerador.',                        antes:'madeira', agora:'concreto'},
+  {i:7,nome:'entrada',    texto:'Tábuas atravessadas, tranca.',      antes:'madeira', agora:'madeira'},
+  {i:8,nome:'quintal',    texto:'Muro alto, terra batida.',          antes:'madeira', agora:'terra'}
+];
+
+let ligado=false, modoMapa='agora';
+
+/* ---------- osciloscópios ---------- */
+const escopos=[];
+function montarEscopo(idCanvas,idHz,tipo){
+  const c=document.getElementById(idCanvas); if(!c)return;
+  const hz=document.getElementById(idHz);
+  const ctx=c.getContext('2d');
+  const ajustar=()=>{ const r=c.getBoundingClientRect();
+    c.width=Math.max(200,Math.floor(r.width*devicePixelRatio));
+    c.height=Math.floor(150*devicePixelRatio); };
+  ajustar(); addEventListener('resize',ajustar);
+  escopos.push({c,ctx,hz,tipo});
+}
+function pintarEscopos(){
+  requestAnimationFrame(pintarEscopos);
+  if(!A.analisador)return;
+  const n=A.analisador.frequencyBinCount;
+  const onda=new Uint8Array(n), esp=new Uint8Array(n);
+  A.analisador.getByteTimeDomainData(onda);
+  A.analisador.getByteFrequencyData(esp);
+  /* centro de massa do espectro: o "brilho" que o ar come */
+  let soma=0,peso=0;
+  for(let i=0;i<n;i++){ soma+=esp[i]; peso+=esp[i]*i; }
+  const centro=soma>400 ? Math.round((peso/soma)*(A.ctx.sampleRate/2)/n) : null;
+
+  escopos.forEach(({c,ctx,hz,tipo})=>{
+    const w=c.width,h=c.height;
+    ctx.clearRect(0,0,w,h);
+    /* grade */
+    ctx.strokeStyle='rgba(232,226,212,.07)'; ctx.lineWidth=1;
+    for(let k=1;k<4;k++){ ctx.beginPath(); ctx.moveTo(0,h*k/4); ctx.lineTo(w,h*k/4); ctx.stroke(); }
+    if(tipo==='espectro'){
+      const barras=72, passoB=w/barras;
+      for(let i=0;i<barras;i++){
+        /* escala log: agudo ocupa espaço de verdade */
+        const de=Math.floor(Math.pow(i/barras,2)*n);
+        const ate=Math.max(de+1,Math.floor(Math.pow((i+1)/barras,2)*n));
+        let m=0; for(let k=de;k<ate&&k<n;k++) m=Math.max(m,esp[k]);
+        const alt=(m/255)*h*.92;
+        ctx.fillStyle= i/barras>.55 ? 'rgba(140,47,30,.85)' : 'rgba(201,162,39,.85)';
+        ctx.fillRect(i*passoB+1,h-alt,passoB-2,alt);
+      }
+    }else{
+      ctx.strokeStyle='#C9A227'; ctx.lineWidth=Math.max(1,devicePixelRatio);
+      ctx.beginPath();
+      for(let i=0;i<n;i++){
+        const x=i/(n-1)*w, y=h/2+((onda[i]-128)/128)*(h*.44);
+        i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+      }
+      ctx.stroke();
+    }
+    if(hz) hz.textContent = centro ? ('centro do espectro · '+centro+' Hz') : '—';
+  });
+}
+
+/* ---------- tocar ---------- */
+let tocandoAgora=null;
+function marcar(el,ms){
+  if(!el)return;
+  el.classList.add('soando');
+  setTimeout(()=>el.classList.remove('soando'),ms);
+}
+function precisaLigar(){
+  if(ligado)return false;
+  const b=document.getElementById('ligar');
+  if(b){ b.scrollIntoView({behavior:'smooth',block:'center'});
+    b.animate([{transform:'scale(1)'},{transform:'scale(1.06)'},{transform:'scale(1)'}],
+      {duration:500,iterations:2}); }
+  return true;
+}
+
+const SONS={
+  'passo-morto': ()=>{ passoMorto(1,0); return 400; },
+  'passo-vivo' : ()=>{ passo(1,0,'madeira'); return 500; },
+  'passo-perto': ()=>{ passo(1,0,'madeira'); return 500; },
+  'passo-longe': ()=>{ passo(.2,0,'madeira'); return 500; },
+  'ferrolho': ()=>{ ferrolho(agoraS()+.02,0,1,.5); ferrolho(agoraS()+.19,0,.8,.5); return 500; },
+  'rangido' : ()=>{ rangido(agoraS()+.02,1.5,0,1,.5); return 1700; },
+  'arrasto' : ()=>{ arrasto(agoraS()+.02,1.7,0,.7,.5); return 1900; },
+  'lufada'  : ()=>{ lufada(agoraS()+.02,2.1,0,.55); return 2300; },
+  'batente' : ()=>{ batente(agoraS()+.02,0,.6,.5); return 500; },
+  'porta-toda': ()=>{ somPortaAbrindo({pan:0}); return 3000; },
+  'porta-0': ()=>{ somPortaAbrindo({pan:0}); return 3000; },
+  'porta-1': ()=>{ somPortaAbrindo({pan:0,dist:1}); return 3000; },
+  'porta-2': ()=>{ somPortaAbrindo({pan:0,dist:2}); return 3000; },
+  'porta-3': ()=>{ somPortaAbrindo({pan:0,dist:3}); return 3000; },
+  'porta-4': ()=>{ somPortaAbrindo({pan:0,dist:4}); return 3000; },
+  'andar-casa': ()=>{
+    /* sótão → quintal, um passo por cômodo, no mapa que estiver ligado */
+    COMODOS.forEach((c,k)=>{
+      setTimeout(()=>{
+        if(!A.ctx)return;
+        passo(1,(k/8)*1.2-.6,modoMapa==='agora'?c.agora:c.antes);
+        pintarPlanta(c.i);
+      },k*520);
+    });
+    return 9*520+400;
+  }
+};
+
+function tocar(nome,el){
+  if(precisaLigar())return;
+  const f=SONS[nome]; if(!f)return;
+  const ms=f()||600;
+  marcar(el,Math.min(ms,3200));
+}
+
+document.addEventListener('click',e=>{
+  const b=e.target.closest('.toca[data-som]');
+  if(b) tocar(b.dataset.som,b);
+});
+
+/* ---------- a planta do abrigo ---------- */
+const NOME_DO_PISO={madeira:'madeira',escada:'degrau de madeira',concreto:'concreto',
+  terra:'terra batida',colchao:'colchão',ladrilho:'ladrilho'};
+function pintarPlanta(destaque){
+  const alvo=document.getElementById('planta'); if(!alvo)return;
+  alvo.innerHTML=COMODOS.map(c=>{
+    const piso=modoMapa==='agora'?c.agora:c.antes;
+    const cls=modoMapa==='agora'?'agora':'antes';
+    return '<div class="comodo'+(destaque===c.i?' soando':'')+'" data-comodo="'+c.i+'">'
+      +'<div class="num">cômodo '+c.i+'</div>'
+      +'<div class="nome">'+c.nome+'</div>'
+      +'<div class="piso '+cls+'">'+(NOME_DO_PISO[piso]||piso)+'</div></div>';
+  }).join('');
+}
+document.addEventListener('click',e=>{
+  const c=e.target.closest('.comodo[data-comodo]');
+  if(!c)return;
+  if(precisaLigar())return;
+  const i=+c.dataset.comodo, d=COMODOS[i];
+  passo(1,(i/8)*1.2-.6, modoMapa==='agora'?d.agora:d.antes);
+  c.classList.add('soando');
+  setTimeout(()=>c.classList.remove('soando'),480);
+});
+const mt=document.getElementById('mapa-toggle');
+if(mt) mt.addEventListener('click',()=>{
+  modoMapa = modoMapa==='agora' ? 'antes' : 'agora';
+  mt.querySelector('b').textContent='mapa: '+modoMapa;
+  mt.querySelector('span').textContent = modoMapa==='agora'
+    ? 'clique para ouvir como era antes'
+    : '8 dos 9 cômodos em madeira — clique para voltar';
+  mt.classList.toggle('mau',modoMapa==='antes');
+  mt.classList.toggle('bom',modoMapa==='agora');
+  pintarPlanta();
+});
+
+/* ---------- ligar o som ---------- */
+document.getElementById('ligar').addEventListener('click',function(){
+  iniciarAudio();
+  if(A.ctx.state==='suspended') A.ctx.resume();
+  ligado=true;
+  this.textContent='Som ligado — role e toque';
+  this.classList.add('pronto');
+  document.getElementById('som-off').textContent='som ligado';
+  document.getElementById('som-off').style.color='var(--mofo)';
+  pintarEscopos();
+  /* um passo de boas-vindas, pra provar que está vivo */
+  setTimeout(()=>passo(1,0,'madeira'),260);
+  document.querySelector('section[data-cap="a arquitetura"]').scrollIntoView({behavior:'smooth'});
+});
+
+/* ---------- revelação, capítulo e barra ---------- */
+const secoes=[...document.querySelectorAll('section')];
+const io=new IntersectionObserver(es=>{
+  es.forEach(e=>{ if(e.isIntersecting) e.target.classList.remove('espera'); });
+},{threshold:.12});
+document.querySelectorAll('.rev').forEach(el=>{
+  /* o que já está visível no carregamento NÃO some pra reaparecer */
+  if(el.getBoundingClientRect().top>innerHeight*.9) el.classList.add('espera');
+  io.observe(el);
+});
+
+const preenche=document.getElementById('preenche');
+const capitulo=document.getElementById('capitulo');
+function atualizarBarra(){
+  const alt=document.documentElement.scrollHeight-innerHeight;
+  preenche.style.width=(alt>0?(scrollY/alt)*100:0)+'%';
+  let atual=secoes[0];
+  for(const s of secoes){ if(s.getBoundingClientRect().top<innerHeight*.45) atual=s; }
+  if(atual&&atual.dataset.cap) capitulo.textContent=atual.dataset.cap;
+}
+addEventListener('scroll',atualizarBarra,{passive:true});
+addEventListener('resize',atualizarBarra);
+atualizarBarra();
+
+/* ---------- contadores ---------- */
+const ioCnt=new IntersectionObserver(es=>{
+  es.forEach(e=>{
+    if(!e.isIntersecting)return;
+    const el=e.target, alvo=+el.dataset.n; ioCnt.unobserve(el);
+    if(alvo===0){ el.textContent='0'; return; }
+    const t0=performance.now(), dur=1100;
+    const anda=t=>{
+      const p=Math.min(1,(t-t0)/dur), e2=1-Math.pow(1-p,3);
+      el.textContent=Math.round(alvo*e2);
+      if(p<1)requestAnimationFrame(anda);
+    };
+    requestAnimationFrame(anda);
+  });
+},{threshold:.5});
+document.querySelectorAll('.cnt').forEach(el=>ioCnt.observe(el));
+
+/* ---------- "tocar tudo": o modo vídeo ---------- */
+const ROTEIRO=[
+  {cap:'a arquitetura', som:null,          espera:2600},
+  {cap:'o erro',        som:'passo-morto', espera:1500},
+  {cap:'o erro',        som:'passo-vivo',  espera:2000},
+  {cap:'o piso',        som:'andar-casa',  espera:5400},
+  {cap:'a distância',   som:'porta-0',     espera:3200},
+  {cap:'a distância',   som:'porta-2',     espera:3200},
+  {cap:'a distância',   som:'porta-4',     espera:3200},
+  {cap:'a distância',   som:'passo-perto', espera:1200},
+  {cap:'a distância',   som:'passo-longe', espera:1800},
+  {cap:'a porta',       som:'porta-toda',  espera:3400},
+  {cap:'o custo',       som:null,          espera:3000},
+  {cap:'fim',           som:null,          espera:2000}
+];
+let rodando=false, passoRoteiro=0, timer=null;
+const bplay=document.getElementById('bplay');
+function pararRoteiro(){
+  rodando=false; clearTimeout(timer);
+  bplay.textContent='▶ tocar tudo'; bplay.setAttribute('aria-pressed','false');
+}
+function seguirRoteiro(){
+  if(!rodando)return;
+  if(passoRoteiro>=ROTEIRO.length){ passoRoteiro=0; pararRoteiro(); return; }
+  const p=ROTEIRO[passoRoteiro++];
+  const alvo=secoes.find(s=>s.dataset.cap===p.cap);
+  if(alvo) alvo.scrollIntoView({behavior:'smooth',block:'start'});
+  if(p.som) setTimeout(()=>{
+    if(!rodando)return;
+    const b=document.querySelector('.toca[data-som="'+p.som+'"]');
+    tocar(p.som,b);
+  },700);
+  timer=setTimeout(seguirRoteiro,p.espera);
+}
+bplay.addEventListener('click',()=>{
+  if(rodando){ pararRoteiro(); return; }
+  if(!ligado){
+    iniciarAudio();
+    if(A.ctx.state==='suspended') A.ctx.resume();
+    ligado=true;
+    document.getElementById('som-off').textContent='som ligado';
+    document.getElementById('som-off').style.color='var(--mofo)';
+    const b=document.getElementById('ligar');
+    b.textContent='Som ligado — role e toque'; b.classList.add('pronto');
+    pintarEscopos();
+  }
+  rodando=true; passoRoteiro=0;
+  bplay.textContent='❚❚ parar'; bplay.setAttribute('aria-pressed','true');
+  seguirRoteiro();
+});
+
+/* ---------- montagem ---------- */
+montarEscopo('escopo-topo','hz-topo','onda');
+montarEscopo('escopo-passo','hz-passo','onda');
+montarEscopo('escopo-piso','hz-piso','espectro');
+montarEscopo('escopo-dist','hz-dist','espectro');
+montarEscopo('escopo-porta','hz-porta','espectro');
+pintarPlanta();
+</script>

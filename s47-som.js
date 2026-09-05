@@ -9,24 +9,66 @@
        com ducking automatico por prioridade
      · `saida(no, {pan, rev, vol})` roteia TODOS os sons — 101 sitios
 
-   Nada disso foi reescrito. O que faltava sao tres coisas, e as tres
-   foram medidas antes:
+   O ERRO QUE ESTE BLOCO JA COMETEU DUAS VEZES, E O QUE SOBROU DELE
+   ----------------------------------------------------------------
+   A primeira versao deste bloco escreveu um `somDePorta` proprio, de
+   quatro camadas, sem procurar se a porta ja tinha som. Ela tem:
+   `somPortaAbrindo` monta CINCO camadas — ferrolho (duas voltas),
+   rangido, arrasto, lufada e batente. Removi a minha.
 
+   E entao cometi o MESMO erro com o passo, e desta vez cheguei a
+   entregar. Eu media contra `passo()` da linha 474 do index.html e
+   concluia que o passo do jogo era "um estalo so, sem material, sem
+   variacao". Aquele passo esta MORTO: o `audio-manager.js` declara
+   outro `passo` depois dele, e o proprio `montar.js` registra a troca
+   por escrito em COLISAO_OK:
+
+       'passo',   // v48 troca o passo sintetizado pelo sistema de superficies
+
+   O passo vivo e `passoEm()`, e ele ja tinha tudo o que eu disse que
+   faltava: o peso do corpo chegando no chao (oscilador), o solado, a
+   tabua respondendo depois, e o pe arrastando 50-90ms adiante — que e
+   exatamente a "segunda batida" que eu achei que estava inventando.
+   Quatro superficies, variacao por disparo, tudo la.
+
+   Minha versao foi removida. O passo do jogo e o `passoEm` de novo.
+
+   O QUE SOBRA, E QUE E DE VERDADE O QUE FALTAVA
+   ---------------------------------------------
    1 · `saida()` NAO TINHA MODELO DE DISTANCIA. Som longe so ficava mais
        baixo. Mas o que o ouvido usa pra julgar distancia e a PERDA DE
        AGUDO — o ar absorve alta frequencia, e por isso trovao longe e
        um ronco e trovao perto e um estalo. Como `saida` e universal,
-       resolver ali melhora os 101 sitios de uma vez.
+       resolver ali serve os 101 sitios de uma vez.
 
-   2 · `passo()` ERA UM ESTALO SO. Um passo real sao duas batidas: o
-       calcanhar, e o peso assentando 45-75ms depois. E nao tinha
-       material nenhum — pisar em tabua soava igual a pisar em terra
-       batida, num jogo que descreve o piso de cada comodo por escrito.
+   2 · O SISTEMA DE SUPERFICIES NAO CHEGAVA NOS COMODOS. `pisoDaCena()`
+       decidia assim:
 
-   3 · SEM VARIACAO. Todo `passo` usava os mesmos numeros. Repeticao
-       identica destroi a ilusao mais rapido que ausencia de som.
+           if(c===10)return 'terra';         // quintal
+           if(c===0||c===9)return 'escada';  // sotao e porao
+           return 'madeira';
 
-   MEDIDO ANTES:  passo() 0,921 ms · batida() 0,329 ms · saida() 0,142 ms
+       O abrigo tem os comodos 0 a 8. O quintal e 8, nao 10; o porao e
+       6, nao 9. SETE DOS NOVE COMODOS caiam no `return 'madeira'` —
+       inclusive o quintal de terra batida e os dois de concreto. O
+       motor era bom e estava apontando pra indices que nao existem.
+
+   3 · NEM PASSO NEM PORTA TINHAM DISTANCIA. Existem no jogo passos que
+       vem de longe (`passoDistante`) e portas em outro comodo, e as
+       duas coisas so ficavam mais baixas.
+
+   CUSTO — E UM NUMERO QUE EU PUBLIQUEI ERRADO
+   -------------------------------------------
+   Publiquei que o passo tinha ficado mais barato (0,921 -> 0,357 ms).
+   Era falso duas vezes: eu media o `antes` num AudioContext ja cheio de
+   nos vivos, e o `antes` que eu media era o passo morto. Repetindo a
+   MESMA chamada seis vezes seguidas eu obtive
+   1,70 · 2,35 · 4,83 · 4,68 · 6,24 · 6,24 ms — codigo identico. O
+   cronometro media acumulo de nos.
+
+   Agora o passo do jogo voltou a ser o `passoEm`, que custa o que
+   sempre custou. O que este bloco acrescenta a ele e um filtro de ar
+   quando a distancia e maior que zero: um no por chamada de `saida`.
 
    POLITICA RESPEITADA: audio cosmetico continua com `Math.random`, como
    o s30-nucleo.js declarou por escrito. Nada aqui gasta o RNG da
@@ -38,27 +80,35 @@ const SOM_CFG={
      curva forte e legivel: 18k → 8,1k → 3,6k → 1,6k → 740Hz. */
   agudoPorComodo: 0.45,
   cortePerto: 18000,
+  corteMinimo: 320,
   /* quanto mais longe, mais reverberacao proporcional ao som direto —
      e assim que o ouvido separa "perto e abafado" de "longe" */
   revPorComodo: 0.55,
   /* e o som direto cai */
   ganhoPorComodo: 0.72,
-  /* atraso entre o calcanhar e o peso assentando, em segundos */
-  passoDuplo: [0.045, 0.075],
-  /* variacao por disparo: nada disso passa de ~6%, senao soa desafinado
-     em vez de vivo */
-  jitterGanho: 0.14,
-  jitterFreq: 0.09
+  /* quantos "comodos" de ar um passo de proximidade 0 atravessa */
+  comodosNoPassoDistante: 3
 };
 
-/* distancia ambiente: declarada aqui porque o embrulho de `saida()`
-   abaixo a consulta. Ver a secao 3. */
+function corteDoAr(d){
+  return Math.max(SOM_CFG.corteMinimo, SOM_CFG.cortePerto*Math.pow(SOM_CFG.agudoPorComodo,d));
+}
+
+/* janela de distancia: tudo que for agendado dentro dela sai com
+   absorcao de ar. Declarada aqui em cima porque o embrulho de `saida()`
+   a consulta. */
 let _distAmbiente=0;
+function comDistancia(d,fn){
+  const antes=_distAmbiente;
+  _distAmbiente=+d||0;
+  try{ return fn(); }
+  finally{ _distAmbiente=antes; }
+}
 
 /* ================= 1 · DISTÂNCIA EM `saida()` =================
-   Opt-in de proposito: sem `dist`, o comportamento e IDENTICO ao de
-   antes. Os 101 sitios existentes continuam soando igual ate alguem
-   passar distancia. Melhoria incremental, nao troca de motor. */
+   Opt-in de proposito: sem `dist` e fora de qualquer janela, o
+   comportamento e IDENTICO ao de antes — zero nos a mais. Os 101 sitios
+   existentes continuam soando igual ate alguem pedir distancia. */
 if(typeof saida==='function'){
   const _somSaida=saida;
   saida=function(no,op){
@@ -70,7 +120,7 @@ if(typeof saida==='function'){
       /* o ar come o agudo: e isto que diz "longe", nao o volume */
       const ar=A.ctx.createBiquadFilter();
       ar.type='lowpass';
-      ar.frequency.value=Math.max(320,SOM_CFG.cortePerto*Math.pow(SOM_CFG.agudoPorComodo,d));
+      ar.frequency.value=corteDoAr(d);
       ar.Q.value=0.4;
       no.connect(ar);
       return _somSaida.call(this,ar,{
@@ -83,101 +133,68 @@ if(typeof saida==='function'){
   };
 }
 
-/* ================= 2 · O PASSO =================
-   Materiais tirados do texto que o proprio jogo escreve em `AMBIENTE`:
-   o sotao tem telhado e poeira, o quarto tem colchoes no chao, a
-   despensa tem prateleira de metal, a oficina tem oleo, a sala tem
-   sofa e tabua, a cozinha tem fogao, o porao tem o gerador, a entrada
-   e tabua atravessada, e o quintal e terra batida — esta escrito la. */
-const MATERIAL_SOM={
-  madeira: {corte:[300,520], q:2.2,  peso:1.00, res:180, ressoa:.30},
-  tabua:   {corte:[260,430], q:3.4,  peso:1.10, res:120, ressoa:.46},  /* soalho oco */
-  concreto:{corte:[520,900], q:0.8,  peso:0.86, res:0,   ressoa:.06},
-  ladrilho:{corte:[900,1700],q:1.4,  peso:0.74, res:0,   ressoa:.10},
-  terra:   {corte:[170,300], q:0.6,  peso:0.92, res:0,   ressoa:.02},
-  pano:    {corte:[150,240], q:0.5,  peso:0.60, res:0,   ressoa:.01}   /* colchao */
+/* ================= 2 · O PISO VOLTA A CHEGAR NOS CÔMODOS =================
+
+   O motor de superficie (`SUP` + `passoEm`) NAO E TOCADO. O que estava
+   quebrado era so o mapa: `pisoDaCena` procurava os comodos 9 e 10, que
+   nao existem, e sete dos nove caiam em 'madeira'.
+
+   As duas superficies novas saem do texto que o proprio jogo escreve em
+   `AMBIENTE`, nao da minha imaginacao:
+     comodo 1 — "Colchoes no chao."           → colchao
+     comodo 5 — "Fogao a gas com meio botijao" → ladrilho (cozinha)
+   e o resto ja tinha superficie certa esperando um mapa que funcionasse:
+     comodo 8 — "Muro alto, portao soldado, terra batida." → terra
+     comodo 2 — "Prateleiras de metal."       → concreto
+     comodo 6 — "O gerador."                  → concreto            */
+if(typeof SUP==='object'&&SUP&&SUP.madeira){
+  /* mesmo formato das quatro que ja existiam */
+  if(!SUP.colchao)  SUP.colchao ={corte:300 ,q:.5 ,corpo:54,res:[0,0]    ,resVol:0   ,scuff:.012};
+  if(!SUP.ladrilho) SUP.ladrilho={corte:2600,q:1.6,corpo:82,res:[520,880],resVol:.05,scuff:.090};
+}
+const PISO_DO_COMODO={
+  0:'escada',   /* sotao: telhado baixo, degrau de madeira */
+  1:'colchao',  /* dormitorio: colchoes no chao */
+  2:'concreto', /* despensa: prateleiras de metal */
+  3:'madeira',  /* oficina: bancada e madeira empilhada */
+  4:'madeira',  /* sala: assoalho */
+  5:'ladrilho', /* cozinha */
+  6:'concreto', /* porao do gerador */
+  7:'madeira',  /* entrada: tabuas atravessadas */
+  8:'terra'     /* quintal: terra batida */
 };
-const PISO_DO_COMODO={0:'tabua',1:'pano',2:'concreto',3:'concreto',
-  4:'tabua',5:'ladrilho',6:'concreto',7:'madeira',8:'terra'};
-function pisoAtual(id){
-  const i=(id==null&&typeof cena!=='undefined'&&cena.casa)?cena.casa.voce:id;
-  return MATERIAL_SOM[PISO_DO_COMODO[i]]||MATERIAL_SOM.madeira;
-}
-/* variacao pequena e continua. `Math.random` de proposito: e cosmetico,
-   e a politica do projeto reserva o RNG semeado pra quem decide jogo. */
-function jitter(v,q){ return v*(1+(Math.random()*2-1)*q); }
-
-/* uma batida de passo: ruido filtrado com envelope curto, mais um toque
-   de ressonancia quando o piso e oco */
-function _batidaDePasso(t,ganho,mat,pan,dist){
-  const s=src(), f=A.ctx.createBiquadFilter(), g=A.ctx.createGain();
-  f.type='lowpass';
-  f.frequency.value=jitter(mat.corte[0]+Math.random()*(mat.corte[1]-mat.corte[0]),SOM_CFG.jitterFreq);
-  f.Q.value=mat.q;
-  g.gain.setValueAtTime(0,t);
-  g.gain.linearRampToValueAtTime(jitter(ganho,SOM_CFG.jitterGanho),t+0.004);
-  g.gain.exponentialRampToValueAtTime(0.0008,t+0.13+Math.random()*0.05);
-  s.connect(f); f.connect(g);
-  saida(g,{pan,rev:.42,dist});
-  s.start(t); s.stop(t+0.20);
-  /* assoalho oco devolve uma nota grave curta — e o que faz tabua soar
-     como tabua e nao como "ruido mais grave" */
-  if(mat.res&&Math.random()<mat.ressoa){
-    const o=A.ctx.createOscillator(), og=A.ctx.createGain();
-    o.type='sine'; o.frequency.setValueAtTime(jitter(mat.res,.12),t);
-    o.frequency.exponentialRampToValueAtTime(jitter(mat.res,.12)*0.72,t+0.16);
-    og.gain.setValueAtTime(0,t);
-    og.gain.linearRampToValueAtTime(ganho*0.22,t+0.012);
-    og.gain.exponentialRampToValueAtTime(0.0008,t+0.19);
-    o.connect(og); saida(og,{pan,rev:.5,dist});
-    o.start(t); o.stop(t+0.22);
-  }
-}
-
-if(typeof passo==='function'){
-  passo=function(prox=1,pan=0,piso){
-    if(!A.ctx)return;
-    const t=A.ctx.currentTime;
-    const mat=(typeof piso==='string')?(MATERIAL_SOM[piso]||pisoAtual()):pisoAtual();
-    /* `prox` era 0..1 de proximidade. Distancia e o inverso, em comodos. */
-    const dist=Math.max(0,(1-Math.min(1,prox))*3);
-    const base=0.40*Math.min(1,prox)*mat.peso;
-    /* CALCANHAR — o ataque */
-    _batidaDePasso(t,base,mat,pan,dist);
-    /* PESO ASSENTANDO — mais grave, mais fraco, e e este intervalo que
-       o ouvido le como "uma pessoa", nao "um estalo" */
-    const [a,b]=SOM_CFG.passoDuplo;
-    const atraso=a+Math.random()*(b-a);
-    _batidaDePasso(t+atraso,base*(0.38+Math.random()*0.14),
-      {...mat,corte:[mat.corte[0]*0.62,mat.corte[1]*0.66],ressoa:mat.ressoa*0.5},
-      pan,dist);
+if(typeof pisoDaCena==='function'){
+  pisoDaCena=function(){
+    const m=(window.cena&&cena.modo)||'';
+    if(m==='rua'||m==='casafora'||m==='mapa')return 'concreto';
+    const c=(window.cena&&cena.casa)?cena.casa.voce:null;
+    return PISO_DO_COMODO[c]||'madeira';
   };
 }
 
 /* ================= 3 · DISTÂNCIA PARA O QUE JÁ EXISTE =================
 
-   ERRO MEU, CORRIGIDO ANTES DE ENTREGAR: a primeira versao deste bloco
-   trazia um `somDePorta` proprio, em quatro camadas. Eu tinha auditado o
-   barramento e NAO tinha procurado se a porta ja tinha som.
+   Nada aqui reescreve som nenhum. `comDistancia` marca uma janela e o
+   embrulho de `saida()` faz o resto — entao passo e porta ganham
+   distancia sem que uma linha do corpo delas mude.
 
-   Ela tem: `somPortaAbrindo` monta CINCO camadas — ferrolho (duas
-   voltas), rangido, arrasto, lufada de vento e batente — e e melhor que
-   a minha. Entregar a minha por cima seria duplicar pior, que e
-   exatamente o que a auditoria existe pra impedir.
-
-   Entao o que entra aqui e o que faltava NELA: distancia.
-
-   `comDistancia(d, fn)` marca uma janela — tudo que for agendado la
-   dentro sai com absorcao de ar, mais reverberacao e menos som direto.
-   Como `saida()` e o roteador universal, isso vale pros 101 sitios do
-   jogo sem reescrever nenhum deles. Uma porta batendo dois comodos
-   adiante deixa de ser "a mesma porta, mais baixa" e passa a ser um som
-   que veio de longe. */
-function comDistancia(d,fn){
-  const antes=_distAmbiente;
-  _distAmbiente=+d||0;
-  try{ return fn(); }
-  finally{ _distAmbiente=antes; }
+   No passo isto MUDA o som dos sitios que ja chamavam `passo(prox,pan)`
+   com proximidade baixa, e muda de proposito: passo longe deixa de ser
+   "o mesmo passo, mais baixo" e passa a ser um passo que atravessou ar.
+   A forma nova, `passo(t, op)`, so ganha distancia se pedir `op.dist`. */
+if(typeof passo==='function'){
+  const _passoBase=passo;
+  passo=function(a,b){
+    /* forma nova passo(t,{...}): so com `dist` explicito */
+    if(b&&typeof b==='object'){
+      const d=+b.dist||0;
+      return d>0 ? comDistancia(d,()=>_passoBase(a,b)) : _passoBase(a,b);
+    }
+    /* forma antiga passo(proximidade, pan) */
+    const prox=a==null?1:a;
+    const d=Math.max(0,(1-Math.min(1,prox))*SOM_CFG.comodosNoPassoDistante);
+    return d>0 ? comDistancia(d,()=>_passoBase(a,b)) : _passoBase(a,b);
+  };
 }
 
 /* as portas do jogo passam a aceitar `dist` sem mudar o corpo delas */
@@ -193,13 +210,16 @@ function comDistancia(d,fn){
 
 /* ---------- conferencia ---------- */
 function som47Estado(){
+  const pisos={};
+  for(const k in PISO_DO_COMODO) pisos[k]=PISO_DO_COMODO[k];
   return {
     distanciaEmSaida:true,
-    corte:[0,1,2,3,4].map(d=>({comodos:d,
-      hz:Math.round(Math.max(320,SOM_CFG.cortePerto*Math.pow(SOM_CFG.agudoPorComodo,d)))})),
-    materiais:Object.keys(MATERIAL_SOM),
-    pisoPorComodo:PISO_DO_COMODO,
-    portaJaExistia:typeof somPortaAbrindo==='function',
+    corte:[0,1,2,3,4].map(d=>({comodos:d, hz:Math.round(corteDoAr(d))})),
+    superficies:(typeof SUP==='object'&&SUP)?Object.keys(SUP):[],
+    pisoPorComodo:pisos,
+    superficiesUsadas:Array.from(new Set(Object.values(PISO_DO_COMODO))),
+    motorDoPassoPreservado:(typeof passoEm==='function'),
+    portaJaExistia:(typeof somPortaAbrindo==='function'),
     distanciaAmbiente:_distAmbiente
   };
 }
