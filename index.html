@@ -812,7 +812,7 @@ const S={
   estagioVisto:0,ouviu:[],estacaoVista:null,secaAte:0,recusou:0,proxResgate:0,
   credito:60,testeHoje:0,moradoras:[],metPorta:null,deixouIr:0,perdeuGente:0,ameacas:[],ferido:0,doenteJog:0,
   ameacasMortas:0,gancho:false,grade:false,alarme:false,filtro:false,
-  mochila:null,maos:[],guardados:[],casasVistas:{},semente:Math.floor(Math.random()*9999),
+  mochila:null,maos:[],guardados:[],casasVistas:{},semente:Math.floor(Math.random()*9999), /* cosmetico: so alimenta ruido de desenho */
   ferido:false,matou:0,pilhas:0,moeda:0
 };
 const $=q=>document.querySelector(q);
@@ -837,6 +837,26 @@ function _ale(){
 }
 const sortear=a=>a[Math.floor(_ale()*a.length)];
 const chance=p=>_ale()<p;
+/* A TERCEIRA GRAFIA DA MESMA DECISAO.
+   A v66 trocou `sortear` e `chance` pelo gerador semeado e varreu 71
+   sitios diretos — e deixou passar `Math.floor(Math.random()*n)`, que
+   decide exatamente a mesma coisa com outra cara. Em tres lugares o
+   sitio semeado e o nao-semeado estavam na MESMA LINHA:
+
+     const q = 1 + Math.floor(Math.random()*3);   // nao semeado
+     for(let i=0; i<(chance(.6)?1:2); i++){        // semeado
+       const m = sortear(mats); darMat(m,q);       // semeado
+
+   `_inteiro(n)` e o `_ale` dos inteiros: mesma distribuicao, mesmo
+   arredondamento, nenhum numero de balanceamento muda — so para de
+   depender de sorte que o save nao conhece. A quinta trava de build
+   impede que a grafia volte. */
+const _inteiro=n=>Math.floor(_ale()*Math.max(1,n|0));
+/* Fisher-Yates pelo gerador da partida. Embaralha no lugar e devolve. */
+function _embaralhar(a){
+  for(let i=a.length-1;i>0;i--){ const j=_inteiro(i+1); const t=a[i]; a[i]=a[j]; a[j]=t; }
+  return a;
+}
 const trava=(v,a,b)=>Math.max(a,Math.min(b,v));
 
 
@@ -4367,7 +4387,7 @@ function tocarEscuta(v){
   const ciclos=Math.ceil(12/(60/e.rpm))+1;
   respirar(t0,e,ciclos);
   // passos: ele se mexe 3 ou 4 vezes
-  const nMex=3+Math.floor(Math.random()*2);
+  const nMex=3+Math.floor(Math.random()*2);   /* cosmetico: quantas vezes o som se mexe; o tell sao os defeitos */
   for(let i=0;i<nMex;i++){
     const t=t0+1.2+i*(9/nMex)+Math.random()*.7;
     const pan=(Math.random()-.5)*.5;
@@ -4490,7 +4510,12 @@ function escolherEscuta(v,e,antes,escrito){
 function responderEscuta(v,e,p,antes){
   limpar();cap(p.q);
   AC.innerHTML='';
-  p.op.slice().sort(()=>Math.random()-.5).forEach(([txt,id])=>{
+  /* `sort(()=>Math.random()-.5)` nao e um embaralhamento: o comparador
+     nao e consistente, e a ordem que sai e enviesada — as primeiras
+     opcoes tendem a ficar nas primeiras posicoes. Aqui a ordem e um
+     tell (o jogador escolhe o que ouviu), entao vale ser justa e
+     reproduzivel. Fisher-Yates pelo gerador da partida. */
+  _embaralhar(p.op.slice()).forEach(([txt,id])=>{
     botao(txt,()=>julgarEscuta(v,e,id,antes));
   });
 }
@@ -5834,7 +5859,7 @@ function vasculharPor(comodo){
     }
   }
   const mats=Object.keys(MATE);
-  const q=1+Math.floor(Math.random()*3);
+  const q=1+_inteiro(3);
   for(let i=0;i<(chance(.6)?1:2);i++){
     const m=sortear(mats);darMat(m,q);
     acha.push(`+${q} ${q===1?MATE[m].n:MATE[m].un}`);
@@ -7804,7 +7829,7 @@ async function encararOcupante(casa,voltar){
 function menuRuaCasas(local,voltar){
   AC.innerHTML='';limpar();cap('A rua do '+local.n.toLowerCase());
   diz('A quadra tem casa dos dois lados. Dá pra escolher em qual entrar.','narr');
-  const n=3+Math.floor(Math.random()*2);
+  const n=3+_inteiro(2);
   for(let i=0;i<n;i++){
     const casa=gerarCasa(local.id,i);
     const T=TIPO_CASA[casa.tipo];
@@ -10854,7 +10879,7 @@ function paciencia(v){
   if(v._pac==null){
     const base=v.mimico?6:5;
     v._pac=base+(v.tipo==='ferido'?-2:0)+(v.tipo==='silente'?4:0)
-      +Math.floor(Math.random()*3);
+      +_inteiro(3);
   }
   return v._pac;
 }
@@ -18685,7 +18710,7 @@ function batidaDe(v){
     return v.mimico?b.mimico:(1-b.mimico);
   });
   const tot=pesos.reduce((a,b)=>a+b,0);
-  let r=Math.random()*tot;
+  let r=_ale()*tot;
   for(let i=0;i<ks.length;i++){r-=pesos[i];if(r<=0)return (v._bat=ks[i]);}
   return (v._bat='educada');
 }
@@ -19084,7 +19109,7 @@ function curvaRangido(n){
   const c=new Float32Array(n); let g=1;
   for(let i=0;i<n;i++){
     const t=n>1?i/(n-1):1;
-    if(Math.random()<.035) g=.25+Math.random()*.9;
+    if(Math.random()<.035) g=.25+Math.random()*.9;   /* cosmetico: a dobradica engasgando, envelope de audio */
     g += (1-g)*.06;
     c[i]=Math.sin(Math.PI*Math.pow(t,.75))*g;
   }
@@ -19207,7 +19232,7 @@ function programarEngasgo(){
   A.ger.engasgo=setTimeout(()=>{
     if(!A.ger)return;
     const G=A.ger;
-    if(G.carga<.30&&Math.random()<.6){
+    if(G.carga<.30&&Math.random()<.6){   /* cosmetico: falha de ignicao, so rampa de ganho e frequencia */
       const t=agoraS(), v=G.mestre.gain.value, f=G.fAtual;
       G.mestre.gain.cancelScheduledValues(t);
       G.mestre.gain.setValueAtTime(v,t);
@@ -19841,7 +19866,8 @@ function pesoTrilho(il){
 }
 function sortearPesado(pool){
   const tot=pool.reduce((a,i)=>a+pesoTrilho(i),0);
-  let r=Math.random()*tot;
+  /* qual ilusao de sanidade sai e decisao de jogo: vai pelo gerador. */
+  let r=_ale()*tot;
   for(const i of pool){ r-=pesoTrilho(i); if(r<=0)return i; }
   return pool[pool.length-1];
 }
@@ -20500,7 +20526,7 @@ function tentarRecuperarLargada(l){
   if(!chance(.55)){
     diz('A mochila não está mais onde você deixou.','perigo');
     S.largadaPerdida={dia:S.dia,n:(MOCHILAS[L.tipo]||{}).n||'a mochila',
-      quando:S.dia+2+Math.floor(Math.random()*4)};
+      quando:S.dia+2+_inteiro(4)};
     return;
   }
   const m=mochila();
@@ -21502,7 +21528,9 @@ if(typeof anoitecer==='function'){
   const _anoBase2=anoitecer;
   window.anoitecer=function(){
     const cegos=['SOM','ODOR','VISUAL','METAL'];
-    S.cegoDaNoite=[cegos[Math.floor(Math.random()*cegos.length)]];
+    /* qual sentido fica cego decide QUAL CRIATURA fica surda naquela
+       noite. Fora do gerador, a mesma noite carregada era outra. */
+    S.cegoDaNoite=[sortear(cegos)];
     v9Calor();
     return _anoBase2.apply(this,arguments);
   };
@@ -22073,7 +22101,8 @@ function amPode(id,cd){
    variante duas vezes seguidas */
 function amVariante(evento,n){
   if(n<=1)return 0;
-  let v; do{ v=Math.floor(Math.random()*n); }while(n>1&&v===AM.ultimaVariante[evento]);
+  /* cosmetico: qual gravacao do mesmo evento toca, pra nao repetir */
+  let v; do{ v=Math.floor(Math.random()*n); }while(n>1&&v===AM.ultimaVariante[evento]);   /* cosmetico */
   AM.ultimaVariante[evento]=v;
   return v;
 }
@@ -24116,7 +24145,7 @@ desenharChuva=function(w,h,t,forca){
   const Q=qualidadeChuva();
 
   /* vento: muda devagar e nunca dá salto — o pedido é explícito */
-  if(Math.random()<.006)_ventoAlvo=(Math.random()*2-1)*(.6+.5*i);
+  if(Math.random()<.006)_ventoAlvo=(Math.random()*2-1)*(.6+.5*i);   /* cosmetico: a rajada que inclina a chuva na tela */
   _ventoChuva+=(_ventoAlvo-_ventoChuva)*.012;
 
   const n=Math.round(CHUVA.gotasMax*Q.gotas*(.35+.65*i));
@@ -25741,7 +25770,9 @@ function atirar(id,op){
   const estado=(p&&typeof efic==='function')?efic(p):1;
   const conf=A.confiabilidade*(0.75+0.25*estado);
   let travou=false;
-  if(Math.random()>conf){ e.travada=true; travou=true; }
+  /* a arma travar decide se voce sobrevive. Estava fora do gerador
+     da partida — o mesmo save dava travamentos diferentes. */
+  if(_ale()>conf){ e.travada=true; travou=true; }
 
   /* desgaste do §15: cada tiro gasta a peça */
   if(typeof gastarDur==='function'&&p)
@@ -27523,7 +27554,7 @@ function abrirFuga(I,onde){
   S.fuga={
     fase:'VASCULHANDO',
     turno:0,
-    restam:v.min+Math.floor(Math.random()*(v.max-v.min+1)),
+    restam:v.min+_inteiro(v.max-v.min+1),
     saiPor: porFundos?'fundos':'frente',
     onde: onde||'quintal',          /* onde VOCÊ está */
     avisos:0,
@@ -27576,8 +27607,9 @@ function roubarAlgo(){
   if(typeof mochila==='function'&&(mochila().itens||[]).length)op.push('item');
   if(!op.length)return null;
   const k=sortear(op);
-  if(k==='comida'){const q=Math.min(S.comida,1+Math.floor(Math.random()*2));S.comida-=q;return q+' de comida';}
-  if(k==='diesel'){const q=Math.min(S.diesel,2+Math.floor(Math.random()*4));S.diesel-=q;return q+' de diesel';}
+  /* `sortear(op)` acima ja era semeado; QUANTO o ladrao leva nao era. */
+  if(k==='comida'){const q=Math.min(S.comida,1+_inteiro(2));S.comida-=q;return q+' de comida';}
+  if(k==='diesel'){const q=Math.min(S.diesel,2+_inteiro(4));S.diesel-=q;return q+' de diesel';}
   if(k==='remedio'){S.remedio--;return 'um remédio';}
   const it=sortear(mochila().itens);
   if(!it)return null;
@@ -30265,6 +30297,34 @@ if(typeof turnoMonstro==='function'){
     return r;
   };
 }
+/* O ELO QUE FALTAVA — achado pela auditoria da V71.
+
+   `salvar()` grava `d.rngEstado`. `carregar()` da base copia TODA chave
+   do save pra dentro de `S`, entao `S.rngEstado` volta certo. Mas o
+   gerador VIVO (`S.rng`) nunca era re-semeado a partir dele:
+   `semearRNG()` roda uma vez, no parse deste bloco, que acontece ANTES
+   de `carregar()`; e `rng()` so re-semeia se `S.rng` sumiu.
+
+   Medido, plantando 123456789 no save:
+
+     depois de carregar()   S.rngEstado=123456789   gerador=999
+     depois de semearRNG()  S.rngEstado=123456789   gerador=123456789
+
+   Ou seja: carregar um save retomava o sorteio de onde o BOOT parou, e
+   nao de onde o jogador parou. O estado era salvo, era restaurado — e
+   era ignorado. A v66 fez as decisoes passarem pelo gerador e gravou o
+   estado; faltava o ultimo passo, que e aplicar na carga.
+
+   A base copia as chaves primeiro; este embrulho semeia depois. */
+if(typeof carregar==='function'){
+  const _cr=carregar;
+  carregar=function(){
+    const r=_cr.apply(this,arguments);
+    try{ semearRNG(); }catch(e){ if(typeof registrarErro==='function')registrarErro(e,'carregar/semearRNG'); }
+    return r;
+  };
+}
+
 if(typeof invasao==='function'){
   const _inv=invasao;
   invasao=async function(qtd){

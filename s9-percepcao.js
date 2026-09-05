@@ -240,7 +240,9 @@ if(typeof anoitecer==='function'){
   const _anoBase2=anoitecer;
   window.anoitecer=function(){
     const cegos=['SOM','ODOR','VISUAL','METAL'];
-    S.cegoDaNoite=[cegos[Math.floor(Math.random()*cegos.length)]];
+    /* qual sentido fica cego decide QUAL CRIATURA fica surda naquela
+       noite. Fora do gerador, a mesma noite carregada era outra. */
+    S.cegoDaNoite=[sortear(cegos)];
     v9Calor();
     return _anoBase2.apply(this,arguments);
   };

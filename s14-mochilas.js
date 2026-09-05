@@ -273,7 +273,7 @@ function tentarRecuperarLargada(l){
   if(!chance(.55)){
     diz('A mochila não está mais onde você deixou.','perigo');
     S.largadaPerdida={dia:S.dia,n:(MOCHILAS[L.tipo]||{}).n||'a mochila',
-      quando:S.dia+2+Math.floor(Math.random()*4)};
+      quando:S.dia+2+_inteiro(4)};
     return;
   }
   const m=mochila();

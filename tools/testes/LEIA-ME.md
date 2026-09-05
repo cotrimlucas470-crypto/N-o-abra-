@@ -22,6 +22,7 @@ depois de `node montar.js`:
     node tools/testes/pressaoteste.mjs  # pressão, luz e exposição §42 (31)
     node tools/testes/finalteste.mjs   # retorno, achados, cicatriz, tratamento §43-46 (39)
     node tools/testes/somteste.mjs     # o som mais perto da realidade §47 (35)
+    node tools/testes/rngteste.mjs     # a terceira grafia e a carga do gerador §48 (26)
     node tools/testes/simulacao.mjs    # 250 noites simuladas, sem asserção de gosto (20)
     node tools/testes/labteste.mjs     # o site animado docs/laboratorio-de-som.html (26)
     node tools/testes/aberturateste.mjs # a abertura narrada e a guarda do save (14)
@@ -133,3 +134,22 @@ A trava de colisão também roda dentro de `montar.js` e **quebra o build**.
   resolve: essa também passou uma vez e falhou na seguinte, sem regressão nenhuma
   no meio. O que sobrou de asserção é contagem: um filtro de ar por camada,
   nenhuma fonte a mais.
+
+- **`COSMETICO` não é a mesma coisa que `_ale`.** A política do projeto permite
+  `Math.random` em áudio e desenho — e permitir sem trava virou 11 decisões de
+  gameplay sorteando fora do gerador, incluindo **a arma travar**. A 5ª trava de
+  build proíbe as duas grafias que são sempre decisão
+  (`Math.floor(Math.random()*n)` e `Math.random() > x`) e aceita o escape
+  `/* cosmetico: por que */` — com o motivo escrito, não só a palavra.
+- **Estado salvo não é estado aplicado.** `d.rngEstado` era gravado e restaurado
+  pra dentro de `S` — e nunca chegava ao gerador vivo, porque `semearRNG()` roda
+  no parse do bloco, antes de `carregar()`. Ao testar persistência, confira os
+  **dois** lados: que o número volta, e que alguém o usa.
+- **Sonda instalada com `addInitScript` + polling não alcança este jogo.** O
+  `index.html` tem 2,8 MB; o parse segura a thread e `carregar()` roda antes.
+  Medido: a sonda só ficou pronta 12,5 s depois do boot. Prefira medir o estado
+  do armazenamento no instante zero e exercitar `carregar()` direto.
+- **Dimensione a amostra antes de escolher o limite.** Meu teste de
+  embaralhamento usava N=3000 com limite de 12% — que é 3,3 sigma, e falhou sem
+  nada estar errado. A 200 mil tiros o desvio real é 1,01%. Com N=40000 o limite
+  de 4% é 4,5 sigma: aperta mais **e** para de piscar.

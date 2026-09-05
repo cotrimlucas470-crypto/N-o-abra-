@@ -381,6 +381,34 @@ if(typeof turnoMonstro==='function'){
     return r;
   };
 }
+/* O ELO QUE FALTAVA — achado pela auditoria da V71.
+
+   `salvar()` grava `d.rngEstado`. `carregar()` da base copia TODA chave
+   do save pra dentro de `S`, entao `S.rngEstado` volta certo. Mas o
+   gerador VIVO (`S.rng`) nunca era re-semeado a partir dele:
+   `semearRNG()` roda uma vez, no parse deste bloco, que acontece ANTES
+   de `carregar()`; e `rng()` so re-semeia se `S.rng` sumiu.
+
+   Medido, plantando 123456789 no save:
+
+     depois de carregar()   S.rngEstado=123456789   gerador=999
+     depois de semearRNG()  S.rngEstado=123456789   gerador=123456789
+
+   Ou seja: carregar um save retomava o sorteio de onde o BOOT parou, e
+   nao de onde o jogador parou. O estado era salvo, era restaurado — e
+   era ignorado. A v66 fez as decisoes passarem pelo gerador e gravou o
+   estado; faltava o ultimo passo, que e aplicar na carga.
+
+   A base copia as chaves primeiro; este embrulho semeia depois. */
+if(typeof carregar==='function'){
+  const _cr=carregar;
+  carregar=function(){
+    const r=_cr.apply(this,arguments);
+    try{ semearRNG(); }catch(e){ if(typeof registrarErro==='function')registrarErro(e,'carregar/semearRNG'); }
+    return r;
+  };
+}
+
 if(typeof invasao==='function'){
   const _inv=invasao;
   invasao=async function(qtd){

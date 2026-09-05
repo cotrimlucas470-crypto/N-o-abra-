@@ -308,7 +308,9 @@ function atirar(id,op){
   const estado=(p&&typeof efic==='function')?efic(p):1;
   const conf=A.confiabilidade*(0.75+0.25*estado);
   let travou=false;
-  if(Math.random()>conf){ e.travada=true; travou=true; }
+  /* a arma travar decide se voce sobrevive. Estava fora do gerador
+     da partida — o mesmo save dava travamentos diferentes. */
+  if(_ale()>conf){ e.travada=true; travou=true; }
 
   /* desgaste do §15: cada tiro gasta a peça */
   if(typeof gastarDur==='function'&&p)

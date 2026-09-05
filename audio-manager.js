@@ -469,7 +469,8 @@ function amPode(id,cd){
    variante duas vezes seguidas */
 function amVariante(evento,n){
   if(n<=1)return 0;
-  let v; do{ v=Math.floor(Math.random()*n); }while(n>1&&v===AM.ultimaVariante[evento]);
+  /* cosmetico: qual gravacao do mesmo evento toca, pra nao repetir */
+  let v; do{ v=Math.floor(Math.random()*n); }while(n>1&&v===AM.ultimaVariante[evento]);   /* cosmetico */
   AM.ultimaVariante[evento]=v;
   return v;
 }

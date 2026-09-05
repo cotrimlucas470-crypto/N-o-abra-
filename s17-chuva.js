@@ -408,7 +408,7 @@ desenharChuva=function(w,h,t,forca){
   const Q=qualidadeChuva();
 
   /* vento: muda devagar e nunca dá salto — o pedido é explícito */
-  if(Math.random()<.006)_ventoAlvo=(Math.random()*2-1)*(.6+.5*i);
+  if(Math.random()<.006)_ventoAlvo=(Math.random()*2-1)*(.6+.5*i);   /* cosmetico: a rajada que inclina a chuva na tela */
   _ventoChuva+=(_ventoAlvo-_ventoChuva)*.012;
 
   const n=Math.round(CHUVA.gotasMax*Q.gotas*(.35+.65*i));

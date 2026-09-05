@@ -86,7 +86,7 @@ function abrirFuga(I,onde){
   S.fuga={
     fase:'VASCULHANDO',
     turno:0,
-    restam:v.min+Math.floor(Math.random()*(v.max-v.min+1)),
+    restam:v.min+_inteiro(v.max-v.min+1),
     saiPor: porFundos?'fundos':'frente',
     onde: onde||'quintal',          /* onde VOCÊ está */
     avisos:0,
@@ -139,8 +139,9 @@ function roubarAlgo(){
   if(typeof mochila==='function'&&(mochila().itens||[]).length)op.push('item');
   if(!op.length)return null;
   const k=sortear(op);
-  if(k==='comida'){const q=Math.min(S.comida,1+Math.floor(Math.random()*2));S.comida-=q;return q+' de comida';}
-  if(k==='diesel'){const q=Math.min(S.diesel,2+Math.floor(Math.random()*4));S.diesel-=q;return q+' de diesel';}
+  /* `sortear(op)` acima ja era semeado; QUANTO o ladrao leva nao era. */
+  if(k==='comida'){const q=Math.min(S.comida,1+_inteiro(2));S.comida-=q;return q+' de comida';}
+  if(k==='diesel'){const q=Math.min(S.diesel,2+_inteiro(4));S.diesel-=q;return q+' de diesel';}
   if(k==='remedio'){S.remedio--;return 'um remédio';}
   const it=sortear(mochila().itens);
   if(!it)return null;

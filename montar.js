@@ -208,6 +208,70 @@ function checarPrimitivas(){
 }
 checarPrimitivas();
 
+/* ============ 5a GUARDA: A TERCEIRA GRAFIA ============
+   A v66 trocou `sortear` e `chance` pelo gerador semeado e varreu 71
+   sitios diretos — e deixou passar `Math.floor(Math.random()*n)`, que
+   decide exatamente a mesma coisa com outra cara. A auditoria da V71
+   achou 11 decisoes de gameplay ainda sorteando fora do gerador, entre
+   elas A ARMA TRAVAR e QUAL SENTIDO FICA CEGO NA NOITE. Em tres casos o
+   sitio semeado e o nao-semeado estavam na mesma linha.
+
+   `Math.random` cosmetico continua permitido — audio e desenho, como a
+   politica do s30-nucleo.js declarou por escrito. O que esta trava
+   proibe e a grafia INTEIRA e a COMPARACAO, que sao sempre decisao. */
+const COSMETICO_OK=/\/\*\s*cosmetico\b/;
+const PINTA_OU_TOCA=/freq|gain|\bpan\b|osc|curva|impulso|reverb|playbackRate|rgba|fillRect|fillStyle|strokeStyle|lineWidth|arc\(|ellipse|putImageData|setTimeout|setInterval|\.value\s*=|width|height/;
+
+/* Tira comentarios antes de varrer. Sem isto a guarda se acusa sozinha:
+   o comentario que EXPLICA a grafia proibida contem a grafia proibida.
+   Troca o conteudo por espacos pra nao mexer na numeracao das linhas. */
+function semComentarios(txt){
+  let bloco=false, linha=false, out='';
+  for(let i=0;i<txt.length;i++){
+    const c=txt[i], d=txt[i+1];
+    if(bloco){ if(c==='*'&&d==='/'){bloco=false;out+='  ';i++;} else out+=(c==='\n'?'\n':' '); continue; }
+    if(linha){ if(c==='\n'){linha=false;out+='\n';} else out+=' '; continue; }
+    if(c==='/'&&d==='*'){ bloco=true; out+='  '; i++; continue; }
+    if(c==='/'&&d==='/'){ linha=true; out+='  '; i++; continue; }
+    if(c==='"'||c==="'"||c==='`'){
+      const asp=c; out+=c;
+      for(i++;i<txt.length;i++){
+        out+=txt[i];
+        if(txt[i]==='\\'){ out+=txt[++i]||''; continue; }
+        if(txt[i]===asp||txt[i]==='\n')break;
+      }
+      continue;
+    }
+    out+=c;
+  }
+  return out;
+}
+
+function checarTerceiraGrafia(){
+  /* so o index.html, e DEPOIS de montado: e o unico arquivo que embarca,
+     e olhar tambem os blocos reportaria cada sitio duas vezes. */
+  const arq='index.html';
+  const cru=fs.readFileSync(arq,'utf8').split('\n');
+  const limpo=semComentarios(cru.join('\n')).split('\n');
+  const ruins=[];
+  limpo.forEach((l,i)=>{
+    if(COSMETICO_OK.test(cru[i]||''))return;   /* o escape mora na linha crua */
+    const inteiro=/Math\.floor\(\s*Math\.random\(\)/.test(l);
+    const compara=/Math\.random\(\)\s*[<>]/.test(l);
+    if(!inteiro&&!compara)return;
+    if(PINTA_OU_TOCA.test(l))return;
+    ruins.push('  '+arq+':'+(i+1)+'\n      '+(cru[i]||'').trim().slice(0,96));
+  });
+  if(ruins.length){
+    console.error('\nDECISAO DE GAMEPLAY SORTEANDO FORA DO GERADOR DA PARTIDA:\n');
+    console.error(ruins.join('\n'));
+    console.error('\nUse _inteiro(n), chance(p) ou _ale(). Se for mesmo cosmetico,');
+    console.error('escreva /* cosmetico: por que */ no fim da linha.\n');
+    process.exit(1);
+  }
+  console.log('nenhuma decisao de gameplay fora do gerador');
+}
+
 /* ============ 4a GUARDA: A INTEGRIDADE DA TABELA DE TELLS ============
    O briefing pede que "tell antes de dano" seja falha de build. Uma
    guarda de build nao consegue provar EMISSAO, que e coisa de tempo de
@@ -315,6 +379,7 @@ sw=sw.replace(/const VERSAO = '[^']*' \+ '[^']*';/,
   "const VERSAO = 'v48-' + '20260821a';");
 fs.writeFileSync('sw.js',sw);
 
+checarTerceiraGrafia();   /* depois da montagem: le o arquivo que embarca */
 console.log('index.html: '+(html.length/1024).toFixed(0)+' KB');
 for(const b of BLOCOS){
   console.log('  '+b.arq+': '+b.kb+' KB');

@@ -77,7 +77,7 @@ function curvaRangido(n){
   const c=new Float32Array(n); let g=1;
   for(let i=0;i<n;i++){
     const t=n>1?i/(n-1):1;
-    if(Math.random()<.035) g=.25+Math.random()*.9;
+    if(Math.random()<.035) g=.25+Math.random()*.9;   /* cosmetico: a dobradica engasgando, envelope de audio */
     g += (1-g)*.06;
     c[i]=Math.sin(Math.PI*Math.pow(t,.75))*g;
   }
@@ -200,7 +200,7 @@ function programarEngasgo(){
   A.ger.engasgo=setTimeout(()=>{
     if(!A.ger)return;
     const G=A.ger;
-    if(G.carga<.30&&Math.random()<.6){
+    if(G.carga<.30&&Math.random()<.6){   /* cosmetico: falha de ignicao, so rampa de ganho e frequencia */
       const t=agoraS(), v=G.mestre.gain.value, f=G.fAtual;
       G.mestre.gain.cancelScheduledValues(t);
       G.mestre.gain.setValueAtTime(v,t);
@@ -834,7 +834,8 @@ function pesoTrilho(il){
 }
 function sortearPesado(pool){
   const tot=pool.reduce((a,i)=>a+pesoTrilho(i),0);
-  let r=Math.random()*tot;
+  /* qual ilusao de sanidade sai e decisao de jogo: vai pelo gerador. */
+  let r=_ale()*tot;
   for(const i of pool){ r-=pesoTrilho(i); if(r<=0)return i; }
   return pool[pool.length-1];
 }

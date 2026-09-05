@@ -1,6 +1,132 @@
 # CHANGELOG
 
 
+## v73 — V71 Etapa 1: as decisões voltam pro gerador da partida
+
+Primeira etapa do ULTRA_PROMPT V71. A Fase A (auditoria) está em
+`docs/AUDITORIA-V71.md` e mudou o plano — o resumo dela vem no fim desta seção.
+
+Esta etapa não adiciona monstro nenhum. Ela conserta a base de que todo o resto
+depende: o §22 do documento é explícito, e o §30 põe **estabilidade e justiça
+acima de identidade de ameaça**. Sem isto, nada do que vier reproduz.
+
+### Achado 1 — a terceira grafia da mesma decisão
+
+A v66 trocou `sortear` e `chance` pelo gerador semeado e varreu 71 sítios
+diretos. Ela não pegou `Math.floor(Math.random()*n)`, que decide exatamente a
+mesma coisa com outra cara. Em três casos o sítio semeado e o não-semeado
+estavam **na mesma linha**:
+
+```js
+const q = 1 + Math.floor(Math.random()*3);   // ← não semeado
+for(let i=0; i<(chance(.6)?1:2); i++){       // ← semeado
+  const m = sortear(mats); darMat(m,q);      // ← semeado
+```
+
+O sorteio de saque era metade reproduzível.
+
+Onze decisões de jogo estavam fora do gerador:
+
+| o que decidia | onde |
+|---|---|
+| **a arma travar** | `atirar` — `if(Math.random()>conf)` |
+| **qual sentido fica cego na noite** (SOM/ODOR/VISUAL/METAL) | `anoitecer` |
+| **o padrão da batida na porta** — que é um *tell* de mímico | `batidaDe` |
+| quanto material você acha | `vasculharPor` |
+| quanto o ladrão leva de comida e de diesel | `roubarAlgo` |
+| quantos turnos a fuga dura | `abrirFuga` |
+| quanto o visitante espera na porta | `paciencia` |
+| quando a mochila perdida reaparece | `tentarRecuperarLargada` |
+| quantas casas tem na rua | `menuRuaCasas` |
+| qual ilusão de sanidade sai | `sortearPesado` |
+| a ordem das opções da escuta | `responderEscuta` |
+
+As duas primeiras são as graves: a arma travar decide se você sobrevive, e o
+sentido cego decide **qual criatura fica surda naquela noite**.
+
+Entraram duas primitivas ao lado das duas que já existiam, com a mesma
+distribuição e o mesmo arredondamento — **nenhum número de balanceamento muda**:
+
+```js
+const _inteiro = n => Math.floor(_ale()*Math.max(1,n|0));
+function _embaralhar(a){ /* Fisher-Yates pelo gerador da partida */ }
+```
+
+`_embaralhar` substituiu um `sort(()=>Math.random()-.5)`, que **não é um
+embaralhamento**: o comparador não é consistente e a ordem sai enviesada. Ali a
+ordem é um tell, então vale ser justa. Medido: as 120 permutações de 5 elementos
+saem, com desvio máximo de 1,8% em 40 mil tiros.
+
+### Achado 2 — o estado do gerador era salvo, restaurado, e ignorado
+
+Este só apareceu porque eu fui escrever o teste do primeiro, e é o maior dos dois.
+
+`salvar()` grava `d.rngEstado`. `carregar()` copia **toda** chave do save pra
+dentro de `S`, então `S.rngEstado` volta certo. Mas o gerador **vivo** (`S.rng`)
+nunca era re-semeado a partir dele: `semearRNG()` roda uma vez, no parse do
+`s30-nucleo.js`, que acontece **antes** de `carregar()`; e `rng()` só re-semeia
+se `S.rng` tiver sumido.
+
+Medido, plantando `123456789` no save:
+
+```
+depois de carregar()    S.rngEstado = 123456789    gerador = 999
+depois de semearRNG()   S.rngEstado = 123456789    gerador = 123456789
+```
+
+Carregar um save retomava o sorteio de onde o **boot** parou, não de onde o
+jogador parou. Tudo o que a v66 escreveu sobre reprodutibilidade valia só dentro
+de uma sessão. Consertado com um embrulho de `carregar()` em `s30-nucleo.js`, que
+semeia **depois** de a base copiar as chaves.
+
+### A quinta trava de build
+
+Verificada plantando a regressão de propósito, como as outras quatro. Ela roda
+**depois** da montagem, sobre o `index.html` que embarca, e tira os comentários
+antes de varrer — sem isso ela se acusava sozinha, porque o comentário que
+explica a grafia proibida contém a grafia proibida.
+
+`Math.random` cosmético continua permitido, mas agora precisa **se declarar**:
+
+```js
+if(Math.random()<.035) g=.25+Math.random()*.9;   /* cosmetico: a dobradiça engasgando */
+```
+
+Seis sítios foram marcados assim, cada um com o motivo escrito. Os outros 161
+`Math.random` do arquivo são áudio e desenho e caem nas exceções da trava.
+
+### Verificação
+
+`tools/testes/rngteste.mjs` — 26 asserções. A regressão completa fecha em
+**800 verificações, 28 harnesses, zero falhas**. Inclui reprodução com a mesma
+semente, incluindo reprodução com a mesma
+semente e o caminho de carga exercitado de verdade.
+
+Três asserções deste harness falharam por erro **meu**, não do jogo, e as três
+viraram linha no `LEIA-ME`: amostra pequena demais pro limite escolhido (N=3000
+com limite de 12% é 3,3 sigma), e duas versões medindo a persistência *depois* do
+boot, quando o boot legitimamente consome sorteios e o jogo legitimamente salva
+de novo.
+
+### O que a auditoria mudou no plano
+
+`docs/AUDITORIA-V71.md`, medido contra o código:
+
+- **§2, §4, §5, §10, §12, §13, §16, §17 e §26 já existem.** A "nova arquitetura
+  de ameaças" é a descrição do `s26-anomalias.js`, que já tem identidade, máquina
+  de estados, percepção, tell, evidência persistente e recorte serializável.
+- **Três dos cinco invasores pedidos colidem** com criaturas existentes: o
+  Imitante é o `imitador` + os sinais forjados do §40; o Cata-vozes é o `coro` +
+  o chamado do `imitador`; o Rastejante de Parede é `rastejante` + a regra de luz
+  do `magro` + os bloqueios de rota do §43.
+- **Dois são genuinamente novos:** o Observador (inverte o incentivo de olhar,
+  que nenhuma das seis faz) e o Hóspede (ameaça que não ataca e persiste entre
+  noites, que nenhuma das seis faz).
+- **Adoradores, facção e rituais não existem** — e têm semente pronta: o
+  temperamento `supersticioso`, que já fala de sal na soleira há versões, e o
+  documento do sal do §44 que transformou essa superstição em regra.
+
+
 ## v72 — o som mais perto da realidade
 
 Primeira aplicação da skill de direção audiovisual no próprio jogo. Fase 0
