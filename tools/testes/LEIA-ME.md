@@ -23,6 +23,8 @@ depois de `node montar.js`:
     node tools/testes/finalteste.mjs   # retorno, achados, cicatriz, tratamento §43-46 (39)
     node tools/testes/somteste.mjs     # o som mais perto da realidade §47 (35)
     node tools/testes/rngteste.mjs     # a terceira grafia e a carga do gerador §48 (26)
+    node tools/testes/costurateste.mjs # as costuras: o que nunca esteve ali §49 (27)
+    node tools/testes/costsiteteste.mjs # o site animado docs/as-costuras.html (16)
     node tools/testes/simulacao.mjs    # 250 noites simuladas, sem asserção de gosto (20)
     node tools/testes/labteste.mjs     # o site animado docs/laboratorio-de-som.html (26)
     node tools/testes/aberturateste.mjs # a abertura narrada e a guarda do save (14)
@@ -153,3 +155,11 @@ A trava de colisão também roda dentro de `montar.js` e **quebra o build**.
   embaralhamento usava N=3000 com limite de 12% — que é 3,3 sigma, e falhou sem
   nada estar errado. A 200 mil tiros o desvio real é 1,01%. Com N=40000 o limite
   de 4% é 4,5 sigma: aperta mais **e** para de piscar.
+
+- **O campo é `p.local`, não `p.comodo`.** Onde cada morador está mora em
+  `p.local`, escrito por `espalharGente()`. Escrever `p.comodo` não dá erro
+  nenhum: a regra simplesmente não funciona, em silêncio. Foi assim que a
+  proteção das costuras nasceu morta.
+- **`S.abrigo` está VAZIO logo depois da ficha.** Teste que reposiciona quem
+  existe não coloca ninguém, e aí acusa o código de um bug que é do cenário.
+  Se o teste precisa de gente, o teste põe a gente.

@@ -1,6 +1,129 @@
 # CHANGELOG
 
 
+## v74 — as costuras: a coisa que nunca esteve ali
+
+O pedido tinha duas metades. A primeira eu tive de devolver.
+
+### O final já era ele acordando
+
+*"lembrando final do jogo se trata dele como acordado (...) tudo não passa de um
+grande pesadelo"*. Fui olhar antes de escrever, e o final do jogo já termina
+exatamente assim desde a v60:
+
+```
+"Hora de acordar."
+"Ele abriu os olhos."
+"Teto branco. Um aparelho apitando num ritmo que não era o dele."
+"Quatro anos, e a casa, o gerador, a irmã que saiu buscar comida e nunca mais
+ voltou — nada daquilo tinha acontecido fora da própria cabeça dele."
+```
+
+**Nenhuma linha do `FIM_CENA` foi tocada.** É a terceira vez nesta sessão que a
+coisa pedida já existia, e depois do que eu fiz com o passo, olhar primeiro
+deixou de ser opcional.
+
+O que faltava era o **contrário**: durante os 30 dias o jogo nunca planta nada
+que faça o jogador desconfiar. Os `SONHOS` existem — mas sonho é o lugar
+*seguro* pra coisa estranha acontecer. A revelação chegava sem preparo.
+
+### As costuras são esse preparo
+
+Você está andando pela casa e uma coisa que você tinha certeza que estava ali não
+está mais — e a casa age como se nunca tivesse estado.
+
+> *"A viga não tem prego nenhum. A madeira é lisa onde você jurava ter visto o arame."*
+> *"Debaixo do colchão só tem chão. O pó está uniforme, como se nada tivesse ficado ali."*
+> *"A parede não tem nada escrito. E você lembra do número que estava lá."*
+
+**Nove cômodos, dois objetos cada**, todos tirados do texto que o próprio jogo já
+escreve em `AMBIENTE`. São coisas pequenas e inúteis de propósito — um prego
+torto, uma caneca lascada, um pneu no muro.
+
+### Por que isso não viola a regra de ouro
+
+*"Se um evento não puder ser explicado pelo jogador depois que ele acontece, o
+evento está errado."* Uma coisa sumindo como se nunca tivesse existido parece o
+exemplo perfeito de evento inexplicável — e é o contrário: é o evento **mais**
+explicável do jogo, porque o final inteiro existe pra explicar ele.
+
+E até o final chegar, ainda é explicável por uma regra que o jogador aprende
+sozinho:
+
+> **Só some o que você viu sozinho.**
+
+Coisa que outra pessoa da casa viu junto com você **não pode** ser desfeita. Isso
+dá contra-jogo de verdade — andar acompanhado protege a sua memória — e não é um
+número novo: é uma razão nova pra usar as pessoas que o jogo já tem.
+
+### A lei que mantém isto justo
+
+**Costura nenhuma mexe em contador.** Não tira comida, não tira material, não
+fecha rota, não machuca, não gasta tempo. Ela tira o **fato**, não o recurso:
+seus números não se movem, só a sua certeza.
+
+Medido no teste: **9 costuras seguidas, zero contadores alterados** — comida,
+diesel, remédio, ruído, sanidade, hora, reforço da porta, guardados, material,
+ferramentas e males, todos parados.
+
+Por isso a costura não precisa de tell antes: **não há dano pra avisar.** Punir
+sem aviso é a proibição nº 9. Assustar sem aviso é o trabalho.
+
+Os objetos existem só pra serem notados e desfeitos, e isso é de propósito: um
+objeto útil que some vira punição, e punição aleatória é exatamente o que este
+jogo não faz.
+
+### Os limites que impedem o chuvisco
+
+| limite | por quê |
+|---|---|
+| no máximo 2 por dia | a terceira vira chuvisco, que é o problema que o §37 já tinha diagnosticado na linha de saldo |
+| nunca durante uma invasão | medo empilhado em medo vira ruído, não tensão |
+| nunca fora de casa | a casa é o sonho |
+| nunca duas seguidas no mesmo cômodo | repetição destrói a dúvida |
+| **nunca no mesmo dia em que você viu** | ela some *entre* duas visitas, nunca na sua frente — se sumisse enquanto você olha seria efeito; assim é memória |
+
+E quatro fases ao longo dos 30 dias, começando no dia 4. No dia 1, nada.
+
+### A coda: o final passa a saber o que você perdeu
+
+O final já dizia que nada tinha acontecido. Ele não sabia **quais** coisas o
+jogador viu sumir. Agora sabe, e fecha nelas:
+
+> *"Ele ficou um tempo tentando entender por que, de tudo, era isso que voltava primeiro."*
+> *"Não a porta, não as batidas, não o gerador. Tinha um pneu velho encostado no muro, cheio de água parada — e o dia em que ele voltou naquele cômodo e não tinha mais nada ali."*
+> *"Aconteceu 3 vezes, e ele lembra das 3. Foi a única coisa daquele mês inteiro que ele nunca conseguiu explicar pra si mesmo — e, agora, a única que faz sentido."*
+
+São **linhas anexadas**, e só quando houve costura. Depois de rodar, `FIM_CENA`
+volta a ter exatamente as 37 linhas que sempre teve — o teste confere.
+
+### `docs/as-costuras.html` — dá pra fazer acontecer
+
+Site animado com a casa dos nove cômodos jogável: você entra, repara nas coisas,
+passa o dia, e vê uma sumir. O botão **“andar acompanhado”** demonstra a regra de
+proteção ao vivo — medido no harness: **8 dias andando acompanhado, zero
+costuras**. E um painel com os contadores reais do jogo ao lado, parados,
+enquanto a casa te desfaz a memória.
+
+O código de costura da página é copiado do `s49-costuras.js` **sem alterar
+regra**.
+
+### Verificação
+
+`tools/testes/costurateste.mjs` (27) e `tools/testes/costsiteteste.mjs` (16).
+A regressão completa fecha em **843 verificações, 30 harnesses, zero falhas**.
+
+### Dois erros meus, os dois pegos pelo teste
+
+**Escrevi `p.comodo`, e o campo é `p.local`.** A regra que protege a sua memória
+**nasceu morta**: nada dava erro, a comparação simplesmente nunca era verdadeira,
+e nenhum objeto ficava protegido.
+
+**Testei a proteção numa casa sem ninguém dentro.** O teste reposicionava os
+moradores — e `S.abrigo` estava vazio naquele ponto da partida. Zero pessoas,
+zero protegidos, e o teste acusando o código de um bug que era do cenário.
+
+
 ## v73 — V71 Etapa 1: as decisões voltam pro gerador da partida
 
 Primeira etapa do ULTRA_PROMPT V71. A Fase A (auditoria) está em

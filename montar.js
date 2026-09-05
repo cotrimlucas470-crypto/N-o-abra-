@@ -48,6 +48,7 @@ const BLOCOS=[
   {arq:'s45-cicatriz.js',       ini:'<!-- s45:inicio -->', fim:'<!-- s45:fim -->'},
   {arq:'s46-tratamento.js',     ini:'<!-- s46:inicio -->', fim:'<!-- s46:fim -->'},
   {arq:'s47-som.js',            ini:'<!-- s47:inicio -->', fim:'<!-- s47:fim -->'},
+  {arq:'s49-costuras.js',       ini:'<!-- s49:inicio -->', fim:'<!-- s49:fim -->'},
 ];
 
 /* A voz da abertura entra embutida. O jogo é um arquivo só — é o que a

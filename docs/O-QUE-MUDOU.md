@@ -25,6 +25,8 @@ foram feitas. Cada item diz **o que estava errado**, **como eu descobri** e
 | 13 | **Quem trata você tem poder sobre você** | Curar era botão sem preço |
 | 14 | **Três bugs de tela que ninguém tinha achado** | Listas duplicadas e um ramo morto |
 | 15 | **O passo voltou a saber em que chão você está** | 8 dos 9 cômodos soavam a madeira, inclusive o quintal de terra |
+| 16 | **Onze decisões do jogo voltaram pro gerador da partida** | Entre elas a arma travar e qual sentido fica cego na noite |
+| 17 | **A casa passou a desfazer coisas que você jurava ter visto** | O final já era ele acordando, e nada durante o jogo preparava isso |
 
 ---
 
@@ -480,6 +482,67 @@ E o áudio cosmético continua sem tocar no gerador da partida, como está escri
 na política do núcleo desde a v57: barulho de porta não pode mudar o que a casa
 decide.
 
+## 16 · Onze decisões do jogo sorteavam fora do gerador da partida
+
+Uma rodada anterior já tinha feito o jogo decidir com o próprio gerador, pra que
+o mesmo save reproduzisse. Ela pegou duas maneiras de escrever isso e **deixou
+passar uma terceira** — a mesma decisão com outra cara. Em três lugares, o jeito
+certo e o errado estavam **na mesma linha**.
+
+Estava fora do gerador, entre outras coisas: **a arma travar**, **qual sentido
+fica cego na noite** (ou seja, qual criatura fica surda) e **o padrão da batida
+na porta**, que é justamente como você desconfia de um mímico.
+
+E um achado maior, que só apareceu porque eu fui escrever o teste do primeiro: o
+jogo **gravava** a posição do gerador no save, **lia de volta** — e nunca a
+aplicava. Carregar um save retomava o sorteio de onde o carregamento parou, e não
+de onde você parou. Tudo o que a rodada anterior escreveu sobre isso valia só
+dentro de uma sessão.
+
+Uma quinta trava de construção impede as duas grafias de voltarem. Barulho e
+desenho continuam podendo sortear como quiserem — mas agora **cada um precisa
+dizer por escrito que é só enfeite**.
+
+## 17 · A casa passou a desfazer coisas que você jurava ter visto
+
+Você pediu isso, e eu precisei devolver metade do pedido: **o final já era ele
+acordando.** Termina com *"Hora de acordar."*, o teto branco, o aparelho
+apitando, e quatro anos. Nenhuma linha dele foi tocada.
+
+O que faltava era o contrário. Durante os 30 dias o jogo nunca plantava nada que
+fizesse você desconfiar — os sonhos existem, mas sonho é o lugar *seguro* pra
+coisa estranha acontecer. A revelação chegava sem preparo.
+
+Agora chega. Você está andando pela casa e uma coisa que você tinha certeza que
+estava ali não está mais, e a casa age como se nunca tivesse estado:
+
+> *"A viga não tem prego nenhum. A madeira é lisa onde você jurava ter visto o arame."*
+> *"A parede não tem nada escrito. E você lembra do número que estava lá."*
+
+**E isso não é aleatório — é o evento mais explicável do jogo**, porque o final
+inteiro existe pra explicar ele. Até lá, tem uma regra que você aprende sozinho:
+
+> **Só some o que você viu sozinho.**
+
+O que outra pessoa da casa viu junto com você **não pode** ser desfeito. Andar
+acompanhado protege a sua memória.
+
+**E costura nenhuma mexe num contador.** Não tira comida, não tira material, não
+fecha caminho, não machuca. Ela tira o *fato*, não o recurso — seus números não
+se movem, só a sua certeza. É isso que separa isto de punição: não existe dano
+pra avisar antes.
+
+No máximo duas por dia, nunca durante uma invasão, nunca fora de casa, nunca duas
+seguidas no mesmo cômodo, e **nunca no mesmo dia em que você viu** — ela some
+*entre* duas visitas, nunca na sua frente.
+
+E o final passou a saber o que você perdeu. Se você teve costuras, ele fecha
+nelas:
+
+> *"Não a porta, não as batidas, não o gerador. Tinha um pneu velho encostado no
+> muro, cheio de água parada — e o dia em que ele voltou naquele cômodo e não
+> tinha mais nada ali."*
+
 ## O que também foi consertado, sem virar seção
 
 - Os personagens tinham um campo com aquilo de que sentem falta — *"a igreja da
@@ -498,7 +561,7 @@ decide.
 
 ## Como isso foi verificado
 
-**774 verificações automáticas, 27 arquivos de teste, zero falhas.**
+**843 verificações automáticas, 30 arquivos de teste, zero falhas.**
 
 Mais uma simulação de **250 noites** rodando o laço completo — exploração,
 corpo, pressão, achados e incapacitação — com **zero travamentos** e **zero

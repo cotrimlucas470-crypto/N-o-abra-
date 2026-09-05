@@ -1,0 +1,735 @@
+<title>As Costuras</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,400&family=Share+Tech+Mono&display=swap">
+
+<style>
+:root{
+  --breu:#0B0A0D; --parede:#16131A; --parede2:#1E1A24;
+  --lampiao:#C9A227; --mofo:#7A8B7F; --ferrugem:#8C2F1E; --papel:#E8E2D4;
+  --fraco:#8A8290; --linha:rgba(232,226,212,.14); --sonho:#8E86A0;
+  --display:'Bodoni Moda',Georgia,serif;
+  --corpo:'Crimson Pro',Georgia,serif;
+  --mostrador:'Share Tech Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;padding-top:1.2rem;background:var(--breu);color:var(--papel);
+  font-family:var(--corpo);font-size:19px;line-height:1.62;
+  -webkit-font-smoothing:antialiased;overflow-x:hidden}
+:focus-visible{outline:2px solid var(--lampiao);outline-offset:3px}
+
+#luz{position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse 90% 60% at 50% 20%,rgba(201,162,39,.09) 0%,transparent 62%);
+  animation:respira 7s ease-in-out infinite}
+@keyframes respira{0%,100%{opacity:.5}50%{opacity:1}}
+#grao{position:fixed;inset:-50%;pointer-events:none;z-index:1;opacity:.04;
+  background-image:repeating-conic-gradient(#fff 0% 25%,#000 0% 50%);
+  background-size:3px 3px;animation:chuvisco .9s steps(4) infinite}
+@keyframes chuvisco{0%{transform:translate(0,0)}25%{transform:translate(-2px,1px)}
+  50%{transform:translate(1px,-2px)}75%{transform:translate(2px,2px)}}
+#vinheta{position:fixed;inset:0;pointer-events:none;z-index:2;
+  background:radial-gradient(ellipse 78% 68% at 50% 50%,transparent 40%,rgba(0,0,0,.72) 100%)}
+@media (prefers-reduced-motion:reduce){#luz,#grao{animation:none}}
+
+#barra{position:fixed;top:0;left:0;right:0;z-index:40;
+  background:linear-gradient(#0B0A0Dee,#0B0A0Dcc 70%,transparent);
+  padding:.5rem 1rem .85rem;backdrop-filter:blur(6px)}
+#trilho{height:3px;background:rgba(232,226,212,.13);border-radius:2px;overflow:hidden}
+#preenche{height:100%;width:0;background:var(--lampiao);transition:width .25s linear}
+#ctl{display:flex;align-items:center;gap:.7rem;margin-top:.45rem;
+  font-family:var(--mostrador);font-size:.6rem;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--fraco);flex-wrap:wrap}
+#capitulo{color:var(--lampiao)}
+#ctl .sep{flex:1}
+
+main{position:relative;z-index:3}
+.faixa{max-width:52rem;margin:0 auto;padding:0 1.6rem}
+section{padding:5rem 0;border-bottom:1px solid var(--linha);scroll-margin-top:4.6rem}
+section:last-child{border-bottom:0}
+h1{font-family:var(--display);font-weight:400;line-height:.94;margin:0;
+  font-size:clamp(2.8rem,9.4vw,6rem);letter-spacing:-.02em;text-wrap:balance}
+h2{font-family:var(--display);font-weight:400;line-height:1.06;
+  font-size:clamp(1.65rem,4.3vw,2.8rem);margin:0 0 1.2rem;letter-spacing:-.01em;
+  text-wrap:balance}
+h3{font-family:var(--display);font-weight:400;font-size:1.2rem;margin:0 0 .45rem}
+p{max-width:34em;margin:0 0 1.1rem}
+.olho{font-family:var(--mostrador);font-size:.66rem;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--fraco);margin-bottom:1rem}
+.olho.verde{color:var(--mofo)} .olho.rust{color:var(--ferrugem)}
+.sub{font-size:clamp(1rem,2.1vw,1.24rem);color:var(--fraco);max-width:30em;margin-top:1.4rem}
+code{font-family:var(--mostrador);font-size:.86em;color:var(--lampiao)}
+pre{background:var(--parede);border-left:2px solid var(--ferrugem);
+  padding:.9rem 1rem;overflow-x:auto;font-family:var(--mostrador);
+  font-size:.76rem;line-height:1.6;color:var(--papel);margin:1.2rem 0}
+pre.ok{border-left-color:var(--mofo)}
+blockquote{margin:1.4rem 0;padding-left:1.15rem;border-left:2px solid var(--lampiao);
+  font-family:var(--display);font-size:1.2rem;line-height:1.4;color:#fff}
+blockquote small{display:block;font-family:var(--mostrador);font-size:.6rem;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--fraco);margin-top:.6rem}
+
+.rev{opacity:1;transform:none;
+  transition:opacity .8s cubic-bezier(.2,.7,.3,1),transform .8s cubic-bezier(.2,.7,.3,1)}
+.rev.espera{opacity:0;transform:translateY(20px)}
+@media (prefers-reduced-motion:reduce){.rev,.rev.espera{opacity:1;transform:none;transition:none}}
+
+.tabw{overflow-x:auto;margin:1.3rem 0}
+table{border-collapse:collapse;width:100%;font-family:var(--mostrador);font-size:.75rem}
+th{text-align:left;font-weight:400;color:var(--fraco);letter-spacing:.12em;
+  text-transform:uppercase;font-size:.58rem;padding:.5rem .65rem;
+  border-bottom:1px solid var(--linha)}
+td{padding:.5rem .65rem;border-bottom:1px solid rgba(232,226,212,.07);
+  font-variant-numeric:tabular-nums}
+td.n{color:var(--lampiao)} td.mau{color:var(--ferrugem)} td.bom{color:var(--mofo)}
+tr:last-child td{border-bottom:0}
+
+/* ---------- a casa ---------- */
+.casa{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;
+  background:var(--linha);border:1px solid var(--linha);margin:1.4rem 0}
+.sala{background:var(--parede);padding:.8rem .75rem;cursor:pointer;
+  transition:background .2s,box-shadow .2s;min-height:7.2rem;position:relative}
+.sala:hover{background:var(--parede2)}
+.sala.aqui{box-shadow:0 0 0 1px var(--lampiao) inset}
+.sala .num{font-family:var(--mostrador);font-size:.54rem;color:var(--fraco);letter-spacing:.14em}
+.sala .nome{font-family:var(--display);font-size:1rem;margin:.1rem 0 .35rem}
+.sala .obj{font-size:.76rem;line-height:1.35;color:var(--fraco)}
+.sala.tem .obj{color:var(--papel)}
+.sala.sumiu .obj{color:var(--ferrugem)}
+.sala.protegida::after{content:'●';position:absolute;top:.55rem;right:.6rem;
+  color:var(--mofo);font-size:.6rem}
+.sala .obj.trocando{animation:apagar .6s ease both}
+@keyframes apagar{0%{opacity:1}45%{opacity:0;filter:blur(3px)}100%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.sala .obj.trocando{animation:none}}
+@media(max-width:520px){.casa{grid-template-columns:repeat(2,1fr)}}
+
+/* ---------- o diário ---------- */
+.diario{background:var(--parede);border:1px solid var(--linha);padding:1rem 1.1rem;
+  margin:1.3rem 0;max-height:17rem;overflow-y:auto;font-size:.9rem}
+.diario .l{margin:0 0 .5rem;max-width:none}
+.diario .l.narr{color:var(--papel)}
+.diario .l.alerta{color:var(--ferrugem)}
+.diario .l.sonho{color:var(--sonho);font-style:italic}
+.diario .l.sis{font-family:var(--mostrador);font-size:.66rem;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--fraco)}
+.diario:empty::before{content:'ande pela casa →';font-family:var(--mostrador);
+  font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--fraco)}
+
+.painel{display:flex;flex-wrap:wrap;gap:.55rem;align-items:center;margin:1.1rem 0}
+.bt{font-family:var(--mostrador);font-size:.66rem;letter-spacing:.1em;
+  text-transform:uppercase;background:var(--parede);color:var(--papel);
+  border:1px solid var(--linha);padding:.55rem .8rem;cursor:pointer;transition:.16s}
+.bt:hover{border-color:var(--lampiao);color:var(--lampiao)}
+.bt[aria-pressed="true"]{border-color:var(--mofo);color:var(--mofo)}
+.bt.chave{border-color:var(--lampiao);color:var(--lampiao)}
+.medidor{font-family:var(--mostrador);font-size:.64rem;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--fraco)}
+.medidor b{color:var(--lampiao);font-variant-numeric:tabular-nums}
+
+.contadores{display:grid;grid-template-columns:repeat(auto-fit,minmax(7rem,1fr));
+  gap:1px;background:var(--linha);border:1px solid var(--linha);margin:1.2rem 0}
+.contadores div{background:var(--parede);padding:.7rem .75rem}
+.contadores b{display:block;font-family:var(--mostrador);font-size:1.25rem;
+  color:var(--papel);font-variant-numeric:tabular-nums}
+.contadores span{font-family:var(--mostrador);font-size:.55rem;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--fraco);display:block;margin-top:.25rem}
+.contadores.imovel b{color:var(--mofo)}
+
+.par{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--linha);
+  border:1px solid var(--linha);margin:1.3rem 0}
+.par > div{background:var(--parede);padding:1rem 1.1rem}
+.par .rot{font-family:var(--mostrador);font-size:.56rem;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--fraco);margin-bottom:.4rem}
+.par .val{font-family:var(--mostrador);font-size:1.35rem;line-height:1.2}
+.par .antes .val{color:var(--ferrugem)} .par .depois .val{color:var(--mofo)}
+@media(max-width:640px){.par{grid-template-columns:1fr}}
+
+.erro{border-left:2px solid var(--ferrugem);padding:.1rem 0 .1rem 1.15rem;margin:1.6rem 0}
+.erro h3{color:var(--ferrugem)}
+.nota{font-size:.85rem;color:var(--fraco);border-left:1px solid var(--linha);
+  padding-left:.95rem;margin:1.2rem 0}
+.fita{font-family:var(--mostrador);font-size:.62rem;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--mofo);border:1px solid var(--linha);
+  padding:.45rem .7rem;display:inline-block;margin:.2rem .3rem .2rem 0}
+.fita.mau{color:var(--ferrugem)}
+#capa{display:flex;flex-direction:column;justify-content:center;padding:4.5rem 0 3.5rem}
+</style>
+
+<div id="luz"></div><div id="grao"></div><div id="vinheta"></div>
+
+<div id="barra">
+  <div id="trilho"><div id="preenche"></div></div>
+  <div id="ctl"><span id="capitulo">capa</span><span class="sep"></span>
+    <span>Não Abra · §48 · §49</span></div>
+</div>
+
+<main>
+<section id="capa" class="faixa" data-cap="capa">
+  <p class="olho">Não Abra · a rodada do terror</p>
+  <h1>As<br>Costuras</h1>
+  <p class="sub">Uma coisa que você tinha certeza que estava ali não está mais,
+  e a casa age como se nunca tivesse estado. Aqui você anda pela casa e faz
+  acontecer — inclusive a regra que te protege dela.</p>
+</section>
+
+<section class="faixa rev" data-cap="o final">
+  <p class="olho rust">a primeira coisa que eu precisei dizer</p>
+  <h2>O final já era ele acordando</h2>
+  <p>O pedido foi “o final se trata dele como acordado, tudo não passa de um
+  grande pesadelo”. Fui olhar antes de escrever qualquer coisa, e o final do jogo
+  já termina exatamente assim, desde a versão 60:</p>
+  <pre class="ok">"Hora de acordar."
+"Ele abriu os olhos."
+"Teto branco. Um aparelho apitando num ritmo que não era o dele."
+"Quatro anos, e a casa, o gerador, a irmã que saiu buscar comida e nunca
+ mais voltou — nada daquilo tinha acontecido fora da própria cabeça dele."</pre>
+  <p><strong>Nenhuma linha do final foi tocada.</strong> O que faltava era o
+  contrário: durante os 30 dias, o jogo nunca planta nada que faça você
+  desconfiar. Os sonhos existem — mas sonho é o lugar <em>seguro</em> pra coisa
+  estranha acontecer. A revelação chegava sem preparo nenhum.</p>
+  <blockquote>As costuras são esse preparo.
+  <small>e é por isso que elas não são aleatórias</small></blockquote>
+</section>
+
+<section class="faixa rev" data-cap="a regra de ouro">
+  <p class="olho">o problema que precisava ser resolvido primeiro</p>
+  <h2>Uma coisa sumindo do nada parece exatamente o que este jogo proíbe</h2>
+  <p>A regra de ouro do projeto é dura: <em>“se um evento não puder ser explicado
+  pelo jogador depois que ele acontece, o evento está errado — mesmo que o código
+  esteja certo.”</em></p>
+  <p>Uma coisa que some como se nunca tivesse existido é o exemplo perfeito de
+  evento inexplicável. E é o contrário: é o evento <strong>mais</strong>
+  explicável do jogo, porque o final inteiro existe pra explicar ele. Até lá,
+  ainda é explicável por uma regra que você pode aprender sozinho:</p>
+  <blockquote>Só some o que você viu sozinho.</blockquote>
+  <p>Coisa que outra pessoa da casa viu junto com você não pode ser desfeita.
+  Isso dá contra-jogo de verdade — andar acompanhado protege a sua memória — e
+  não é um número novo: é uma razão nova pra usar as pessoas que o jogo já tem.</p>
+  <div class="par">
+    <div class="antes"><div class="rot">o que a costura tira</div>
+      <div class="val">o fato</div></div>
+    <div class="depois"><div class="rot">o que ela nunca tira</div>
+      <div class="val">o recurso</div></div>
+  </div>
+  <p><strong>Costura nenhuma mexe em contador.</strong> Não tira comida, não tira
+  material, não fecha rota, não machuca, não gasta tempo. Seus números não se
+  movem — só a sua certeza. Por isso ela não precisa de aviso antes: não há dano
+  pra avisar. Punir sem aviso é proibido; assustar sem aviso é o trabalho.</p>
+</section>
+
+<section class="faixa rev" data-cap="a casa">
+  <p class="olho verde">ande e veja acontecer</p>
+  <h2>A casa, e o que ela desfaz</h2>
+  <p>Estes são os nove cômodos do abrigo, com os objetos reais do jogo — todos
+  tirados do texto que o próprio jogo já escreve. Clique num cômodo pra entrar.
+  Na primeira visita você repara numa coisa. Em alguma visita depois, num dia
+  seguinte, ela não está mais lá.</p>
+
+  <div class="painel">
+    <button class="bt chave" id="bt-dia">passar o dia →</button>
+    <button class="bt" id="bt-companhia" aria-pressed="false">andar acompanhado</button>
+    <button class="bt" id="bt-reset">recomeçar</button>
+    <span class="medidor">dia <b id="m-dia">4</b></span>
+    <span class="medidor">costuras hoje <b id="m-hoje">0</b>/2</span>
+    <span class="medidor">no total <b id="m-total">0</b></span>
+  </div>
+
+  <div class="casa" id="casa"></div>
+  <div class="diario" id="diario"></div>
+
+  <p class="nota">O ponto verde marca cômodo onde alguém está com você. O que
+  você reparar ali fica protegido — e nunca vai sumir. Ligue “andar acompanhado”,
+  ande, passe o dia, e compare.</p>
+</section>
+
+<section class="faixa rev" data-cap="os contadores">
+  <p class="olho verde">a lei que mantém isto justo</p>
+  <h2>Olhe os números enquanto a casa te desfaz a memória</h2>
+  <p>Estes são contadores de verdade do jogo. O painel acima está ligado neles.
+  Ande, force quantas costuras quiser, e veja: <strong>nenhum se move.</strong></p>
+  <div class="contadores imovel" id="contadores"></div>
+  <p>Medido no teste automático: <strong>9 costuras seguidas, zero contadores
+  alterados.</strong> Se um dia um deles se mexer, o teste quebra o build.</p>
+  <div class="tabw"><table>
+    <tr><th>o limite</th><th>por quê</th></tr>
+    <tr><td class="bom">no máximo 2 por dia</td><td>a terceira vira chuvisco, que é o problema que a linha de saldo já tinha diagnosticado</td></tr>
+    <tr><td class="bom">nunca durante uma invasão</td><td>medo empilhado em medo vira ruído, não tensão</td></tr>
+    <tr><td class="bom">nunca fora de casa</td><td>a casa é o sonho; a rua é outro assunto</td></tr>
+    <tr><td class="bom">nunca duas seguidas no mesmo cômodo</td><td>repetição destrói a dúvida</td></tr>
+    <tr><td class="bom">nunca no mesmo dia em que você viu</td><td>ela some <em>entre</em> duas visitas, nunca na sua frente — se sumisse enquanto você olha, seria efeito; assim é memória</td></tr>
+  </table></div>
+</section>
+
+<section class="faixa rev" data-cap="a coda">
+  <p class="olho">o final paga o que a casa cobrou</p>
+  <h2>E no fim, ele lembra do prego</h2>
+  <p>O final já dizia que nada tinha acontecido. Ele não sabia <em>quais</em>
+  coisas você viu sumir. Agora sabe — e fecha nelas. Isso entra como
+  <strong>coda</strong>, anexada ao fim, e só existe se você teve costuras:</p>
+  <div class="diario" id="coda"></div>
+  <div class="painel">
+    <button class="bt" id="bt-coda">gerar a coda com as suas costuras</button>
+  </div>
+  <p class="nota">Se você não teve nenhuma costura, a coda não aparece — porque
+  aí ela não significaria nada. E depois de rodar, o final volta a ter
+  exatamente as 37 linhas que sempre teve. O teste confere isso.</p>
+</section>
+
+<section class="faixa rev" data-cap="o gerador">
+  <p class="olho verde">a etapa que veio antes, e sem a qual nada disso valia</p>
+  <h2>Onze decisões do jogo sorteavam fora do gerador da partida</h2>
+  <p>Antes das costuras entrou o conserto de que tudo depende. A versão 66 já
+  tinha feito as decisões passarem pelo gerador semeado — e deixou passar
+  <strong>a terceira grafia da mesma decisão</strong>. Em três casos, o sítio
+  certo e o errado estavam na <em>mesma linha</em>:</p>
+  <pre>const q = 1 + Math.floor(Math.random()*3);   // ← não semeado
+for(let i=0; i&lt;(chance(.6)?1:2); i++){       // ← semeado
+  const m = sortear(mats); darMat(m,q);      // ← semeado</pre>
+  <div>
+    <span class="fita mau">a arma travar</span>
+    <span class="fita mau">qual sentido fica cego na noite</span>
+    <span class="fita mau">o padrão da batida na porta</span>
+    <span class="fita">quanto material você acha</span>
+    <span class="fita">quanto o ladrão leva</span>
+    <span class="fita">quantos turnos a fuga dura</span>
+    <span class="fita">quanto o visitante espera</span>
+    <span class="fita">quando a mochila volta</span>
+    <span class="fita">quantas casas tem na rua</span>
+    <span class="fita">qual ilusão de sanidade sai</span>
+    <span class="fita">a ordem das opções da escuta</span>
+  </div>
+  <p style="margin-top:1.2rem">As três primeiras são as graves: a arma travar
+  decide se você sobrevive, e o sentido cego decide <strong>qual criatura fica
+  surda naquela noite</strong>.</p>
+
+  <h2 style="margin-top:3rem">E o estado era salvo, restaurado — e ignorado</h2>
+  <p>Este só apareceu porque eu fui escrever o teste do primeiro, e é o maior dos
+  dois. O jogo gravava a posição do gerador no save, e a lia de volta. E nunca a
+  aplicava no gerador vivo:</p>
+  <pre>depois de carregar()    S.rngEstado = 123456789    gerador = 999
+depois de semearRNG()   S.rngEstado = 123456789    gerador = 123456789</pre>
+  <p>Carregar um save retomava o sorteio de onde o <em>boot</em> parou, e não de
+  onde você parou. Tudo o que a versão 66 escreveu sobre reprodutibilidade valia
+  só dentro de uma sessão.</p>
+</section>
+
+<section class="faixa rev" data-cap="honestidade">
+  <p class="olho rust">honestidade</p>
+  <h2>Os erros desta rodada</h2>
+  <div class="erro">
+    <h3>Escrevi <code>p.comodo</code>, e o campo é <code>p.local</code></h3>
+    <p>A regra que protege a sua memória — “só some o que você viu sozinho” —
+    <strong>nasceu morta</strong>. Nada dava erro: a comparação simplesmente
+    nunca era verdadeira, e nenhum objeto ficava protegido. Foi o teste que
+    pegou, e virou linha no manual.</p>
+  </div>
+  <div class="erro">
+    <h3>Testei a proteção numa casa sem ninguém dentro</h3>
+    <p>O teste reposicionava os moradores pra dentro dos cômodos — e
+    <code>S.abrigo</code> estava vazio naquele ponto da partida. Zero pessoas,
+    zero protegidos, e o teste acusando o código de um bug que era do cenário.</p>
+  </div>
+  <div class="erro">
+    <h3>Três asserções do teste do gerador falharam por erro meu</h3>
+    <p>Amostra de 3000 com limite de 12% é 3,3 sigma — o desvio real, medido a
+    200 mil tiros, é 1,01%. E duas versões mediam a persistência <em>depois</em>
+    do boot, quando o boot legitimamente consome sorteios e o jogo legitimamente
+    salva de novo. As três viraram linha no manual de testes.</p>
+  </div>
+</section>
+</main>
+<script>
+/* ======================================================================
+   O CÓDIGO DAS COSTURAS DESTA PÁGINA É O DO JOGO.
+
+   `COST_CFG`, `COST_OBJ`, `COST_LEMBRA`, `costEstabelecer`,
+   `costDesfazer`, `costPodeDesfazer`, `costCoda` e a regra de proteção
+   foram copiados de `s49-costuras.js` sem alteração de regra. Só o que
+   é do jogo e não existe aqui (`diz`, `marcarSujo`, `pressaoAgora`) tem
+   um encaixe mínimo, marcado abaixo.
+   ====================================================================== */
+
+/* --- o gerador semeado do jogo, copiado do s30-nucleo.js --- */
+function criarRNG(seed){
+  let a=(seed>>>0)||1;
+  const r={ semente:seed>>>0, estado:a,
+    next(){ r.estado=(r.estado+0x6D2B79F5)>>>0; let t=r.estado;
+      t=Math.imul(t^(t>>>15),t|1); t^=t+Math.imul(t^(t>>>7),t|61);
+      return ((t^(t>>>14))>>>0)/4294967296; },
+    inteiro(n){ return Math.floor(r.next()*Math.max(1,n|0)); }
+  };
+  return r;
+}
+let RNG=criarRNG(20260905);
+const _ale=()=>RNG.next();
+const _inteiro=n=>Math.floor(_ale()*Math.max(1,n|0));
+const sortear=a=>a[Math.floor(_ale()*a.length)];
+const chance=p=>_ale()<p;
+
+/* --- o estado mínimo, com os nomes do jogo --- */
+const S={dia:4, comida:12, diesel:100, remedio:1, ruido:0, sanidade:100,
+  abrigo:[], costuras:null, inv:null, mat:{lona:3,fio:2}, guardados:[{id:'lata',q:4}]};
+const cena={modo:'casa', casa:{voce:4}};
+function marcarSujo(){}
+function pressaoAgora(){ return 0.3; }
+const registrarErro=()=>{};
+
+/* --- e o diário, que é o `diz` daqui --- */
+const DIARIO=document.getElementById('diario');
+function diz(t,cls){
+  const e=document.createElement('p');
+  e.className='l '+(cls||'narr'); e.textContent=t;
+  DIARIO.appendChild(e); DIARIO.scrollTop=DIARIO.scrollHeight;
+}
+</script>
+<script>
+/* ====== COPIADO DE s49-costuras.js, SEM ALTERAR REGRA ====== */
+const COST_CFG={
+  /* quantas costuras no dia inteiro, no maximo. Duas ja e muito: a
+     terceira vira chuvisco, que e o problema que o §37 diagnosticou na
+     linha de saldo. */
+  porDia:2,
+  /* nunca duas seguidas no mesmo comodo */
+  evitaRepetirComodo:true,
+  /* a chance base por entrada em comodo, antes das fases */
+  base:0.11,
+  /* a partir de que dia cada fase entra */
+  fases:[
+    {dia:1,  nome:'nada',      peso:0},
+    {dia:4,  nome:'objeto',    peso:1},
+    {dia:11, nome:'comodo',    peso:1},
+    {dia:19, nome:'pessoa',    peso:1},
+    {dia:25, nome:'voce',      peso:1}
+  ],
+  /* a pressao do §42 empurra, mas nunca sozinha */
+  pesoPressao:0.6
+};
+
+/* ---------- os objetos, um punhado por comodo ----------
+   Cada um sai do texto que o proprio jogo escreve em `AMBIENTE`. Sao
+   coisas pequenas e inuteis de proposito: prego, marca de fita, risco
+   de faca. Nada aqui tem peso de jogo — e essa e a garantia de que a
+   costura nunca vira punicao. */
+const COST_OBJ={
+ 0:[{a:'Tem um prego torto batido alto na viga, com um pedaço de arame enrolado nele.',
+     f:'A viga não tem prego nenhum. A madeira é lisa onde você jurava ter visto o arame.'},
+    {a:'Alguém riscou quatro traços e um corte na parede, contando alguma coisa.',
+     f:'A parede está limpa. Não tem risco, e o reboco não tem sinal de ter sido passado por cima.'}],
+ 1:[{a:'Tem um sapato de criança sozinho embaixo do colchão do canto.',
+     f:'Debaixo do colchão só tem chão. O pó está uniforme, como se nada tivesse ficado ali.'},
+    {a:'Uma das janelas tapadas tem uma fresta do tamanho de um dedo, e alguém colou fita nela.',
+     f:'O compensado é inteiro. Não tem fresta, não tem fita, não tem cola velha na borda.'}],
+ 2:[{a:'A terceira prateleira está torta e foi escorada com um tijolo.',
+     f:'A terceira prateleira está reta. Não tem tijolo embaixo dela nem marca de onde ele estaria.'},
+    {a:'Tem uma lata sem rótulo no fundo, que ninguém quis abrir.',
+     f:'O fundo da prateleira está vazio. Você lembra do formato dela na sua mão.'}],
+ 3:[{a:'Tem um vidro de prego pela metade em cima da bancada, com a tampa de outro vidro.',
+     f:'A bancada não tem vidro nenhum. O anel de ferrugem que a tampa deixa também não está.'},
+    {a:'Alguém deixou uma medida de madeira marcada a lápis: 62 cm.',
+     f:'A tábua não tem marca de lápis. E você lembra do número.'}],
+ 4:[{a:'O sofá tem um rasgo no braço direito, e sai espuma amarelada por ele.',
+     f:'O braço direito do sofá está inteiro. Não tem rasgo, não tem espuma, não tem costura.'},
+    {a:'Tem um porta-retratos virado pra baixo em cima da estante.',
+     f:'A estante está vazia. Nem porta-retratos, nem a falha de poeira que ele deixaria.'}],
+ 5:[{a:'A boca de trás do fogão está entupida e alguém marcou ela com fita crepe.',
+     f:'As quatro bocas estão iguais. Não tem fita, e a de trás acende.'},
+    {a:'Tem uma caneca lascada no escorredor, sempre a mesma.',
+     f:'O escorredor está vazio e seco. Faz tempo que está seco.'}],
+ 6:[{a:'Tem um galão vazio ao lado do gerador, com o bico cortado pra virar funil.',
+     f:'Não tem galão nenhum ao lado do gerador. O chão de concreto está limpo ali.'},
+    {a:'Alguém escreveu a quilometragem do gerador na parede, a caneta.',
+     f:'A parede não tem nada escrito. E você lembra do número que estava lá.'}],
+ 7:[{a:'Uma das tábuas atravessadas na porta tem um nó grande, quase um buraco.',
+     f:'Nenhuma das tábuas tem nó. Você passava a mão nele toda vez que chegava aqui.'},
+    {a:'Tem um par de botas encostado na parede, do tamanho errado pra todo mundo.',
+     f:'Não tem bota nenhuma na parede. E ninguém aqui tem esse número de pé.'}],
+ 8:[{a:'Tem um pneu velho encostado no muro, cheio de água parada.',
+     f:'O muro está livre. A terra ali é dura e uniforme, sem a marca redonda que um pneu deixa.'},
+    {a:'Alguém soldou uma barra a mais no portão, e a solda ficou grossa e feia.',
+     f:'O portão tem as barras originais. A solda grossa não está em lugar nenhum.'}]
+};
+
+/* ---------- o estado ---------- */
+function costEstado(){
+  if(!S.costuras||typeof S.costuras!=='object')S.costuras={};
+  const c=S.costuras;
+  if(!Array.isArray(c.postos))c.postos=[];      /* {comodo, i, dia, protegido} */
+  if(!Array.isArray(c.desfeitos))c.desfeitos=[];/* {comodo, i, dia, tipo} */
+  if(typeof c.noDia!=='number')c.noDia=0;
+  if(typeof c.diaDoContador!=='number')c.diaDoContador=S.dia|0;
+  if(c.ultimoComodo===undefined)c.ultimoComodo=null;
+  return c;
+}
+
+/* quem mais estava no cômodo quando você viu a coisa.
+   O campo é `p.local` — `espalharGente()` é quem escreve nele. Eu tinha
+   escrito `p.comodo`, que não existe: nada dava erro, nada ficava
+   protegido, e a regra que dá contra-jogo ao jogador simplesmente não
+   funcionava em silêncio. Foi o teste que pegou. */
+function _acompanhado(id){
+  try{
+    return (S.abrigo||[]).some(p=>p&&p.local===id);
+  }catch(e){ return false; }
+}
+
+function _faseAtual(){
+  const d=S.dia|0;
+  let f=COST_CFG.fases[0];
+  for(const x of COST_CFG.fases) if(d>=x.dia) f=x;
+  return f.nome;
+}
+
+/* ---------- estabelecer: a primeira vez que você repara ---------- */
+function costEstabelecer(id){
+  const c=costEstado();
+  const lista=COST_OBJ[id]; if(!lista||!lista.length)return null;
+  if(c.postos.some(p=>p.comodo===id))return null;      /* já tem um aqui */
+  if(_faseAtual()==='nada')return null;
+  if(!chance(0.55))return null;                         /* nem toda entrada */
+  const i=_inteiro(lista.length);
+  const p={comodo:id, i, dia:S.dia|0, protegido:_acompanhado(id)};
+  c.postos.push(p);
+  if(typeof marcarSujo==='function')marcarSujo();
+  if(typeof diz==='function')diz(lista[i].a,'narr');
+  return p;
+}
+
+/* ---------- desfazer: a coisa nunca esteve ali ---------- */
+function costPodeDesfazer(){
+  const c=costEstado();
+  if((S.dia|0)!==c.diaDoContador){ c.diaDoContador=S.dia|0; c.noDia=0; }
+  if(c.noDia>=COST_CFG.porDia)return false;
+  if(_faseAtual()==='nada')return false;
+  if(S.inv)return false;                    /* nunca no meio de uma invasão */
+  if(cena&&cena.modo!=='casa')return false; /* só dentro de casa */
+  return true;
+}
+
+function costDesfazer(id){
+  const c=costEstado();
+  if(!costPodeDesfazer())return null;
+  if(COST_CFG.evitaRepetirComodo&&c.ultimoComodo===id)return null;
+  const posto=c.postos.find(p=>p.comodo===id&&!p.protegido&&
+    !c.desfeitos.some(d=>d.comodo===p.comodo&&d.i===p.i));
+  if(!posto)return null;
+  if(posto.dia>=(S.dia|0))return null;       /* não desfaz no mesmo dia em que viu */
+  /* a pressão do §42 empurra, mas a base decide */
+  let p=COST_CFG.base;
+  try{ if(typeof pressaoAgora==='function')p+=pressaoAgora()*COST_CFG.pesoPressao*0.1; }catch(e){}
+  if(!chance(Math.min(0.4,p)))return null;
+  const lista=COST_OBJ[id];
+  c.desfeitos.push({comodo:id,i:posto.i,dia:S.dia|0,tipo:_faseAtual()});
+  c.noDia++; c.ultimoComodo=id;
+  if(typeof marcarSujo==='function')marcarSujo();
+  if(typeof diz==='function'){
+    diz(lista[posto.i].f,'alerta');
+    /* a segunda linha é o que separa isto de um bug de descrição:
+       o jogo reconhece que VOCÊ lembra, e não desmente você. */
+    diz(_lembranca(),'sonho');
+  }
+  return posto;
+}
+
+const COST_LEMBRA=[
+ 'Você lembra de ter visto. Lembra do lugar, lembra da luz que batia.',
+ 'Não é o tipo de coisa que a gente inventa. É pequena demais pra ser invenção.',
+ 'Você fica um tempo olhando o lugar vazio, esperando ele se corrigir.',
+ 'A casa não parece ter mudado. Parece ter sido sempre assim.',
+ 'Você conta de novo, do começo, e chega no mesmo lugar.'
+];
+function _lembranca(){ return sortear(COST_LEMBRA); }
+
+/* ---------- a pessoa não lembra ----------
+   Perguntar sobre uma costura devolve a mesma negativa tranquila. Isso
+   e o que fecha a duvida: nao e a casa que mente pra voce, e todo mundo
+   que nunca viu. */
+function costPerguntar(nome){
+  const c=costEstado();
+  if(!c.desfeitos.length)return null;
+  const d=c.desfeitos[c.desfeitos.length-1];
+  const quem=nome||((S.abrigo&&S.abrigo[0]&&S.abrigo[0].n)||'alguém');
+  return sortear([
+    quem+' escuta até o fim, com paciência, e diz que nunca teve isso aí.',
+    quem+' pergunta se você anda dormindo direito. Não é ironia. É preocupação.',
+    quem+' diz que mora nessa casa desde antes de você e que isso nunca existiu.'
+  ]);
+}
+
+
+function costurasEstado(){
+  const c=costEstado();
+  return {
+    fase:_faseAtual(),
+    comodosComObjeto:COST_OBJ?Object.keys(COST_OBJ).length:0,
+    objetosPorComodo:Object.keys(COST_OBJ).map(k=>COST_OBJ[k].length),
+    postos:c.postos.length,
+    protegidos:c.postos.filter(p=>p.protegido).length,
+    desfeitos:c.desfeitos.length,
+    noDia:c.noDia,
+    tetoPorDia:COST_CFG.porDia
+  };
+}
+
+const COST_CODA_ABRE=
+ 'Ele ficou um tempo tentando entender por que, de tudo, era isso que voltava primeiro.';
+function costCoda(){
+  const c=costEstado();
+  if(!c.desfeitos.length)return [];
+  const ultimo=c.desfeitos[c.desfeitos.length-1];
+  const obj=(COST_OBJ[ultimo.comodo]||[])[ultimo.i];
+  if(!obj)return [];
+  /* a frase de "está lá", sem o ponto final, vira a lembrança */
+  const lembrado=obj.a.replace(/\.$/,'').replace(/^Alguém /,'alguém ')
+    .replace(/^Tem /,'tinha ').replace(/^Uma /,'uma ').replace(/^A /,'a ')
+    .replace(/^O /,'o ').replace(/^Debaixo /,'debaixo ');
+  const n=c.desfeitos.length;
+  const linhas=[{t:COST_CODA_ABRE}];
+  linhas.push({t:'Não a porta, não as batidas, não o gerador. '+
+    lembrado.charAt(0).toUpperCase()+lembrado.slice(1)+
+    ' — e o dia em que ele voltou naquele cômodo e não tinha mais nada ali.'});
+  if(n>=3) linhas.push({t:'Aconteceu '+n+' vezes, e ele lembra das '+n+'. '+
+    'Foi a única coisa daquele mês inteiro que ele nunca conseguiu explicar pra si mesmo — '+
+    'e, agora, a única que faz sentido.'});
+  linhas.push({t:'Uma coisa que não estava mais lá porque nunca tinha estado. '+
+    'Como o resto.'});
+  return linhas;
+}
+
+</script>
+<script>
+/* ================= A PÁGINA ================= */
+
+const NOMES=['sótão','dormitório','despensa','oficina','sala','cozinha','porão','entrada','quintal'];
+const CASA=document.getElementById('casa');
+let acompanhado=false;
+
+function contadoresAtuais(){
+  return {comida:S.comida, diesel:S.diesel, remédio:S.remedio, ruído:S.ruido,
+    sanidade:S.sanidade, material:Object.values(S.mat).reduce((a,b)=>a+b,0),
+    guardado:S.guardados.reduce((a,g)=>a+g.q,0)};
+}
+function pintarContadores(){
+  const c=contadoresAtuais(), alvo=document.getElementById('contadores');
+  alvo.innerHTML=Object.keys(c).map(k=>
+    '<div><b>'+c[k]+'</b><span>'+k+'</span></div>').join('');
+}
+
+function estadoDoComodo(i){
+  const c=costEstado();
+  const posto=c.postos.find(p=>p.comodo===i);
+  const sumiu=posto&&c.desfeitos.some(d=>d.comodo===i&&d.i===posto.i);
+  return {posto, sumiu};
+}
+function pintarCasa(mexeu){
+  const c=costEstado();
+  CASA.innerHTML=NOMES.map((n,i)=>{
+    const {posto,sumiu}=estadoDoComodo(i);
+    const obj=posto?COST_OBJ[i][posto.i]:null;
+    const cls=['sala'];
+    if(cena.casa.voce===i)cls.push('aqui');
+    if(posto&&!sumiu)cls.push('tem');
+    if(sumiu)cls.push('sumiu');
+    if(posto&&posto.protegido)cls.push('protegida');
+    const txt=!posto ? '<span style="opacity:.45">você ainda não reparou em nada aqui</span>'
+      : sumiu ? obj.f : obj.a;
+    return '<div class="'+cls.join(' ')+'" data-i="'+i+'" tabindex="0" role="button">'
+      +'<div class="num">cômodo '+i+'</div><div class="nome">'+n+'</div>'
+      +'<div class="obj'+(mexeu===i?' trocando':'')+'">'+txt+'</div></div>';
+  }).join('');
+  document.getElementById('m-dia').textContent=S.dia;
+  document.getElementById('m-hoje').textContent=c.noDia;
+  document.getElementById('m-total').textContent=c.desfeitos.length;
+  pintarContadores();
+}
+
+function entrar(i){
+  cena.casa.voce=i;
+  /* a companhia é o que protege: os moradores ficam onde você está */
+  S.abrigo = acompanhado ? [{n:'Dona Lurdes',local:i},{n:'Juninho',local:i}] : [];
+  const antes=costEstado().desfeitos.length;
+  const foi=costDesfazer(i);
+  let mexeu=null;
+  if(foi){ mexeu=i; }
+  else {
+    const posto=costEstabelecer(i);
+    if(posto)mexeu=i;
+    else if(!estadoDoComodo(i).posto) diz('Você entra no '+NOMES[i]+'. Nada te chama a atenção.','sis');
+  }
+  if(costEstado().desfeitos.length>antes){
+    diz('— '+NOMES[i]+' —','sis');
+  }
+  pintarCasa(mexeu);
+}
+
+CASA.addEventListener('click',e=>{
+  const s=e.target.closest('.sala[data-i]'); if(s)entrar(+s.dataset.i);
+});
+CASA.addEventListener('keydown',e=>{
+  if(e.key!=='Enter'&&e.key!==' ')return;
+  const s=e.target.closest('.sala[data-i]'); if(s){ e.preventDefault(); entrar(+s.dataset.i); }
+});
+
+document.getElementById('bt-dia').addEventListener('click',()=>{
+  S.dia++;
+  const c=costEstado(); c.noDia=0; c.diaDoContador=S.dia; c.ultimoComodo=null;
+  diz('Dia '+S.dia+'. A casa amanhece igual.','sis');
+  pintarCasa();
+});
+const btC=document.getElementById('bt-companhia');
+btC.addEventListener('click',()=>{
+  acompanhado=!acompanhado;
+  btC.setAttribute('aria-pressed',String(acompanhado));
+  btC.textContent=acompanhado?'andando acompanhado ●':'andar acompanhado';
+  diz(acompanhado
+    ? 'Dona Lurdes e Juninho passam a andar com você. O que vocês virem juntos fica.'
+    : 'Você volta a andar sozinho.','sis');
+});
+document.getElementById('bt-reset').addEventListener('click',()=>{
+  S.dia=4; S.costuras=null; costEstado();
+  RNG=criarRNG(Math.floor(Date.now()%100000));
+  DIARIO.innerHTML='';
+  diz('Recomeçado no dia 4 — que é quando as costuras começam a poder acontecer.','sis');
+  pintarCasa();
+});
+
+/* --- a coda --- */
+document.getElementById('bt-coda').addEventListener('click',()=>{
+  const alvo=document.getElementById('coda');
+  alvo.innerHTML='';
+  const linhas=costCoda();
+  if(!linhas.length){
+    const e=document.createElement('p'); e.className='l sis';
+    e.textContent='Você ainda não teve costura nenhuma. A coda não aparece — porque aí ela não significaria nada.';
+    alvo.appendChild(e); return;
+  }
+  const fim=[{t:'"Hora de acordar."'},{t:'Ele abriu os olhos.'}];
+  fim.concat(linhas).forEach((l,k)=>{
+    setTimeout(()=>{
+      const e=document.createElement('p');
+      e.className='l '+(k<2?'sonho':'narr'); e.textContent=l.t;
+      alvo.appendChild(e); alvo.scrollTop=alvo.scrollHeight;
+    },k*900);
+  });
+});
+
+/* --- revelação, capítulo e barra --- */
+const secoes=[...document.querySelectorAll('section')];
+const io=new IntersectionObserver(es=>{
+  es.forEach(e=>{ if(e.isIntersecting) e.target.classList.remove('espera'); });
+},{threshold:.1});
+document.querySelectorAll('.rev').forEach(el=>{
+  if(el.getBoundingClientRect().top>innerHeight*.9) el.classList.add('espera');
+  io.observe(el);
+});
+const preenche=document.getElementById('preenche'), capitulo=document.getElementById('capitulo');
+function barra(){
+  const alt=document.documentElement.scrollHeight-innerHeight;
+  preenche.style.width=(alt>0?(scrollY/alt)*100:0)+'%';
+  let atual=secoes[0];
+  for(const s of secoes) if(s.getBoundingClientRect().top<innerHeight*.45) atual=s;
+  if(atual&&atual.dataset.cap)capitulo.textContent=atual.dataset.cap;
+}
+addEventListener('scroll',barra,{passive:true}); addEventListener('resize',barra);
+
+pintarCasa();
+barra();
+diz('Você está no dia 4 — o primeiro dia em que a casa pode desfazer alguma coisa. Entre num cômodo.','sis');
+</script>

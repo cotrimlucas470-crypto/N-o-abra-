@@ -128,10 +128,14 @@ function costEstado(){
   return c;
 }
 
-/* quem mais estava no cômodo quando você viu a coisa */
+/* quem mais estava no cômodo quando você viu a coisa.
+   O campo é `p.local` — `espalharGente()` é quem escreve nele. Eu tinha
+   escrito `p.comodo`, que não existe: nada dava erro, nada ficava
+   protegido, e a regra que dá contra-jogo ao jogador simplesmente não
+   funcionava em silêncio. Foi o teste que pegou. */
 function _acompanhado(id){
   try{
-    return (S.abrigo||[]).some(p=>p&&p.comodo===id);
+    return (S.abrigo||[]).some(p=>p&&p.local===id);
   }catch(e){ return false; }
 }
 
