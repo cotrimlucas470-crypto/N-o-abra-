@@ -24,6 +24,7 @@ foram feitas. Cada item diz **o que estava errado**, **como eu descobri** e
 | 12 | **Cicatriz da noite 4 importa na noite 19** | Sobreviver não deixava marca |
 | 13 | **Quem trata você tem poder sobre você** | Curar era botão sem preço |
 | 14 | **Três bugs de tela que ninguém tinha achado** | Listas duplicadas e um ramo morto |
+| 15 | **O som ganhou distância, material e variação** | Som longe só ficava mais baixo, e passo era um estalo só |
 
 ---
 
@@ -381,6 +382,65 @@ do som **nunca chegava ao nível máximo durante uma fuga**, justo quando devia.
 
 Varredura final: **zero** comparações mortas no controle de telas.
 
+## 15 · O som ganhou distância, material e variação
+
+Antes de mexer numa linha, auditei o áudio. E a auditoria mandou **não** mexer na
+maior parte dele: o jogo já tem um contexto de áudio só, compressor no final da
+cadeia, reverberação com reflexões precoces, e um mixer de verdade com cinco
+camadas (voz, drone, evento, ambiente, gerador) que abaixam umas às outras por
+prioridade. Nada disso foi reescrito.
+
+Faltavam três coisas.
+
+**Som longe só ficava mais baixo.** Mas não é volume que o ouvido usa pra julgar
+distância — é a **perda de agudo**. O ar come alta frequência, e é por isso que
+trovão perto é um estalo e trovão longe é um ronco. Como todo som do jogo passa
+pelo mesmo roteador, dava pra resolver num lugar só e valer para os 101 pontos
+que o usam:
+
+| distância | brilho que sobra |
+|---|---:|
+| mesmo cômodo | 18000 Hz |
+| 1 cômodo | 8100 Hz |
+| 2 cômodos | 3645 Hz |
+| 3 cômodos | 1640 Hz |
+| 4 cômodos | 738 Hz |
+
+**O passo era um estalo só.** Um passo de gente são **duas batidas**: o
+calcanhar, e o peso assentando 45 a 75 ms depois. É esse intervalo que o ouvido
+lê como *uma pessoa andando* em vez de *um ruído*. E não havia material nenhum —
+pisar em tábua soava igual a pisar em terra batida, num jogo que **descreve o
+piso de cada cômodo por escrito**: *"terra batida"*, *"colchões no chão"*,
+*"prateleiras de metal"*. Os seis materiais saíram desse texto, não da minha
+imaginação. Tábua tem ressonância oca; ladrilho é agudo e seco; terra é grave e
+morta; colchão quase não soa.
+
+**E nada variava.** Dois passos seguidos usavam exatamente os mesmos números.
+Repetição idêntica destrói a ilusão mais rápido que ausência de som — agora cada
+disparo tem variação própria de ganho e de frequência.
+
+### O erro que vale contar
+
+Escrevi um som de porta novo, em quatro camadas, orgulhoso dele. Fui integrar e
+descobri que **o jogo já tinha um** — com **cinco** camadas: ferrolho em duas
+voltas, rangido, arrasto, lufada de vento e batente. Eu tinha auditado a
+arquitetura e não tinha procurado o catálogo. Entregar a minha por cima seria
+duplicar pior.
+
+Apaguei a minha. No lugar entrou o que faltava **na que já existia**: a
+distância. Verificado com a porta de verdade — dez fontes de som perto e dez a
+três cômodos: **nenhuma camada se perde, o que se perde é brilho.**
+
+### O custo, medido
+
+O passo ficou **mais barato fazendo o dobro do trabalho**: 0,921 ms → 0,357 ms.
+A porta custa 4,7 ms e **sempre custou** — são dez fontes; não é regressão desta
+rodada, e não vou fingir que virou barata.
+
+E o áudio cosmético continua sem tocar no gerador da partida, como está escrito
+na política do núcleo desde a v57. Barulho de porta não pode mudar o que a casa
+decide.
+
 ## O que também foi consertado, sem virar seção
 
 - Os personagens tinham um campo com aquilo de que sentem falta — *"a igreja da
@@ -399,7 +459,7 @@ Varredura final: **zero** comparações mortas no controle de telas.
 
 ## Como isso foi verificado
 
-**713 verificações automáticas, 25 arquivos de teste, zero falhas.**
+**740 verificações automáticas, 26 arquivos de teste, zero falhas.**
 
 Mais uma simulação de **250 noites** rodando o laço completo — exploração,
 corpo, pressão, achados e incapacitação — com **zero travamentos** e **zero

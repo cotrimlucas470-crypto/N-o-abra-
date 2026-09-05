@@ -156,14 +156,14 @@ footer p{max-width:36em}
 <main>
 
 <header class="faixa">
-  <p class="olho">Não Abra · relatório de engenharia · v65 → v71</p>
+  <p class="olho">Não Abra · relatório de engenharia · v65 → v72</p>
   <h1>A casa<br>por dentro</h1>
   <p class="sub">Tudo o que foi medido, quebrado e consertado — e a regra que
   guiou cada decisão: <em>medir antes de reescrever</em>.</p>
   <div class="capa-num">
-    <div><b class="cnt" data-n="713">0</b><span>verificações</span></div>
+    <div><b class="cnt" data-n="740">0</b><span>verificações</span></div>
     <div><b class="cnt" data-n="0">0</b><span>falhas</span></div>
-    <div><b class="cnt" data-n="25">0</b><span>harnesses</span></div>
+    <div><b class="cnt" data-n="26">0</b><span>harnesses</span></div>
     <div><b class="cnt" data-n="4">0</b><span>travas de build</span></div>
   </div>
   <p class="desce">role</p>
@@ -172,8 +172,8 @@ footer p{max-width:36em}
 <section class="faixa rev">
   <p class="olho">o método</p>
   <h2>Toda vez que eu achei que sabia, a medição me corrigiu</h2>
-  <p>Quatro suspeitas óbvias caíram na mesma semana, e as quatro caíram do mesmo
-  jeito: eu ia consertar o sintoma e o número apontava para outro lugar.</p>
+  <p>Cinco suspeitas óbvias caíram, e as cinco caíram do mesmo jeito: eu ia
+  consertar o sintoma e o número apontava para outro lugar.</p>
   <div class="tabw"><table>
     <tr><th>a queixa</th><th>a suspeita</th><th>o que a medição disse</th></tr>
     <tr><td>“as falas são robóticas”</td><td>qualidade do texto</td>
@@ -184,9 +184,11 @@ footer p{max-width:36em}
         <td class="n">9 de 12 idênticas fora dano e peso</td></tr>
     <tr><td>“a sanidade é sutil demais”</td><td>faltava intensidade</td>
         <td class="mau">um estágio inteiro produzia zero</td></tr>
+    <tr><td>“o som não parece real”</td><td>faltavam sons</td>
+        <td class="n">os sons existiam — faltava distância, material e variação</td></tr>
   </table></div>
   <blockquote>Se eu tivesse escrito prosa melhor, o problema continuaria lá.
-  <small>a lição que se repetiu quatro vezes</small></blockquote>
+  <small>a lição que se repetiu cinco vezes</small></blockquote>
 </section>
 
 <section class="faixa rev">
@@ -456,6 +458,66 @@ const chance  = p =&gt; _ale() &lt; p;</pre>
 </section>
 
 <section class="faixa rev">
+  <p class="olho verde">o que o ouvido usa pra medir distância</p>
+  <h2>O som ganhou distância, material e variação</h2>
+  <p>Antes de mexer numa linha, auditei o áudio inteiro. E a auditoria mandou
+  <strong>não</strong> mexer na maior parte dele — o jogo já tinha um contexto de
+  áudio só, compressor no fim da cadeia, reverberação com reflexões precoces, e
+  um mixer de verdade com cinco camadas que abaixam umas às outras por
+  prioridade. Nada disso foi reescrito.</p>
+
+  <p><strong>Som longe só ficava mais baixo.</strong> Mas não é volume que o
+  ouvido usa pra julgar distância — é a <em>perda de agudo</em>. O ar come alta
+  frequência, e é por isso que trovão perto é um estalo e trovão longe é um
+  ronco. Como todo som do jogo passa pelo mesmo roteador, deu pra resolver num
+  lugar só e valer para os <strong>101 pontos</strong> que o usam:</p>
+
+  <div class="tabw"><table>
+    <tr><th>distância</th><th>brilho que sobra</th><th>o que soa como</th></tr>
+    <tr><td>mesmo cômodo</td><td class="n">18000 Hz</td><td>na sua frente</td></tr>
+    <tr><td>1 cômodo</td><td class="n">8100 Hz</td><td>do outro lado da parede</td></tr>
+    <tr><td>2 cômodos</td><td class="n">3645 Hz</td><td>no corredor</td></tr>
+    <tr><td>3 cômodos</td><td class="n">1640 Hz</td><td>no fim da casa</td></tr>
+    <tr><td>4 cômodos</td><td class="n">738 Hz</td><td>abafado, quase só grave</td></tr>
+  </table></div>
+
+  <p><strong>O passo era um estalo só.</strong> Um passo de gente são
+  <em>duas batidas</em>: o calcanhar, e o peso assentando 45 a 75 ms depois. É
+  esse intervalo que o ouvido lê como <em>uma pessoa andando</em> em vez de
+  <em>um ruído</em>.</p>
+
+  <p>E não havia material nenhum — pisar em tábua soava igual a pisar em terra
+  batida, num jogo que <strong>descreve o piso de cada cômodo por escrito</strong>.
+  Os seis materiais saíram desse texto, não da minha imaginação:</p>
+
+  <pre class="ok">"Muro alto, portão soldado, terra batida."
+"Colchões no chão."
+"Prateleiras de metal."</pre>
+
+  <div class="tabw"><table>
+    <tr><th>piso</th><th>corte medido</th><th>como soa</th></tr>
+    <tr><td>ladrilho</td><td class="n">1226 Hz</td><td>agudo e seco</td></tr>
+    <tr><td>tábua</td><td class="n">347 Hz</td><td>ressonância oca por baixo</td></tr>
+    <tr><td>terra batida</td><td class="n">177 Hz</td><td>grave e morto</td></tr>
+    <tr><td>colchão</td><td class="n">172 Hz</td><td>quase não soa</td></tr>
+  </table></div>
+
+  <p><strong>E nada variava.</strong> Dois passos seguidos usavam exatamente os
+  mesmos números. Repetição idêntica destrói a ilusão mais rápido que ausência de
+  som — agora cada disparo tem variação própria de ganho e de frequência.</p>
+
+  <div class="par">
+    <div class="antes"><div class="rot">antes · uma batida, sempre igual</div><div class="val">0,921 ms</div></div>
+    <div class="depois"><div class="rot">agora · duas batidas, seis materiais</div><div class="val">0,357 ms</div></div>
+  </div>
+  <p>Ficou <strong>mais barato fazendo o dobro do trabalho</strong> — a segunda
+  batida compartilha caminho e a ressonância só entra às vezes. E o áudio
+  cosmético continua sem tocar no gerador da partida, como está escrito na
+  política do núcleo desde a v57: barulho de porta não pode mudar o que a casa
+  decide.</p>
+</section>
+
+<section class="faixa rev">
   <p class="olho">o que impede a volta</p>
   <h2>Quatro travas que quebram a construção do jogo</h2>
   <p>Nenhuma dessas regressões daria erro. Todas seriam um caractere, sem teste
@@ -515,6 +577,16 @@ const chance  = p =&gt; _ale() &lt; p;</pre>
   </div>
 
   <div class="erro rev">
+    <h3>Quase entreguei uma porta pior do que a que já existia</h3>
+    <p>Escrevi um som de porta novo, em quatro camadas, orgulhoso dele. Fui
+    integrar e descobri que o jogo <strong>já tinha um</strong> — com
+    <strong>cinco</strong>: ferrolho em duas voltas, rangido, arrasto, lufada de
+    vento e batente. Eu tinha auditado a arquitetura e não tinha procurado o
+    catálogo. Apaguei a minha e entreguei no lugar o que faltava
+    <em>na que já existia</em>: a distância.</p>
+  </div>
+
+  <div class="erro rev">
     <h3>Rodei duas regressões em paralelo e li dez “passou” que eram vazio</h3>
     <p>Dez harnesses reportaram <code>ok=0 falhas=0</code>. Isso não é passar — é
     não ter rodado nada. Chromium sem recurso. Refiz sozinha.</p>
@@ -525,9 +597,9 @@ const chance  = p =&gt; _ale() &lt; p;</pre>
   <p class="olho">o placar</p>
   <h2>Onde isso chegou</h2>
   <div class="placar">
-    <div><b class="cnt" data-n="713">0</b><span>verificações</span></div>
+    <div><b class="cnt" data-n="740">0</b><span>verificações</span></div>
     <div><b class="cnt" data-n="0">0</b><span>falhas</span></div>
-    <div><b class="cnt" data-n="25">0</b><span>harnesses</span></div>
+    <div><b class="cnt" data-n="26">0</b><span>harnesses</span></div>
     <div><b class="cnt" data-n="250">0</b><span>noites simuladas</span></div>
     <div><b class="cnt" data-n="9">0</b><span>etapas do plano</span></div>
     <div><b class="cnt" data-n="0">0</b><span>softlocks</span></div>

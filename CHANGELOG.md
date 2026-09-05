@@ -1,6 +1,142 @@
 # CHANGELOG
 
 
+## v72 — o som mais perto da realidade
+
+Primeira aplicação da skill de direção audiovisual no próprio jogo. Fase 0
+primeiro: auditar antes de tocar em qualquer coisa.
+
+### O que a auditoria achou — e o que ela mandou não fazer
+
+A arquitetura de áudio deste jogo é boa, e **nada dela foi reescrito**:
+
+```
+A.ctx único → master com compressor → destino
+barramento seco/molhado com convolver e reflexões precoces
+mixer real de 5 camadas (voz, drone, evento, ambiente, gerador)
+   com ducking automático por prioridade
+saida(no, {pan, rev, vol}) roteia TODOS os sons — 101 sítios
+```
+
+Três coisas faltavam, e as três foram medidas antes.
+
+### 1 · `saida()` não tinha modelo de distância
+
+Som longe só ficava mais baixo. Mas o que o ouvido usa para julgar distância é a
+**perda de agudo** — o ar absorve alta frequência, e é por isso que trovão longe
+é um ronco e trovão perto é um estalo.
+
+Como `saida()` é o roteador universal, resolver ali melhora os 101 sítios de uma
+vez:
+
+```
+0 cômodos → 18000 Hz   (transparente)
+1 cômodo  →  8100 Hz
+2 cômodos →  3645 Hz
+3 cômodos →  1640 Hz
+4 cômodos →   738 Hz
+```
+
+Com mais reverberação e menos som direto junto. **É opt-in**: sem `dist`, o
+caminho é byte a byte o de antes — medido, zero filtros a mais. Os 101 sítios
+existentes continuam soando igual até alguém passar distância.
+
+### 2 · O passo era um estalo só
+
+Um passo real são **duas batidas**: o calcanhar, e o peso assentando 45–75 ms
+depois. É esse intervalo que o ouvido lê como *uma pessoa* em vez de *um
+estalo*.
+
+E não tinha material nenhum — pisar em tábua soava igual a pisar em terra
+batida, num jogo que **descreve o piso de cada cômodo por escrito**:
+
+> *"Muro alto, portão soldado, terra batida."* · *"Colchões no chão."*
+> *"Prateleiras de metal."* · *"Fogão a gás."*
+
+Os seis materiais saíram desse texto. Tábua tem ressonância oca; ladrilho é
+agudo e seco; terra é grave e morta; colchão quase não soa. Medido:
+
+```
+corte mais alto por piso
+  ladrilho 1226 Hz  ·  tábua 347 Hz  ·  terra 177 Hz  ·  colchão 172 Hz
+```
+
+E cada disparo varia — dois passos seguidos não são mais idênticos.
+
+### 3 · Eu quase entreguei uma porta pior do que a que já existia
+
+Vale registrar porque é exatamente o erro que a auditoria existe para impedir.
+
+Escrevi um `somDePorta` próprio, em quatro camadas: contato, mecanismo, corpo,
+batente. Bonito. Depois fui integrar e descobri que **`somPortaAbrindo` já
+existe** — com **cinco** camadas: ferrolho em duas voltas, rangido, arrasto,
+lufada de vento e batente.
+
+Eu tinha auditado o barramento e não tinha procurado se a porta já tinha som.
+Entregar a minha por cima seria duplicar pior.
+
+Removi a minha. No lugar entrou o que faltava **nela**: `comDistancia(d, fn)`,
+uma janela em que tudo o que for agendado sai com absorção de ar. Como `saida()`
+é universal, isso dá distância a qualquer som do jogo sem reescrever nenhum
+deles. Medido na porta real: 10 fontes perto e 10 fontes a três cômodos —
+**nenhuma camada se perde, o que se perde é brilho.**
+
+### Custo — medido, não estimado
+
+| | antes | agora |
+|---|---:|---:|
+| `passo()` | 0,921 ms | **0,357 ms** |
+| `saida()` sem distância | 0,142 ms | 0,199 ms |
+| `saida()` com distância | — | 0,336 ms |
+| `somPortaAbrindo()` | 4,7 ms | 4,7 ms |
+
+O passo ficou **mais barato fazendo o dobro de trabalho** — a segunda batida
+compartilha caminho e a ressonância só entra às vezes.
+
+A porta custa 4,7 ms e **já custava**: são 10 fontes, cinco camadas, e isso não é
+regressão minha. Num jogo por turno, uma porta que abre uma vez a 4,7 ms não é
+problema — mas não vou fingir que virou barata.
+
+### Política respeitada
+
+Áudio cosmético continua com `Math.random`, como o `s30-nucleo.js` declarou por
+escrito. Nada aqui gasta o RNG da partida.
+
+### Verificação
+
+`tools/testes/somteste.mjs` — 27 asserções, todas verdes. A regressão
+completa segue em **740 verificações, 26 harnesses, zero falhas**.
+
+Uma delas passava pelo motivo errado na primeira versão: eu comparava o corte
+**máximo entre todos os filtros**, e como os filtros próprios da porta são mais
+agudos que o de ar, o máximo mal se movia — 2763 → 2652 Hz. Agora o teste conta
+os lowpass de Q 0,4, que é a assinatura do filtro de ar, e mede o valor dele.
+
+
+## v71 — as etapas 5 a 8, e três bugs de tela
+
+Entrou junto e por isso nunca teve seção própria aqui. Fica registrado.
+
+- **§43 · voltar é o segundo jogo.** Entrar em camada ≥3 pergunta uma vez por
+  dia — *"Você ainda consegue voltar. Depois disso, eu não sei."* — e a rota de
+  volta ganha bloqueio: porta emperrada, corredor alagado, entulho, ou alguma
+  coisa posicionada. Atravessar custa 9 minutos e 3,5 de ruído.
+  `retornoTemSaida()` prova, a cada bloqueio, que ainda há caminho até o núcleo:
+  o preço de voltar é o desvio, **nunca a prisão**.
+- **§44 · documento que não muda regra é enfeite.** Sete documentos que revelam
+  regra que o resto do jogo lê de verdade — o sal barra o Rastejante, a luz para
+  o Magro, a porta da cozinha às 03:00. E **uma regra falsa por campanha**: a
+  planta da ala leste, que faz o jogador andar 35% mais barulhento no caminho
+  que ele acha seguro, com um segundo documento que a corrige. O documento do
+  sal cita a superstição que os moradores já falavam há versões.
+- **§45 · sobreviver te torna mais frágil e mais visado.** Cicatriz não some, e
+  a casa mira nela: 73/300 → 156/300.
+- **§46 · quem trata você tem poder sobre você.** Cinco tratamentos, e o
+  cuidador tem `tell` próprio — o Imitador tratando você é a cena mais barata
+  de escrever e a mais cara de sobreviver.
+
+Mais três bugs de tela achados por varredura, não por relato.
+
 ## v70 — pressão, luz e exposição (Etapa 4 de 9)
 
 A Etapa 1 deixou dois campos declarados em `custoDeEntrada()` com valor zero e o

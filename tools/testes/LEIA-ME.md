@@ -20,6 +20,9 @@ depois de `node montar.js`:
     node tools/testes/sinaisteste.mjs   # sinais como contrato §40 (33)
     node tools/testes/corpoteste.mjs    # um corpo só §41 (29)
     node tools/testes/pressaoteste.mjs  # pressão, luz e exposição §42 (31)
+    node tools/testes/finalteste.mjs   # retorno, achados, cicatriz, tratamento §43-46 (39)
+    node tools/testes/somteste.mjs     # o som mais perto da realidade §47 (27)
+    node tools/testes/simulacao.mjs    # 250 noites simuladas, sem asserção de gosto (20)
     node tools/testes/aberturateste.mjs # a abertura narrada e a guarda do save (14)
 
 Fumaça no PACOTE, não na cópia de trabalho — descompacte o zip e aponte:
@@ -97,3 +100,15 @@ A trava de colisão também roda dentro de `montar.js` e **quebra o build**.
   que luz e exposição eram "zero declarado" — verdade na Etapa 1, falso depois
   que a Etapa 4 criou os consumidores delas. Teste que quebra porque o jogo
   melhorou precisa ser atualizado, não revertido.
+
+- **Procure se o som já existe antes de escrever um novo.** Eu auditei o
+  barramento inteiro e mesmo assim comecei a escrever um `somDePorta` de quatro
+  camadas — `somPortaAbrindo` já existia, com **cinco**. Auditar a arquitetura
+  não é auditar o catálogo. `grep -n 'function som' index.html` antes.
+- Medir o **máximo entre todos os filtros** esconde o filtro que você acabou de
+  adicionar. O som da porta tem filtros mais agudos que o de ar, então o máximo
+  mal se movia (2763 → 2652 Hz) e a asserção passava pelo motivo errado. Conte
+  o filtro pela assinatura dele (lowpass com Q 0,4) e leia o valor desse.
+- Asserção de custo com número mágico (`< 4 ms`) mede o jogo inteiro, não a sua
+  mudança. `somPortaAbrindo` custa 4,7 ms e **sempre custou**. Meça a diferença
+  que você causou: `portaLonge < porta * 1.4`.
