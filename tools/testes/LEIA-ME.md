@@ -25,6 +25,7 @@ depois de `node montar.js`:
     node tools/testes/rngteste.mjs     # a terceira grafia e a carga do gerador §48 (26)
     node tools/testes/costurateste.mjs # as costuras: o que nunca esteve ali §49 (27)
     node tools/testes/costsiteteste.mjs # o site animado docs/as-costuras.html (16)
+    node tools/testes/dirteste.mjs     # o diretor ganha ouvido §50 (33)
     node tools/testes/simulacao.mjs    # 250 noites simuladas, sem asserção de gosto (20)
     node tools/testes/labteste.mjs     # o site animado docs/laboratorio-de-som.html (26)
     node tools/testes/aberturateste.mjs # a abertura narrada e a guarda do save (14)
@@ -163,3 +164,16 @@ A trava de colisão também roda dentro de `montar.js` e **quebra o build**.
 - **`S.abrigo` está VAZIO logo depois da ficha.** Teste que reposiciona quem
   existe não coloca ninguém, e aí acusa o código de um bug que é do cenário.
   Se o teste precisa de gente, o teste põe a gente.
+
+- **Estado DERIVADO não se força com um setter.** `dirForcar('POS_CLIMAX')` era
+  desfeito pelo primeiro `orqNovaNoite()` de dentro de `orqSimular`, porque o
+  estado do diretor é recalculado a cada noite. O teste media 5,78 idêntico nos
+  três estados e passava. Force a **entrada** (a pressão), não a conclusão.
+- **Separe as alavancas antes de dizer que o sistema funciona.** Comparar
+  "com diretor" contra "sem diretor" não diz qual parte agiu. Medido separando:
+  o recuo pós-clímax vale 0,7 evento/noite; o fio da pressão vale 0,02. Eu ia
+  declarar vitória em cima do segundo.
+- **Média dentro da faixa não quer dizer noite dentro da faixa.** A primeira
+  versão do §50 deixava a média em 5,96 (faixa [4,8], tudo certo) e ao mesmo
+  tempo jogava **12% das noites acima de 8** — contra 0,05% sem ele. Olhe a
+  cauda, não só a média.

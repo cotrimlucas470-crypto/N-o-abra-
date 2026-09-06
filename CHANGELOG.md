@@ -1,6 +1,184 @@
 # CHANGELOG
 
 
+## v75 — V72 Etapa 1: o Diretor ganha ouvido
+
+Primeira etapa do ULTRA_PROMPT V72. A auditoria está em `docs/AUDITORIA-V72.md` e
+mudou o plano de novo — o resumo dela vem no fim.
+
+### O Diretor já existia. Estava surdo.
+
+O §3 pede um Diretor com orçamento de intensidade, cooldowns, tags de
+incompatibilidade, anti-repetição, pesos configuráveis, RNG reproduzível, logs e
+testes de distribuição. Isso é a descrição do `s31-orquestrador.js`, escrito na
+v58:
+
+```
+orcamentoBase 100, +2,5/dia, teto 160     ← orçamento de intensidade
+cooldownCategoria 6 · cooldownGlobal 2    ← cooldowns
+podeCoexistir(a,b)                        ← tags de incompatibilidade
+prioridade{primordial:100 … ambiental:10} ← preempção, deltaPreempcao 25
+memoriaEventos 6 · penalRepeticao .25     ← anti-repetição
+bonusAdiado .45 (teto 1.8)                ← o negado volta mais forte
+valesPorNoite 2 · valeDuracao [4,7]       ← vales de silêncio reservados
+densidadeAlvo [4,8] + orqSimular          ← faixa alvo, com simulação
+```
+
+**Nada disso foi reescrito.** O que faltava era o fio: o jogo tinha duas metades
+de Diretor que não se falavam.
+
+| | |
+|---|---|
+| `s31-orquestrador.js` | decide **o que acontece** — só olhava eventos |
+| `pressaoAgora()` §42 | mede **como o jogador está** — tempo fora do núcleo, ruído, luz, exposição |
+
+E `pressaoAgora()` era consultada por **uma linha em todo o projeto** — as
+costuras do §49, escritas na véspera:
+
+```
+grep 'pressaoAgora()' *.js      → s49-costuras.js:185   (só)
+grep 'pressaoAgora' s31-*.js    → 0
+```
+
+O Diretor de eventos nunca soube que o jogador estava com medo.
+
+### As quatro medidas, porque uma barra só não serve
+
+O §3 é explícito. Entraram as duas que faltavam, ao lado das duas que existiam:
+
+| medida | o que é | de onde vem |
+|---|---|---|
+| curta | o agora | `pressaoAgora()`, já existia |
+| acumulada | o humor da campanha, atravessa noites | nova, no save |
+| fadiga | sobe com clímax, cai por turno, cai pela metade ao dormir | nova |
+| memória | os últimos eventos | `O.ultimosEventos`, já existia |
+
+E os seis estados: `CALMO → SUSPEITO → TENSO → PERIGO → PÓS-CLÍMAX →
+RECUPERAÇÃO`. Os dois últimos são o que nenhuma das metades tinha: depois de uma
+noite pesada o orquestrador não **recuava** de propósito — ele só ficava sem
+orçamento, que é outra coisa.
+
+### O que ele pode, e a garantia de que não trapaceia
+
+O §3 proíbe spawn injusto, morte inevitável, teleporte pra punir e empilhar
+clímax. **Este Diretor não cria evento nenhum** — verificado no teste lendo o
+próprio código-fonte dele em busca de `anomInvocar`, `invasao(`, `marcarAtiva`,
+`spawn` e `teleport`: **nenhuma ocorrência**.
+
+Ele faz duas coisas, e as duas com número declarado:
+
+- **nega** — e negar aqui não perde nada, porque `orqNega` devolve o evento à
+  fila com peso maior. Medido: `avaria_rachadura` peso 3 → 4,35 depois de ser
+  segurado. É o único jeito de recuar sem inventar mecanismo.
+- **repesa** — dentro de `[0,75 · 1,25]`.
+
+E o orçamento, dentro de `[0,70 · 1,15]`, **nunca acima do `orcamentoTeto` que já
+existia**. Verificado em 6 estados × 40 dias: máximo 160, teto declarado 160.
+
+### O erro que a medição me fez desfazer
+
+Eu tinha dado ao Diretor a alavanca do orçamento. Medindo 150 noites, uma
+alavanca por vez:
+
+| alavanca | eventos/noite |
+|---|---:|
+| normal | 5,82 |
+| **orçamento dobrado** (100→200) | 5,90 |
+| orçamento pela metade | 5,21 |
+| cooldown global zerado | **7,18** |
+| cooldown de categoria pela metade | 6,18 |
+| sem vales de silêncio | **7,84** |
+
+Dobrar o orçamento move a noite em **1,4%**. Tirar os vales move **35%**. Eu tinha
+escolhido a alavanca mais fraca que existe.
+
+Os vales ficam **intocados de propósito** — o próprio orquestrador escreve que
+*"silêncio é conteúdo: ele é reservado antes de qualquer permissão"*. Um Diretor
+que furasse silêncio reservado seria um Diretor trapaceando. Então a alavanca
+passou a ser o cooldown global.
+
+### E o segundo erro, que a cauda revelou
+
+Com `CALMO: -1` no cooldown, a média ficava em 5,96 — dentro da faixa `[4,8]`,
+tudo certo pelo teste. Medindo **2000 noites** e olhando a distribuição inteira:
+
+| | média | p90 | noites acima de 8 |
+|---|---:|---:|---:|
+| sem Diretor | 5,76 | 7 | **0,05%** |
+| Diretor com `CALMO:-1` | 5,96 | 9 | **11,85%** |
+
+A média passava e **12% das noites estouravam o teto de design**, contra 0,05%
+antes. O orquestrador escreve que acima do teto *"vira feira de sustos e o
+jogador para de conseguir ligar um evento ao anterior"*.
+
+**O Diretor passou a só apertar, nunca afrouxar.** Um Diretor que só pode acalmar
+não consegue criar essa feira — e isso torna a proibição do §3 estrutural em vez
+de uma promessa. O "mundo fica mais ocupado quando o jogador está confortável"
+continua existindo, mas pelo **peso**, que muda *quais* eventos saem, não quantos.
+
+### O que ele muda, com as alavancas separadas
+
+Comparar "com" contra "sem" não diz qual parte agiu. Medido isolando cada uma,
+600 noites:
+
+| | média | máx | noites acima de 8 |
+|---|---:|---:|---:|
+| Diretor **desligado**, pressão baixa | 5,88 | 9 | 0,50% |
+| Diretor **desligado**, pressão alta | 5,88 | 9 | 0,50% |
+| Diretor ligado, pressão baixa | 5,18 | 8 | **0%** |
+| Diretor ligado, pressão alta | 5,16 | 8 | **0%** |
+
+Três leituras, e a terceira é a que eu quase não contei:
+
+1. **Sem o fio, a pressão do jogador não mudava nada** — 5,88 nos dois. O buraco
+   que a auditoria achou, confirmado por medição.
+2. **O Diretor derruba a cauda a zero.** Nenhuma noite acima do teto de design.
+3. **O efeito grande é o recuo pós-clímax, não o fio da pressão.** O recuo vale
+   0,7 evento por noite; a pressão vale 0,02. Eu ia declarar vitória em cima do
+   segundo número.
+
+### Verificação
+
+`tools/testes/dirteste.mjs` — 33 asserções. E `orqteste` continua em **60/60**: o
+orquestrador não foi tocado. A regressão completa fecha em **876 verificações,
+31 harnesses, zero falhas**.
+
+Duas seções deste harness passaram pelo motivo errado antes de virarem medida:
+`dirForcar(estado)` era desfeito pelo primeiro `orqNovaNoite()` de dentro da
+simulação, porque o estado do Diretor é **derivado** — o teste media 5,78
+idêntico nos três estados e passava.
+
+### O que a auditoria mudou no plano
+
+`docs/AUDITORIA-V72.md`, medido: dos nove sistemas pedidos, **seis já existem** —
+o Diretor (§3), o terror psicológico (§4, espalhado por §49/§40/§32), as
+entidades que fingem ser aliadas (§7), as mentiras (§8, com uma regra falsa por
+campanha no §44), o áudio espacial (§12, feito no §47) e — o mais surpreendente —
+o **Sistema de Marcas** (§10): `S.marcado` já tem origem, seis estágios narrados,
+efeitos (+2 de ruído/dia, até 35% pior em investigar, e o rastro `PRESENCA`
+saltando de 3 para 12), três caminhos de remoção e persistência.
+
+Falta ser **mais de uma** marca — e o nome colide com dois outros conceitos já no
+código: `marcas()` (a evidência que a criatura deixa) e a cicatriz do §45.
+
+Não existem mesmo: eventos raros (§11 — as 138 ocorrências de "raro" são faixas
+de loot), silêncio como **estado de áudio** (§12), trauma do jogador (§13 —
+`traumatizado` é temperamento de NPC) e presença com falso positivo (§6).
+
+### `docs/o-diretor-surdo.html`
+
+Site animado com a máquina de estados jogável — arraste a pressão, ligue a
+ameaça, force um clímax e veja o Diretor **derivar** o estado, com os limiares
+copiados do bloco. Mais os dois gráficos das medições.
+
+A paleta do jogo **reprovou** na validação como paleta de gráfico sobre este
+fundo: a ferrugem `#8C2F1E` tem contraste 2,11 (mínimo 3) e o mofo `#7A8B7F` tem
+croma 0,027 — lê como cinza. As séries usam `#D0603F` e `#4CA37E`, que passam nas
+cinco checagens: banda de luminosidade, piso de croma, separação para daltonismo
+(ΔE 8,0 deutan), piso de visão normal (22,8) e contraste. Mesma família, passo
+diferente.
+
+
 ## v74 — as costuras: a coisa que nunca esteve ali
 
 O pedido tinha duas metades. A primeira eu tive de devolver.
