@@ -3829,12 +3829,33 @@ function modeloVisitante(v){
   return m;
 }
 
+/* ============ O ROSTO DE QUEM BATE ============
+   REESCRITO NA REFORMULACAO VISUAL, com tres regras que nao podiam cair:
+
+   1. AS ZONAS DA LENTE NAO SE MEXEM. O olho magico procura o defeito em
+      posicoes fixas de tela (ZONAS: olhos .38, boca .55, pescoco .70,
+      pele x.34, simetria x.66). Mover uma feicao quebraria a cacada.
+      Entao as ancoras `cyy`, `oyB`, `by` e `sep` sao as mesmas de antes;
+      o que mudou e a PINTURA em cima delas.
+   2. AS 12 ANOMALIAS CONTINUAM TODAS. Cada `A_()` que existia continua
+      existindo, e continua deformando a mesma coisa.
+   3. NADA POR PIXEL. Isto roda por quadro na lente. Sao gradientes e
+      caminhos, nao `getImageData`.
+
+   O QUE MUDOU: antes o rosto era uma elipse chapada com uma sombra
+   vertical dividindo no meio, olho de circulo branco sem palpebra,
+   nariz desenhado como a letra L e boca de barra. Agora ha uma direcao
+   de luz — quente, de cima e da esquerda, que e de onde vem o lampiao —
+   com sombra do lado oposto, orbita, palpebra, iris com anel, nariz com
+   dorso e narina, labio com volume, e cabelo com risca e mechas. */
 function pintarVisitante(x,w,h,m,t){
   const s=i=>semente(m.h,i);
   const A_=id=>m.anomalias.some(a=>a.id===id);
   const q=Math.min(w,h)/100;
   const cx=w/2,cy=h*.54;
   const larg=m.larg*q*(m.crianca?.82:1),alt=m.alt*q*(m.crianca?.85:1);
+  /* a luz vem de cima e da esquerda: e o lampiao do corredor */
+  const LX=-.42, LY=-.34;
 
   const bg=x.createRadialGradient(cx,cy*.7,alt*.2,cx,cy,Math.max(w,h)*.8);
   bg.addColorStop(0,'#1A1416');bg.addColorStop(.5,'#0E0B10');bg.addColorStop(1,'#050407');
@@ -3844,9 +3865,25 @@ function pintarVisitante(x,w,h,m,t){
     x.beginPath();x.ellipse(cx+larg*.42,cy+alt*.08,larg*.52,alt*.56,-.12,0,7);x.fill();
   }
 
-  x.fillStyle=m.roupa;
+  /* ---------- tronco e pescoco ---------- */
   const pesc=A_('pescoco')?alt*.42:alt*.16;
+  x.fillStyle=m.roupa;
   x.fillRect(cx-larg*.17,cy+alt*.30,larg*.34,pesc+4);
+  /* o pescoco tem cor de pele, nao de roupa: era um retangulo da camisa */
+  const pele=A_('pele')?'#8E8B84':m.pele;
+  x.fillStyle=pele;
+  x.fillRect(cx-larg*.15,cy+alt*.28,larg*.30,pesc+2);
+  /* sombra do queixo caindo no pescoco: e o que separa cabeca de tronco */
+  const sq=x.createLinearGradient(0,cy+alt*.26,0,cy+alt*.30+pesc);
+  sq.addColorStop(0,'rgba(0,0,0,.55)');sq.addColorStop(1,'rgba(0,0,0,0)');
+  x.fillStyle=sq;x.fillRect(cx-larg*.15,cy+alt*.28,larg*.30,pesc+2);
+  x.fillStyle=m.roupa;
+  x.beginPath();x.ellipse(cx,cy+alt*.34+pesc+alt*.55,larg*1.15,alt*.62,0,0,7);x.fill();
+  /* a roupa tambem recebe a luz */
+  const gr=x.createLinearGradient(cx-larg,cy+alt*.3+pesc,cx+larg,cy+alt*1.1+pesc);
+  gr.addColorStop(0,'rgba(255,232,190,.09)');gr.addColorStop(.55,'rgba(0,0,0,0)');
+  gr.addColorStop(1,'rgba(0,0,0,.34)');
+  x.fillStyle=gr;
   x.beginPath();x.ellipse(cx,cy+alt*.34+pesc+alt*.55,larg*1.15,alt*.62,0,0,7);x.fill();
   if(m.gola){
     x.fillStyle='rgba(255,255,255,.05)';
@@ -3855,76 +3892,217 @@ function pintarVisitante(x,w,h,m,t){
     x.lineTo(cx,cy+alt*.52+pesc);x.lineTo(cx+larg*.32,cy+alt*.34+pesc);x.fill();
   }
 
+  /* ---------- a cabeca ---------- */
   const cyy=cy-(A_('pescoco')?alt*.16:0);
-  x.fillStyle=A_('pele')?'#8E8B84':m.pele;
-  x.beginPath();x.ellipse(cx,cyy,larg/2,alt/2,0,0,7);x.fill();
+  const rx=larg/2, ry=alt/2;
+  const cabeca=()=>{ x.beginPath();x.ellipse(cx,cyy,rx,ry,0,0,7); };
+  x.fillStyle=pele; cabeca(); x.fill();
+  /* o queixo, que antes era uma pancada de curva sem volume */
+  x.fillStyle=pele;
   x.beginPath();
   x.moveTo(cx-larg*.34,cyy+alt*.12);
   x.quadraticCurveTo(cx,cyy+alt*(.5+s(5)*.14),cx+larg*.34,cyy+alt*.12);x.fill();
-  const lg=x.createLinearGradient(0,cyy-alt*.5,0,cyy+alt*.5);
-  lg.addColorStop(0,'rgba(0,0,0,.5)');lg.addColorStop(.6,'rgba(0,0,0,0)');
-  lg.addColorStop(1,'rgba(201,162,39,.13)');
-  x.fillStyle=lg;
-  x.beginPath();x.ellipse(cx,cyy,larg/2,alt/2,0,0,7);x.fill();
+
+  x.save(); cabeca(); x.clip();
+  /* luz principal: quente, de cima e da esquerda */
+  const luz=x.createRadialGradient(cx+rx*LX,cyy+ry*LY,rx*.12,cx+rx*LX,cyy+ry*LY,rx*1.75);
+  luz.addColorStop(0,'rgba(255,231,186,.30)');
+  luz.addColorStop(.45,'rgba(255,214,150,.09)');
+  luz.addColorStop(1,'rgba(0,0,0,0)');
+  x.fillStyle=luz; x.fillRect(cx-rx,cyy-ry,rx*2,ry*2);
+  /* sombra do lado oposto, suave — nao a faixa dura de antes */
+  const som=x.createRadialGradient(cx-rx*LX*1.15,cyy-ry*LY*.7,rx*.15,cx-rx*LX*1.15,cyy-ry*LY*.7,rx*1.5);
+  som.addColorStop(0,'rgba(8,5,10,.42)');
+  som.addColorStop(.6,'rgba(8,5,10,.16)');
+  som.addColorStop(1,'rgba(0,0,0,0)');
+  x.fillStyle=som; x.fillRect(cx-rx,cyy-ry,rx*2,ry*2);
+  /* maca do rosto: dois toques quentes que dao osso ao rosto */
+  [-1,1].forEach(d=>{
+    const mg=x.createRadialGradient(cx+d*rx*.52,cyy+ry*.10,1,cx+d*rx*.52,cyy+ry*.10,rx*.46);
+    mg.addColorStop(0,'rgba(190,120,92,'+(d<0?.16:.09)+')');
+    mg.addColorStop(1,'rgba(0,0,0,0)');
+    x.fillStyle=mg;x.fillRect(cx-rx,cyy-ry,rx*2,ry*2);
+  });
+  /* Testa e fundo da orbita. A primeira versao terminava o retangulo em
+     `cyy` e o corte do gradiente virou uma FAIXA HORIZONTAL DURA
+     atravessando o rosto na altura dos olhos. Agora ele abre e fecha
+     dentro do proprio desenho, sem borda. */
+  const orb=x.createLinearGradient(0,cyy-ry*.52,0,cyy+ry*.16);
+  orb.addColorStop(0,'rgba(0,0,0,0)');
+  orb.addColorStop(.55,'rgba(20,12,10,.20)');
+  orb.addColorStop(1,'rgba(0,0,0,0)');
+  x.fillStyle=orb;x.fillRect(cx-rx,cyy-ry*.52,rx*2,ry*.68);
+  /* sombra sob o queixo, por dentro da cabeca */
+  const qg=x.createLinearGradient(0,cyy+ry*.42,0,cyy+ry);
+  qg.addColorStop(0,'rgba(0,0,0,0)');qg.addColorStop(1,'rgba(0,0,0,.34)');
+  x.fillStyle=qg;x.fillRect(cx-rx,cyy+ry*.42,rx*2,ry*.58);
+  x.restore();
+
+  /* A assimetria continua sendo sinal de jogo e continua no mesmo lugar.
+     Mudou so a borda: era uma elipse chapada com contorno duro, que lia
+     como erro de desenho em vez de sombra. */
   if(!A_('simetria')){
-    x.fillStyle='rgba(0,0,0,.26)';
-    x.beginPath();x.ellipse(cx+larg*.24,cyy,larg*.22,alt*.42,0,0,7);x.fill();
+    x.save(); cabeca(); x.clip();
+    const ag=x.createRadialGradient(cx+larg*.26,cyy,larg*.04,cx+larg*.26,cyy,larg*.34);
+    ag.addColorStop(0,'rgba(0,0,0,.22)');
+    ag.addColorStop(.65,'rgba(0,0,0,.11)');
+    ag.addColorStop(1,'rgba(0,0,0,0)');
+    x.fillStyle=ag;
+    x.beginPath();x.ellipse(cx+larg*.24,cyy,larg*.30,alt*.46,0,0,7);x.fill();
+    x.restore();
   }
 
+  /* ---------- cabelo ----------
+     Antes era meia elipse, sempre a mesma tigela. Agora sao quatro
+     silhuetas com risca, entrada na tempora e mechas. */
   if(m.capuz){
     x.fillStyle='#14111A';
     x.beginPath();x.ellipse(cx,cyy-alt*.10,larg*.66,alt*.60,0,Math.PI,0);x.fill();
     x.fillRect(cx-larg*.66,cyy-alt*.10,larg*.20,alt*.7);
     x.fillRect(cx+larg*.46,cyy-alt*.10,larg*.20,alt*.7);
+    /* a boca do capuz joga sombra na testa */
+    const cg=x.createLinearGradient(0,cyy-alt*.34,0,cyy-alt*.02);
+    cg.addColorStop(0,'rgba(0,0,0,.62)');cg.addColorStop(1,'rgba(0,0,0,0)');
+    x.save();cabeca();x.clip();
+    x.fillStyle=cg;x.fillRect(cx-rx,cyy-ry,rx*2,ry);x.restore();
   }else{
-    x.fillStyle=m.cabelo;
     const tp=Math.floor(s(6)*4);
-    x.beginPath();
-    x.ellipse(cx,cyy-alt*(.22+tp*.04),larg*(.5+tp*.03),alt*(.26+tp*.05),0,Math.PI,0);x.fill();
-    if(tp===1){x.fillRect(cx-larg*.56,cyy-alt*.22,larg*.14,alt*.46);
-      x.fillRect(cx+larg*.42,cyy-alt*.22,larg*.14,alt*.40);}
+    const vol=.26+tp*.05, larguraC=.5+tp*.03;
+    const hy=cyy-alt*(.22+tp*.04);
+    const massa=()=>{ x.beginPath();
+      x.ellipse(cx,hy,larg*larguraC,alt*vol,0,Math.PI,0);
+      /* a franja desce um pouco na testa: sem isto o cabelo fica pousado */
+      x.quadraticCurveTo(cx+larg*.20,hy+alt*.05,cx,hy+alt*.035);
+      x.quadraticCurveTo(cx-larg*.20,hy+alt*.06,cx-larg*larguraC,hy);
+      x.closePath(); };
+    x.fillStyle=m.cabelo; massa(); x.fill();
+    if(tp===1){ x.fillRect(cx-larg*.56,cyy-alt*.22,larg*.14,alt*.46);
+                x.fillRect(cx+larg*.42,cyy-alt*.22,larg*.14,alt*.40); }
+    if(tp===3){ /* preso atras: sobra volume nas laterais de cima */
+                x.beginPath();x.ellipse(cx-larg*.46,cyy-alt*.16,larg*.12,alt*.20,0,0,7);x.fill();
+                x.beginPath();x.ellipse(cx+larg*.46,cyy-alt*.16,larg*.12,alt*.20,0,0,7);x.fill(); }
+    /* TUDO O QUE VEM AGORA FICA PRESO DENTRO DA MASSA.
+       A primeira versao desenhou a risca como um poligono solto e ela
+       virou uma tabua retangular pousada na cabeca — o recorte e o que
+       impede isso. */
+    x.save(); massa(); x.clip();
+    /* mechas: riscos claros que quebram o bloco chapado */
+    x.strokeStyle='rgba(255,240,215,.13)';x.lineWidth=Math.max(1,q*.9);
+    for(let i=0;i<5;i++){
+      const a0=Math.PI+.18+i*.52+s(70+i)*.16;
+      x.beginPath();
+      x.moveTo(cx+Math.cos(a0)*larg*larguraC*1.02, hy+Math.sin(a0)*alt*vol*1.02);
+      x.lineTo(cx+Math.cos(a0*.72)*larg*larguraC*.34, hy+Math.sin(a0*.72)*alt*vol*.26);
+      x.stroke();
+    }
+    /* brilho do topo, do lado da luz */
+    const bg2=x.createRadialGradient(cx+larg*LX*.5,hy-alt*vol*.5,1,
+      cx+larg*LX*.5,hy-alt*vol*.5,larg*.6);
+    bg2.addColorStop(0,'rgba(255,235,200,.15)');bg2.addColorStop(1,'rgba(0,0,0,0)');
+    x.fillStyle=bg2;x.fillRect(cx-larg,hy-alt,larg*2,alt*1.4);
+    /* e a raiz mais escura junto da testa */
+    const rg=x.createLinearGradient(0,hy-alt*vol*.2,0,hy+alt*.06);
+    rg.addColorStop(0,'rgba(0,0,0,0)');rg.addColorStop(1,'rgba(0,0,0,.34)');
+    x.fillStyle=rg;x.fillRect(cx-larg,hy-alt*vol*.2,larg*2,alt*.3);
+    x.restore();
   }
 
+  /* ---------- olhos ---------- */
   const piscando=A_('piscar')?false:(Math.sin(t*1.7+s(21)*6)>.965);
   const oyB=cyy-alt*.06,sep=larg*(.19+s(7)*.04);
   [-1,1].forEach((d,i)=>{
     const oy=oyB+(A_('olhos')?(i===0?-alt*.075:alt*.055):0);
+    const ox=cx+d*sep;
+    const ew=larg*.105, eh=alt*.05;
+    /* orbita: sombra rasa em volta, que era o que faltava pro olho
+       parecer afundado em vez de colado */
+    const og=x.createRadialGradient(ox,oy,eh*.4,ox,oy,ew*2.1);
+    og.addColorStop(0,'rgba(20,10,8,.30)');og.addColorStop(1,'rgba(20,10,8,0)');
+    x.fillStyle=og;x.beginPath();x.ellipse(ox,oy,ew*2.1,eh*2.6,0,0,7);x.fill();
     if(piscando){
       x.strokeStyle='rgba(20,14,12,.85)';x.lineWidth=2*q;
-      x.beginPath();x.moveTo(cx+d*sep-larg*.1,oy);x.lineTo(cx+d*sep+larg*.1,oy);x.stroke();
+      x.beginPath();x.moveTo(ox-larg*.1,oy);x.lineTo(ox+larg*.1,oy);x.stroke();
     }else{
-      x.fillStyle='#E6DFD2';
-      x.beginPath();x.ellipse(cx+d*sep,oy,larg*.105,alt*.05,0,0,7);x.fill();
-      const pupx=cx+d*sep+(A_('simetria')?0:(s(8)-.5)*2.4*q);
+      x.save();
+      x.beginPath();x.ellipse(ox,oy,ew,eh,0,0,7);x.clip();
+      x.fillStyle='#E6DFD2';x.fillRect(ox-ew,oy-eh,ew*2,eh*2);
+      /* sombra da palpebra de cima caindo no branco do olho */
+      const pg=x.createLinearGradient(0,oy-eh,0,oy+eh*.2);
+      pg.addColorStop(0,'rgba(40,24,18,.55)');pg.addColorStop(1,'rgba(40,24,18,0)');
+      x.fillStyle=pg;x.fillRect(ox-ew,oy-eh,ew*2,eh*1.2);
+      const pupx=ox+(A_('simetria')?0:(s(8)-.5)*2.4*q);
+      /* iris com anel: da profundidade sem custar nada */
+      x.fillStyle='#3A2A1E';
+      x.beginPath();x.arc(pupx,oy,alt*.045,0,7);x.fill();
+      x.strokeStyle='rgba(10,7,6,.55)';x.lineWidth=Math.max(.8,q*.5);
+      x.beginPath();x.arc(pupx,oy,alt*.045,0,7);x.stroke();
       x.fillStyle='#12100E';
-      x.beginPath();x.arc(pupx,oy,alt*.032,0,7);x.fill();
+      x.beginPath();x.arc(pupx,oy,alt*.026,0,7);x.fill();
       if(A_('brilho')){
-        const b=.5+Math.sin(t*2.2)*.35;
-        x.fillStyle='rgba(210,190,120,'+b+')';
+        const bb=.5+Math.sin(t*2.2)*.35;
+        x.fillStyle='rgba(210,190,120,'+bb+')';
         x.beginPath();x.arc(pupx,oy,alt*.026,0,7);x.fill();
-        x.fillStyle='rgba(255,240,200,'+(b*.9)+')';
+        x.fillStyle='rgba(255,240,200,'+(bb*.9)+')';
         x.beginPath();x.arc(pupx-alt*.008,oy-alt*.008,alt*.010,0,7);x.fill();
       }else{
-        x.fillStyle='rgba(255,240,210,.4)';
-        x.beginPath();x.arc(pupx-alt*.010,oy-alt*.012,alt*.008,0,7);x.fill();
+        x.fillStyle='rgba(255,240,210,.55)';
+        x.beginPath();x.arc(pupx-alt*.012,oy-alt*.014,alt*.009,0,7);x.fill();
       }
+      x.restore();
+      /* palpebra de baixo: um fio claro que separa olho de maca */
+      x.strokeStyle='rgba(255,230,200,.16)';x.lineWidth=Math.max(.9,q*.55);
+      x.beginPath();x.moveTo(ox-ew*.85,oy+eh*.92);x.lineTo(ox+ew*.85,oy+eh*.78);x.stroke();
+      /* canto interno escuro */
+      x.fillStyle='rgba(30,16,14,.35)';
+      x.beginPath();x.ellipse(ox-d*ew*.92,oy,ew*.18,eh*.55,0,0,7);x.fill();
     }
+    /* sobrancelha */
     x.strokeStyle=m.cabelo;x.lineWidth=(2.2+s(9)*2)*q;
+    x.lineCap='round';
     x.beginPath();
-    x.moveTo(cx+d*sep-larg*.12,oy-alt*.14);
-    x.lineTo(cx+d*sep+larg*.12,oy-alt*.13+(A_('simetria')?0:(s(11)-.5)*alt*.05));
+    x.moveTo(ox-larg*.12,oy-alt*.14);
+    x.lineTo(ox+larg*.12,oy-alt*.13+(A_('simetria')?0:(s(11)-.5)*alt*.05));
     x.stroke();
+    x.lineCap='butt';
   });
 
-  x.strokeStyle='rgba(0,0,0,.42)';x.lineWidth=1.7*q;
-  x.beginPath();
-  x.moveTo(cx-q,oyB+alt*.05);
-  x.lineTo(cx-larg*.05,oyB+alt*.18);
-  x.lineTo(cx+larg*.045,oyB+alt*.18);x.stroke();
+  /* ---------- nariz ----------
+     Antes: tres linhas formando a letra L. Agora: dorso com luz de um
+     lado, sombra do outro, ponta e narina. */
+  {
+    const nx=cx, ny0=oyB+alt*.03, ny1=oyB+alt*.19;
+    const lado=LX<0?-1:1;
+    const ng=x.createLinearGradient(nx-larg*.09,0,nx+larg*.07,0);
+    ng.addColorStop(0,'rgba(255,232,190,.13)');
+    ng.addColorStop(.55,'rgba(0,0,0,0)');
+    ng.addColorStop(1,'rgba(28,14,10,.30)');
+    x.fillStyle=ng;
+    x.beginPath();
+    x.moveTo(nx-larg*.055,ny0);
+    x.quadraticCurveTo(nx-larg*.075,ny1,nx-larg*.02,ny1+alt*.015);
+    x.lineTo(nx+larg*.055,ny1+alt*.005);
+    x.quadraticCurveTo(nx+larg*.05,ny1*.5+ny0*.5,nx+larg*.02,ny0);
+    x.closePath();x.fill();
+    /* a asa e a narina do lado da sombra */
+    x.fillStyle='rgba(26,13,10,.42)';
+    x.beginPath();x.ellipse(nx+lado*larg*.052,ny1+alt*.012,larg*.028,alt*.016,0,0,7);x.fill();
+    x.fillStyle='rgba(255,236,200,.10)';
+    x.beginPath();x.ellipse(nx-lado*larg*.028,ny1-alt*.01,larg*.02,alt*.022,0,0,7);x.fill();
+    /* a sombra que o nariz joga na bochecha */
+    x.fillStyle='rgba(20,10,8,.16)';
+    x.beginPath();
+    x.moveTo(nx+larg*.03,ny0+alt*.02);
+    x.quadraticCurveTo(nx+larg*.10,ny1,nx+larg*.045,ny1+alt*.03);
+    x.lineTo(nx+larg*.02,ny1);x.closePath();x.fill();
+  }
 
+  /* ---------- boca ---------- */
   const bl=larg*(A_('boca')?.44:.17+s(12)*.09);
   const by=cyy+alt*.27;
   const falando=cena.falando&&Math.sin(t*11)>0;
+  /* o sulco entre nariz e labio */
+  x.fillStyle='rgba(20,10,8,.10)';
+  x.beginPath();x.ellipse(cx,by-alt*.055,larg*.035,alt*.028,0,0,7);x.fill();
   if(A_('dentes')||falando){
     x.fillStyle='#0A0708';
     x.beginPath();x.ellipse(cx,by,bl/2,alt*(falando?.05:.035),0,0,7);x.fill();
@@ -3934,16 +4112,38 @@ function pintarVisitante(x,w,h,m,t){
       for(let k=0;k<n;k++)x.fillRect(cx-bl/2+k*(bl/n)+.6,by-alt*.028,bl/n-1.2,alt*.026);
     }
   }else{
-    x.strokeStyle='rgba(35,14,14,.8)';x.lineWidth=(2+s(13)*1.4)*q;
+    /* labio de cima: mais escuro, e a linha da boca */
+    const curva=(A_('boca')?-alt*.06:(s(14)-.6)*alt*.08);
+    x.fillStyle='rgba(58,26,26,.55)';
     x.beginPath();
     x.moveTo(cx-bl/2,by);
-    x.quadraticCurveTo(cx,by+(A_('boca')?-alt*.06:(s(14)-.6)*alt*.08),cx+bl/2,by);
+    x.quadraticCurveTo(cx,by+curva,cx+bl/2,by);
+    x.quadraticCurveTo(cx,by-alt*.030+curva*.4,cx-bl/2,by);
+    x.closePath();x.fill();
+    /* labio de baixo: com volume e um brilho do lado da luz */
+    x.fillStyle='rgba(126,62,58,.40)';
+    x.beginPath();
+    x.moveTo(cx-bl*.46,by+alt*.004);
+    x.quadraticCurveTo(cx,by+alt*.042+curva*.3,cx+bl*.46,by+alt*.004);
+    x.quadraticCurveTo(cx,by+alt*.012,cx-bl*.46,by+alt*.004);
+    x.closePath();x.fill();
+    x.fillStyle='rgba(255,226,198,.13)';
+    x.beginPath();x.ellipse(cx-bl*.14,by+alt*.020,bl*.20,alt*.010,0,0,7);x.fill();
+    /* a linha da boca por cima de tudo */
+    x.strokeStyle='rgba(30,12,12,.70)';x.lineWidth=(1.6+s(13)*1.0)*q;
+    x.beginPath();
+    x.moveTo(cx-bl/2,by);
+    x.quadraticCurveTo(cx,by+curva,cx+bl/2,by);
     x.stroke();
   }
 
   if(m.barba){
-    x.fillStyle='rgba(18,13,16,.55)';
+    x.fillStyle='rgba(18,13,16,.42)';
     x.beginPath();x.ellipse(cx,cyy+alt*.31,larg*.30,alt*.20,0,0,7);x.fill();
+    /* a barba tem grão, nao e uma mancha */
+    x.fillStyle='rgba(12,9,11,.30)';
+    for(let i=0;i<14;i++)
+      x.fillRect(cx+(s(80+i)-.5)*larg*.54,cyy+alt*(.22+s(90+i)*.20),1.6*q,1.2*q);
   }
   if(m.sangue){
     x.fillStyle='rgba(110,25,18,.62)';
@@ -3954,9 +4154,12 @@ function pintarVisitante(x,w,h,m,t){
     for(let i=0;i<4;i++)
       x.fillRect(cx+larg*(.05+s(30+i)*.3),cyy+alt*(.1+s(40+i)*.25),2.5*q,5*q);
   }
-  x.fillStyle='rgba(45,33,22,'+(m.sujeira*.5)+')';
-  for(let i=0;i<10;i++)
-    x.fillRect(cx+(s(50+i)-.5)*larg*.85,cyy+(s(60+i)-.4)*alt*.75,2.4*q,1.8*q);
+  /* sujeira: agora manchas irregulares em vez de quadradinhos */
+  x.fillStyle='rgba(45,33,22,'+(m.sujeira*.42)+')';
+  for(let i=0;i<10;i++){
+    const sx2=cx+(s(50+i)-.5)*larg*.85, sy2=cyy+(s(60+i)-.4)*alt*.75;
+    x.beginPath();x.ellipse(sx2,sy2,(1.2+s(100+i)*1.6)*q,(.9+s(110+i)*1.1)*q,s(120+i)*3,0,7);x.fill();
+  }
   if(!m.anomalias.length&&Math.sin(t*.9)>.4){
     const o=(Math.sin(t*.9)-.4)*.5;
     x.fillStyle='rgba(220,220,230,'+(o*.13)+')';

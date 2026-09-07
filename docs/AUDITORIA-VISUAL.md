@@ -89,7 +89,70 @@ Cada etapa fecha com fotos de antes e depois.
 | etapa | o que entra |
 |---|---|
 | **1** | os treze embaralhamentos (feito) e as paletas de aparência mais largas |
-| **2** | rosto: luz de lado, pálpebra, modelagem, cabelo com forma |
+| **2** | rosto: luz de lado, pálpebra, modelagem, cabelo com forma (feito) |
 | **3** | cômodos: sombra projetada, desgaste, camada de primeiro plano |
 | **4** | texturas: madeira com veio, concreto com poro, metal com risco |
 | **5** | criaturas: silhueta própria por criatura |
+
+---
+
+## 6 · Etapa 2 — o rosto (feito)
+
+### O que era
+
+Cabeça: uma elipse chapada com uma faixa de sombra vertical. Olho: círculo
+branco com ponto preto, sem pálpebra nem órbita. Nariz: três traços formando a
+letra **L**. Boca: uma barra escura. Cabelo: meia elipse pousada como tigela.
+Sujeira: dez quadradinhos.
+
+### O que é agora
+
+- **Luz com direção**, quente, de cima e da esquerda — de onde vem o lampião.
+  Medido no desenho: lado claro **64**, lado escuro **37**.
+- **Olho**: órbita afundada, sombra da pálpebra superior caindo dentro do olho,
+  íris com anel, pálpebra inferior e canto interno escuro.
+- **Nariz**: dorso com luz de um lado e sombra do outro, narina, e a sombra que
+  ele projeta na bochecha.
+- **Boca**: lábio superior mais escuro, inferior com volume e brilho.
+- **Cabelo**: massa com franja, cinco mechas, raiz escura e brilho no topo —
+  tudo recortado dentro da própria massa.
+- **Maçã do rosto e queixo** com modelagem; sujeira em manchas irregulares.
+- **Pescoço** ganhou cor de pele. Era da cor da camisa.
+
+### Dois erros meus, corrigidos antes da entrega
+
+1. **O cabelo virou uma tábua retangular** pousada na cabeça: eu desenhei a linha
+   do cabelo como um polígono solto em vez de recortá-lo na massa.
+2. **Uma faixa horizontal dura** atravessava o rosto na altura dos olhos — o
+   `fillRect` do gradiente da órbita terminava em `cyy` e o corte virava borda.
+
+### O que foi provado, não achado
+
+`tools/testes/rostoteste.mjs` — 17 asserções. O retrato desenha **nove** dos 12
+defeitos (`maos`, `roupa` e `pes` são de outro sistema), e os nove continuam
+legíveis:
+
+| defeito | muda o retrato | onde |
+|---|---:|---|
+| pescoço | 40,6% | embaixo |
+| pele | 22,2% | rosto inteiro |
+| sombra | 7,7% | atrás |
+| olhos | 5,6% | metade de cima |
+| simetria | 3,9% | rosto inteiro |
+| boca | 0,9% | metade de baixo |
+| dentes | 0,7% | metade de baixo |
+| brilho | 1,2% **da faixa dos olhos** | as pupilas |
+| piscar | — | **no tempo** |
+
+`piscar` significa "nunca pisca": num quadro parado ele é idêntico ao rosto
+normal, e isso é o certo. Medido ao longo de 600 quadros: o rosto normal fecha o
+olho **47 vezes**, o defeituoso **zero**.
+
+Custo: **0,07 ms** por rosto, contra um orçamento de 16 ms por quadro.
+
+### Uma restrição que o briefing não menciona
+
+A lente do olho mágico procura cada defeito numa **posição fixa de tela**
+(`olhos` .38, `boca` .55, `pescoco` .70). Mover uma feição quebraria a caçada —
+que é gameplay, não enfeite. As âncoras `cyy`, `oyB`, `by` e `sep` são as mesmas
+de antes; o que mudou foi a pintura em cima delas.

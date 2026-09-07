@@ -26,6 +26,7 @@ depois de `node montar.js`:
     node tools/testes/costurateste.mjs # as costuras: o que nunca esteve ali §49 (27)
     node tools/testes/costsiteteste.mjs # o site animado docs/as-costuras.html (16)
     node tools/testes/dirteste.mjs     # o diretor ganha ouvido §50 (33)
+    node tools/testes/rostoteste.mjs   # o rosto de quem bate na porta (17)
     node tools/testes/simulacao.mjs    # 250 noites simuladas, sem asserção de gosto (20)
     node tools/testes/labteste.mjs     # o site animado docs/laboratorio-de-som.html (26)
     node tools/testes/aberturateste.mjs # a abertura narrada e a guarda do save (14)
@@ -189,3 +190,19 @@ A trava de colisão também roda dentro de `montar.js` e **quebra o build**.
 - **Antes de chamar uma falha de instabilidade, rode o build ANTIGO.** 0 falhas
   em 12 rodadas antes contra 1 em 8 depois foi o que provou que era o meu
   conserto, e não azar de tempo.
+
+- **Não cobre de um desenho o que ele não desenha.** `pintarVisitante` faz NOVE
+  dos 12 defeitos do visitante; `maos`, `roupa` e `pes` são de outro sistema. O
+  primeiro teste do rosto acusava o retrato de não desenhar o que nunca foi dele.
+- **Sinal de tempo não se mede num quadro parado.** `piscar` significa "nunca
+  pisca": num instante só, o rosto normal também está de olho aberto e os dois
+  desenhos são idênticos. Meça ao longo de muitos `t` — 47 piscadas em 600
+  quadros no rosto normal, zero no defeituoso.
+- **E cuidado com o instante escolhido:** medi o brilho da pupila num `t` em que
+  o rosto estava piscando. De olho fechado o brilho não tem como aparecer, e o
+  teste acusava o desenho.
+- **A zona da lente é fração da tela DO JOGO.** Numa tela de teste com outra
+  proporção o centro da zona não cai na feição — a boca ficava 72 px fora da
+  própria zona. Para checagem espacial em tela de teste, use faixas da imagem.
+- **Limite global esconde sinal pequeno.** `brilho` acende só as pupilas: 0,2% do
+  retrato inteiro, 1,2% da faixa dos olhos. Meça onde o sinal acontece.
