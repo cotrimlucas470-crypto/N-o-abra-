@@ -52,7 +52,15 @@ await p.evaluate(()=>{
       if(cena.modo==='fim')return {ok:false,porque:'fim de partida'};
       const enc=bs.find(x=>/encher a mochila/i.test(x.textContent));
       if(enc){ enc.click(); await __espera(200); return {ok:true}; }
-      const b2=bs.find(x=>/^(pela|pelo|seguir|limpar)/i.test(x.textContent))||bs[0];
+      /* O CAMINHADOR CEGO CLICAVA NO CABECALHO DA SECAO.
+         `bs[0]` pode ser "▼neste cômodo", que abre e fecha uma gaveta da
+         interface em vez de agir — e a trilha de uma falha mostrava seis
+         cliques seguidos nele, queimando os 60 passos. Isto passava
+         despercebido so porque a ordem das opcoes vinha enviesada e uma
+         acao de verdade caia em primeiro lugar. Corrigido o
+         embaralhamento do jogo, a sorte acabou. */
+      const acoes=bs.filter(x=>!/^[▼▶]/.test((x.textContent||'').trim()));
+      const b2=acoes.find(x=>/^(pela|pelo|seguir|limpar)/i.test(x.textContent))||acoes[0]||bs[0];
       if(/recome|partida nova|salvar e recarregar/i.test(b2.textContent))
         return {ok:false,porque:'tela de socorro/fim'};
       b2.click();

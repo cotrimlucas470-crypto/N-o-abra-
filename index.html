@@ -3824,7 +3824,7 @@ function modeloVisitante(v){
     if(S.porta.olho)qtd++;
     if(S.viradaDescobriram)qtd++;
     if(vicioPorta()==='olho'&&chance(.55))qtd=Math.max(0,qtd-1);
-    m.anomalias=ANOM_TODAS().slice().sort(()=>_ale()-.5).slice(0,Math.min(4,qtd));
+    m.anomalias=_embaralhar(ANOM_TODAS().slice()).slice(0,Math.min(4,qtd));
   }
   return m;
 }
@@ -4249,7 +4249,7 @@ function perfilEscuta(v){
   if(v.mimico){
     let qtd=S.dia<=3?3:S.dia<=6?2:(chance(.72)?1:2);
     if(vicioPorta()==='ouvido'&&chance(.55))qtd=Math.max(1,qtd-1);
-    e.defeitos=DEFEITOS_SOM.slice().sort(()=>_ale()-.5).slice(0,qtd);
+    e.defeitos=_embaralhar(DEFEITOS_SOM.slice()).slice(0,qtd);
     e.defeitos.forEach(d=>{
       if(d.id==='rapida'){e.rpm=29+_ale()*7;e.variacao=.05;}
       if(d.id==='lenta'){e.rpm=5+_ale()*2;e.variacao=.06;}
@@ -4498,7 +4498,7 @@ function escolherEscuta(v,e,antes,escrito){
     diz('Escolha a camada que te incomodou. Se você errar, você vai anotar uma coisa que não aconteceu.','fraco');
   }
   AC.innerHTML='';
-  const usadas=PERG_ESCUTA.slice().sort(()=>_ale()-.5).slice(0,3);
+  const usadas=_embaralhar(PERG_ESCUTA.slice()).slice(0,3);
   usadas.forEach(p=>{
     botao(p.q,()=>responderEscuta(v,e,p,antes),{custo:'uma camada'});
   });
@@ -4925,7 +4925,7 @@ const TODOS_LOCAIS=[
 function locaisDeHoje(){
   if(S.locaisDia===S.dia&&S.locaisHoje)return S.locaisHoje;
   const fixos=poolDeLocais().filter(l=>(S.esgotados[l.id]||0)<2&&(!l.trava||tem(l.trava)));
-  const emb=fixos.slice().sort(()=>_ale()-.5);
+  const emb=_embaralhar(fixos.slice());
   const sel=emb.slice(0,4);
   if(S.gerQuebrado&&!S.peca){
     const h=poolDeLocais().find(l=>l.id==='hospital');
@@ -4936,7 +4936,7 @@ function locaisDeHoje(){
 }
 function itensDoLocal(l){
   const n=1+Math.floor(_ale()*2)+(l.risco>=4?1:0);
-  const bag=(l.itens||[]).slice().sort(()=>_ale()-.5).slice(0,n);
+  const bag=_embaralhar((l.itens||[]).slice()).slice(0,n);
   return bag.map(id=>ITENS.find(i=>i.id===id)).filter(Boolean);
 }
 
@@ -6060,7 +6060,7 @@ function menuInvestigar(an,comodo,volta){
     if(m.precisa==='memoria'&&!S.anotouCasa)return false;
     return true;
   });
-  disp=disp.sort(()=>_ale()-.5).slice(0,4+(S.dia>6?1:0));
+  disp=_embaralhar(disp).slice(0,4+(S.dia>6?1:0));
 
   disp.forEach(k=>{
     const m=METODOS[k];
@@ -6595,7 +6595,7 @@ async function visitaComerciante(){
   await pausa(1300);
   diz('“Bom dia. Tenho o que vocês não têm. Vocês têm o que eu não tenho.”','fala');
   await pausa(1100);
-  const ofertas=TROCAS.slice().sort(()=>_ale()-.5).slice(0,4);
+  const ofertas=_embaralhar(TROCAS.slice()).slice(0,4);
   return new Promise(res=>{
     AC.innerHTML='';
     ofertas.forEach(o=>{
@@ -11024,7 +11024,7 @@ function gerarVisitante(){
         vozIdx:vz2.vozIdx,pitch:vz2.pitch,rate:vz2.rate,qtd:1,
         alt:ant.alt,larg:.16,dedos:0,tremor:0,x:.5,deAntes:true};
       v2.respostas={};
-      const ruins2=CHAVES.slice().sort(()=>_ale()-.5).slice(0,2);
+      const ruins2=_embaralhar(CHAVES.slice()).slice(0,2);
       CHAVES.forEach(k=>{
         const errado=ruins2.includes(k);
         v2.respostas[k]={txt:errado?sortear(PERG[k].ruim(ant)):sortear(PERG[k].bom(ant)),
@@ -11054,7 +11054,7 @@ function gerarVisitante(){
 
   if(tipo==='coro'){v.qtd=3;v.rate=.86;}
   if(tipo==='bando'){
-    const outros=S.pool.filter(p=>p!==pessoa).sort(()=>_ale()-.5).slice(0,chance(.5)?2:1);
+    const outros=_embaralhar(S.pool.filter(p=>p!==pessoa)).slice(0,chance(.5)?2:1);
     v.grupo=[pessoa,...outros].map(p=>({p,mimico:chance(trava(.14+S.dia*.028,.14,.38))}));
     v.qtd=v.grupo.length;
     mimico=v.mimico=v.grupo.some(x=>x.mimico);
@@ -12346,7 +12346,8 @@ menuInvestigar=async function(an,comodo,volta){
       if(m.precisa==='lanterna'&&!temFerra('lanterna'))return false;
       if(m.precisa==='memoria'&&!S.anotouCasa)return false;
       return true;
-    }).sort(()=>_ale()-.5).slice(0,4+(S.dia>6?1:0));
+    });
+    disp=_embaralhar(disp).slice(0,4+(S.dia>6?1:0));
     disp.forEach(k=>{
       const m=METODOS[k];
       let p=m.base;
@@ -15657,7 +15658,7 @@ montarLente=function(v){
     if(quantos>0){
       /* troca os genéricos pelos dela, mantendo a quantidade
          que o balanceamento já definiu */
-      const escolhidos=proprios.slice().sort(()=>_ale()-.5).slice(0,quantos);
+      const escolhidos=_embaralhar(proprios.slice()).slice(0,quantos);
       const faltam=quantos-escolhidos.length;
       if(faltam>0)escolhidos.push(...v._modelo.anomalias.slice(0,faltam));
       v._modelo.anomalias=escolhidos;
@@ -18903,7 +18904,7 @@ const ANCORAS=[
 function ancoras(){
   if(!Array.isArray(S.anc)){
     const q=2+Math.floor(_ale()*3);
-    const pool=ANCORAS.slice().sort(()=>_ale()-.5).slice(0,q);
+    const pool=_embaralhar(ANCORAS.slice()).slice(0,q);
     S.anc=pool.map(a=>({id:a.id,usos:0,ultimo:-9,mortaAte:0}));
   }
   S.anc=S.anc.filter(a=>a&&ANCORAS.some(x=>x.id===a.id));
@@ -18966,7 +18967,7 @@ function decisoesDaRun(){
   if((S.anomPegas||0)>=3)l.push(`Você entendeu ${S.anomPegas} coisas que ninguém mais entendeu.`);
   if((S.ancMortas||[]).length)l.push('Você destruiu o que te segurava, pra parar de ver coisa.');
   if(!l.length)l.push('Você fez o que deu, no dia a dia, e não sobrou grande decisão nenhuma.');
-  return l.sort(()=>_ale()-.5).slice(0,3);
+  return _embaralhar(l).slice(0,3);
 }
 const ULTIMO_ATO=[
  {n:'Escrever uma carta',

@@ -177,3 +177,15 @@ A trava de colisão também roda dentro de `montar.js` e **quebra o build**.
   versão do §50 deixava a média em 5,96 (faixa [4,8], tudo certo) e ao mesmo
   tempo jogava **12% das noites acima de 8** — contra 0,05% sem ele. Olhe a
   cauda, não só a média.
+
+- **Caminhador de teste não pode clicar `bs[0]` cego.** O `bs[0]` da tela do jogo
+  pode ser **"▼neste cômodo"** — o cabeçalho de uma gaveta que abre e fecha sem
+  agir. Uma falha do `expteste` mostrou seis cliques seguidos nele, queimando os
+  60 passos. Filtre cabeçalhos (`/^[▼▶]/`) antes do fallback.
+- **Teste que passa por sorte de ordenação quebra quando você conserta a
+  ordenação.** O `expteste` passava 12 de 12 porque o embaralhamento enviesado
+  colocava uma ação de verdade em primeiro lugar. Corrigido o viés, passou a
+  falhar 1 em 8 — e o culpado era o teste, não o jogo.
+- **Antes de chamar uma falha de instabilidade, rode o build ANTIGO.** 0 falhas
+  em 12 rodadas antes contra 1 em 8 depois foi o que provou que era o meu
+  conserto, e não azar de tempo.
