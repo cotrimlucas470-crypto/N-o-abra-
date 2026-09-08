@@ -32,6 +32,7 @@ depois de `node montar.js`:
     node tools/testes/silteste.mjs     # as criaturas aparecem no caderno §51 (15)
     node tools/testes/silencioteste.mjs # o silêncio vira estado do som §52 (25)
     node tools/testes/vigiateste.mjs   # a presença e o falso positivo §53 (19)
+    node tools/testes/marcateste.mjs   # marcas no plural e trauma de cômodo §54 (18)
     node tools/testes/simulacao.mjs    # 250 noites simuladas, sem asserção de gosto (20)
     node tools/testes/labteste.mjs     # o site animado docs/laboratorio-de-som.html (26)
     node tools/testes/aberturateste.mjs # a abertura narrada e a guarda do save (14)
@@ -338,3 +339,11 @@ A trava de colisão também roda dentro de `montar.js` e **quebra o build**.
   apagar, então dizer primeiro e redesenhar em seguida deixava a resposta já
   apagada na hora em que ela aparecia: o botão existia, o texto era escrito, e
   não dava pra ler.
+
+- **Compare com o número que você mediu, não com o que você lembra.** Eu envelheci
+  as marcas para 60 dias entre uma medida e outra e depois comparei o resultado
+  contra o valor de ANTES do envelhecimento — o olho velho sozinho (0,35) é maior
+  que as três novas (0,22), e a asserção reprovava sozinha.
+- **Só afirme sobre o que o seu bloco faz.** A minha checagem de "sem nome de
+  jogador não grava" comparava o arquivo inteiro antes e depois — e reprovava por
+  causa de escrita da BASE, que não é minha. Verifique se o **seu campo** entrou.

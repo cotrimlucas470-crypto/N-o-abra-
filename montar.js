@@ -53,6 +53,7 @@ const BLOCOS=[
   {arq:'s51-silhuetas.js',      ini:'<!-- s51:inicio -->', fim:'<!-- s51:fim -->'},
   {arq:'s52-silencio.js',       ini:'<!-- s52:inicio -->', fim:'<!-- s52:fim -->'},
   {arq:'s53-vigia.js',          ini:'<!-- s53:inicio -->', fim:'<!-- s53:fim -->'},
+  {arq:'s54-marcas.js',         ini:'<!-- s54:inicio -->', fim:'<!-- s54:fim -->'},
 ];
 
 /* A voz da abertura entra embutida. O jogo é um arquivo só — é o que a

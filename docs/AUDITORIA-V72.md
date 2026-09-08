@@ -337,3 +337,68 @@ positivo virando sorteio sem causa (2 caem) e a cabeça ganhando do bicho de
 verdade (5 caem). A leitura **não consome o gerador semeado** (medido idêntico
 antes e depois de 50 leituras) e **não grava campo no save**. Regressão geral: 12
 harnesses verdes.
+
+---
+
+## §54 · Marcas no plural, e o trauma que é de um cômodo (feito)
+
+### O que existia
+
+Uma marca só: o booleano `S.marcado` mais o contador `S.marcaDias`, rendendo
+`pesoMarca()` de 0,12 a 0,35 conforme os dias, narração em marcos (dia 1, 4, 8,
+12, 16), +2 de ruído por dia e três saídas no `menuMarca`.
+
+O §8 pede plural. Esta auditoria já tinha escrito qual era o trabalho honesto:
+*"generalizar a que existe, não escrever uma segunda ao lado dela"*. É o que foi
+feito.
+
+### As três
+
+| marca | como você percebe | o que custa | peso |
+|---|---|---|---|
+| **do Olho** | você acorda virado pro outro lado da cama | pior em investigar, e elas aprendem mais rápido | 0,12 → 0,35 |
+| **do Ritual** | quem reza na casa para de rezar perto de você | a casa desanima mais rápido do que devia | 0,06 → 0,22 |
+| **do Eco** | você ouve a sua própria voz de outro cômodo | mais barulho do que você faz, e a porta aprende o seu nome | 0,04 → 0,18 |
+
+Somam, com teto em 0,55 — três marcas não podem fazer um jogo impossível.
+
+### O save antigo continua valendo, e o equilíbrio não mudou
+
+Um save que só conhece `S.marcado=true, marcaDias=9` é lido como a marca do Olho
+com 9 dias, e `pesoMarca()` devolve **0,228 — exatamente o que a fórmula original
+devolvia**. Medido, com a fórmula antiga escrita de novo no teste só para
+comparar. A marca do Olho continua usando a função original, letra por letra: uma
+refatoração não pode mudar o jogo de quem já está jogando.
+
+### O trauma é do cômodo, não da ficha
+
+`traumatizado` no jogo é **temperamento de morador** — quem viu demais. O jogador
+não tinha experiência registrada com gatilho. Agora tem, e ela mora no lugar
+certo: você não ganha um número novo na tela, o **cômodo** é que fica pior.
+
+- Nasce de coisa que já acontece: ferida grave (gravidade ≥ 2) no cômodo onde
+  você está. Medido: `corte` (gravidade 1) não traumatiza; `cortefundo`
+  (gravidade 3) traumatiza.
+- É só daquele cômodo: força 1 no porão, 0 na sala.
+- Pesa na lente do §53: mesma condição, a sensação média sobe de **0,72 para
+  0,94** no cômodo do trauma.
+- **Desbota**: 1 no dia, 0,5 em sete dias, 0 em catorze.
+- E é anunciado na primeira volta, uma vez só: *"Você para na porta. Foi no porão
+  que aconteceu, e o corpo lembra antes de você."*
+
+### Dois erros, os dois no meu teste
+
+1. **Comparei com o número que eu lembrava, não com o que medi.** Envelheci as
+   marcas para 60 dias entre uma medida e outra e depois comparei contra o valor
+   de antes: o Olho velho sozinho (0,35) é maior que as três novas (0,22).
+2. **Afirmei sobre escrita que não é minha.** A checagem de "sem nome de jogador
+   não grava" comparava o arquivo inteiro antes e depois, e reprovava por causa da
+   gravação da BASE. O que este bloco pode prometer é que **o campo dele** não
+   entra — e não entra.
+
+### O que foi provado
+
+`tools/testes/marcateste.mjs`, 18 asserções. Regressões plantadas e pegas: a
+adoção do save antigo removida (2 caem) e o trauma virando global em vez de ser do
+cômodo (2 caem). Regressão geral: 12 harnesses verdes, incluindo os três que
+guardam save (`baktest`, `aberturateste`, `nucleoteste`).
