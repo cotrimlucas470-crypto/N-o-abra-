@@ -31,6 +31,7 @@ depois de `node montar.js`:
     node tools/testes/texteste.mjs     # texturas: veio, poro e risco §etapa 4 (18)
     node tools/testes/silteste.mjs     # as criaturas aparecem no caderno §51 (15)
     node tools/testes/silencioteste.mjs # o silêncio vira estado do som §52 (25)
+    node tools/testes/vigiateste.mjs   # a presença e o falso positivo §53 (19)
     node tools/testes/simulacao.mjs    # 250 noites simuladas, sem asserção de gosto (20)
     node tools/testes/labteste.mjs     # o site animado docs/laboratorio-de-som.html (26)
     node tools/testes/aberturateste.mjs # a abertura narrada e a guarda do save (14)
@@ -320,3 +321,20 @@ A trava de colisão também roda dentro de `montar.js` e **quebra o build**.
   pressão da noite. Pôr a pressão antes dele não vale nada: a trilha saiu inteira
   em RAREFEITO e o vale nunca afundava. Outra seção passava só porque ali a ordem
   estava certa por acaso.
+
+- **`S.ferido` é DERIVADO e recusa escrita, de propósito.** Desde o §41 ele é um
+  getter sobre a tabela de males, e `S.ferido=2` é silenciosamente recusado
+  (`feridoEscritasRecusadas()` conta as tentativas). Meu teste fazia isso e a
+  causa "ferida" nunca acendia — **o teste estava errado e a guarda do jogo
+  estava certa**. Ferida de verdade se põe com `pegarMal('cortefundo')`.
+- **Não chame a variável do mesmo nome da função que vai ler.**
+  `const san = (typeof san==='function') ? san() : ...` se sombreia, cai na zona
+  morta temporal e o `typeof` **estoura**. Parecia funcionar porque o `catch`
+  pegava, e o acessor de verdade nunca era consultado.
+- **Filtro largo acusa inocente.** Minha checagem de "não sujou o save" usava
+  `/^vig/i` e acusava `S.vigiou`, que é da base (a ação de ficar de vigia) e não
+  tem nada com o bloco novo. Liste os nomes que você criou.
+- **Redesenhe a tela ANTES de falar, não depois.** `limpar()` esmaece em vez de
+  apagar, então dizer primeiro e redesenhar em seguida deixava a resposta já
+  apagada na hora em que ela aparecia: o botão existia, o texto era escrito, e
+  não dava pra ler.

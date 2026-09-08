@@ -248,3 +248,92 @@ asserções caem) e insert posto em SFX/HORROR (3 caem). O bloco **não grava ca
 nenhum no save** — o estado é derivado — e **não consome um passo do gerador**
 (medido: 3042454019 antes e depois de uma atualização que mudou o estado e falou).
 Regressão geral: 13 harnesses verdes.
+
+---
+
+## §53 · A presença, e como saber se ela é sua (feito)
+
+### Pela quinta vez, metade já existia
+
+O §6 pede "presença com falso positivo declarado e assinatura por fonte". O falso
+positivo declarado **já existe e é bom**: `ILUSOES_SOM` tem nove ilusões em três
+trilhos, cada uma com texto de `real`, de `falso` e de `ignora`, e a chance de ser
+real cai junto com a cabeça. Medido estágio por estágio:
+
+| estágio | chance de ser real |
+|---|---|
+| lúcido | *não acontece* |
+| tenso | 54% |
+| fissurado | 40% |
+| rachado | 22% |
+| desfeito | 6% |
+
+### O que faltava, também medido
+
+1. **No lúcido não acontece nada.** Quem se cuida nunca encontra o sistema.
+2. **As nove são som.** `ilusões sem som: nenhuma`. Não existia presença que você
+   *sente* em vez de ouvir — o buraco que a auditoria apontou.
+3. **Não havia assinatura para aprender.** O `trilho` é interno.
+
+### O que entrou — e o que de propósito não entrou
+
+**Não entrou um sistema de eventos novo.** Esta própria auditoria avisa que
+empilhar evento sobre orquestrador, costuras, pressão e diretor é o caminho mais
+curto para a feira de sustos. O §53 é uma **lente**: lê estado que já existe, não
+agenda nada, não gasta orçamento e não compete por turno.
+
+**Quatro fontes, cada uma com a assinatura que a denuncia** — e a assinatura é o
+comportamento, não uma tabela que o jogo mostre:
+
+| fonte | como ela se comporta | medido |
+|---|---|---|
+| **PORTA** | tem direção e fica onde está | aparece igual em qualquer cômodo |
+| **DENTRO** | te acompanha de cômodo em cômodo | DENTRO nos 3 cômodos testados |
+| **LUGAR** | é do cômodo, não sua | LUGAR no cômodo dela, nada em outro |
+| **VOCE** | sem direção, varia entre visitas, cede quando você confere | acendeu 29 de 40 visitas no pior caso, e variou |
+
+**O falso positivo nunca é sorteio.** Ele só acontece quando a condição do jogador
+explica, e cada causa tem nome que entra na frase:
+
+| condição | chance | causa nomeada |
+|---|---|---|
+| inteiro, de dia, com lanterna | **0** | — |
+| cabeça ruim | 0,55 | a sua cabeça |
+| ferido | 0,25 | a ferida |
+| no escuro | 0,30 | o escuro |
+| no silêncio oco (§52) | 0,25 | o silêncio |
+| tudo junto | 0,72 *(teto)* | as quatro |
+
+É isso que satisfaz a regra de ouro: depois do fato o jogador sempre consegue
+dizer por quê. Sorteio puro seria exatamente o erro proibido — *"se um evento não
+puder ser explicado pelo jogador depois que ele acontece, o evento está errado"*.
+
+**O de verdade sempre ganha do inventado.** Com a cabeça no fundo do poço e nada
+na casa, a leitura é VOCE. A mesma cabeça, com bicho dentro, lê DENTRO com força
+0,9. Medido.
+
+**Conferir é o contra-jogo**, e entra no `menuRealidade`, que já é o lugar de
+"conferir a realidade" — não numa tela nova. O falso cede e diz o porquê; o
+verdadeiro continua.
+
+### Quatro erros, três meus e um do teste
+
+1. **Sombreei o acessor de sanidade.** `const san = (typeof san==='function')...`
+   cai na zona morta temporal e o `typeof` **estoura**; parecia funcionar porque o
+   `catch` pegava, e o `san()` de verdade nunca era consultado.
+2. **O teste escrevia num campo somente-leitura.** `S.ferido` é derivado desde o
+   §41 e recusa escrita de propósito. A causa "ferida" nunca acendia: **o teste
+   estava errado e a guarda do jogo estava certa.**
+3. **Filtro largo acusou inocente.** A checagem de "não sujou o save" usava
+   `/^vig/i` e acusava `S.vigiou`, que é da base.
+4. **Falei antes de redesenhar.** `limpar()` esmaece em vez de apagar, então a
+   resposta do "conferir" nascia já apagada: o botão existia, o texto era escrito,
+   e não dava para ler.
+
+### O que foi provado
+
+`tools/testes/vigiateste.mjs`, 19 asserções. Regressões plantadas e pegas: o falso
+positivo virando sorteio sem causa (2 caem) e a cabeça ganhando do bicho de
+verdade (5 caem). A leitura **não consome o gerador semeado** (medido idêntico
+antes e depois de 50 leituras) e **não grava campo no save**. Regressão geral: 12
+harnesses verdes.
