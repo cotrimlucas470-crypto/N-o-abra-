@@ -70,24 +70,37 @@ async function abrir(porta){
    assercao nenhuma — e "nenhuma assercao" ja passou por "verde" uma vez
    nesta sessao, porque o corredor so contava FALHA. Um teste que nao
    testa nada tem de gritar. */
-for(const porta of [8901,8906]){
+/* AS TRES PORTAS:
+     8901  o build de agora — as secoes 3, 4 e 5 medem ele
+     8907  o commit ANTES da etapa 2
+     8908  o commit DA etapa 2
+
+   A promessa da etapa 2 e HISTORICA: "a etapa 2 nao mudou o
+   comportamento das seis". Comparar "agora" com "o anterior" era um alvo
+   movel — a etapa 5 mudou tres das seis DE PROPOSITO e a assercao
+   reprovou uma coisa certa. Claim sobre historia se testa contra
+   historia, e os dois commits nao mudam mais. */
+for(const porta of [8901,8907,8908]){
   const viva=await fetch('http://127.0.0.1:'+porta+'/index.html')
     .then(r=>r.ok).catch(()=>false);
   if(!viva){
     console.error('\n  FALHA este harness compara DOIS builds e a porta '+porta+' esta fora.');
     console.error('  suba os dois antes:');
     console.error('    node tools/servidor.mjs . 8901');
-    console.error('    git show HEAD~1:index.html > /tmp/prev/index.html');
-    console.error('    node tools/servidor.mjs /tmp/prev 8906\n');
+    console.error('    git show 367b1e1:index.html > /tmp/b-antes2/index.html');
+    console.error('    node tools/servidor.mjs /tmp/b-antes2 8907');
+    console.error('    git show 8a44e52:index.html > /tmp/b-etapa2/index.html');
+    console.error('    node tools/servidor.mjs /tmp/b-etapa2 8908\n');
     process.exitCode=1;
     await b.close();
     process.exit(1);
   }
 }
-const pNovo=await abrir(8901);
-const pVelho=await abrir(8906);
+const pAgora=await abrir(8901);   /* o build de agora */
+const pNovo=await abrir(8908);    /* a etapa 2 */
+const pVelho=await abrir(8907);   /* o commit antes dela */
 
-console.log('\n1. NADA MUDOU NAS SEIS QUE JÁ EXISTIAM');
+console.log('\n1. A ETAPA 2 NÃO MUDOU AS SEIS (comparação histórica, commits fixos)');
 {
   /* SO as criaturas que existem NOS DOIS builds. O Observador entrou
      depois, e pedir a trilha dele ao build antigo compara uma criatura
@@ -108,7 +121,7 @@ console.log('\n1. NADA MUDOU NAS SEIS QUE JÁ EXISTIAM');
 
 console.log('\n2. OS CANAIS DESCREVEM A REGRA, NÃO DIVERGEM DELA');
 {
-  const d=await pNovo.evaluate(()=>{
+  const d=await pAgora.evaluate(()=>{
     const e=ameacaEstado();
     const divergem=Object.keys(e.canais).filter(k=>
       !REGRA[k]||REGRA[k].sentido!==e.canais[k].primario);
@@ -116,10 +129,10 @@ console.log('\n2. OS CANAIS DESCREVEM A REGRA, NÃO DIVERGEM DELA');
     return {canais:e.canais, divergem,
       semTabela:semTabelaN,
       /* na etapa 2 nenhum canal extra ainda: eles são a etapa 5 */
-      /* a etapa 5 e que dara canal extra as SEIS originais; criatura
-         nova pode nascer com os canais dela */
-      extras:['magro','rastejante','coro','imitador','inchado','primordial']
-        .filter(k=>e.canais[k]&&e.canais[k].tambem.length)};
+      /* a etapa 5 JA ENTROU: os extras esperados sao exatamente os tres
+         que ela declara. Antes desta linha a assercao era "nenhum extra
+         ainda", e ela reprovou a etapa 5 fazendo o que devia fazer. */
+      extras:Object.keys(e.canais).filter(k=>e.canais[k].tambem.length).sort()};
   });
   Object.keys(d.canais).forEach(k=>console.log('    '+k.padEnd(11)
     +' primário '+d.canais[k].primario.padEnd(10)
@@ -127,12 +140,13 @@ console.log('\n2. OS CANAIS DESCREVEM A REGRA, NÃO DIVERGEM DELA');
     +' · lembra: '+d.canais[k].lembra));
   ok('toda criatura tem entrada na tabela', d.semTabela.length===0);
   ok('e o primário é o mesmo sentido da REGRA', d.divergem.length===0);
-  ok('nenhum canal extra ainda (isso é a etapa 5)', d.extras.length===0);
+  ok('os canais extras são os três da etapa 5 (mais o Observador)',
+     d.extras.join()==='coro,imitador,observador,rastejante');
 }
 
 console.log('\n3. AS FASES NOVAS EXISTEM — E TÊM SAÍDA');
 {
-  const d=await pNovo.evaluate(()=>{
+  const d=await pAgora.evaluate(()=>{
     const e=ameacaEstado();
     const r={};
     e.fasesNovas.forEach(f=>{
@@ -157,7 +171,7 @@ console.log('\n3. AS FASES NOVAS EXISTEM — E TÊM SAÍDA');
 
 console.log('\n4. 2000 TURNOS, INCLUINDO AS FASES NOVAS, SEM NINGUÉM PRESO');
 {
-  const d=await pNovo.evaluate(()=>{
+  const d=await pAgora.evaluate(()=>{
     const conta={}; let travou=null;
     BICHOS.map(x=>x.id).forEach(id=>{
       const I=__I(id);
@@ -188,7 +202,7 @@ console.log('\n4. 2000 TURNOS, INCLUINDO AS FASES NOVAS, SEM NINGUÉM PRESO');
 
 console.log('\n5. A MEMÓRIA GRAVA — E AINDA NÃO MANDA EM NINGUÉM');
 {
-  const d=await pNovo.evaluate(()=>{
+  const d=await pAgora.evaluate(()=>{
     S.ameaca={}; S.dia=4;
     const I=__I('magro');
     ameAnotar(I,{viu:true});

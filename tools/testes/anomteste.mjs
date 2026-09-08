@@ -208,13 +208,33 @@ ok('as marcas vão pro save',d.salvou);
 
 console.log('\n8. A DIFICULDADE VEM DO §25, NÃO DE UM MULTIPLICADOR NOVO');
 d=await p.evaluate(()=>{
-  const fonte=String(window.anomOuviu);
-  return {usaDif:/dif\(\)/.test(fonte),
+  /* A primeira versao lia `String(anomOuviu)` procurando o texto
+     "dif()". Isso testa a LETRA e nao o comportamento: o §59 embrulhou
+     `anomOuviu` pra o coro guardar ecos, e a checagem quebrou mesmo com
+     a dificuldade continuando a chegar pelo §25 exatamente como antes.
+     Agora e medido: no dia dificil a criatura ouve UM COMODO MAIS LONGE,
+     que e o que o codigo promete (`raio + (dif()>=.75 ? 1 : 0)`). */
+  const ouviuA=(dia)=>{
+    S.dia=dia;
+    const I=__I('magro');
+    cena.casa.monstro=0;
+    /* um comodo alem do raio base */
+    let alvo=null;
+    for(let c=0;c<9;c++)if(distancia(0,c)===ANOM_CFG.raioDeteccao+1){alvo=c;break;}
+    if(alvo==null)return null;
+    anomOuviu(I,alvo,.5);
+    return I.fase!=='RONDA';
+  };
+  const facil=ouviuA(1), dificil=ouviuA(60);
+  return {facil, dificil, difFacil:+dif().toFixed(2), difDificil:+dif().toFixed(2),
+    raio:ANOM_CFG.raioDeteccao,
     temMultiplicadorProprio:/ANOM_CFG\.(mult|dificuldade|escala)/.test(String(ANOM_CFG)),
     camposCfg:Object.keys(ANOM_CFG)};
 });
 console.log('   ',JSON.stringify(d.camposCfg));
-ok('o bloco consulta dif() do §25',d.usaDif);
+console.log('    raio base '+d.raio+' · um cômodo além dele: ouviu no dia fácil? '
+  +d.facil+' · no dia difícil? '+d.dificil);
+ok('a dificuldade do §25 chega no ouvido da criatura',d.dificil&&!d.facil);
 ok('e não tem multiplicador de dificuldade próprio',!d.temMultiplicadorProprio);
 
 console.log('\n9. O ATALHO DE DEBUG INVOCA CADA UMA');

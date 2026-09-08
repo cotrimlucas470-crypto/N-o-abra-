@@ -34,9 +34,10 @@ depois de `node montar.js`:
     node tools/testes/vigiateste.mjs   # a presença e o falso positivo §53 (19)
     node tools/testes/marcateste.mjs   # marcas no plural e trauma de cômodo §54 (18)
     node tools/testes/raroteste.mjs    # eventos raros e a trava de segurança §55 (18)
-    node tools/testes/ameacateste.mjs  # camada de ameaça estendida §56 (14) — usa 2 builds
+    node tools/testes/ameacateste.mjs  # camada de ameaça estendida §56 (14) — usa 3 builds
     node tools/testes/obsteste.mjs     # o Observador, que inverte o olhar §57 (24)
     node tools/testes/hospteste.mjs    # o Hóspede, a ameaça que não ataca §58 (24)
+    node tools/testes/canalteste.mjs   # os três canais que faltavam §59 (18)
     node tools/testes/simulacao.mjs    # 250 noites simuladas, sem asserção de gosto (20)
     node tools/testes/labteste.mjs     # o site animado docs/laboratorio-de-som.html (26)
     node tools/testes/aberturateste.mjs # a abertura narrada e a guarda do save (14)
@@ -419,3 +420,18 @@ A trava de colisão também roda dentro de `montar.js` e **quebra o build**.
 - **Concordância não é detalhe num jogo em português.** Metade da planta é
   feminina (despensa, oficina, sala, cozinha, entrada). Texto com artigo cravado
   escrevia "O despensa não é mais de vocês".
+
+- **Promessa histórica se testa contra a história.** O `ameacateste` provava que a
+  etapa 2 não mudou o comportamento das seis criaturas, comparando "agora" com "o
+  build anterior". Isso é alvo móvel: a etapa 5 mudou três das seis **de
+  propósito** e a asserção reprovou uma coisa certa. Agora ele serve os DOIS
+  COMMITS de que a promessa fala (367b1e1 e 8a44e52), que não mudam mais.
+- **Teste que lê o texto da função quebra quando você embrulha a função.** O
+  `anomteste` checava `/dif\(\)/.test(String(anomOuviu))` para provar que a
+  dificuldade vem do §25. O §59 embrulhou `anomOuviu` e a checagem caiu, com a
+  dificuldade continuando a chegar exatamente como antes. Agora mede o
+  comportamento: no dia difícil a criatura ouve um cômodo mais longe.
+- **Heurística esperta que erra é pior que tabela chata.** Eu chutei o gênero do
+  cômodo pela primeira letra e saiu "do lado do cozinha". A tabela de artigos já
+  existia no §58; passou a chamar-se `comodoCom` porque é propriedade da PLANTA,
+  não do Hóspede.

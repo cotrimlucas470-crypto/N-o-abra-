@@ -94,10 +94,14 @@ function hospChegar(comodo,porque){
    Metade da planta e feminina (despensa, oficina, sala, cozinha,
    entrada) e a outra metade masculina. Texto com artigo cravado escreve
    "O despensa nao e mais de voces", que foi o que a primeira versao
-   fez. O jogo e em portugues; concordancia nao e detalhe. */
-const HOSP_ARTIGO={0:'o',1:'o',2:'a',3:'a',4:'a',5:'a',6:'o',7:'a',8:'o'};
-function hospComodo(id,forma){
-  const art=HOSP_ARTIGO[id]||'o';
+   fez. O jogo e em portugues; concordancia nao e detalhe.
+
+   O nome e generico de proposito: isto e propriedade da PLANTA, nao do
+   Hospede, e o §59 tambem precisa. Chutar o genero pela primeira letra
+   (o que eu fiz no §59 antes de lembrar disto) erra em "cozinha". */
+const COMODO_ARTIGO={0:'o',1:'o',2:'a',3:'a',4:'a',5:'a',6:'o',7:'a',8:'o'};
+function comodoCom(id,forma){
+  const art=COMODO_ARTIGO[id]||'o';
   const nome=(typeof PLANTA!=='undefined'&&PLANTA[id])
     ?PLANTA[id].nome.toLowerCase():'cômodo';
   const f=(a,o)=>art==='a'?a:o;
@@ -126,9 +130,9 @@ function hospPassarDia(){
   h.avancouDia=S.dia|0;
   if(typeof marcarSujo==='function')marcarSujo();
   const t=(HOSP_AVANCO[h.fase]||'')
-    .replace('{no}',hospComodo(h.comodo,'no'))
-    .replace('{do}',hospComodo(h.comodo,'do'))
-    .replace('{O}', hospComodo(h.comodo,'O'));
+    .replace('{no}',comodoCom(h.comodo,'no'))
+    .replace('{do}',comodoCom(h.comodo,'do'))
+    .replace('{O}', comodoCom(h.comodo,'O'));
   if(t&&typeof diz==='function'){ try{ diz(t,'alerta'); }catch(e){} }
   return h.fase;
 }
@@ -157,11 +161,11 @@ function hospTirar(){
     S.hospede=null;
     if(typeof marcarSujo==='function')marcarSujo();
     return {ok:true, horas:HOSP_CFG.custoHoras[g], comodo:h.comodo,
-      texto:'Vocês tiram tudo '+hospComodo(h.comodo,'do')+', raspam o que dava pra '
+      texto:'Vocês tiram tudo '+comodoCom(h.comodo,'do')+', raspam o que dava pra '
         +'raspar e deixam aberto até de noite. O cheiro vai embora com o vento.'};
   }
   return {ok:false, horas:HOSP_CFG.custoHoras[g], comodo:h.comodo, motivo:'falhou',
-    texto:'Vocês raspam '+hospComodo(h.comodo,'')+' o dia inteiro. De noite o cheiro '
+    texto:'Vocês raspam '+comodoCom(h.comodo,'')+' o dia inteiro. De noite o cheiro '
       +'volta, igualzinho. Não piorou — mas também não foi.'};
 }
 
@@ -259,7 +263,7 @@ function hospChegarComAviso(){
   const h=hospChegar();
   if(!h)return null;
   if(typeof diz==='function')
-    try{ diz('Tem um cheiro doce vindo '+hospComodo(h.comodo,'do')
+    try{ diz('Tem um cheiro doce vindo '+comodoCom(h.comodo,'do')
       +'. Ninguém guardou fruta ali.','alerta'); }catch(e){}
   return h;
 }

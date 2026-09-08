@@ -266,3 +266,89 @@ declarada aqui em vez de escondida no código.
 A alternativa honesta, se você quiser os cinco separados mesmo: eles entram como
 **variantes** das criaturas existentes, herdando `REGRA` e ganhando canal
 próprio — cinco nomes, cinco comportamentos, uma fonte de verdade.
+
+---
+
+# 8 · O que foi construído (etapas 2 a 5)
+
+A recomendação da seção 2 foi seguida: **dois invasores novos de verdade mais três
+extensões**, em vez de cinco invasores. A escolha estava declarada aqui antes de
+existir código, e é esta a consequência dela.
+
+## Etapa 2 · A camada de ameaça estendida (§56)
+
+Fundação, escrita para **não mudar nada** nas seis criaturas — não por modéstia,
+mas porque é a única forma de saber depois que uma mudança veio do invasor novo e
+não de efeito colateral. O harness prova isso rodando a mesma simulação com a
+mesma semente em dois commits e exigindo trilha idêntica, criatura por criatura.
+
+Entraram: canais declarados por criatura (descrevendo exatamente o que o código já
+fazia), as fases `RECUANDO` e `OCULTO` **com teto de saída obrigatório**, e memória
+entre noites que grava para todas e só é lida por quem declara `lembra`.
+
+*A armadilha:* `anomAvancar` decide por comparação de string, então fase nova não
+casa com ramo nenhum e a criatura fica presa nela para sempre. Este jogo já teve
+duas criaturas inertes assim.
+
+## Etapa 3 · O Observador (§57)
+
+O invasor mais criativo disponível, porque **inverte o verbo central do jogo**.
+Todas as seis criaturas recompensam olhar; nele:
+
+| ação | consequência | medido |
+|---|---|---|
+| olhar | ele muda de lugar | salto de 2 a 4 cômodos |
+| olhar de novo | o interesse sobe | 34 → 56 → 78 → 100 |
+| interesse ≥ 72 | para de se esconder e vem | vira `CACA` |
+| ignorar | o interesse cai | 34 → 0 em 8 turnos |
+| esconder-se | conta como ignorar | −31 de interesse |
+
+É justo porque dá para rastreá-lo **sem olhar**: os quatro sinais dele são tátil,
+visual indireto e áudio, e o de iminência é *o cômodo que fica surdo*. E toda
+olhada que mexe nele é anunciada.
+
+Primeira criatura a ler a memória entre noites, e fonte `DENTRO` da presença do
+§53.
+
+## Etapa 4 · O Hóspede (§58)
+
+O segundo invasor novo, e o mais estranho: **ele não ataca**. Nunca. É a primeira
+ameaça que é *estado da casa* em vez de encontro.
+
+| fase | o que muda |
+|---|---|
+| CHEGOU | só cheiro — aviso puro |
+| INSTALADO | anomalia mais provável no cômodo (+0,18) |
+| ENRAIZADO | a função do cômodo falha (comida estraga 23% → 40%) |
+| DA_CASA | o cômodo é dele, e a casa desanima toda noite |
+
+Em 40 dias na última fase a vida do jogador **não caiu um ponto**. O que ele tira
+é recurso, não sangue. O contra-jogo existe desde o primeiro dia e fica mais caro
+— 1h a 92%, 2h a 78%, 4h a 58%, 6h a 40% — e nunca chega a zero.
+
+## Etapa 5 · Os três canais que faltavam (§59)
+
+Em vez de três sósias do `imitador`, do `coro` e do `rastejante`, cada um ganhou o
+que era genuinamente novo no pedido:
+
+- **Imitador** — erra **uma coisa por encontro, e outra a cada encontro**. Cinco
+  erros possíveis, escolha semeada: o jogador não decora qual é, aprende que
+  sempre existe uma e passa a procurar.
+- **Coro** — **guarda o barulho que você fez e devolve de outro cômodo.** A
+  assinatura que se aprende: se você ouve exatamente o que acabou de fazer vindo
+  de onde você não está, é ele.
+- **Rastejante** — **as marcas somem devagar**: desbotam em 5 dias, somem em 9.
+  Marca vira informação com prazo em vez de mobília permanente.
+
+Mais os canais secundários que a etapa 2 deixou vazios de propósito.
+
+## O placar
+
+| harness | asserções |
+|---|---|
+| `ameacateste` (3 builds) | 14 |
+| `obsteste` | 24 |
+| `hospteste` | 24 |
+| `canalteste` | 18 |
+
+Regressão geral no fecho: **33 harnesses, todos verdes**.
