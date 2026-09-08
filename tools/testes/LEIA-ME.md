@@ -35,6 +35,7 @@ depois de `node montar.js`:
     node tools/testes/marcateste.mjs   # marcas no plural e trauma de cômodo §54 (18)
     node tools/testes/raroteste.mjs    # eventos raros e a trava de segurança §55 (18)
     node tools/testes/ameacateste.mjs  # camada de ameaça estendida §56 (14) — usa 2 builds
+    node tools/testes/obsteste.mjs     # o Observador, que inverte o olhar §57 (24)
     node tools/testes/simulacao.mjs    # 250 noites simuladas, sem asserção de gosto (20)
     node tools/testes/labteste.mjs     # o site animado docs/laboratorio-de-som.html (26)
     node tools/testes/aberturateste.mjs # a abertura narrada e a guarda do save (14)
@@ -380,3 +381,25 @@ A trava de colisão também roda dentro de `montar.js` e **quebra o build**.
   de string: uma fase que não casa com nenhum ramo não faz nada, e a criatura
   fica presa nela para sempre. Este jogo já teve duas criaturas inertes assim.
   Toda fase nova precisa de teto de turnos **e** de simulação longa que a exercite.
+
+- **Criatura nova tem de passar pela governança do §30.** `adaptarBichos()` roda
+  quando o §30 é lido; um bloco posterior que só faz `BICHOS.push(...)` cria uma
+  criatura **fora** do catálogo — sem schema, sem tell obrigatório registrado, e
+  fora da lista de incompatibilidade das outras. O `nucleoteste` acusou "7
+  criaturas, 6 registros".
+- **Mas NÃO rechame `adaptarBichos()`.** Ele faz `CATALOGO_ANOM[id]=a`, ou seja
+  TROCA os objetos de registro das que já existiam — e isso quebrou a
+  reprodutibilidade do orquestrador: mesma semente, histogramas diferentes.
+  Registre só o que falta e altere as listas existentes **no lugar**.
+- **Recusa silenciosa é o pior tipo.** `registrarAnomalia` valida e devolve
+  `false` sem estourar (fora do MODO_DEV). Copiei o registro pela metade, faltavam
+  seis campos, e a criatura simplesmente não entrou. Nada avisou.
+- **Contagem fixa em teste envelhece.** Cinco asserções em três arquivos cravavam
+  `===6` (criaturas) ou `===4` (fases). Uma criatura nova reprovava todas sem que
+  nada estivesse errado. O contrato é "TODAS têm", não "são seis".
+- **Laço sem teto num harness vira travamento, não reprovação.** Plantei a
+  regressão que tira o decaimento de interesse e o `obsteste` PENDUROU num
+  `while` sem limite. Teste que pendura não diz nada — é pior que reprovar.
+- **Ler memória não pode escrever no mundo.** A primeira versão do Observador
+  punha `cena.casa.monstro = lembrado` dentro do inicializador. Escrever no estado
+  compartilhado a partir de uma leitura quebra reprodução por semente.

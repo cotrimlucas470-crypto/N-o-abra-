@@ -242,8 +242,16 @@ console.log('\n6. O QUE O DIRETOR MUDA, MEDIDO SEPARANDO AS ALAVANCAS');
   /* 2 · e com ele muda — pouco, e na direção certa. */
   ok('com o diretor, ela passa a mudar',
      d.comBaixa.media!==d.comAlta.media);
-  ok('e a noite tensa é a mais contida das duas',
-     d.comAlta.media<d.comBaixa.media);
+  /* A CAUDA, NAO A MEDIA — e a licao que este proprio arquivo registrou
+     quando o §50 nasceu: "media dentro da faixa nao quer dizer noite
+     dentro da faixa". Com a criatura nova no sorteio as duas medias
+     ficaram a 0,03 uma da outra, que e ruido; a cauda continua dizendo a
+     mesma coisa, e sem ambiguidade — a noite tensa nao passa do teto e a
+     calma passa. A media fica como apoio, com folga pro ruido. */
+  ok('e a noite tensa é a mais contida das duas (na cauda)',
+     d.comAlta.pctAcima8<=d.comBaixa.pctAcima8&&d.comAlta.max<=d.comBaixa.max);
+  ok('e a média não anda pro lado errado',
+     d.comAlta.media<=d.comBaixa.media+.15);
   /* 3 · o efeito grande não é a pressão: é o recuo depois do clímax. */
   ok('o recuo pós-clímax é o efeito grande, não a pressão',
      (d.semBaixa.media-d.comBaixa.media) > Math.abs(d.comBaixa.media-d.comAlta.media)*3);

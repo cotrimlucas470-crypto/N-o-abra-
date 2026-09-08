@@ -71,7 +71,14 @@ const pVelho=await abrir(8906);
 
 console.log('\n1. NADA MUDOU NAS SEIS QUE JÁ EXISTIAM');
 {
-  const ids=await pNovo.evaluate(()=>BICHOS.map(x=>x.id));
+  /* SO as criaturas que existem NOS DOIS builds. O Observador entrou
+     depois, e pedir a trilha dele ao build antigo compara uma criatura
+     com o nada. A promessa deste teste e sobre quem ja existia. */
+  const idsNovo=await pNovo.evaluate(()=>BICHOS.map(x=>x.id));
+  const idsVelho=await pVelho.evaluate(()=>BICHOS.map(x=>x.id));
+  const ids=idsNovo.filter(i=>idsVelho.indexOf(i)>=0);
+  console.log('    criaturas nos dois builds: '+ids.join(', '));
+  console.log('    só no build novo: '+(idsNovo.filter(i=>ids.indexOf(i)<0).join(', ')||'nenhuma'));
   const a=await pVelho.evaluate(ids=>Object.fromEntries(ids.map(i=>[i,__trilha(i,400)])),ids);
   const c=await pNovo.evaluate(ids=>Object.fromEntries(ids.map(i=>[i,__trilha(i,400)])),ids);
   const difere=ids.filter(i=>a[i]!==c[i]);
@@ -87,10 +94,14 @@ console.log('\n2. OS CANAIS DESCREVEM A REGRA, NÃO DIVERGEM DELA');
     const e=ameacaEstado();
     const divergem=Object.keys(e.canais).filter(k=>
       !REGRA[k]||REGRA[k].sentido!==e.canais[k].primario);
+    const semTabelaN=BICHOS.map(x=>x.id).filter(k=>!e.canais[k]);
     return {canais:e.canais, divergem,
-      semTabela:BICHOS.map(x=>x.id).filter(k=>!e.canais[k]),
+      semTabela:semTabelaN,
       /* na etapa 2 nenhum canal extra ainda: eles são a etapa 5 */
-      extras:Object.keys(e.canais).filter(k=>e.canais[k].tambem.length)};
+      /* a etapa 5 e que dara canal extra as SEIS originais; criatura
+         nova pode nascer com os canais dela */
+      extras:['magro','rastejante','coro','imitador','inchado','primordial']
+        .filter(k=>e.canais[k]&&e.canais[k].tambem.length)};
   });
   Object.keys(d.canais).forEach(k=>console.log('    '+k.padEnd(11)
     +' primário '+d.canais[k].primario.padEnd(10)

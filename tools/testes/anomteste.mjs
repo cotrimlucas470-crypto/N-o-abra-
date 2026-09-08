@@ -26,7 +26,8 @@ await p.evaluate(()=>{
   };
 });
 
-console.log('\n1. AS SEIS TÊM REGRA PRÓPRIA');
+const BICHOS_N=await p.evaluate(()=>BICHOS.length);
+console.log('\n1. CADA CRIATURA TEM REGRA PRÓPRIA ('+BICHOS_N+' na tabela)');
 let d=await p.evaluate(()=>{
   const ids=BICHOS.map(b=>b.id);
   const s={}; ids.forEach(i=>{ s[i]=REGRA[i]?REGRA[i].sentido:null; });
@@ -36,9 +37,13 @@ let d=await p.evaluate(()=>{
     dicas:ids.map(i=>REGRA[i]&&REGRA[i].dica).filter(Boolean).length};
 });
 Object.keys(d.s).forEach(k=>console.log(`   ${k.padEnd(12)} ${d.s[k]}`));
-ok('as seis criaturas têm regra',d.todasTemRegra);
+ok('todas as criaturas têm regra',d.todasTemRegra);
 ok('nenhuma compartilha o sentido de outra',d.sentidosUnicos);
-ok('todas têm dica descobrível no jogo',d.dicas===6);
+/* CONTAGEM FIXA ENVELHECE. Este teste nasceu com seis criaturas e
+   cravava `===6` em três lugares; a sétima (o Observador) reprovava as
+   três sem que nada estivesse errado. O que vale é "TODAS têm", não
+   "são seis". */
+ok('todas têm dica descobrível no jogo',d.dicas===BICHOS_N);
 
 console.log('\n2. CICLO: RONDA → SUSPEITA → CACA → PERDEU → RONDA');
 d=await p.evaluate(()=>{
@@ -88,7 +93,14 @@ d=await p.evaluate(()=>{
 });
 console.log('   ',JSON.stringify(d));
 ok('nenhuma criatura fica presa numa fase',!d.travou);
-ok('todas as quatro fases são visitadas',Object.keys(d.conta).length===4);
+/* eram quatro fases quando este teste nasceu; a §56 acrescentou
+   RECUANDO e OCULTO, e o Observador passa por elas. A promessa continua
+   sendo "o ciclo original inteiro roda", e nao "so existem quatro". */
+ok('as quatro fases do ciclo continuam sendo visitadas',
+  ['RONDA','SUSPEITA','CACA','PERDEU'].every(f=>(d.conta[f]||0)>0));
+ok('e as fases a mais são só as declaradas pela §56',
+  Object.keys(d.conta).every(f=>
+    ['RONDA','SUSPEITA','CACA','PERDEU','RECUANDO','OCULTO'].indexOf(f)>=0));
 ok('a caça respeita o teto da config',d.maxCaca<=d.tetoCfg+1);
 ok('o monstro nunca sai da planta',!/planta/.test(d.travou||''));
 
@@ -160,7 +172,7 @@ d=await p.evaluate(()=>{
 });
 console.log('   ',JSON.stringify(d));
 ok('esconder-se devolve TODAS as criaturas para RONDA',
-  Object.values(d).every(Boolean)&&Object.keys(d).length===6);
+  Object.values(d).every(Boolean)&&Object.keys(d).length===BICHOS_N);
 
 console.log('\n6. NUNCA MACHUCA SEM AVISO');
 d=await p.evaluate(()=>({
@@ -169,8 +181,8 @@ d=await p.evaluate(()=>({
 }));
 d.avisos.forEach(a=>console.log(`   ${a.id.padEnd(12)} ${a.texto.slice(0,58)}…`));
 ok('a distância de aviso nunca é zero',d.distanciaAviso>=1);
-ok('as seis têm aviso próprio',
-  d.avisos.length===6&&new Set(d.avisos.map(a=>a.texto)).size===6);
+ok('toda criatura tem aviso próprio, e nenhum repete',
+  d.avisos.length===BICHOS_N&&new Set(d.avisos.map(a=>a.texto)).size===BICHOS_N);
 
 console.log('\n7. PRESENÇA FORA DO COMBATE (marcas que ficam)');
 d=await p.evaluate(()=>{

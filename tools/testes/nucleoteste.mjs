@@ -120,7 +120,10 @@ d=await p.evaluate(()=>{
 });
 console.log('   ',JSON.stringify(d));
 ok('as 15 avarias foram adaptadas',d.av===15&&d.avariasOriginais===15);
-ok('as 6 criaturas foram adaptadas',d.bi===6&&d.bichosOriginais===6);
+/* contagem fixa envelhece: o que vale e que TODA criatura da tabela
+   virou registro governado, seja qual for o numero delas. Foi assim que
+   apareceu que o Observador tinha ficado de fora da governanca. */
+ok('toda criatura da tabela foi adaptada',d.bi===d.bichosOriginais);
 ok('todas passam no schema',d.todasValidas);
 ok('nenhuma ficou sem tell',d.todasComTell);
 ok('os registros APONTAM pra fonte em vez de copiá-la',d.apontamPraFonte&&d.naoCopiaram);

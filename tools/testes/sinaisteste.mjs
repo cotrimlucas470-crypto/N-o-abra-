@@ -18,7 +18,9 @@ console.log('\n1. O CONTRATO EXISTE E ESTA INTEIRO');
   const d=await p.evaluate(()=>({cob:sinaisCobertura(), total:TELLS.length,
     api:['emitir','foiEmitido','degradar','inconsistenciaDe'].filter(k=>typeof Sinais[k]==='function')}));
   d.cob.forEach(c=>console.log('    '+c.criatura.padEnd(11)+c.sinais+' sinais · '+c.canais.join('/')));
-  ok('as seis criaturas tem sinal',        d.cob.length===6&&d.cob.every(c=>c.sinais>=3));
+  /* contagem fixa envelhece; o contrato e "toda criatura sinaliza", com
+     pelo menos tres sinais cada, e nao "sao seis criaturas" */
+  ok('toda criatura tem sinal',           d.cob.length>=6&&d.cob.every(c=>c.sinais>=3));
   ok('cada uma em dois canais ou mais',    d.cob.every(c=>c.canais.length>=2));
   ok('todas tem iminencia',                d.cob.every(c=>c.fases.includes('iminencia')));
   ok('nenhuma iminencia e omitivel',       d.cob.every(c=>!c.iminenciaOmitivel));

@@ -146,6 +146,40 @@ const TELLS=[
  {id:'primordial_peso',criatura:'primordial',canal:'tatil',fase:'iminencia',antecedencia:2,
   t:'Tudo ficou mais pesado de fazer, e a ficha não lista motivo nenhum.',
   degradacao:'nunca',falsificavel:false,inconsistencia:null},
+ /* ---------------- OBSERVADOR — o que olha de volta ----------------
+    Os sinais dele são todos de canal que NÃO é olhar, e isso é a regra
+    dele virada em desenho: quem depende de olhar pra achá-lo perde ele
+    de lugar toda vez. Dá pra rastreá-lo — só não com os olhos. */
+ {id:'obs_nuca',criatura:'observador',canal:'tatil',fase:'aproximacao',antecedencia:4,
+  t:'A nuca esquenta num cômodo frio. Some quando você vira, volta quando você desvira.',
+  degradacao:'ambiguar',ambiguo:'Cansaço. Você trabalhou o dia inteiro e não bebeu água.',
+  falsificavel:true,inconsistencia:'calor na nuca sem fonte de calor no cômodo'},
+ {id:'obs_reflexo',criatura:'observador',canal:'visual',fase:'aproximacao',antecedencia:3,
+  t:'No vidro tem uma coisa parada atrás de você, e atrás de você não tem nada.',
+  degradacao:'atenuar',
+  falsificavel:true,inconsistencia:'reflexo com uma forma a mais do que o cômodo tem'},
+ {id:'obs_silencio',criatura:'observador',canal:'audio',fase:'iminencia',antecedencia:2,
+  t:'A casa continua fazendo barulho, menos num cômodo. Aquele cômodo ficou surdo.',
+  degradacao:'nunca',falsificavel:false,inconsistencia:null},
+ {id:'obs_encara',criatura:'observador',canal:'visual',fase:'contato',antecedencia:0,
+  t:'Ele não avança. Ele fica onde está, virado pra você, e espera você olhar de novo.',
+  degradacao:'nunca',falsificavel:false,inconsistencia:null},
+
+ /* ---------------- HÓSPEDE — o que se instala ----------------
+    Ele não ataca, então os sinais dele não são de aproximação de bicho:
+    são de casa mudando. É a única criatura cujo sinal de iminência não
+    quer dizer "ele vem", e sim "a casa já é dele". */
+ {id:'hosp_cheiro',criatura:'hospede',canal:'olfato',fase:'aproximacao',antecedencia:5,
+  t:'Um cheiro doce de fruta passada, num cômodo onde não tem fruta nenhuma.',
+  degradacao:'ambiguar',ambiguo:'Alguma coisa estragou na despensa e ninguém achou ainda.',
+  falsificavel:true,inconsistencia:'cheiro de fruta sem fruta em lugar nenhum da casa'},
+ {id:'hosp_mofo',criatura:'hospede',canal:'visual',fase:'aproximacao',antecedencia:4,
+  t:'Uma mancha de mofo cresceu do rodapé pro teto em uma noite, e só numa parede.',
+  degradacao:'atenuar',
+  falsificavel:true,inconsistencia:'mofo subindo em parede seca'},
+ {id:'hosp_calor',criatura:'hospede',canal:'tatil',fase:'iminencia',antecedencia:2,
+  t:'Um cômodo está morno de manhã cedo, e é o mesmo cômodo de ontem.',
+  degradacao:'nunca',falsificavel:false,inconsistencia:null},
  {id:'primordial_contato',criatura:'primordial',canal:'ausencia',fase:'contato',antecedencia:0,
   t:'Não é um ataque. É a maré subindo, e você está onde ela sobe.',
   degradacao:'nunca',falsificavel:false,inconsistencia:null}
@@ -298,7 +332,7 @@ if(typeof turnoMonstro==='function'){
 
    Escopo declarado: vale para as 6 criaturas da casa. Queda, fogo e obra
    nao sao criaturas e tem o proprio aviso na cena que os causa. */
-const SIN_CRIATURAS=['magro','rastejante','coro','imitador','inchado','primordial'];
+const SIN_CRIATURAS=['magro','rastejante','coro','imitador','inchado','primordial','observador','hospede'];
 function sinFonteEhCriatura(porque){
   if(!porque)return null;
   const t=String(porque).toLowerCase();
