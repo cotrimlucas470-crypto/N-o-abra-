@@ -66,6 +66,24 @@ async function abrir(porta){
   });
   return p;
 }
+/* ESTE HARNESS PRECISA DE DOIS SERVIDORES, e sem o segundo ele nao roda
+   assercao nenhuma — e "nenhuma assercao" ja passou por "verde" uma vez
+   nesta sessao, porque o corredor so contava FALHA. Um teste que nao
+   testa nada tem de gritar. */
+for(const porta of [8901,8906]){
+  const viva=await fetch('http://127.0.0.1:'+porta+'/index.html')
+    .then(r=>r.ok).catch(()=>false);
+  if(!viva){
+    console.error('\n  FALHA este harness compara DOIS builds e a porta '+porta+' esta fora.');
+    console.error('  suba os dois antes:');
+    console.error('    node tools/servidor.mjs . 8901');
+    console.error('    git show HEAD~1:index.html > /tmp/prev/index.html');
+    console.error('    node tools/servidor.mjs /tmp/prev 8906\n');
+    process.exitCode=1;
+    await b.close();
+    process.exit(1);
+  }
+}
 const pNovo=await abrir(8901);
 const pVelho=await abrir(8906);
 

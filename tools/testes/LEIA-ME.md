@@ -36,6 +36,7 @@ depois de `node montar.js`:
     node tools/testes/raroteste.mjs    # eventos raros e a trava de segurança §55 (18)
     node tools/testes/ameacateste.mjs  # camada de ameaça estendida §56 (14) — usa 2 builds
     node tools/testes/obsteste.mjs     # o Observador, que inverte o olhar §57 (24)
+    node tools/testes/hospteste.mjs    # o Hóspede, a ameaça que não ataca §58 (24)
     node tools/testes/simulacao.mjs    # 250 noites simuladas, sem asserção de gosto (20)
     node tools/testes/labteste.mjs     # o site animado docs/laboratorio-de-som.html (26)
     node tools/testes/aberturateste.mjs # a abertura narrada e a guarda do save (14)
@@ -403,3 +404,18 @@ A trava de colisão também roda dentro de `montar.js` e **quebra o build**.
 - **Ler memória não pode escrever no mundo.** A primeira versão do Observador
   punha `cena.casa.monstro = lembrado` dentro do inicializador. Escrever no estado
   compartilhado a partir de uma leitura quebra reprodução por semente.
+
+- **Harness que não roda asserção nenhuma não pode reportar verde.** O
+  `ameacatestes` precisa de DOIS servidores; sem o segundo ele estourava cedo e o
+  corredor, que só contava `FALHA`, dizia "ok — 0 asserções". Agora o harness
+  confere as duas portas e explica como subir as duas antes de desistir.
+- **Efeito declarado e nunca chamado é decoração.** A primeira versão do Hóspede
+  tinha `hospPesoAnomalia` e `hospEstraga` calculados, expostos no estado, e
+  ninguém os chamava: as fases avançavam, o texto aparecia, e o jogo não mudava.
+- **Contra-jogo tem de estar ONDE o problema está.** A ação de tirar o Hóspede
+  aparece no menu do cômodo em que ele está, com o custo e a chance escritos no
+  botão. Ação que só existe numa função exportada existe pro código, não pro
+  jogador.
+- **Concordância não é detalhe num jogo em português.** Metade da planta é
+  feminina (despensa, oficina, sala, cozinha, entrada). Texto com artigo cravado
+  escrevia "O despensa não é mais de vocês".
