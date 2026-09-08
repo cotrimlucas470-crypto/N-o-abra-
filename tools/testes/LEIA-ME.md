@@ -30,6 +30,7 @@ depois de `node montar.js`:
     node tools/testes/cenateste.mjs    # os nove cômodos: desgaste, volume e camada da frente (17)
     node tools/testes/texteste.mjs     # texturas: veio, poro e risco §etapa 4 (18)
     node tools/testes/silteste.mjs     # as criaturas aparecem no caderno §51 (15)
+    node tools/testes/silencioteste.mjs # o silêncio vira estado do som §52 (25)
     node tools/testes/simulacao.mjs    # 250 noites simuladas, sem asserção de gosto (20)
     node tools/testes/labteste.mjs     # o site animado docs/laboratorio-de-som.html (26)
     node tools/testes/aberturateste.mjs # a abertura narrada e a guarda do save (14)
@@ -296,3 +297,26 @@ A trava de colisão também roda dentro de `montar.js` e **quebra o build**.
   em `#0B0910`, que é a cor certa contra a luz da fresta e é invisível no fundo
   do caderno. A asserção "o desenho tem tinta" passava, porque tinta havia. A
   captura é que mostrou o retângulo vazio.
+
+- **Coisa cosmética NÃO gasta o gerador do jogo.** A primeira versão do §52
+  escolhia a fala do silêncio com `sortear`, que consome o gerador semeado
+  compartilhado. Cada fala empurrava a sequência um passo e **todo sorteio
+  seguinte da noite saía diferente**: o `dirteste` reprovou três asserções e o
+  build anterior passava nas mesmas três. Para texto, escolha por índice
+  determinístico (dia, turno), não por sorteio.
+- **`dirCalcular()` não é consulta, é passo.** Ele empurra a média acumulada do
+  diretor em direção à tensão curta a CADA chamada, escreve no histórico e troca
+  o estado. Perguntar o estado uma vez por turno de fora dobrava a velocidade de
+  convergência do humor da campanha. O getter puro é `dirEstadoBruto()`.
+- **Abaixamento sustentado não pode morar no ganho do canal.** `amDuck` faz rampa
+  de volta pro cheio, então qualquer coisa que você deixe em `AM.canais[c].gain`
+  é apagada no primeiro duck. Insira um nó seu entre o canal e o mestre — os dois
+  se multiplicam sozinhos, que é como insert de mesa funciona.
+- **Asserção que não pode falhar não é asserção.** A minha checagem de "o susto
+  não é abafado junto" lia `AM.canais.SFX.gain`, que por desenho nunca é tocado —
+  passava até na regressão plantada em que eu de propósito abafei o SFX. O que
+  vale é o ganho EFETIVO do caminho: canal × insert.
+- **A ordem importa quando o teste prepara o mundo.** `orqNovaNoite` zera a
+  pressão da noite. Pôr a pressão antes dele não vale nada: a trilha saiu inteira
+  em RAREFEITO e o vale nunca afundava. Outra seção passava só porque ali a ordem
+  estava certa por acaso.

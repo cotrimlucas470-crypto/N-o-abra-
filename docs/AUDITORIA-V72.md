@@ -150,3 +150,101 @@ fonte, que é o coração do §6: *“nem todo evento estranho é ameaça”*.
 
 Cada etapa: medir → envelopar o que existe → testar com recarga real → site
 animado → commit.
+
+---
+
+## §52 · O silêncio vira estado do som (feito)
+
+### O que já existia
+
+O jogo **já trata silêncio como conteúdo**. O orquestrador agenda "vales de
+silêncio" **antes** de qualquer evento — dois por noite, de quatro a sete turnos
+cada — e o comentário dele diz em letras claras: *"valeObrigatorio não é ausência
+de evento: é evento"*. Existe também `silencioSubito(seg)`, o corte de mestre
+usado como arma em 12 lugares.
+
+### O que faltava, medido
+
+O áudio não sabia de nada disso. Medido turno a turno, atravessando um vale de
+verdade:
+
+| turno | vale | AMBIENCE | leito | corte | mestre |
+|---|---|---|---|---|---|
+| 2 | não | 0,07943 | 0,07 | 260 Hz | 0,9 |
+| 5 | **sim** | 0,07943 | 0,07 | 260 Hz | 0,9 |
+| 9 | não | 0,07943 | 0,07 | 260 Hz | 0,9 |
+
+Byte por byte igual. `emVale()` era consultado só pelo `pedirPermissao`: o vale
+existia na agenda de eventos e **não existia no ouvido**. O jogador atravessava o
+silêncio sem ouvir silêncio nenhum.
+
+### O que entrou
+
+Três estados declarados, e o som muda de verdade entre eles:
+
+| estado | quando | AMBIENCE | MUSIC | leito | corte |
+|---|---|---|---|---|---|
+| **CHEIO** | fora do vale | ×1 | ×1 | 0,0700 | 260 Hz |
+| **RAREFEITO** | no vale | ×0,42 | ×0,30 | 0,0315 | 187 Hz |
+| **OCO** | no vale, com pressão alta | ×0,16 | ×0,08 | 0,0126 | 117 Hz |
+
+O filtro **fecha** conforme afunda: não é só mais baixo, é mais longe. Baixinho e
+perto é sussurro; baixinho e longe é a casa se afastando de você.
+
+**SFX e HORROR não são tocados, de propósito.** O vale serve para que, quando a
+coisa acontecer, ela aconteça contra um fundo fino. Abafar o susto junto mataria
+o motivo de existir o vale. Medido: SFX 0,316228 e HORROR 0,398107 idênticos em
+CHEIO e em OCO, enquanto o ambiente cai de 0,079433 para 0,012709.
+
+**O tell.** A regra de ouro exige que o jogador consiga explicar depois. Duas
+coisas fazem isso: o vale sempre desemboca em alguma coisa, então "ficou quieto
+antes" vira aprendizado; e ao afundar no OCO o jogo diz uma linha, uma vez por
+afundada, e outra na volta. Trilha medida de uma noite:
+
+```
+-C -C vO vO vO vO vO -C -C -C -C -C -C -C -C vO vO vO vO -C
+entrou no OCO 2× · saiu 2× · falou de entrada 2× · de volta 2×
+```
+
+### Onde o abaixamento mora, e por quê
+
+Não no ganho do canal. `amDuck` faz rampa de volta para o cheio, então qualquer
+abaixamento sustentado deixado em `AM.canais[c].gain` seria apagado no primeiro
+duck. Entra um nó novo entre o canal e o mestre — `canal → silêncio → mestre`.
+Cada um escreve no seu e os dois se multiplicam sozinhos, que é como insert de
+mesa funciona.
+
+### Três erros meus, e o que os pegou
+
+1. **Uma linha de texto estava mudando o jogo inteiro.** A escolha da fala usava
+   `sortear`, que consome o gerador semeado compartilhado: cada fala empurrava a
+   sequência um passo e **todo sorteio seguinte da noite saía diferente**. O
+   `dirteste` reprovou três asserções; rodei o build anterior nas mesmas três e
+   elas passavam — a prova de que era meu. Coisa cosmética escolhe por índice
+   determinístico, não por sorteio.
+2. **`dirCalcular()` não é consulta, é passo.** Ele empurra a média acumulada do
+   diretor a cada chamada. Perguntar o estado uma vez por turno dobrava a
+   velocidade de convergência do humor da campanha. O getter puro é
+   `dirEstadoBruto()`.
+3. **A trava de colisão do `montar.js` quebrou o build na hora** porque o §51 já
+   usava `SIL_CFG`. Dois blocos com o mesmo nome de topo fazem o segundo apagar o
+   primeiro em silêncio — exatamente o tipo de erro que não dá erro.
+
+### Dois erros no meu próprio teste
+
+- **Eu media o nó errado e no tempo errado.** Lia `AM.canais.AMBIENCE.gain`
+  (onde o abaixamento não mora) e esperava 120 ms com uma rampa de 3,4 s, então
+  media sempre o meio da rampa.
+- **Asserção que não pode falhar não é asserção.** "O susto não é abafado junto"
+  lia o ganho do canal SFX, que por desenho nunca é tocado: passava até na
+  regressão plantada em que eu de propósito abafei o SFX. Agora mede o ganho
+  efetivo do caminho, canal × insert.
+
+### O que foi provado
+
+`tools/testes/silencioteste.mjs`, 25 asserções. Regressões plantadas e pegas:
+`silenAplicar` desligado (o áudio volta a ser idêntico dentro e fora do vale, 3
+asserções caem) e insert posto em SFX/HORROR (3 caem). O bloco **não grava campo
+nenhum no save** — o estado é derivado — e **não consome um passo do gerador**
+(medido: 3042454019 antes e depois de uma atualização que mudou o estado e falou).
+Regressão geral: 13 harnesses verdes.
