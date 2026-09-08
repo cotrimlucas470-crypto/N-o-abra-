@@ -402,3 +402,74 @@ certo: você não ganha um número novo na tela, o **cômodo** é que fica pior.
 adoção do save antigo removida (2 caem) e o trauma virando global em vez de ser do
 cômodo (2 caem). Regressão geral: 12 harnesses verdes, incluindo os três que
 guardam save (`baktest`, `aberturateste`, `nucleoteste`).
+
+---
+
+## §55 · Eventos raros que continuam raros (feito)
+
+### O achado foi maior do que esta auditoria supunha
+
+Esta auditoria dizia que faltava "anti-repetição entre campanhas". Medido, faltava
+antes disso: **a anti-repetição não funcionava nem dentro de uma campanha.**
+
+| raridade | quantos | sem `id` (podem repetir) | peso |
+|---|---|---|---|
+| comum | 12 | 12 | 44 |
+| incomum | 12 | 12 | 30 |
+| raro | 9 | **9** | 17 |
+| muitoraro | 6 | **6** | 7 |
+| unico | 5 | 0 | 2 |
+
+`sortearEvento` filtra por `S.usados.includes(e.id)` — e **só os cinco `unico` têm
+`id`**. Os nove `raro` e os seis `muitoraro` nunca entravam na lista de usados.
+Simulando 500 dias: dezesseis raros distintos, 91 saídas, e **o campeão apareceu
+treze vezes**. Um evento cujo valor é ser raro saía toda semana.
+
+### O conserto
+
+Não foi editar 39 literais. Quando o evento não tem `id`, o id vem do **hash do
+próprio texto** — estável entre execuções e entre campanhas, e nenhuma linha da
+tabela precisou mudar. Depois: **20 raros distintos em 500 dias, 20 saídas, o mais
+repetido saiu 1×.**
+
+**Entre campanhas**, a memória vai numa chave própria do `localStorage`, fora do
+save — save novo não pode apagar a lembrança da campanha passada, que é justamente
+o ponto. E ela **não bane, pesa menos**: banir esvaziaria a sacola. Medido no pior
+caso, com *todos* os raros marcados como recém-vistos, ainda saíram 5 em 200 dias
+e o sorteio nunca voltou vazio. A lembrança envelhece: 1 → 0,833 depois de uma
+campanha → 0 depois de seis.
+
+**As cinco categorias** do §9: A estranho sem dano (9), B narrativo (2), C mistério
+(6), D consequência futura (2), E ultrarraro (5). B e D estavam vazias depois do
+adaptador — categoria declarada e vazia é parâmetro morto, a proibição nº 6 — então
+entraram quatro eventos novos com condição específica. Os dois de **D** plantam
+consequência usando sistema que já existe e que o jogador pode entender e desfazer:
+a marca do Eco do §54, e o trauma de cômodo, que desbota sozinho.
+
+### A trava que o §9 exige
+
+*"Nunca usar evento raro para morte instantânea, softlock ou destruição de save."*
+Isso não ficou como promessa: virou trava, com teste. Um evento assassino plantado
+de propósito tenta zerar a vida e apagar o save; a trava devolve a vida a 1,
+restaura o save e registra o incidente `{morreu:true, perdeuSave:true}`.
+
+### Quatro erros meus
+
+1. **Termo que se cancela.** A conta de rejeição era
+   `_ale() >= fator*(1-v) + (1-v)*0 + v*fator`, que é `_ale() >= fator`: o quanto
+   o evento tinha sido visto recentemente **não mudava nada**.
+2. **Anotei no momento errado.** Gravava na memória dentro do sorteio, e o laço de
+   rejeição sorteia várias vezes — candidatos descartados entravam como se o
+   jogador tivesse visto.
+3. **Deixei duas categorias vazias**, que é parâmetro morto.
+4. **E o teste de segurança passou sem testar nada.** Eu trocava `window.chance`
+   para furar o portão de 62% do `eventoDoDia`, mas `chance` é declaração de topo e
+   não está em `window` (a armadilha do `CX` de novo): o evento nunca rodou, e "não
+   matou / não comeu o save" passou porque **nada aconteceu**. Só a asserção que
+   exigia o incidente registrado denunciou.
+
+### O que foi provado
+
+`tools/testes/raroteste.mjs`, 18 asserções. Regressões plantadas e pegas: a chave
+derivada removida (o campeão volta a sair **73×**) e a trava de segurança removida
+(vida 0, save apagado, 4 asserções caem). Regressão geral: 15 harnesses verdes.

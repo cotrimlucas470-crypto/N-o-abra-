@@ -33,6 +33,7 @@ depois de `node montar.js`:
     node tools/testes/silencioteste.mjs # o silêncio vira estado do som §52 (25)
     node tools/testes/vigiateste.mjs   # a presença e o falso positivo §53 (19)
     node tools/testes/marcateste.mjs   # marcas no plural e trauma de cômodo §54 (18)
+    node tools/testes/raroteste.mjs    # eventos raros e a trava de segurança §55 (18)
     node tools/testes/simulacao.mjs    # 250 noites simuladas, sem asserção de gosto (20)
     node tools/testes/labteste.mjs     # o site animado docs/laboratorio-de-som.html (26)
     node tools/testes/aberturateste.mjs # a abertura narrada e a guarda do save (14)
@@ -347,3 +348,23 @@ A trava de colisão também roda dentro de `montar.js` e **quebra o build**.
 - **Só afirme sobre o que o seu bloco faz.** A minha checagem de "sem nome de
   jogador não grava" comparava o arquivo inteiro antes e depois — e reprovava por
   causa de escrita da BASE, que não é minha. Verifique se o **seu campo** entrou.
+
+- **Anti-repetição keyed num campo que quase ninguém tem não repete nada.**
+  `sortearEvento` filtra por `S.usados.includes(e.id)` e **só 5 dos 44 eventos têm
+  `id`**. Medido em 500 dias: o evento "raro" campeão saiu **13×**. O conserto não
+  é editar 39 literais — é derivar o id do hash do texto.
+- **Confirme que o caso de teste ACONTECEU antes de afirmar sobre ele.** A minha
+  seção de segurança trocava `window.chance` pra furar o portão de 62% do
+  `eventoDoDia` — mas `chance` é declaração de topo e não está em `window` (a
+  armadilha do `CX` de novo). O evento nunca rodou, e "não matou / não comeu o
+  save" passou porque **nada aconteceu**. Só a asserção que exigia o incidente
+  REGISTRADO denunciou.
+- **Termo que se cancela é parâmetro morto.** A minha conta de rejeição era
+  `_ale() >= fator*(1-v) + (1-v)*0 + v*fator`, que é `_ale() >= fator`: o quanto o
+  evento tinha sido visto recentemente **não mudava nada**. Faça a álgebra antes
+  de rodar.
+- **Anote quando aparece, não quando é cogitado.** Eu gravava na memória dentro do
+  sorteio, e o laço de rejeição sorteia várias vezes: candidatos descartados
+  entravam como se o jogador tivesse visto.
+- **Categoria declarada e vazia é parâmetro morto.** O adaptador deixou B e D sem
+  nenhum evento. Ou entra evento nelas, ou elas não existem.
