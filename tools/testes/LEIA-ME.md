@@ -28,6 +28,7 @@ depois de `node montar.js`:
     node tools/testes/dirteste.mjs     # o diretor ganha ouvido §50 (33)
     node tools/testes/rostoteste.mjs   # o rosto de quem bate na porta (17)
     node tools/testes/cenateste.mjs    # os nove cômodos: desgaste, volume e camada da frente (17)
+    node tools/testes/texteste.mjs     # texturas: veio, poro e risco §etapa 4 (18)
     node tools/testes/simulacao.mjs    # 250 noites simuladas, sem asserção de gosto (20)
     node tools/testes/labteste.mjs     # o site animado docs/laboratorio-de-som.html (26)
     node tools/testes/aberturateste.mjs # a abertura narrada e a guarda do save (14)
@@ -240,3 +241,29 @@ A trava de colisão também roda dentro de `montar.js` e **quebra o build**.
   Não reproduziu em 8 rodadas seguintes, incluindo 2 na mesma condição paralela.
   As 4 asserções que caíram eram todas depois da mesma tela abrir — instabilidade
   de tempo, não regressão. Se reaparecer fora de carga, aí é outra coisa.
+
+- **Limite fixo que não separa não é teste.** A primeira versão do `texteste`
+  exigia razão de anisotropia > 1,3 pra provar veio de madeira. Plantei a
+  regressão (desliguei o `material`) e a asserção **passou assim mesmo**:
+  degradê dentro de retângulo mais duas arestas já dão 1,32–1,41 sozinhos. O que
+  separa é o **grão** medido com o tecido ligado e desligado: 1,048 → 1,591.
+  Antes de confiar num limite, meça os dois lados dele.
+- **Interruptor é requisito de teste, não luxo.** O veio do chão nasceu como
+  código solto dentro do `paredeBase`. Sem nome não há como desligar só ele, e a
+  primeira versão do teste acabou medindo as JUNTAS das tábuas, que sempre
+  convergiram: apaguei o veio inteiro e o teste passou (32/21/9 linhas, vão de
+  11 a 28px, convergindo lindamente). Virou `veioDoPiso()` por isso.
+- **Medir material exige mirar no material.** A faixa que eu usava pro gerador
+  pegava o painel afundado e o mostrador redondo, que são lisos de propósito, e
+  diluía o metal escovado: razão 1,32 em vez de 1,54. A régua estava certa, o
+  alvo é que estava errado.
+- **A ampliação mostra o que o tamanho normal esconde.** A primeira textura de
+  metal, vista a 3×, era papel milimetrado: 130 riscos indo de ponta a ponta,
+  metade deitados e metade em pé, formando grade. Na tela do jogo passava batido.
+  Renderize o tecido sozinho e amplie antes de aceitar.
+- **Duas hipóteses minhas sobre o `semente` estavam erradas, e medi-las custou
+  menos que reescrever.** Achei que a trama diagonal vinha de correlação entre
+  `semente(281,i)` e `semente(283,i)` (medido: −0,06, não é) e depois do
+  quase-período de 4,37 amostras do `sin` (autocorrelação medida em nove
+  defasagens: tudo abaixo de 0,04, não é). O `semente` é limpo; o defeito estava
+  no meu desenho do metal.

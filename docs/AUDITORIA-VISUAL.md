@@ -247,3 +247,98 @@ vez em nove sob carga (3 Chromium mais 2 servidores extras) e não reproduziu em
 rodadas seguintes, 2 delas na mesma condição paralela — as 4 asserções que caíram
 eram todas depois da mesma tela abrir. Está anotado como instabilidade de tempo,
 não como conserto.
+
+---
+
+## 8 · Etapa 4 — as texturas (feito)
+
+### O que era
+
+Medido antes de escrever uma linha, com a razão de anisotropia (a variação de
+brilho pro vizinho de lado dividida pela variação pro vizinho de baixo):
+
+| superfície | razão | grão |
+|---|---|---|
+| bancada (madeira) | 1,32 | 1,048 |
+| tábuas do chão | 1,07 | 1,055 |
+| porta (madeira) | 1,04 | 1,031 |
+| gerador (metal) | 1,30 | 1,297 |
+| parede do porão | 1,02 | 1,260 |
+| muro do quintal | 1,16 | 0,769 |
+
+**Nenhuma superfície tinha direção.** Madeira, metal e concreto davam a mesma
+razão: a bancada era tão lisa quanto a parede do porão. Degradê não é textura.
+
+### O que é agora
+
+Três tecidos: `texVeio` (veio de madeira, com nó, deitado ou em pé), `texPoro`
+(poro de concreto — cova com borda de luz em cima) e `texRisco` (metal escovado).
+Cada um é desenhado **uma vez** num canvas fora da tela e repetido como padrão,
+então por quadro sobra um `fillRect`. O cache mora fora do save — nó de DOM não
+entra em estado serializável. As ondas do veio usam seno de período inteiro, então
+o ladrilho encosta nele mesmo sem emenda.
+
+`material(x,y,w,h,tipo,força)` aplica um tecido, e `bloco()` ganhou `op.material`
+— o tecido entra **antes** da luz, senão a textura apaga o volume.
+
+O chão é o caso à parte: o piso foge em perspectiva e padrão repetido não
+converge junto, viraria tapete estampado. O veio das tábuas é desenhado na mesma
+geometria das juntas, por `veioDoPiso()`.
+
+| superfície | grão sem tecido → com tecido | razão |
+|---|---|---|
+| bancada (madeira) | 1,048 → **1,591** | 1,32 → 1,40 |
+| muro (madeira) | 1,049 → **1,699** | 1,41 → 1,95 |
+| gerador (metal) | 1,049 → **1,703** | 1,28 → 1,54 |
+| parede do porão (poro) | 1,260 → **1,488** | 1,02 → 1,03 |
+| parede da sala (poro) | 1,202 → **1,424** | 1,03 → 1,04 |
+| porta (veios) | 0,984 → **1,204** | 1,05 → 1,37 |
+
+O poro continua sem direção de propósito: poro é isotrópico, o que tem de subir
+nele é o grão. O chão: vão entre linhas de 11px para **4,1px** no fundo e de 28px
+para **15,3px** na frente, ou seja o veio existe e acompanha a fuga.
+
+### Uma coisa que já existia, e eu quase reescrevi
+
+A porta **já tinha veio** — 46 riscos, desde sempre, pelo `veios()`. A minha
+medição não achou porque eu amostrei onde os **painéis rebaixados** são
+desenhados por cima, cobrindo o veio justamente no miolo da folha. Não troquei o
+sistema: estendi o mesmo `veios()` para dentro dos painéis. É a terceira vez
+nesta reformulação que a coisa pedida já existia.
+
+### Dois erros meus
+
+**O metal era papel milimetrado.** 130 riscos indo de ponta a ponta, metade
+deitados e metade em pé, formando grade. Na tela do jogo passava batido; só
+apareceu quando renderizei o tecido sozinho e ampliei 3×. Metal escovado é fio
+fino e comprido numa direção só, mais meia dúzia de arranhões soltos com sombra
+de um lado, mais ponto de ferrugem.
+
+**Duas hipóteses erradas sobre o `semente`, e medi-las foi mais barato que
+reescrever.** Achei que a trama vinha de correlação entre `semente(281,i)` e
+`semente(283,i)` — medido, −0,06, não é. Depois achei que era o quase-período de
+4,37 amostras do `sin` — autocorrelação medida em nove defasagens, tudo abaixo de
+0,04, não é. O `semente` do jogo é limpo; o defeito era meu.
+
+### Três erros no meu próprio teste
+
+1. **Limite fixo que não separa não é teste.** Exigi razão > 1,3 pra provar veio;
+   plantei a regressão e a asserção passou do mesmo jeito, porque o retângulo sem
+   textura já dá 1,32–1,41. Trocado pelo grão medido ligado contra desligado.
+2. **Sem interruptor, o teste mede outra coisa.** O veio do chão era código solto
+   dentro do `paredeBase`. Apaguei o veio inteiro e o teste passou — estava
+   contando as **juntas** das tábuas, que sempre convergiram. Virou
+   `veioDoPiso()` só pra ter como desligar.
+3. **A régua certa no alvo errado.** A faixa que eu media do gerador pegava o
+   painel afundado e o mostrador, lisos de propósito, e diluía o metal: 1,32 em
+   vez de 1,54.
+
+### O que foi provado
+
+`tools/testes/texteste.mjs`, 18 asserções. Regressões plantadas e pegas:
+`material()` desligado (5 asserções caem) e `veioDoPiso()` apagado (1 cai, e o
+log mostra 85 → 32 linhas). Custo por cômodo: média **0,174 ms**, pior 0,252 ms,
+contra um quadro de 16 ms. Regressão geral: 14 harnesses verdes, incluindo o
+`cenateste` da etapa 3 — o chão subiu de 14,44 para 14,66 de brilho com a
+textura, e a parede está em 30,12, então a trava "o chão nunca fica mais claro
+que a parede" continua de pé.

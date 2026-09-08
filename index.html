@@ -2913,6 +2913,196 @@ function espalharGente(){
    mesma mancha na mesma parede toda vez que voce entra. Mancha que
    muda de lugar vira chuvisco, nao desgaste. */
 
+/* --- ETAPA 4: TEXTURAS ---------------------------------------------
+
+   Medido antes de escrever qualquer linha: NENHUMA superficie do jogo
+   tinha direcao. Madeira, metal e concreto davam a mesma razao de
+   anisotropia (1,02 a 1,32), ou seja, a bancada era tao lisa quanto a
+   parede. Degrade nao e textura.
+
+   Veio de madeira e ANISOTROPICO: risco comprido numa direcao so. Poro
+   de concreto e isotropico mas tem cova, e cova tem borda iluminada em
+   cima e sombra embaixo. Risco de metal e fino, claro e quase todo numa
+   direcao.
+
+   CUSTO: cada tecido e desenhado UMA VEZ num canvas fora da tela e
+   depois repetido como padrao. Por quadro sobra um fillRect, nao
+   centenas de linhas. O cache mora aqui em cima e NUNCA entra no save —
+   no serializavel nao vai no de DOM.
+
+   As bordas do ladrilho fecham: as ondas do veio usam seno de periodo
+   inteiro, entao o lado esquerdo encosta no direito sem emenda. */
+const TEX_CACHE={};
+function texLadrilho(nome,lado,pinta){
+  if(TEX_CACHE[nome])return TEX_CACHE[nome];
+  const c=document.createElement('canvas'); c.width=c.height=lado;
+  pinta(c.getContext('2d'),lado);
+  return (TEX_CACHE[nome]=c);
+}
+function texPadrao(nome,lado,pinta){
+  const k='p:'+nome;
+  if(TEX_CACHE[k])return TEX_CACHE[k];
+  return (TEX_CACHE[k]=CX.createPattern(texLadrilho(nome,lado,pinta),'repeat'));
+}
+
+/* veio de madeira. `giro` 0 = veio deitado, 1 = veio em pe. */
+function texVeio(g,n,giro){
+  g.clearRect(0,0,n,n);
+  const linha=(y,cor,larg,fase,amp)=>{
+    g.strokeStyle=cor; g.lineWidth=larg;
+    g.beginPath();
+    for(let k=0;k<=8;k++){
+      /* periodo inteiro: k=0 e k=8 caem no mesmo lugar, entao o
+         ladrilho encosta nele mesmo sem emenda */
+      const t=k/8, oy=y+Math.sin(t*Math.PI*2+fase)*amp;
+      const x=n*t;
+      if(giro){ if(k)g.lineTo(oy,x); else g.moveTo(oy,x); }
+      else    { if(k)g.lineTo(x,oy); else g.moveTo(x,oy); }
+    }
+    g.stroke();
+  };
+  for(let i=0;i<70;i++)
+    linha(semente(211,i)*n, 'rgba(26,17,10,'+(.05+semente(223,i)*.11).toFixed(3)+')',
+      .5+semente(227,i)*1.7, semente(229,i)*6.28, n*(.004+semente(233,i)*.014));
+  for(let i=0;i<26;i++)
+    linha(semente(239,i)*n, 'rgba(222,192,150,'+(.02+semente(241,i)*.045).toFixed(3)+')',
+      .4+semente(251,i)*.9, semente(257,i)*6.28, n*(.004+semente(263,i)*.012));
+  /* nos: onde o galho saia. Anel escuro e miolo mais escuro ainda. */
+  for(let i=0;i<3;i++){
+    const nx=n*(.15+semente(269,i)*.7), ny=n*(.15+semente(271,i)*.7);
+    const rr=n*(.03+semente(277,i)*.045);
+    for(let k=4;k>=1;k--){
+      g.strokeStyle='rgba(22,14,8,'+(.05+k*.035)+')'; g.lineWidth=1.1;
+      g.beginPath();
+      g.ellipse(nx,ny,rr*k/4,rr*k/4*(giro?2.4:.42),0,0,7); g.stroke();
+    }
+  }
+}
+/* poro de concreto/reboco: cova com borda de luz em cima */
+function texPoro(g,n){
+  g.clearRect(0,0,n,n);
+  for(let i=0;i<900;i++){
+    const x=semente(281,i)*n, y=semente(283,i)*n, r=.4+semente(293,i)*1.5;
+    g.fillStyle='rgba(238,226,206,'+(.012+semente(307,i)*.03).toFixed(3)+')';
+    g.beginPath();g.arc(x,y-r*.55,r,0,7);g.fill();
+    g.fillStyle='rgba(12,8,6,'+(.03+semente(311,i)*.07).toFixed(3)+')';
+    g.beginPath();g.arc(x,y,r,0,7);g.fill();
+  }
+  /* covas maiores, as que a gente ve de longe */
+  for(let i=0;i<40;i++){
+    const x=semente(313,i)*n, y=semente(317,i)*n, r=1.6+semente(331,i)*3.4;
+    g.fillStyle='rgba(10,7,5,.10)';
+    g.beginPath();g.ellipse(x,y,r,r*.8,semente(337,i)*3,0,7);g.fill();
+    g.fillStyle='rgba(238,226,206,.05)';
+    g.beginPath();g.ellipse(x,y-r*.42,r*.8,r*.30,semente(337,i)*3,0,7);g.fill();
+  }
+}
+/* risco de metal.
+
+   A primeira versao desenhava 130 riscos COMPRIDOS, quase todos indo de
+   ponta a ponta do ladrilho, metade deitados e metade em pe. Ampliado
+   3x, o resultado era papel milimetrado — grade tecnica, nao metal.
+   So apareceu quando eu ampliei o tecido e olhei; na tela do jogo, em
+   tamanho normal, passava batido.
+
+   Metal escovado e outra coisa: um monte de fio FINO e CURTO na mesma
+   direcao (a escova), mais meia duzia de arranhoes soltos e um brilho
+   que corre ao longo da escova. */
+function texRisco(g,n){
+  g.clearRect(0,0,n,n);
+  /* o brilho que corre ao longo da escova */
+  const br=g.createLinearGradient(0,0,0,n);
+  br.addColorStop(0,'rgba(220,224,232,.030)');
+  br.addColorStop(.35,'rgba(220,224,232,0)');
+  br.addColorStop(.62,'rgba(0,0,0,.045)');
+  br.addColorStop(1,'rgba(220,224,232,.022)');
+  g.fillStyle=br; g.fillRect(0,0,n,n);
+  /* a escova: fio fino e COMPRIDO, tudo deitado.
+     Fio curto demais nao da direcao — medido, a escova curta subia a
+     razao de anisotropia so de 1,28 pra 1,35, que e quase nada. O que
+     fazia papel milimetrado na versao anterior nao era o comprimento: era
+     ter METADE dos fios em pe, cruzando os deitados. Sem os fios em pe,
+     comprido e exatamente o que metal escovado tem. */
+  for(let i=0;i<520;i++){
+    const y=semente(347,i)*n, x=semente(353,i)*n;
+    const comp=n*(.14+semente(349,i)*.62);
+    g.strokeStyle=(semente(367,i)>.5?'rgba(228,230,238,':'rgba(8,9,12,')
+      +(.022+semente(373,i)*.050).toFixed(3)+')';
+    g.lineWidth=.35+semente(379,i)*.40;
+    g.beginPath(); g.moveTo(x,y);
+    g.lineTo(x+comp,y+(semente(383,i)-.5)*.9);   /* quase reto, nao reto */
+    g.stroke();
+  }
+  /* arranhoes: poucos, mais fundos, em angulo qualquer */
+  for(let i=0;i<9;i++){
+    const x=semente(389,i)*n, y=semente(397,i)*n;
+    const ang=(semente(401,i)-.5)*1.1;            /* perto do horizontal */
+    const comp=n*(.12+semente(409,i)*.34);
+    g.strokeStyle='rgba(238,240,246,'+(.05+semente(419,i)*.06).toFixed(3)+')';
+    g.lineWidth=.5+semente(421,i)*.7;
+    g.beginPath(); g.moveTo(x,y);
+    g.lineTo(x+Math.cos(ang)*comp, y+Math.sin(ang)*comp); g.stroke();
+    /* todo arranhao tem a sombra dele de um lado */
+    g.strokeStyle='rgba(6,7,10,'+(.06+semente(431,i)*.06).toFixed(3)+')';
+    g.beginPath(); g.moveTo(x,y+1);
+    g.lineTo(x+Math.cos(ang)*comp, y+Math.sin(ang)*comp+1); g.stroke();
+  }
+  /* ferrugem/pingo: manchinha escura, o que tira o metal do "novo" */
+  for(let i=0;i<26;i++){
+    const x=semente(433,i)*n, y=semente(439,i)*n, r=.8+semente(443,i)*2.6;
+    g.fillStyle='rgba(46,28,14,'+(.05+semente(449,i)*.10).toFixed(3)+')';
+    g.beginPath(); g.ellipse(x,y,r,r*.75,semente(457,i)*3,0,7); g.fill();
+  }
+}
+
+/* o veio das tabuas do chao.
+
+   Aqui NAO da pra usar ladrilho: o piso foge em perspectiva e um padrao
+   repetido nao converge junto — ficaria um tapete estampado por cima do
+   chao. Entao o veio e desenhado na mesma geometria das juntas.
+
+   E uma FUNCAO com nome, e nao codigo solto dentro do paredeBase, por um
+   motivo de teste: sem nome nao ha interruptor, e sem interruptor o
+   harness nao consegue medir o veio separado das juntas. Eu descobri
+   isso plantando a regressao — apaguei o veio e o teste passou do mesmo
+   jeito, porque estava contando as juntas, que sempre convergiram.
+
+   Densidade importa: a primeira tentativa punha 2 fios por tabua e
+   tocava 4,4% do chao com diferenca media de 0,285 — existia no codigo e
+   nao existia na tela. */
+function veioDoPiso(w,h,py,desl){
+  const d=desl|0;
+  CX.lineWidth=.7;
+  for(let i=-3;i<9;i++)for(let k=1;k<6;k++){
+    const f=i+k/6, j=(i+3)*6+k;
+    const a=.06+semente(191+d,j)*.13;
+    CX.strokeStyle=semente(193+d,j)>.5
+      ? 'rgba(214,186,146,'+a.toFixed(3)+')'
+      : 'rgba(18,12,8,'+(a*1.7).toFixed(3)+')';
+    CX.beginPath();
+    CX.moveTo(w/2+(f-3)*w*.05,py);CX.lineTo(w/2+(f-3)*w*.34,h);
+    CX.stroke();
+  }
+}
+
+/* aplica um tecido num retangulo, ancorado no canto do retangulo pra o
+   desenho nao "escorregar" quando o movel se mexe */
+const TEX_MAPA={
+  madeira:  ['veioH',96,(g,n)=>texVeio(g,n,0)],
+  madeiraV: ['veioV',96,(g,n)=>texVeio(g,n,1)],
+  concreto: ['poro',128,texPoro],
+  metal:    ['risco',112,texRisco]
+};
+function material(x,y,larg,alt,tipo,forca){
+  const m=TEX_MAPA[tipo]; if(!m)return;
+  const pad=texPadrao(m[0],m[1],m[2]); if(!pad)return;
+  CX.save();
+  CX.globalAlpha=forca==null?1:forca;
+  CX.translate(x,y);
+  CX.fillStyle=pad; CX.fillRect(0,0,larg,alt);
+  CX.restore();
+}
+
 /* sombra de contato: o que prende um objeto no chao */
 function pousar(x,y,larg,forca){
   const f=forca==null?1:forca;
@@ -2929,6 +3119,9 @@ function pousar(x,y,larg,forca){
 function bloco(x,y,larg,alt,cor,op){
   op=op||{};
   CX.fillStyle=cor;CX.fillRect(x,y,larg,alt);
+  /* o tecido entra ANTES da luz: primeiro o material, depois a forma.
+     Se a textura vier por cima do degrade ela apaga o volume. */
+  if(op.material)material(x,y,larg,alt,op.material,op.tex==null?.5:op.tex);
   const g=CX.createLinearGradient(0,y,0,y+alt);
   g.addColorStop(0,'rgba(255,236,200,'+(op.luz==null?.10:op.luz)+')');
   g.addColorStop(.42,'rgba(0,0,0,0)');
@@ -2992,6 +3185,9 @@ function paredeBase(w,h,cor,piso){
   g.addColorStop(0,cor[0]);g.addColorStop(.62,cor[1]);g.addColorStop(1,cor[2]);
   CX.fillStyle=g;CX.fillRect(0,0,w,h);
   const py=h*.72;
+  /* o poro do reboco, na parede inteira. Fraco de proposito: de perto e
+     poeira de cal, de longe nem se ve — mas tira o plastico da parede. */
+  material(0,0,w,py,'concreto',.55);
 
   /* reboco: continua, agora com tamanho variado */
   for(let i=0;i<40;i++){
@@ -3076,6 +3272,11 @@ function paredeBase(w,h,cor,piso){
   for(let i=-3;i<9;i++){
     CX.beginPath();CX.moveTo(w/2+(i-3)*w*.05,py);CX.lineTo(w/2+(i-3)*w*.34,h);CX.stroke();
   }
+  /* o veio das tabuas. Aqui NAO da pra usar ladrilho: o piso foge em
+     perspectiva e um padrao repetido nao converge junto — ficaria um
+     tapete estampado por cima do chao. Entao o veio e desenhado na
+     mesma geometria das juntas, linha fina entre linha fina. */
+  veioDoPiso(w,h,py,d);
   /* o piso tambem tem sujeira, e ela se junta nos cantos.
      ARMADILHA, e eu cai nela: um degrade de creme ate preto NAO escurece
      as beiradas — ele passa por CINZA no meio do caminho, porque a cor e
@@ -3212,7 +3413,7 @@ const CENAS={
  3(w,h,t){ // OFICINA
   paredeBase(w,h,['#0D0B0E','#171319','#0B090C'],'#191310');
   // painel de ferramentas
-  bloco(w*.08,h*.20,w*.44,h*.34,'#14100F',{luz:.07,sombra:.20,pousa:false});
+  bloco(w*.08,h*.20,w*.44,h*.34,'#14100F',{luz:.07,sombra:.20,pousa:false,material:'madeira',tex:.45});
   const pg2=CX.createLinearGradient(0,h*.54,0,h*.60);
   pg2.addColorStop(0,'rgba(0,0,0,.30)');pg2.addColorStop(1,'rgba(0,0,0,0)');
   CX.fillStyle=pg2;CX.fillRect(w*.08,h*.54,w*.44,h*.06);
@@ -3223,9 +3424,9 @@ const CENAS={
     CX.fillRect(w*x,h*y,w*fw,h*fh);
   });
   // bancada
-  bloco(w*.06,h*.60,w*.62,h*.05,'#241A14',{luz:.18,sombra:.24,pousa:false});
-  bloco(w*.10,h*.65,w*.05,h*.14,'#181009',{luz:.07,sombra:.30,pousa:false});
-  bloco(w*.58,h*.65,w*.05,h*.14,'#181009',{luz:.05,sombra:.34,pousa:false});
+  bloco(w*.06,h*.60,w*.62,h*.05,'#241A14',{luz:.18,sombra:.24,pousa:false,material:'madeira',tex:.75});
+  bloco(w*.10,h*.65,w*.05,h*.14,'#181009',{luz:.07,sombra:.30,pousa:false,material:'madeiraV',tex:.6});
+  bloco(w*.58,h*.65,w*.05,h*.14,'#181009',{luz:.05,sombra:.34,pousa:false,material:'madeiraV',tex:.6});
   pousar(w*.125,h*.79,w*.09,1); pousar(w*.605,h*.79,w*.09,1);
   /* a bancada joga sombra no chao inteiro embaixo dela. Passa pela mesma
      ferramenta dos outros moveis: elipse chapada nao e sombra de contato,
@@ -3245,14 +3446,14 @@ const CENAS={
  4(w,h,t){ // SALA
   paredeBase(w,h,['#100C12','#191320','#0C0910'],'#171118');
   // sofá
-  bloco(w*.10,h*.56,w*.44,h*.16,'#2A2129',{luz:.13,sombra:.30,pousa:false});
-  bloco(w*.10,h*.48,w*.44,h*.10,'#332A33',{luz:.15,sombra:.22,pousa:false});
+  bloco(w*.10,h*.56,w*.44,h*.16,'#2A2129',{luz:.13,sombra:.30,pousa:false,material:'concreto',tex:.30});
+  bloco(w*.10,h*.48,w*.44,h*.10,'#332A33',{luz:.15,sombra:.22,pousa:false,material:'concreto',tex:.30});
   bloco(w*.10,h*.53,w*.05,h*.19,'#241D24',{luz:.10,sombra:.30,pousa:false});
   bloco(w*.49,h*.53,w*.05,h*.19,'#1F1920',{luz:.05,sombra:.38,pousa:false});
   CX.fillStyle='#1E1820';CX.fillRect(w*.10,h*.70,w*.44,h*.04);
   pousar(w*.32,h*.74,w*.48,1.15);
   // estante
-  bloco(w*.66,h*.34,w*.26,h*.38,'#1A1418',{luz:.09,sombra:.30,pousa:false});
+  bloco(w*.66,h*.34,w*.26,h*.38,'#1A1418',{luz:.09,sombra:.30,pousa:false,material:'madeiraV',tex:.65});
   pousar(w*.79,h*.72,w*.28,1);
   for(let i=0;i<3;i++){
     CX.fillStyle='#0D0A0E';CX.fillRect(w*.67,h*(.40+i*.11),w*.24,h*.02);
@@ -3320,8 +3521,8 @@ const CENAS={
   const vib=S.gerQuebrado?0:(1-s)*3+.6;
   const gx=w*.5+Math.sin(t*(18+s*14))*vib, gy=h*.60+Math.cos(t*(21+s*10))*vib*.6;
   pousar(gx,gy+h*.13,w*.44,1.25);
-  bloco(gx-w*.20,gy-h*.14,w*.40,h*.26,'#1A1E1C',{luz:.12,sombra:.32,pousa:false});
-  bloco(gx-w*.20,gy-h*.14,w*.40,h*.05,'#242A26',{luz:.20,sombra:.18,pousa:false});
+  bloco(gx-w*.20,gy-h*.14,w*.40,h*.26,'#1A1E1C',{luz:.12,sombra:.32,pousa:false,material:'metal',tex:.9});
+  bloco(gx-w*.20,gy-h*.14,w*.40,h*.05,'#242A26',{luz:.20,sombra:.18,pousa:false,material:'metal',tex:.9});
   CX.fillStyle='#0E1210';CX.fillRect(gx-w*.15,gy-h*.06,w*.14,h*.11);
   CX.fillStyle='#3A3028';CX.beginPath();CX.arc(gx+w*.11,gy,w*.055,0,7);CX.fill();
   CX.fillStyle='#0A0C0A';CX.beginPath();CX.arc(gx+w*.11,gy,w*.022,0,7);CX.fill();
@@ -3361,6 +3562,11 @@ const CENAS={
   }
   // terra
   CX.fillStyle='#20180F';CX.fillRect(0,h*.62,w,h*.38);
+  /* terra batida tem grao. O quintal nao passa pelo paredeBase, entao
+     ficou de fora da primeira passada de textura — medido: o muro e a
+     terra continuavam com o mesmo grao de antes (0,769) enquanto todo o
+     resto subiu. */
+  material(0,h*.62,w,h*.38,'concreto',.85);
   for(let i=0;i<50;i++){
     CX.fillStyle='rgba(0,0,0,.25)';
     CX.fillRect(semente(23,i)*w,h*.62+semente(29,i)*h*.38,3,2);
@@ -3368,6 +3574,7 @@ const CENAS={
   // muro
   const mh=h*(.28+(S.muro||0)*.05);
   CX.fillStyle='#191519';CX.fillRect(0,h*.62-mh,w,mh);
+  material(0,h*.62-mh,w,mh,'madeiraV',.7);
   CX.strokeStyle='rgba(0,0,0,.4)';CX.lineWidth=1;
   for(let j=0;j<6;j++){
     const y=h*.62-mh+mh*j/6;
@@ -3834,6 +4041,14 @@ function desenharPorta(w,h,t){
     const by=py+(lin===0?my:my*2.2+ph*.30);
     const bh=lin===0?ph*.42:ph*.30;
     painel(bx,by,cw,bh,'#33262C','#241A20',Math.max(3,pw*.014));
+    /* A porta JA tinha veio — 46 riscos desde sempre — mas os paineis
+       rebaixados eram desenhados por cima e apagavam o veio justamente
+       no miolo da folha, que e onde o jogador olha. Medido: razao de
+       anisotropia 1,04 na area dos paineis, ou seja, madeira sem
+       direcao. Nao troquei o sistema: estendi o mesmo `veios` pra
+       dentro do painel, com semente propria pra cada um. */
+    veios(bx,by,cw,bh,7+i*13,'rgba(255,228,190,.026)',9);
+    veios(bx,by,cw,bh,97+i*11,'rgba(0,0,0,.24)',5);
   });
   // travessa do meio
   CX.fillStyle='rgba(255,220,170,.05)';
