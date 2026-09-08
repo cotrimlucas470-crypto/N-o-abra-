@@ -34,6 +34,7 @@ depois de `node montar.js`:
     node tools/testes/vigiateste.mjs   # a presença e o falso positivo §53 (19)
     node tools/testes/marcateste.mjs   # marcas no plural e trauma de cômodo §54 (18)
     node tools/testes/raroteste.mjs    # eventos raros e a trava de segurança §55 (18)
+    node tools/testes/ameacateste.mjs  # camada de ameaça estendida §56 (14) — usa 2 builds
     node tools/testes/simulacao.mjs    # 250 noites simuladas, sem asserção de gosto (20)
     node tools/testes/labteste.mjs     # o site animado docs/laboratorio-de-som.html (26)
     node tools/testes/aberturateste.mjs # a abertura narrada e a guarda do save (14)
@@ -368,3 +369,14 @@ A trava de colisão também roda dentro de `montar.js` e **quebra o build**.
   entravam como se o jogador tivesse visto.
 - **Categoria declarada e vazia é parâmetro morto.** O adaptador deixou B e D sem
   nenhum evento. Ou entra evento nelas, ou elas não existem.
+
+- **Comparar dois builds sem fixar a semente compara dois jogos diferentes.**
+  `S.saveId` nasce de `Date.now()` mais hash de `Math.random()`, ou seja, muda a
+  cada carga da página. A primeira versão do `ameacateste` acusou as seis
+  criaturas de terem mudado de comportamento — e o que tinha mudado era o fluxo
+  de sorteio. Fixe `S.saveId`, `S.dia`, apague `S.rngEstado` e chame `semearRNG()`
+  **dos dois lados** antes de comparar.
+- **Fase nova sem saída é cadeia perpétua.** `anomAvancar` decide por comparação
+  de string: uma fase que não casa com nenhum ramo não faz nada, e a criatura
+  fica presa nela para sempre. Este jogo já teve duas criaturas inertes assim.
+  Toda fase nova precisa de teto de turnos **e** de simulação longa que a exercite.
