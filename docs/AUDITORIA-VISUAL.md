@@ -156,3 +156,94 @@ A lente do olho mágico procura cada defeito numa **posição fixa de tela**
 (`olhos` .38, `boca` .55, `pescoco` .70). Mover uma feição quebraria a caçada —
 que é gameplay, não enfeite. As âncoras `cyy`, `oyB`, `by` e `sep` são as mesmas
 de antes; o que mudou foi a pintura em cima delas.
+
+---
+
+## 7 · Etapa 3 — os nove cômodos (feito)
+
+### O que era
+
+`paredeBase` desenhava um degradê vertical, quarenta riscos de reboco, o piso em
+tábuas e o rodapé. **As mesmas sementes fixas em todos os nove cômodos**, então
+as nove paredes saíam com a mesma marca no mesmo lugar — só mudava a paleta. Os
+móveis eram `fillRect` chapado: sem aresta iluminada, sem lado na sombra e sem
+sombra no chão. Um `fillRect` sem sombra de contato **flutua**, e era o caso dos
+nove cômodos.
+
+### O que é agora
+
+**A parede tem idade, e a idade é dela.** Manchas de umidade que descem do teto,
+placas de reboco descascado, trincas finas e a sujeira que sobe do rodapé. Todas
+as sementes deslocadas por `d = cômodo*17+3`, então continua determinístico — a
+mesma parede tem sempre a mesma marca — mas cada cômodo tem a sua.
+
+**Os móveis pousam.** Duas ferramentas novas: `pousar(x,y,larg,força)` (a sombra
+de contato) e `bloco(x,y,larg,alt,cor,op)` (retângulo com luz em cima, lado na
+sombra, aresta de espessura e a sombra que ele joga no chão). Aplicadas ao sofá
+e à estante da sala, às prateleiras da despensa, à bancada e ao painel da
+oficina e ao gerador do porão.
+
+**Tem uma camada na frente.** `frente(w,h,tipo)` — viga, batente, fio, cortina ou
+mato — entre o jogador e o cômodo, chamada nas nove cenas. É o que separa "uma
+imagem atrás do jogador" de "um lugar em que o jogador está".
+
+### Dois erros meus, achados de jeitos diferentes
+
+**O chão virou tapete cinza — e nenhuma asserção reclamou.** A vinheta do piso
+ia de `rgba(255,236,200,.05)` até `rgba(0,0,0,.40)` num degradê só. No canvas a
+cor e a opacidade interpolam juntas, então o meio do caminho é **cinza a 22%**:
+em vez de escurecer a beirada, pintou bruma no chão inteiro. Medido: brilho médio
+do piso **14,88 → 25,61 (+72%)**, e nos cômodos 2, 5 e 6 o chão ficou **mais
+claro que a parede**. As seis seções do harness passavam. O defeito apareceu ao
+olhar a grade dos nove cômodos lado a lado, não no teste. Corrigido em duas
+passadas — o brilho quente sai da própria cor quente, o escurecimento sai de
+preto transparente. Piso de volta a **14,44**, e agora com vinheta de verdade
+(miolo 19,67 contra beirada 8,64, onde o original era quase plano: 16,00 e 13,64).
+
+**O reboco descascado parecia bolha de sabão.** Elipse perfeita com brilho
+chapado. Reboco cai em placa de borda rasgada: o contorno virou polígono
+irregular semeado e a placa exposta ganhou degradê. Custo do quadro subiu de
+0,069 para 0,094 ms — irrelevante contra os 16 ms.
+
+### Três erros no meu próprio teste
+
+1. **Comparei "sob o móvel" com "ao lado do móvel".** Isso mede a vinheta do
+   piso, não a sombra: o piso é claro no meio de propósito e o móvel fica no
+   meio, então o "sob" ganha sempre. Foi por isso que as duas asserções deram o
+   contrário do esperado. O certo é desligar o `pousar` e comparar **os mesmos
+   pixels**.
+2. **Uma asserção passava com o conjunto vazio.** Com a sombra desligada os
+   contadores de faixa ficavam no valor inicial e `alto > .55` passava com ZERO
+   pixels. Só apareceu porque plantei a regressão para conferir o teste.
+3. **Dois contadores mediam o brilho da cena, não o efeito.** "Escureceu 4,95
+   pontos" caiu para 3,58 quando consertei o chão — em piso escuro a mesma
+   sombra subtrai menos em valor absoluto. Trocado pela **fração** da luz comida.
+   O mesmo com o desgaste: o contador por limiar `>16` perdeu as manchas quando
+   o chão escureceu. Trocado por fatia alterada e pico.
+
+### O que foi provado, não achado
+
+`tools/testes/cenateste.mjs`, 17 asserções, e cada trava conferida plantando a
+regressão que ela existe para pegar:
+
+| medida | número |
+|---|---|
+| pares de cômodos comparados | 36, diferença média 59,2%, o mais parecido 32,1% |
+| mesma parede duas vezes | 0% de diferença |
+| desgaste entre cômodos de mesma paleta | muda 4,3–5,4% da parede, pico 30–43 |
+| sombra de contato (oficina / porão / sala) | come 17,3% / 38,2% / 30,1% da luz |
+| a sombra clareou algum ponto? | nenhum, nos três cômodos |
+| chão mais claro que a parede | nenhum cômodo |
+| vinheta do chão | miolo 19,67 · beirada 8,64 |
+| camada da frente escurece a borda | 9 de 9 cômodos |
+| custo por cômodo | média 0,094 ms · pior 0,135 ms (quadro de 16 ms) |
+
+Regressões plantadas e pegas: desgaste sem deslocamento por cômodo (fatia cai de
+4,3–5,4% para 0,3–0,8%), `pousar` desligado (3 asserções caem), e a bruma cinza
+de volta (as 3 asserções do chão caem).
+
+Regressão do resto do jogo: **28 harnesses, todos verdes**. `expteste` falhou uma
+vez em nove sob carga (3 Chromium mais 2 servidores extras) e não reproduziu em 8
+rodadas seguintes, 2 delas na mesma condição paralela — as 4 asserções que caíram
+eram todas depois da mesma tela abrir. Está anotado como instabilidade de tempo,
+não como conserto.

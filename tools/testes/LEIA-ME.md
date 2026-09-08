@@ -27,6 +27,7 @@ depois de `node montar.js`:
     node tools/testes/costsiteteste.mjs # o site animado docs/as-costuras.html (16)
     node tools/testes/dirteste.mjs     # o diretor ganha ouvido §50 (33)
     node tools/testes/rostoteste.mjs   # o rosto de quem bate na porta (17)
+    node tools/testes/cenateste.mjs    # os nove cômodos: desgaste, volume e camada da frente (17)
     node tools/testes/simulacao.mjs    # 250 noites simuladas, sem asserção de gosto (20)
     node tools/testes/labteste.mjs     # o site animado docs/laboratorio-de-som.html (26)
     node tools/testes/aberturateste.mjs # a abertura narrada e a guarda do save (14)
@@ -206,3 +207,36 @@ A trava de colisão também roda dentro de `montar.js` e **quebra o build**.
   própria zona. Para checagem espacial em tela de teste, use faixas da imagem.
 - **Limite global esconde sinal pequeno.** `brilho` acende só as pupilas: 0,2% do
   retrato inteiro, 1,2% da faixa dos olhos. Meça onde o sinal acontece.
+
+- **Degradê de cor clara até preto NÃO escurece: ele acinzenta.** No canvas a
+  cor e a opacidade interpolam juntas, então `rgba(255,236,200,.05)` →
+  `rgba(0,0,0,.40)` passa por cinza a 22% no meio do caminho. Eu usei isso como
+  vinheta de piso e o chão quase preto virou tapete: brilho médio de **14,88
+  para 25,61 (+72%)**, e em três cômodos o CHÃO ficou mais claro que a PAREDE.
+  Escurecimento sai de **preto transparente** para preto opaco, sempre. Brilho
+  é uma passada separada, saindo da própria cor quente.
+- **A foto pegou o que o teste não pegava.** Nenhuma asserção reclamou do chão
+  acinzentado — as seis seções passavam. O defeito apareceu ao olhar a grade dos
+  nove cômodos lado a lado. Tire a foto antes de dizer que está pronto.
+- **Comparar "sob o móvel" com "ao lado do móvel" mede a vinheta do piso, não a
+  sombra de contato.** O piso é claro no meio e escuro na beirada de propósito,
+  e o móvel fica no meio — o "sob" ganha sempre. Para isolar um efeito, desligue
+  o efeito e compare **os mesmos pixels**: `window.pousar=()=>{}`, redesenhe,
+  subtraia.
+- **Conjunto vazio passa em asserção de posição.** Com a sombra desligada, os
+  contadores de faixa ficavam no valor inicial (`y0=1`) e `alto>.55` passava com
+  ZERO pixels. Devolva `-1` quando não há amostra, e confirme plantando a
+  regressão — foi assim que esse buraco apareceu.
+- **Contador por limiar mede o brilho da cena, não o efeito.** "Escureceu 4,95
+  pontos" caiu para 3,58 só porque consertei o chão: em piso escuro a mesma
+  sombra subtrai menos em valor absoluto. Meça a **fração** da luz comida
+  (17–38%), que não depende de quão claro está o fundo. Mesmo erro na versão
+  por limiar `>16` do desgaste: com o chão escuro de volta, a mesma mancha
+  passou a somar menos de 16 e sumiu da conta.
+- **Média dilui marca localizada.** O desgaste da parede dava média 1,3–1,7 (não
+  parece nada) mas muda **4–5,8% da parede** com pico 30–43. O par de MENOR
+  média era o de MAIOR fatia alterada. Para diferença esparsa, use fatia e pico.
+- **`expteste` falhou 1 vez em 9 sob carga (3 Chromium + 2 servidores extras).**
+  Não reproduziu em 8 rodadas seguintes, incluindo 2 na mesma condição paralela.
+  As 4 asserções que caíram eram todas depois da mesma tela abrir — instabilidade
+  de tempo, não regressão. Se reaparecer fora de carga, aí é outra coisa.

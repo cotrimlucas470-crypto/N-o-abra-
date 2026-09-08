@@ -2902,18 +2902,171 @@ function espalharGente(){
 }
 
 /* ================= CENAS DOS CÔMODOS ================= */
+/* ============ SUPERFICIES E VOLUME ============
+   Reformulacao visual. O que existia: parede em gradiente limpo, piso em
+   tabuas com fuga, rodape. O que faltava era o que faz um cenario 2D
+   parar de parecer papel de parede — desgaste, sujeira que se acumula
+   onde a agua escorre, e SOMBRA DE CONTATO. Sem sombra de contato todo
+   movel FLUTUA, e era o caso dos nove comodos.
+
+   Tudo aqui e deterministico via `semente(h,i)`: o mesmo comodo tem a
+   mesma mancha na mesma parede toda vez que voce entra. Mancha que
+   muda de lugar vira chuvisco, nao desgaste. */
+
+/* sombra de contato: o que prende um objeto no chao */
+function pousar(x,y,larg,forca){
+  const f=forca==null?1:forca;
+  const g=CX.createRadialGradient(x,y,1,x,y,larg*.62);
+  g.addColorStop(0,'rgba(0,0,0,'+(.52*f)+')');
+  g.addColorStop(.55,'rgba(0,0,0,'+(.20*f)+')');
+  g.addColorStop(1,'rgba(0,0,0,0)');
+  CX.fillStyle=g;
+  CX.beginPath();CX.ellipse(x,y,larg*.62,larg*.13,0,0,7);CX.fill();
+}
+
+/* um bloco com volume: luz em cima, sombra embaixo, e a sombra que ele
+   joga no chao. Substitui o fillRect chapado. */
+function bloco(x,y,larg,alt,cor,op){
+  op=op||{};
+  CX.fillStyle=cor;CX.fillRect(x,y,larg,alt);
+  const g=CX.createLinearGradient(0,y,0,y+alt);
+  g.addColorStop(0,'rgba(255,236,200,'+(op.luz==null?.10:op.luz)+')');
+  g.addColorStop(.42,'rgba(0,0,0,0)');
+  g.addColorStop(1,'rgba(0,0,0,'+(op.sombra==null?.34:op.sombra)+')');
+  CX.fillStyle=g;CX.fillRect(x,y,larg,alt);
+  /* aresta de cima, que e o que da espessura */
+  CX.fillStyle='rgba(255,240,214,.09)';CX.fillRect(x,y,larg,Math.max(1,alt*.035));
+  /* o lado que fica na sombra */
+  CX.fillStyle='rgba(0,0,0,.22)';CX.fillRect(x+larg-Math.max(1,larg*.045),y,Math.max(1,larg*.045),alt);
+  if(op.pousa!==false)pousar(x+larg/2,y+alt,larg,op.pousaForca==null?1:op.pousaForca);
+}
+
+/* a camada da frente: o que fica entre voce e o comodo. E o que separa
+   "uma imagem atras do jogador" de "um lugar em que voce esta". */
+function frente(w,h,tipo){
+  CX.save();
+  if(tipo==='viga'){
+    CX.fillStyle='rgba(0,0,0,.72)';
+    CX.fillRect(0,0,w,h*.055);
+    CX.fillStyle='rgba(0,0,0,.5)';
+    CX.beginPath();CX.moveTo(0,h*.055);CX.lineTo(w,h*.055);CX.lineTo(w,h*.085);
+    CX.lineTo(0,h*.075);CX.closePath();CX.fill();
+  }else if(tipo==='batente'){
+    CX.fillStyle='rgba(0,0,0,.78)';
+    CX.fillRect(0,0,w*.055,h); CX.fillRect(w*.945,0,w*.055,h);
+    const g=CX.createLinearGradient(0,0,w*.16,0);
+    g.addColorStop(0,'rgba(0,0,0,.55)');g.addColorStop(1,'rgba(0,0,0,0)');
+    CX.fillStyle=g;CX.fillRect(0,0,w*.16,h);
+    const g2=CX.createLinearGradient(w,0,w*.84,0);
+    g2.addColorStop(0,'rgba(0,0,0,.55)');g2.addColorStop(1,'rgba(0,0,0,0)');
+    CX.fillStyle=g2;CX.fillRect(w*.84,0,w*.16,h);
+  }else if(tipo==='fio'){
+    CX.strokeStyle='rgba(0,0,0,.6)';CX.lineWidth=Math.max(1.5,h*.006);
+    CX.beginPath();CX.moveTo(0,h*.03);
+    CX.quadraticCurveTo(w*.5,h*.13,w,h*.045);CX.stroke();
+  }else if(tipo==='cortina'){
+    const g=CX.createLinearGradient(0,0,w*.22,0);
+    g.addColorStop(0,'rgba(0,0,0,.80)');g.addColorStop(1,'rgba(0,0,0,0)');
+    CX.fillStyle=g;CX.fillRect(0,0,w*.22,h);
+  }else if(tipo==='mato'){
+    CX.fillStyle='rgba(0,0,0,.62)';
+    for(let i=0;i<9;i++){
+      const bx=semente(41,i)*w, bh=h*(.06+semente(43,i)*.09);
+      CX.beginPath();CX.moveTo(bx,h);
+      CX.quadraticCurveTo(bx+(semente(45,i)-.5)*w*.05,h-bh*.6,bx+(semente(47,i)-.5)*w*.06,h-bh);
+      CX.lineTo(bx+w*.012,h);CX.closePath();CX.fill();
+    }
+  }
+  CX.restore();
+}
+
 function paredeBase(w,h,cor,piso){
+  /* O DESGASTE PRECISA SER DIFERENTE EM CADA COMODO.
+     A primeira versao usava as mesmas sementes fixas, e as nove paredes
+     saiam com a MESMA mancha no MESMO lugar — o defeito que o briefing
+     manda evitar, criado por mim. O deslocamento vem do comodo, entao
+     continua deterministico: a mesma parede tem sempre a mesma marca. */
+  const cq=(cena&&cena.casa&&cena.casa.voce!=null)?(cena.casa.voce|0):0;
+  const d=cq*17+3;
   const g=CX.createLinearGradient(0,0,0,h);
   g.addColorStop(0,cor[0]);g.addColorStop(.62,cor[1]);g.addColorStop(1,cor[2]);
   CX.fillStyle=g;CX.fillRect(0,0,w,h);
-  // reboco
+  const py=h*.72;
+
+  /* reboco: continua, agora com tamanho variado */
   for(let i=0;i<40;i++){
     const x=semente(7,i)*w,y=semente(19,i)*h*.7;
     CX.fillStyle='rgba(255,240,220,.012)';
     CX.fillRect(x,y,6+semente(3,i)*16,2);
   }
-  // piso em tábuas
-  const py=h*.72;
+
+  /* DESGASTE — o que nao existia.
+     1. manchas de umidade que descem da parte de cima da parede */
+  const nMancha=3+((cq*3)%4);
+  for(let i=0;i<nMancha;i++){
+    const mx=semente(53+d,i)*w, mw=w*(.06+semente(57+d,i)*.16);
+    const mh=py*(.30+semente(59+d,i)*.55);
+    const mg=CX.createLinearGradient(0,0,0,mh);
+    mg.addColorStop(0,'rgba(28,22,14,.30)');
+    mg.addColorStop(.6,'rgba(28,22,14,.13)');
+    mg.addColorStop(1,'rgba(28,22,14,0)');
+    CX.fillStyle=mg;
+    CX.beginPath();
+    CX.moveTo(mx,0);CX.lineTo(mx+mw,0);
+    CX.quadraticCurveTo(mx+mw*.7,mh*.7,mx+mw*.45,mh);
+    CX.quadraticCurveTo(mx+mw*.2,mh*.75,mx,0);
+    CX.closePath();CX.fill();
+  }
+  /* 2. reboco descascado: placas claras com borda escura.
+     A primeira versao usava elipse perfeita com brilho chapado e o
+     resultado parecia BOLHA DE SABAO grudada na parede, nao reboco
+     caindo. Reboco descasca em placa de borda rasgada: o contorno agora
+     e um poligono irregular semeado, e a placa exposta ganha degrade
+     (mais clara em cima, onde a luz bate) em vez de cor unica. */
+  const placa=(cx2,cy2,rw,rh,giro,i)=>{
+    CX.beginPath();
+    for(let k=0;k<9;k++){
+      const ang=k/9*Math.PI*2;
+      const r=.62+semente(127+d,i*9+k)*.55;   /* borda rasgada */
+      const px2=Math.cos(ang)*rw*r, py2=Math.sin(ang)*rh*r;
+      const rx=cx2+px2*Math.cos(giro)-py2*Math.sin(giro);
+      const ry=cy2+px2*Math.sin(giro)+py2*Math.cos(giro);
+      if(k)CX.lineTo(rx,ry); else CX.moveTo(rx,ry);
+    }
+    CX.closePath();
+  };
+  const nDesc=4+((cq*5)%6);
+  for(let i=0;i<nDesc;i++){
+    const dx=semente(61+d,i)*w, dy=py*(.12+semente(67+d,i)*.72);
+    const dw=w*(.02+semente(71+d,i)*.05), dh=h*(.015+semente(73+d,i)*.035);
+    const giro=semente(79+d,i)*3;
+    /* a sombra da casca que ainda esta pendurada na borda de baixo */
+    CX.fillStyle='rgba(0,0,0,.22)';
+    placa(dx,dy+dh*.10,dw,dh,giro,i);CX.fill();
+    /* o miolo exposto, mais claro em cima */
+    const eg=CX.createLinearGradient(0,dy-dh,0,dy+dh);
+    eg.addColorStop(0,'rgba(196,180,158,.055)');
+    eg.addColorStop(1,'rgba(120,104,86,.012)');
+    CX.fillStyle=eg;
+    placa(dx-dw*.10,dy-dh*.12,dw*.82,dh*.82,giro,i);CX.fill();
+  }
+  /* 3. trincas finas */
+  CX.strokeStyle='rgba(0,0,0,.26)';CX.lineWidth=Math.max(.8,h*.0022);
+  for(let i=0;i<3;i++){
+    let tx=semente(83+d,i)*w, ty=py*(.06+semente(89+d,i)*.3);
+    CX.beginPath();CX.moveTo(tx,ty);
+    for(let k=0;k<5;k++){
+      tx+=(semente(97+d,i*5+k)-.45)*w*.05; ty+=py*.07;
+      CX.lineTo(tx,ty);
+    }
+    CX.stroke();
+  }
+  /* 4. a sujeira que sobe do rodape */
+  const sg=CX.createLinearGradient(0,py-h*.16,0,py);
+  sg.addColorStop(0,'rgba(0,0,0,0)');sg.addColorStop(1,'rgba(12,9,7,.34)');
+  CX.fillStyle=sg;CX.fillRect(0,py-h*.16,w,h*.16);
+
+  /* piso em tabuas */
   CX.fillStyle=piso||'#140F12';CX.fillRect(0,py,w,h-py);
   CX.strokeStyle='rgba(0,0,0,.45)';CX.lineWidth=1;
   for(let i=0;i<7;i++){
@@ -2923,8 +3076,37 @@ function paredeBase(w,h,cor,piso){
   for(let i=-3;i<9;i++){
     CX.beginPath();CX.moveTo(w/2+(i-3)*w*.05,py);CX.lineTo(w/2+(i-3)*w*.34,h);CX.stroke();
   }
-  // rodapé
-  CX.fillStyle='rgba(0,0,0,.5)';CX.fillRect(0,py-Math.max(4,h*.02),w,Math.max(4,h*.02));
+  /* o piso tambem tem sujeira, e ela se junta nos cantos.
+     ARMADILHA, e eu cai nela: um degrade de creme ate preto NAO escurece
+     as beiradas — ele passa por CINZA no meio do caminho, porque a cor e
+     a opacidade interpolam juntas. A primeira versao pintou uma bruma
+     cinza no chao inteiro e transformou um piso quase preto num tapete
+     claro. Sao duas passadas: o brilho quente e curto e sai da propria
+     cor quente; o escurecimento sai de preto TRANSPARENTE pra preto
+     opaco, sem nunca encostar numa cor clara. */
+  const pb=CX.createRadialGradient(w*.5,py+(h-py)*.35,w*.02,w*.5,py+(h-py)*.35,w*.26);
+  pb.addColorStop(0,'rgba(255,236,200,.055)');
+  pb.addColorStop(1,'rgba(255,236,200,0)');
+  CX.fillStyle=pb;CX.fillRect(0,py,w,h-py);
+  const pg=CX.createRadialGradient(w*.5,py+(h-py)*.35,w*.10,w*.5,py+(h-py)*.35,w*.72);
+  pg.addColorStop(0,'rgba(0,0,0,0)');
+  pg.addColorStop(1,'rgba(0,0,0,.40)');
+  CX.fillStyle=pg;CX.fillRect(0,py,w,h-py);
+  /* e algumas manchas velhas */
+  for(let i=0;i<6;i++){
+    CX.fillStyle='rgba(10,7,5,.22)';
+    CX.beginPath();
+    CX.ellipse(semente(101+d,i)*w,py+(h-py)*(.15+semente(103+d,i)*.8),
+      w*(.02+semente(107+d,i)*.06),h*(.006+semente(109+d,i)*.018),0,0,7);
+    CX.fill();
+  }
+
+  /* rodape, agora com sombra por cima dele */
+  const rh=Math.max(4,h*.02);
+  CX.fillStyle='rgba(0,0,0,.5)';CX.fillRect(0,py-rh,w,rh);
+  const rg=CX.createLinearGradient(0,py-rh*2.2,0,py-rh);
+  rg.addColorStop(0,'rgba(0,0,0,0)');rg.addColorStop(1,'rgba(0,0,0,.30)');
+  CX.fillStyle=rg;CX.fillRect(0,py-rh*2.2,w,rh*1.2);
 }
 function lampiao(w,h,t,x,y,forca){
   const b=(.7+Math.sin(t*2.3)*.09+Math.sin(t*7.1)*.05)*(forca||1);
@@ -2970,6 +3152,7 @@ const CENAS={
   CX.fillRect(w*.08,h*.55,w*.19,h*.17);CX.fillRect(w*.10,h*.44,w*.14,h*.12);
   CX.fillRect(w*.74,h*.58,w*.17,h*.14);
   CX.strokeStyle='rgba(0,0,0,.5)';CX.strokeRect(w*.08,h*.55,w*.19,h*.17);
+  frente(w,h,'viga');
   lampiao(w,h,t,w*.28,h*.36,.75);vinheta(w,h);
  },
  1(w,h,t){ // QUARTO
@@ -2994,6 +3177,7 @@ const CENAS={
     CX.fillStyle='rgba(120,180,200,.25)';
     CX.fillRect(w*.06+i*w*.045,h*.63,w*.035,h*.07);
   }
+  frente(w,h,'cortina');
   lampiao(w,h,t,w*.5,h*.30,.7);vinheta(w,h);
  },
  2(w,h,t){ // DESPENSA
@@ -3001,8 +3185,12 @@ const CENAS={
   // prateleiras com as latas de verdade
   for(let p=0;p<3;p++){
     const py=h*(.30+p*.16);
-    CX.fillStyle='#1E1820';CX.fillRect(w*.10,py,w*.80,h*.022);
+    bloco(w*.10,py,w*.80,h*.022,'#1E1820',{luz:.16,sombra:.28,pousa:false});
     CX.fillStyle='rgba(0,0,0,.5)';CX.fillRect(w*.10,py+h*.022,w*.80,3);
+    /* a sombra que a prateleira joga na parede logo abaixo dela */
+    const sg2=CX.createLinearGradient(0,py+h*.022,0,py+h*.085);
+    sg2.addColorStop(0,'rgba(0,0,0,.34)');sg2.addColorStop(1,'rgba(0,0,0,0)');
+    CX.fillStyle=sg2;CX.fillRect(w*.10,py+h*.022,w*.80,h*.063);
   }
   let restam=Math.min(24,S.comida);
   for(let p=0;p<3&&restam>0;p++){
@@ -3018,12 +3206,16 @@ const CENAS={
   if(S.comida<=2){
     CX.fillStyle='rgba(140,47,30,.10)';CX.fillRect(0,0,w,h);
   }
+  frente(w,h,'batente');
   lampiao(w,h,t,w*.5,h*.18,.6);vinheta(w,h,.9);
  },
  3(w,h,t){ // OFICINA
   paredeBase(w,h,['#0D0B0E','#171319','#0B090C'],'#191310');
   // painel de ferramentas
-  CX.fillStyle='#14100F';CX.fillRect(w*.08,h*.20,w*.44,h*.34);
+  bloco(w*.08,h*.20,w*.44,h*.34,'#14100F',{luz:.07,sombra:.20,pousa:false});
+  const pg2=CX.createLinearGradient(0,h*.54,0,h*.60);
+  pg2.addColorStop(0,'rgba(0,0,0,.30)');pg2.addColorStop(1,'rgba(0,0,0,0)');
+  CX.fillStyle=pg2;CX.fillRect(w*.08,h*.54,w*.44,h*.06);
   CX.strokeStyle='#2A2118';CX.lineWidth=2;CX.strokeRect(w*.08,h*.20,w*.44,h*.34);
   const fer=[[.14,.26,.03,.16],[.20,.25,.045,.05],[.28,.24,.02,.20],[.34,.27,.06,.04],[.42,.25,.025,.17]];
   fer.forEach(([x,y,fw,fh],i)=>{
@@ -3031,9 +3223,14 @@ const CENAS={
     CX.fillRect(w*x,h*y,w*fw,h*fh);
   });
   // bancada
-  CX.fillStyle='#241A14';CX.fillRect(w*.06,h*.60,w*.62,h*.05);
-  CX.fillStyle='#181009';CX.fillRect(w*.10,h*.65,w*.05,h*.14);
-  CX.fillStyle='#181009';CX.fillRect(w*.58,h*.65,w*.05,h*.14);
+  bloco(w*.06,h*.60,w*.62,h*.05,'#241A14',{luz:.18,sombra:.24,pousa:false});
+  bloco(w*.10,h*.65,w*.05,h*.14,'#181009',{luz:.07,sombra:.30,pousa:false});
+  bloco(w*.58,h*.65,w*.05,h*.14,'#181009',{luz:.05,sombra:.34,pousa:false});
+  pousar(w*.125,h*.79,w*.09,1); pousar(w*.605,h*.79,w*.09,1);
+  /* a bancada joga sombra no chao inteiro embaixo dela. Passa pela mesma
+     ferramenta dos outros moveis: elipse chapada nao e sombra de contato,
+     e o que prende no chao e o nucleo escuro que dissolve na borda. */
+  pousar(w*.37,h*.79,w*.484,.5);
   if(S.oficinaNivel>0){
     CX.fillStyle='#3A3440';CX.fillRect(w*.14,h*.545,w*.07,h*.055);
   }
@@ -3042,16 +3239,21 @@ const CENAS={
     CX.fillStyle='#3A2A1E';
     CX.fillRect(w*.72,h*(.56+i*.045),w*.22,h*.035);
   }
+  frente(w,h,'viga');
   lampiao(w,h,t,w*.36,h*.26,.9);vinheta(w,h);
  },
  4(w,h,t){ // SALA
   paredeBase(w,h,['#100C12','#191320','#0C0910'],'#171118');
   // sofá
-  CX.fillStyle='#2A2129';CX.fillRect(w*.10,h*.56,w*.44,h*.16);
-  CX.fillStyle='#332A33';CX.fillRect(w*.10,h*.48,w*.44,h*.10);
+  bloco(w*.10,h*.56,w*.44,h*.16,'#2A2129',{luz:.13,sombra:.30,pousa:false});
+  bloco(w*.10,h*.48,w*.44,h*.10,'#332A33',{luz:.15,sombra:.22,pousa:false});
+  bloco(w*.10,h*.53,w*.05,h*.19,'#241D24',{luz:.10,sombra:.30,pousa:false});
+  bloco(w*.49,h*.53,w*.05,h*.19,'#1F1920',{luz:.05,sombra:.38,pousa:false});
   CX.fillStyle='#1E1820';CX.fillRect(w*.10,h*.70,w*.44,h*.04);
+  pousar(w*.32,h*.74,w*.48,1.15);
   // estante
-  CX.fillStyle='#1A1418';CX.fillRect(w*.66,h*.34,w*.26,h*.38);
+  bloco(w*.66,h*.34,w*.26,h*.38,'#1A1418',{luz:.09,sombra:.30,pousa:false});
+  pousar(w*.79,h*.72,w*.28,1);
   for(let i=0;i<3;i++){
     CX.fillStyle='#0D0A0E';CX.fillRect(w*.67,h*(.40+i*.11),w*.24,h*.02);
     for(let k=0;k<6;k++){
@@ -3067,6 +3269,7 @@ const CENAS={
     CX.beginPath();CX.ellipse(gx,gy-h*.03,w*.035,h*.055,0,0,7);CX.fill();
     CX.beginPath();CX.arc(gx,gy-h*.10,w*.026,0,7);CX.fill();
   });
+  frente(w,h,'batente');
   lampiao(w,h,t,w*.60,h*.22,1);vinheta(w,h);
  },
  5(w,h,t){ // COZINHA
@@ -3097,6 +3300,7 @@ const CENAS={
     CX.beginPath();CX.arc(w*(.60+i*.10),h*.32,w*.035,0,Math.PI);CX.fill();
     CX.fillRect(w*(.60+i*.10)-1,h*.27,2,h*.05);
   }
+  frente(w,h,'fio');
   lampiao(w,h,t,w*.48,h*.20,.95);vinheta(w,h);
  },
  6(w,h,t){ // PORÃO
@@ -3115,8 +3319,9 @@ const CENAS={
   const s=S.gerQuebrado?0:S.gerSaude/100;
   const vib=S.gerQuebrado?0:(1-s)*3+.6;
   const gx=w*.5+Math.sin(t*(18+s*14))*vib, gy=h*.60+Math.cos(t*(21+s*10))*vib*.6;
-  CX.fillStyle='#1A1E1C';CX.fillRect(gx-w*.20,gy-h*.14,w*.40,h*.26);
-  CX.fillStyle='#242A26';CX.fillRect(gx-w*.20,gy-h*.14,w*.40,h*.05);
+  pousar(gx,gy+h*.13,w*.44,1.25);
+  bloco(gx-w*.20,gy-h*.14,w*.40,h*.26,'#1A1E1C',{luz:.12,sombra:.32,pousa:false});
+  bloco(gx-w*.20,gy-h*.14,w*.40,h*.05,'#242A26',{luz:.20,sombra:.18,pousa:false});
   CX.fillStyle='#0E1210';CX.fillRect(gx-w*.15,gy-h*.06,w*.14,h*.11);
   CX.fillStyle='#3A3028';CX.beginPath();CX.arc(gx+w*.11,gy,w*.055,0,7);CX.fill();
   CX.fillStyle='#0A0C0A';CX.beginPath();CX.arc(gx+w*.11,gy,w*.022,0,7);CX.fill();
@@ -3137,10 +3342,12 @@ const CENAS={
     CX.fillStyle='rgba(140,47,30,.12)';CX.fillRect(0,0,w,h);
   }
   lampiao(w,h,t,w*.22,h*.24,S.gerQuebrado?.35:.55*(0.5+s*.5));
+  frente(w,h,'fio');
   vinheta(w,h,.85);
  },
  7(w,h,t){ // ENTRADA — a porta vista de dentro
   desenharPorta(w,h,t);
+  frente(w,h,'batente');
  },
  8(w,h,t){ // QUINTAL
   const noite=S.hora>=18;
@@ -3265,6 +3472,7 @@ const CENAS={
     CX.fillRect(dx+w*.035,dy-h*.02,w*.012,h*.02);
   }
   lampiao(w,h,t,w*.30,h*.30,noite?.45:.15);
+  frente(w,h,'mato');
   vinheta(w,h);
  }
 };
