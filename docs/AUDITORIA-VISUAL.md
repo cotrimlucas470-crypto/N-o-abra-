@@ -342,3 +342,79 @@ contra um quadro de 16 ms. Regressão geral: 14 harnesses verdes, incluindo o
 `cenateste` da etapa 3 — o chão subiu de 14,44 para 14,66 de brilho com a
 textura, e a parede está em 30,12, então a trava "o chão nunca fica mais claro
 que a parede" continua de pé.
+
+---
+
+## 9 · Etapa 5 — as criaturas (feito)
+
+### A auditoria achou o contrário do que a etapa pedia
+
+O briefing pede "silhueta própria por criatura". A medição encontrou:
+
+- **16 criaturas, 16 silhuetas** — uma para cada, animadas, com pele por família
+  (`falsa` tem brilho oleoso e emenda, `aberta` tem greta e nervura, `surda` tem
+  a sua). São ~400 linhas em três camadas: `desSilhueta` mais dois envelopes.
+- **E `desSilhueta` não era chamada em lugar nenhum.** Zero call sites no arquivo
+  inteiro. O jogador nunca viu nenhuma delas.
+
+Então o trabalho não era desenhar silhueta. Era **ligar** a que já estava
+desenhada, no lugar certo. É a quarta vez nesta reformulação que a coisa pedida
+já existia.
+
+### Onde é o lugar certo, e por que não é a porta
+
+Na porta o jogador vê só a sombra dos pés na fresta, e isso é deliberado: a
+tabela `FORMA` tem **seis formas para dezesseis criaturas**, e o comentário dela
+diz o porquê — *"compartilhar é de propósito: a forma estreita o palpite, não
+entrega a resposta"*. Pôr a silhueta inteira na porta mataria a dedução, que é o
+miolo do jogo.
+
+O lugar é **o caderno**. Lá o jogador só vê o que já encontrou, então a silhueta
+vira recompensa por ter deduzido em vez de atalho para deduzir.
+
+### Um bug de verdade, achado na mesma auditoria
+
+`coro2` — "o Coro" — não tinha entrada em `FORMA_DE`. A descrição dele é *"cinco,
+seis silhuetas em fila, sem se mexer, olhando pra porta"* e a sombra que ele fazia
+embaixo da porta era o fallback: **dois pés de gente**. Agora é `varios`, quatro
+manchas fora de compasso.
+
+### Quatro erros meus, e como cada um apareceu
+
+1. **`source-atop` precisa de fundo transparente.** A camada de pele recorta na
+   própria silhueta. Medi num rascunho pintado de branco e a pele lambeu o fundo
+   inteiro: quatro pares de silhuetas saíram byte a byte idênticos. A foto
+   mostrou que eram claramente diferentes. **O número estava errado e a imagem
+   estava certa.**
+2. **O envelope do caderno estava quebrado na segunda abertura.** `limpar()` não
+   apaga o texto — a base o reescreveu para esmaecer o passado e deixar rolar,
+   marcando com a classe `passado`. Meu código casava a lista de vistos contra
+   fichas velhas: com 1 criatura vista, 4 fichas e 4 desenhos, e os novos ficavam
+   sem nada. A regressão plantada confirma: sem o filtro, a ficha nova recebe
+   **zero** desenhos.
+3. **Inventei marcação em vez de usar a da casa.** Criei um `.silcard` e o enfiei
+   dentro do `.gente`, que é um flex de três filhos — o quarto espremeu a
+   descrição para uma palavra por linha. O `fichaRosto` já resolvia isso desde
+   sempre: `com-rosto` + `.gente-txt` + canvas ao lado.
+4. **Preto sobre preto.** A silhueta era desenhada em `#0B0910`, a cor certa
+   contra a luz da fresta e invisível no fundo do caderno. A asserção "o desenho
+   tem tinta" passava, porque tinta havia. A captura mostrou o retângulo vazio.
+   Agora é giz claro numa página escura.
+
+### O que foi provado
+
+`tools/testes/silteste.mjs`, 15 asserções.
+
+| medida | número |
+|---|---|
+| criaturas / silhuetas distintas | 16 / 16 |
+| silhuetas que não desenham | 1 — `nenhuma`, que promete ser vazia |
+| par mais parecido, em % do corpo | `fome` × `inchada`, 10% |
+| forma do Coro | `varios`, 4 manchas (era 2 pelo fallback) |
+| fichas vistas que ganharam desenho | 3 de 3, com a legenda certa em cada |
+| a cena do jogo depois de 8 desenhos | 0 pixels diferentes |
+| custo das 16 silhuetas do caderno | 12,5 ms, uma vez, ao abrir |
+
+Regressões plantadas e pegas: sem o filtro `:not(.passado)` (a ficha nova fica com
+zero desenhos) e sem a forma do Coro (2 asserções caem). Regressão geral: 12
+harnesses verdes.

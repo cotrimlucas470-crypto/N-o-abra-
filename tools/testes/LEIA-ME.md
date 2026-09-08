@@ -29,6 +29,7 @@ depois de `node montar.js`:
     node tools/testes/rostoteste.mjs   # o rosto de quem bate na porta (17)
     node tools/testes/cenateste.mjs    # os nove cômodos: desgaste, volume e camada da frente (17)
     node tools/testes/texteste.mjs     # texturas: veio, poro e risco §etapa 4 (18)
+    node tools/testes/silteste.mjs     # as criaturas aparecem no caderno §51 (15)
     node tools/testes/simulacao.mjs    # 250 noites simuladas, sem asserção de gosto (20)
     node tools/testes/labteste.mjs     # o site animado docs/laboratorio-de-som.html (26)
     node tools/testes/aberturateste.mjs # a abertura narrada e a guarda do save (14)
@@ -267,3 +268,31 @@ A trava de colisão também roda dentro de `montar.js` e **quebra o build**.
   quase-período de 4,37 amostras do `sin` (autocorrelação medida em nove
   defasagens: tudo abaixo de 0,04, não é). O `semente` é limpo; o defeito estava
   no meu desenho do metal.
+
+- **`limpar()` NÃO apaga o texto.** A base reescreveu `limpar` (a "LER O QUE JÁ
+  PASSOU"): o texto antigo fica esmaecido acima com a classe `passado` e você
+  rola pra ver. Então `T.querySelectorAll('.gente')` devolve também as fichas
+  das aberturas anteriores. O meu envelope do caderno casava a lista de vistos
+  contra fichas velhas e as novas ficavam sem desenho — medido: 1 criatura vista
+  devolvia 4 fichas e 4 desenhos. Filtre por `:not(.passado)`.
+- **`source-atop` precisa de fundo TRANSPARENTE.** A terceira camada do
+  `desSilhueta` recorta a pele na própria silhueta com `source-atop`, que só
+  marca onde já há tinta. Num rascunho pintado de branco antes, ela lambe o fundo
+  inteiro: a minha primeira medição deu quatro pares de silhuetas "idênticas"
+  que na foto eram claramente diferentes. Rascunho de silhueta é transparente.
+- **Antes de desenhar, procure se já está desenhado.** As 16 silhuetas já
+  existiam — ~400 linhas em três camadas, uma por criatura, animadas, com pele
+  por família — e `desSilhueta` **não era chamada em lugar nenhum**. Zero call
+  sites. Era a quarta vez nesta reformulação.
+- **Diferença de silhueta se mede contra o CORPO, não contra a tela.** `casca` ×
+  `humana` diferem 0,92% da tela, o que parece nada — mas as duas só ocupam ~6,4%
+  da tela, então é 14% do corpo. Denominador errado transforma diferença real em
+  número desprezível.
+- **Use a convenção da casa antes de inventar a sua.** Eu criei um `.silcard` e o
+  enfiei dentro do `.gente`, que é um flex de três filhos: o quarto filho
+  espremeu a descrição pra uma palavra por linha. O jogo já resolvia isso no
+  `fichaRosto` desde sempre — `com-rosto` + `.gente-txt` + canvas ao lado.
+- **Preto sobre preto passa no teste e some na tela.** A silhueta era desenhada
+  em `#0B0910`, que é a cor certa contra a luz da fresta e é invisível no fundo
+  do caderno. A asserção "o desenho tem tinta" passava, porque tinta havia. A
+  captura é que mostrou o retângulo vazio.
