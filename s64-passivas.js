@@ -229,9 +229,15 @@ function telaDossie(id,volta){
     const d=dossi(id);
     if(d.foco&&typeof coisaDe==='function'){
       const c=coisaDe(d.foco);
-      if(c)diz('O foco está em '+c.n+', '+
-        (typeof comodo==='function'?('n'+(comodo(c.onde).nome.match(/^[AEO]/i)?'':'o ')+
-          comodo(c.onde).nome):'algum cômodo')+'.','bom');
+      /* HEURISTICA ESPERTA QUE ERRA E PIOR QUE TABELA CHATA — terceira
+         vez neste projeto. Eu adivinhava o artigo do comodo pela
+         primeira letra do nome, e a ficha saiu com "em o tanque de
+         lavar, no QUINTAL": o "no" acertou por sorte (Q nao e vogal) e o
+         "em o" errou. A tabela certa ja existe desde o §58:
+         `comodoCom(id,'no')` devolve "na despensa", "no porao". */
+      if(c)diz('O foco está '+emNome(c.n)+', '+
+        (typeof comodoCom==='function'?comodoCom(c.onde,'no')
+          :('no cômodo '+c.onde))+'.','bom');
     }else{
       diz('Você ainda não achou o foco dela. Encoste o ouvido nas coisas da casa.','fraco');
     }

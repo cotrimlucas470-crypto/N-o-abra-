@@ -40861,6 +40861,16 @@ function deNome(n){
     if(t.slice(0,art.length)===art)return CONTRAI[art]+t.slice(art.length);
   return 'de '+t;
 }
+/* a mesma regra pra "em": "em o tanque" -> "no tanque". Apareceu na
+   ficha do caderno, jogando: "O foco esta em o tanque de lavar". */
+const CONTRAI_EM={'a ':'na ','o ':'no ','as ':'nas ','os ':'nos ',
+                  'A ':'na ','O ':'no '};
+function emNome(n){
+  const t=String(n||'');
+  for(const art in CONTRAI_EM)
+    if(t.slice(0,art.length)===art)return CONTRAI_EM[art]+t.slice(art.length);
+  return 'em '+t;
+}
 function coisasDe(id){ return COISAS.filter(c=>c.onde===(id|0)); }
 function coisaDe(id){ return COISA_POR_ID[id]||null; }
 
@@ -41019,6 +41029,18 @@ function telaCoisa(coisaId,volta,eco){
   const e=est(coisaId);
   limpar(); cap(c.n.toUpperCase());
   diz(c.d,'narr');
+  /* O QUE VOCE JA VIU FICA NA TELA, em vez de exigir clicar de novo.
+     Antes, a insinuacao do foco so aparecia no eco de um clique em
+     "Olhar" — entao pra reler era preciso olhar de novo, e "Olhar" era
+     gratis, repetivel e o primeiro botao da tela. O caminhador cego da
+     fumaca do pacote clicou nele ONZE VEZES SEGUIDAS.
+     E o mesmo defeito que o `expteste` tinha pego em "Escutar antes de
+     ir", na expedicao — eu corrigi la e deixei aqui. */
+  if(e.visto){
+    const t=tellDoFoco(coisaId,!!e.achou);
+    if(t)diz(t.txt,e.achou?'perigo':'alerta');
+    else if(e.achou===false&&c.som&&e.visto>1)diz(c.som,'narr');
+  }
   if(eco)eco.forEach(([t,cls])=>diz(t,cls));
   if(e.selado){
     diz('Você pregou tábua por cima. Não abre mais, e era essa a ideia.','sist');
@@ -41029,15 +41051,17 @@ function telaCoisa(coisaId,volta,eco){
   if(e.movido&&c.sob)diz('Já está arrastado. O que estava embaixo você já viu.','fraco');
   AC.innerHTML='';
 
-  /* ---- olhar: de graça, e insinua ---- */
-  if(c.verbos.includes('olhar'))botao(COISA_CFG.verbos.olhar.n,()=>{
+  /* ---- olhar: de graça, e insinua. UMA VEZ: olhar de novo devolve a
+       mesma frase, e ela ja fica em pe na tela (ver acima). ---- */
+  if(c.verbos.includes('olhar')&&!e.visto)botao(COISA_CFG.verbos.olhar.n,()=>{
     e.visto++;
     const t=acharFoco(coisaId,false);
-    telaCoisa(coisaId,volta,[t?[t.txt,'alerta']:['É o que parece ser.','fraco']]);
+    telaCoisa(coisaId,volta,t?null:[['É o que parece ser.','fraco']]);
   },{custo:COISA_CFG.verbos.olhar.d});
 
   /* ---- escutar: silencioso, e ENTREGA o foco ---- */
-  if(c.verbos.includes('escutar'))botao(COISA_CFG.verbos.escutar.n,()=>{
+  /* escutar tambem e uma vez: o que se ouve daqui nao muda */
+  if(c.verbos.includes('escutar')&&!e.achou)botao(COISA_CFG.verbos.escutar.n,()=>{
     e.visto++;
     const t=acharFoco(coisaId,true);
     const eco2=[];
@@ -41049,6 +41073,8 @@ function telaCoisa(coisaId,volta,eco){
       eco2.push(['Pregar tábua por cima resolve de vez. Custa tábua e prego.','sist']);
     }else if(c.som)eco2.push([c.som,'narr']);
     else eco2.push(['Nada. Só a casa.','fraco']);
+    /* mesmo sem foco, escutar so rende uma vez: a frase e sempre a mesma */
+    e.achou=e.achou||(t?true:'ouvido');
     telaCoisa(coisaId,volta,eco2);
   },{custo:COISA_CFG.verbos.escutar.d});
 
@@ -41951,9 +41977,15 @@ function telaDossie(id,volta){
     const d=dossi(id);
     if(d.foco&&typeof coisaDe==='function'){
       const c=coisaDe(d.foco);
-      if(c)diz('O foco está em '+c.n+', '+
-        (typeof comodo==='function'?('n'+(comodo(c.onde).nome.match(/^[AEO]/i)?'':'o ')+
-          comodo(c.onde).nome):'algum cômodo')+'.','bom');
+      /* HEURISTICA ESPERTA QUE ERRA E PIOR QUE TABELA CHATA — terceira
+         vez neste projeto. Eu adivinhava o artigo do comodo pela
+         primeira letra do nome, e a ficha saiu com "em o tanque de
+         lavar, no QUINTAL": o "no" acertou por sorte (Q nao e vogal) e o
+         "em o" errou. A tabela certa ja existe desde o §58:
+         `comodoCom(id,'no')` devolve "na despensa", "no porao". */
+      if(c)diz('O foco está '+emNome(c.n)+', '+
+        (typeof comodoCom==='function'?comodoCom(c.onde,'no')
+          :('no cômodo '+c.onde))+'.','bom');
     }else{
       diz('Você ainda não achou o foco dela. Encoste o ouvido nas coisas da casa.','fraco');
     }

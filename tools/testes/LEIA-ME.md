@@ -562,3 +562,14 @@ A trava de colisão também roda dentro de `montar.js` e **quebra o build**.
 - **Tabela por lugar envelhece.** 22 lugares × 5 pontos seriam 110 entradas à mão, e
   lugar novo nasceria sem pontos. O lugar declara uma **planta** e o tipo do ponto
   traz o texto; lugar novo herda planta pela cara do id, deterministicamente.
+- **Ação grátis, repetível e no topo da tela é laço — e eu fiz o mesmo defeito
+  duas vezes.** Na expedição foi "Escutar antes de ir" (o `expteste` queimou os 60
+  passos dele nela); nas coisas da casa foi "Olhar" (o caminhador da fumaça do
+  pacote clicou **onze vezes seguidas**). Corrigi o primeiro e deixei o segundo —
+  só apareceu porque a fumaça do pacote também usa caminhador cego. **Ação que
+  devolve sempre a mesma frase e não anda tem que sair da tela depois de usada**, e
+  o que ela disse fica em pé na tela em vez de exigir novo clique. O
+  `pacoteteste.mjs` agora reprova qualquer ação repetida 5x seguidas.
+- **Teste o pacote descompactado, não a cópia de trabalho.** É a única forma de
+  saber que o que a pessoa baixa é o que foi testado. O `md5` do `index.html` do
+  zip tem que bater com o do repositório.

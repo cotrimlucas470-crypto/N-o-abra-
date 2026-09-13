@@ -205,6 +205,19 @@ console.log('\n9. O ARTIGO CONTRAI — NADA DE "DE A COISA"');
   d.amostra.forEach(t=>console.log('    "'+t+'"'));
   console.log('    saídas com artigo duplicado: '+(d.errados.length?d.errados.join(' | '):'nenhuma'));
   ok('nenhum nome sai como "de a" ou "de o"', d.errados.length===0);
+  const e2=await p.evaluate(()=>{
+    /* e o "em", que apareceu na ficha do caderno como "em o tanque" */
+    const saida=COISAS.map(c=>emNome(c.n));
+    const errados=saida.filter(t=>/^em (a|o|as|os) /i.test(t));
+    /* e o artigo do comodo, que eu adivinhava pela primeira letra */
+    const comodos=PLANTA.map(q=>comodoCom(q.id,'no'));
+    const ruins=comodos.filter(t=>!/^(no|na) /.test(t));
+    return {amostra:saida.slice(0,3).concat(saida.slice(20,23)), errados, comodos, ruins};
+  });
+  e2.amostra.forEach(t=>console.log('    "'+t+'"'));
+  console.log('    cômodos: '+e2.comodos.join(', '));
+  ok('nem "em a" ou "em o"',                 e2.errados.length===0);
+  ok('e todo cômodo sai com "no"/"na" certo', e2.ruins.length===0);
 }
 
 console.log('\n10. NADA QUEBROU');
