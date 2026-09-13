@@ -38,6 +38,7 @@ depois de `node montar.js`:
     node tools/testes/obsteste.mjs     # o Observador, que inverte o olhar §57 (24)
     node tools/testes/hospteste.mjs    # o Hóspede, a ameaça que não ataca §58 (24)
     node tools/testes/canalteste.mjs   # os três canais que faltavam §59 (18)
+    node tools/testes/lembteste.mjs    # a casa lembra: peso, origem e cicatriz §60 (24)
     node tools/testes/simulacao.mjs    # 250 noites simuladas, sem asserção de gosto (20)
     node tools/testes/labteste.mjs     # o site animado docs/laboratorio-de-som.html (26)
     node tools/testes/aberturateste.mjs # a abertura narrada e a guarda do save (14)
@@ -435,3 +436,19 @@ A trava de colisão também roda dentro de `montar.js` e **quebra o build**.
   cômodo pela primeira letra e saiu "do lado do cozinha". A tabela de artigos já
   existia no §58; passou a chamar-se `comodoCom` porque é propriedade da PLANTA,
   não do Hóspede.
+
+- **Memória que não vira tinta é planilha.** A auditoria do §60 achou SEIS sistemas
+  guardando estado por cômodo e **o desenho do cômodo lendo quase nenhum** — só
+  `costuras` aparecia no código das cenas. A casa lembrava por escrito e o cenário
+  não sabia de nada.
+- **Risco escuro em piso escuro é risco que não existe.** A primeira camada visual
+  da memória desenhava uma linha de 1,3px quase preta sobre piso quase preto:
+  mudava **0,00%** da tela. Arranhão em piso escuro é mais CLARO — ele tira a
+  sujeira e mostra a madeira de baixo.
+- **Relevo é par, não linha.** Veio, poro e risco eram traços isolados e liam como
+  desenho na superfície. Sulco de verdade tem luz de um lado e sombra do outro,
+  deslocadas por menos de um pixel. Medido: grão da bancada 1,591 → 1,853, do muro
+  1,699 → 2,308, com o mesmo custo de quadro.
+- **Não embrulhe seis chamadas quando dá pra comparar uma lista.** O jogo faz
+  `S.mortos.push(p)` em seis lugares. Em vez de seis embrulhos (e esquecer o
+  sétimo), a sincronização compara a lista de mortos com o que já foi anotado.
