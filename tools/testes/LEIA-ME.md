@@ -506,3 +506,59 @@ A trava de colisão também roda dentro de `montar.js` e **quebra o build**.
 - **Número chumbado em texto envelhece calado.** O showcase dizia "dezesseis
   silhuetas" em dois lugares e desenhava quinze — a décima sexta é `nenhuma`, a
   ausência de silhueta. Agora os dois contam o registro.
+
+## §61 a §64 — a anomalia viva e a exploração com miolo
+
+- **Mutação sorteada é aleatoriedade com nome bonito.** A regra de ouro do briefing
+  ("se o jogador não pode explicar o evento depois que ele acontece, o evento está
+  errado") mata a mutação por dado antes de ela nascer. A do §61 é **causada pela
+  repetição do jogador**: três vezes o mesmo método e a coisa aprende contra aquele
+  método. Dá pra contar de trás pra frente — "ela parou de fugir da lanterna porque
+  eu só usei lanterna". De quebra endurece o jogo sem inflar número: o que encolhe
+  é o repertório.
+- **Fechar sem abrir vira beco sem saída.** Toda mutação abre uma saída junto com a
+  que fecha, e anuncia as duas. E existe trava: a lista de resoluções nunca chega a
+  zero.
+- **Assertion que passa pelo motivo errado (duas, no mesmo dia).** (a) "uma saída
+  nova abre no lugar" martelava `fugiu` no Magro e cobrava `esconder` na lista — só
+  que a base do Magro **já tinha** `esconder`. Passou verde com a regressão
+  plantada. (b) "nunca fica sem saída" martelava oito métodos, mas com teto de 3
+  mutações contra base de 3 a lista nunca chegava a zero: a trava jamais era
+  exercida. A cura das duas é a mesma — **plantar a regressão antes de confiar na
+  assertion**, e checar que o caso de teste realmente alcança o código testado.
+- **Limite frouxo é assertion decorativa.** 1,25x deixava a saturação passar (o
+  defeito media 1,66x, o certo mede 6,7x). O número tem que separar.
+- **Comparação contra zero não é comparação.** "O último degrau é 8x o primeiro" com
+  o primeiro valendo 0% é verdade pra qualquer coisa.
+- **Chamar a tela na unha prova que a tela existe, não que o jogador chega nela.**
+  A assertion do caderno chamava `telaDossies()` direto e não pegou a regressão de
+  tirar o botão. Abra a tela de cima e procure a porta.
+- **`tem(hab)` NÃO é checagem de inventário.** É `S.abrigo.some(p=>p.hab===hab)` —
+  habilidade de pessoa. `tem('lanterna')` é sempre falso. O estado de verdade é
+  `temFerra('lanterna')` mais `S.pilhas`. Isso deixou o orçamento de luz da
+  expedição constante em 2 — parâmetro morto no meio da decisão central do bloco.
+- **Orçamento que não tem preço não é orçamento.** A luz só vira decisão porque
+  queima pilha.
+- **Pista inalcançável é pior que pista nenhuma.** O ninho sorteava o lugar entre as
+  chaves de `PLANTA_DE`, que tem cinco ids que não são lugares visitáveis — em ~22%
+  das campanhas a pista não existia e o jogador procuraria pra sempre. O harness
+  agora varre 24 pares anomalia×campanha.
+- **Ação grátis, repetível e no topo da tela trava caminhador cego.** "Escutar antes
+  de ir" devolvia a mesma frase toda vez e ficava em primeiro lugar: o `expteste`
+  queimou os 60 passos dele nela. Nove assertions reprovaram, e o defeito era da
+  tela, não do teste. A ação que **anda** vem antes da que só informa. Uma correção
+  consertou quatro harnesses — todos reportavam o mesmo defeito.
+- **`typeof X === 'function'` é VERDADEIRO pra `const X = () => {}`.** A guarda que
+  todo envelope deste projeto usa passa, a atribuição lança "Assignment to constant
+  variable", e o TypeError **leva o resto do arquivo junto**, em silêncio. Foi assim
+  que metade do §64 deixou de existir. Duas curas: a função virou declaração, e
+  nasceu `envolver(nome,fábrica)`, que envelopa em try/catch e reclama alto.
+- **`T` é `#texto`, não `#txt`.** Sondas lendo o elemento errado devolvem lista
+  vazia, e lista vazia parece "o jogo não mostrou nada". Quase acusei o jogo de não
+  mostrar o tell do foco. O jogo estava certo e a régua errada — **de novo**.
+- **Vão novo entre cômodos já vizinhos não abre nada.** A passiva prometia atalho e
+  entregava o caminho que já existia. O par sai de `paresSemVao()`, calculado da
+  PLANTA e não escrito à mão.
+- **Tabela por lugar envelhece.** 22 lugares × 5 pontos seriam 110 entradas à mão, e
+  lugar novo nasceria sem pontos. O lugar declara uma **planta** e o tipo do ponto
+  traz o texto; lugar novo herda planta pela cara do id, deterministicamente.
