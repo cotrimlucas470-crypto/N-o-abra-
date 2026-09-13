@@ -452,3 +452,57 @@ A trava de colisão também roda dentro de `montar.js` e **quebra o build**.
 - **Não embrulhe seis chamadas quando dá pra comparar uma lista.** O jogo faz
   `S.mortos.push(p)` em seis lugares. Em vez de seis embrulhos (e esquecer o
   sétimo), a sincronização compara a lista de mortos com o que já foi anotado.
+
+- **Escada que trava no meio é pior que nenhuma escada.** As camadas da memória
+  tinham teto (`min(9,…)`, `min(7,…)`, `min(4,…)`) que saturava em peso 18, 30 e
+  36. De 36 pra cima a casa parava de lembrar — invasão, ritual e morte não
+  pintavam nada. Peso 34 e peso 60 saíam **na mesma imagem**: 17,61% e 17,64%. O
+  jogador aprende que passar de certo ponto não muda nada, e o peso vira número
+  morto. O `lembteste` comparava peso 6 com peso 38 e passava nos dois; a escada
+  inteira, degrau a degrau, é que mostra o platô.
+- **Limite frouxo é asserção decorativa.** Depois de escrever o bloco da escada eu
+  plantei a saturação de volta pra conferir — e a asserção **passou**, com 1,66x
+  contra um limite de 1,25x. O valor certo mede 6,7x. Plantar a regressão é o
+  único jeito de saber se o número que você escolheu separa alguma coisa.
+- **Comparação contra zero não é comparação.** A asserção vizinha cobrava "o último
+  degrau é 8x o primeiro" — e o primeiro degrau vale 0%. Qualquer coisa é maior
+  que zero vezes oito.
+- **O que nunca some tem de ser visto.** A cicatriz de morte é a única coisa que o
+  §60 promete que não cicatriza, e desenhava um retângulo de 6% da largura a 7% de
+  alpha **colado na junta parede/piso** — a parte mais distante e estreita do chão
+  em perspectiva. Posição errada mata um efeito tão bem quanto alpha errado.
+- **O ladrilho de textura é transparente.** `texVeio`, `texPoro` e `texRisco`
+  começam com `clearRect` e só desenham os sulcos; no jogo vão sempre POR CIMA de
+  uma superfície pintada. Medido cru, o pixel vazio conta como preto: a madeira
+  aparecia com +121% de contraste e o metal com média 175 de 255 — números que não
+  existem na tela. E a composição tem de ser num SEGUNDO canvas: pintar a base
+  antes de chamar o gerador não adianta, o `clearRect` dele apaga.
+- **Cova de meio pixel não tem dentro.** O reflexo no fundo do poro pintava
+  círculos de 0,14 a 0,65 pixel a 1% de alpha — a régua não mexia 0,1%. Subir o
+  alpha virou sal (e com o reflexo mais claro que a quina de cima, que é ao
+  contrário da física: reflexo nunca bate luz direta). O certo era mudar de lugar,
+  pras covas grandes, que têm parede interna pra refletir.
+- **Filtro de cor não prova relevo — prova o filtro.** A cena de profundidade do
+  showcase comparava o tecido contra ele mesmo com `filter: grayscale contrast`
+  por cima. Virou `texRelevo(v)`, uma chave de verdade — **e ela entra na chave do
+  cache**, senão o primeiro tecido fica guardado e o desligar não muda nada,
+  calado.
+- **Chave que só a demonstração usa é parâmetro morto.** Por isso `texRelevo` é
+  medida no `texteste` com ela ligada e desligada, e não só usada no showcase.
+- **`pintarVisitante(x,w,h,m,t)`: o `x` é o CONTEXTO, não uma coordenada.** E
+  `modeloVisitante(v)` lê `v.pessoa`, não `v.n`/`v.id`. Errei os dois no showcase,
+  o `try/catch` engoliu, e a cena desenhou quatro molduras vazias com 8.494 pixels
+  acesos — número que nem parecia errado. `catch` que não escreve o erro na tela
+  transforma bug em cena vazia.
+- **`print` do canvas não funciona neste ambiente.** `page.screenshot()` devolve
+  canvas em branco (2 KB, 2.137 pixels acesos) enquanto `canvas.toDataURL()` dá
+  411 KB e 396.532. As flags de GPU não mudam nada. Pra conferir cena, use
+  `toDataURL` ou decodifique quadros de vídeo.
+- **`const` de topo não está em `window` — de novo, agora de fora da página.** O
+  showcase lia `G.CENAS` do iframe e recebia `undefined`, porque `CENAS`, `CX`,
+  `S`, `PLANTA`, `CRIATURAS` e `cena` são `const`/`let` de topo. A saída é injetar
+  um `<script>` clássico no iframe, que enxerga o escopo léxico e pendura tudo num
+  objeto em `window`.
+- **Número chumbado em texto envelhece calado.** O showcase dizia "dezesseis
+  silhuetas" em dois lugares e desenhava quinze — a décima sexta é `nenhuma`, a
+  ausência de silhueta. Agora os dois contam o registro.

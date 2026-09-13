@@ -440,12 +440,12 @@ cena('Quem bate na porta',9.0,(t)=>{
      do cabelo), pra que os cinco não saiam com o mesmo capuz. A primeira
      versão sorteou ids redondos e saíram quatro encapuzados iguais. */
   const ELENCO=[
-    {rot:'CRIANÇA', nome:'Tereza',  id:14, nota:'rosto menor, queixo curto'},
-    {rot:'ADULTO',  nome:'Osvaldo', id:30, nota:'luz de lado, sombra do outro'},
-    {rot:'VELHO',   nome:'Bento',   id:74, nota:'cabelo grisalho, barba'},
-    {rot:'FERIDO',  nome:'Osvaldo', id:41, tipo:'ferido', nota:'sangue seco na têmpora'},
+    {rot:'CRIANÇA', nome:'Tereza',  id:14, nota:'rosto menor'},
+    {rot:'ADULTO',  nome:'Osvaldo', id:30, nota:'luz de um lado'},
+    {rot:'VELHO',   nome:'Bento',   id:74, nota:'grisalho, barba'},
+    {rot:'FERIDO',  nome:'Osvaldo', id:41, tipo:'ferido', nota:'sangue seco'},
     {rot:'NÃO É GENTE', nome:'Alzira', id:34, anom:['olhos','brilho','simetria'],
-     nota:'olhos tortos · pupila devolve a luz'}
+     nota:'olhos tortos'}
   ];
   const n=ELENCO.length, larg=Math.round(W*.148), alt=Math.round(larg*1.3);
   const passo=larg+12, x0=W*.5-(n*passo-12)/2, y=46;
@@ -481,22 +481,37 @@ cena('Quem bate na porta',9.0,(t)=>{
   /* o detalhe, 3x: é onde mora o trabalho novo — pálpebra, anel da íris,
      osso da bochecha, dorso do nariz. No tamanho da porta isso some. */
   if(retratoAdulto){
-    const dw=298, dh=150, dx=W*.5-dw/2, dy=y+alt+58;
-    const sw=Math.round(larg*.72), sh=Math.round(sw*dh/dw);
-    const sx=Math.round(larg*.14), sy=Math.round(alt*.30);
+    const dw=372, dh=128, dx=W*.5-dw/2, dy=y+alt+58;
+    /* o recorte é calculado a partir de ONDE OS OLHOS ESTÃO, não de um
+       palpite: `pintarVisitante` põe o centro do rosto em h*.54 e os
+       olhos um pouco acima disso. Na primeira tentativa eu cortei em
+       alt*.30 e a moldura pegou testa e sobrancelha, com os olhos
+       raspando a borda de baixo. */
+    const sw=Math.round(larg*.84), sh=Math.round(sw*dh/dw);
+    const sx=Math.round((larg-sw)/2), sy=Math.round(alt*.46-sh/2);
     X.save(); X.imageSmoothingEnabled=true;
     X.drawImage(retratoAdulto,sx,sy,sw,sh,dx,dy,dw,dh); X.restore();
     moldura(dx,dy,dw,dh,'rgba(201,162,39,.45)');
     etiqueta('OS OLHOS, 3x',dx,dy-8,OURO);
-    const marcas=[['pálpebra',.22,.30],['anel da íris',.50,.62],['osso da bochecha',.80,.88]];
-    marcas.forEach(([rot,fx,fy],i)=>{
+    /* CADA MARCA APONTA PRA FEIÇÃO, e a etiqueta fica embaixo com uma
+       linha ligando as duas. Na primeira versão marca e etiqueta
+       compartilhavam o x: ou as marcas caíam em canto vazio, ou as
+       etiquetas se sobrepunham. Linha de chamada resolve os dois. */
+    const marcas=[
+      ['pálpebra',        .34,.36, .18],
+      ['anel da íris',    .62,.55, .50],
+      ['osso da bochecha',.74,.84, .82]
+    ];
+    marcas.forEach(([rot,fx,fy,lx],i)=>{
       const ap=Math.max(0,Math.min(1,(t-1.4-i*.6)*2.2));
       if(ap<=0)return;
+      const mx=dx+dw*fx, my=dy+dh*fy, ex=dx+dw*lx, ey=dy+dh+6;
       X.save(); X.globalAlpha=ap;
       X.strokeStyle='rgba(201,162,39,.6)'; X.lineWidth=1;
-      X.beginPath(); X.arc(dx+dw*fx,dy+dh*fy,7,0,7); X.stroke();
+      X.beginPath(); X.arc(mx,my,7,0,7); X.stroke();
+      X.beginPath(); X.moveTo(mx,my+7); X.lineTo(ex,ey); X.stroke();
       X.font='10px "Share Tech Mono",monospace'; X.fillStyle='rgba(201,162,39,.9)';
-      X.textAlign='center'; X.fillText(rot,dx+dw*fx,dy+dh+14); X.restore();
+      X.textAlign='center'; X.fillText(rot,ex,dy+dh+19); X.restore();
     });
   }
   legenda('Os rostos na porta',
