@@ -40604,5 +40604,1093 @@ function dossiEstado(){
 
 </script>
 <!-- s61:fim -->
+<!-- s62:inicio -->
+<script>
+/* ============ §62 · O COMODO TEM COISAS DENTRO ======================
+
+   A AUDITORIA, JOGANDO E CONTANDO
+
+   Sondei o jogo de verdade e contei o que aparece na tela. Dentro de
+   casa, a tela principal tem VINTE E DOIS botoes, e a conta deles e a
+   resposta inteira pro "esta muito sem o que fazer":
+
+     · 1 acao de exploracao — "Vasculhar o comodo · 1 hora"
+     · 5 de movimento
+     · 16 de MENU E LEITURA — o caderno, o diario, ajustes, como
+       funciona, ver quem esta aqui, o que pesa hoje, como esta tudo...
+
+   Ou seja: o jogador encara um INDICE, nao uma situacao. E a unica coisa
+   que da pra FAZER num comodo e um verbo generico, repetivel, identico
+   nos nove comodos. Os botoes proprios que existem (fabricar na oficina,
+   conferir estoque na despensa) sao UTILIDADE — servicos — e nao coisas
+   pra descobrir.
+
+   O diagnostico em uma frase: O COMODO E UM NUMERO, NAO UM LUGAR.
+
+   E nao falta sistema. O plano de exploracao de nove etapas (§39 a §46)
+   foi todo construido: camada, custo de passo, pressao, luz, ponto de
+   nao retorno, achados, cicatriz, tratamento. Falta CONTEUDO dentro do
+   comodo pra esses sistemas terem no que pegar.
+
+   O QUE ENTRA
+
+   1 · COISAS. Trinta e oito objetos com nome proprio, espalhados pelos
+       nove comodos. O armario do quarto, a tabua solta do sotao, a caixa
+       de fusiveis da oficina. Cada um tem estado e lembra.
+
+   2 · VERBOS QUE DIFEREM. Nao "vasculhar" em tudo. Cada coisa aceita os
+       verbos que fazem sentido nela, e cada verbo custa diferente:
+       olhar e de graca, escutar e silencioso, forcar faz barulho, selar
+       gasta material e fecha pra sempre.
+
+   3 · O FOCO — E ESTA E A LIGACAO QUE FALTAVA. Toda anomalia ativa
+       ancora numa COISA especifica da casa. Achar o foco e o unico jeito
+       de estudar a anomalia (§61), e selar o foco e a resolucao
+       permanente. De dia voce caca a ancora; de noite ela vem.
+
+       Antes deste bloco, exploracao e anomalia eram dois jogos que nunca
+       se tocavam: a anomalia era coisa de noite, a exploracao de dia.
+
+   COMO O FOCO E ESCOLHIDO, E POR QUE NAO E SORTEADO
+
+   Por hash do id da anomalia com o saveId, filtrado pelas coisas que
+   combinam com a CATEGORIA dela: anomalia sonora ancora no que faz ou
+   conduz som, espacial no que abre passagem, fisica no que aguenta peso.
+   Deterministico e explicavel — um jogador que entendeu a regra procura
+   no lugar certo em vez de varrer a casa. Aleatorio seria varredura.
+   ===================================================================== */
+
+const COISA_CFG={
+  /* custo de cada verbo: horas, ruido, e se e permanente */
+  verbos:{
+    olhar:   {n:'Olhar',            h:0, ruido:0,  d:'de graça'},
+    escutar: {n:'Encostar o ouvido',h:0, ruido:0,  d:'não faz barulho'},
+    abrir:   {n:'Abrir',            h:1, ruido:3,  d:'1 hora'},
+    mover:   {n:'Arrastar',         h:1, ruido:7,  d:'1 hora · barulho'},
+    forcar:  {n:'Forçar',           h:1, ruido:14, d:'1 hora · muito barulho'},
+    selar:   {n:'Pregar por cima',  h:2, ruido:9,  d:'2 horas · tábua e prego'}
+  },
+  /* o que selar custa de material */
+  custoSelar:{tabua:1, prego:2},
+  /* quanto de estudo achar o foco rende. Tres achados levam uma
+     anomalia de zero ao limiar que revela as fraquezas (45). */
+  estudoPorFoco: 16,
+  /* e quanto selar o foco rende alem disso */
+  estudoPorSelar: 30,
+  /* quantas coisas de um comodo o "olhar de longe" lista de uma vez.
+     Teto pra tela nao virar o indice de 22 botoes que este bloco
+     nasceu pra desfazer. */
+  porTela: 5
+};
+
+/* ================= 1 · AS COISAS =================
+   `cat` e a categoria de anomalia que ancora ali, e vem do que a coisa
+   E — nao de sorteio. `sonora` no que conduz ou faz som, `espacial` no
+   que abre passagem, `fisica` no que aguenta peso, `visual` no que
+   reflete ou esconde da vista, `cognitiva` no que guarda memoria de
+   gente. Coisa sem `cat` nunca ancora nada. */
+const COISAS=[
+ /* ---- 0 · SÓTÃO ---- */
+ {id:'tabua_solta', onde:0, n:'a tábua solta do assoalho', cat:'espacial',
+  d:'Uma tábua range diferente das outras. Já rangia antes de tudo isso.',
+  verbos:['olhar','escutar','mover','selar'],
+  sob:{mat:'prego',q:4}, som:'Debaixo dela o ar corre. Tem vão aí.'},
+ {id:'caixa_fotos', onde:0, n:'a caixa de fotografia', cat:'cognitiva',
+  d:'Papelão mole de umidade, amarrado com barbante. Tem nome escrito na tampa.',
+  verbos:['olhar','abrir'],
+  dentro:{txt:'Fotos de gente que morava aqui antes. Numa delas a casa tem uma porta a mais.'}},
+ {id:'agua_telhado', onde:0, n:'a mancha do telhado', cat:'fisica',
+  d:'A água entrou por ali e desenhou um contorno que não secou mais.',
+  verbos:['olhar','escutar','selar'], som:'Pinga. Sempre no mesmo intervalo.'},
+ {id:'janela_frente', onde:0, n:'a janela da frente', cat:'visual',
+  d:'Dá pra rua inteira. É por ela que você vigia.',
+  verbos:['olhar','escutar','selar'], som:'A rua. Só a rua.'},
+
+ /* ---- 1 · QUARTO ---- */
+ {id:'armario_quarto', onde:1, n:'o armário de roupa', cat:'cognitiva',
+  d:'Duas portas, uma que não fecha. Dentro, roupa de gente que não voltou.',
+  verbos:['olhar','escutar','abrir','mover','selar'],
+  dentro:{mat:'pano',q:3}, som:'Nada. Um nada que ocupa espaço.'},
+ {id:'cama_quarto', onde:1, n:'a cama de casal', cat:'fisica',
+  d:'Alta o bastante pra caber alguém embaixo.',
+  verbos:['olhar','escutar','mover'], sob:{mat:'tabua',q:2},
+  som:'O assoalho embaixo dela estala sozinho.'},
+ {id:'espelho_quarto', onde:1, n:'o espelho da cômoda', cat:'visual',
+  d:'Manchado nas bordas. Devolve o cômodo com meio segundo de atraso — ou você quer que devolva.',
+  verbos:['olhar','selar']},
+ {id:'gaveta_trancada', onde:1, n:'a gaveta que não abre', cat:'cognitiva',
+  d:'A única coisa trancada da casa inteira. A chave não está em lugar nenhum.',
+  verbos:['olhar','escutar','forcar'],
+  dentro:{txt:'Carta pela metade, letra apertada. Fala de uma coisa que "vem pelo mesmo lugar sempre".'},
+  som:'Papel se mexendo lá dentro. Sem vento.'},
+
+ /* ---- 2 · DESPENSA ---- */
+ {id:'prateleira_fundo', onde:2, n:'a prateleira do fundo', cat:'fisica',
+  d:'A mais alta, onde ninguém alcança sem subir em coisa.',
+  verbos:['olhar','mover'], sob:{mat:'arame',q:2}},
+ {id:'caixote_latas', onde:2, n:'o caixote das latas suspeitas', cat:'fisica',
+  d:'Separado do resto de propósito. As tampas estufam devagar.',
+  verbos:['olhar','escutar','abrir'], som:'Estala. Metal cedendo, ou coisa dentro.'},
+ {id:'parede_despensa', onde:2, n:'a parede que soa oca', cat:'espacial',
+  d:'Bate diferente dos outros três lados. Sempre bateu.',
+  verbos:['olhar','escutar','forcar','selar'],
+  dentro:{mat:'tabua',q:3}, som:'Oco. Fundo demais pra ser só reboco.'},
+
+ /* ---- 3 · OFICINA ---- */
+ {id:'fusiveis', onde:3, n:'a caixa de fusíveis', cat:'visual',
+  d:'Seis fusíveis, dois queimados. A tampa tem marca de dedo que não é sua.',
+  verbos:['olhar','escutar','abrir','selar'],
+  dentro:{mat:'fio',q:2}, som:'Zumbido. Sobe quando você encosta.'},
+ {id:'bancada', onde:3, n:'a bancada', cat:'fisica',
+  d:'Riscada de tudo que já foi feito nela.',
+  verbos:['olhar','mover'], sob:{mat:'cano',q:1}},
+ {id:'contrapiso', onde:3, n:'o contrapiso levantado', cat:'espacial',
+  d:'Alguém já mexeu aqui antes de você.',
+  verbos:['olhar','escutar','mover','selar'], som:'Terra. E embaixo da terra, ar.'},
+ {id:'ferramenta_velha', onde:3, n:'as ferramentas do dono antigo', cat:'cognitiva',
+  d:'Penduradas na ordem de quem usava todo dia.',
+  verbos:['olhar','abrir'], dentro:{mat:'arame',q:2}},
+
+ /* ---- 4 · SALA ---- */
+ {id:'sofa', onde:4, n:'o sofá', cat:'fisica',
+  d:'Encostado na parede desde sempre. Pesado do jeito certo pra barricada.',
+  verbos:['olhar','escutar','mover'], sob:{mat:'pano',q:2},
+  som:'A parede atrás dele responde quando você bate.'},
+ {id:'estante', onde:4, n:'a estante de livros', cat:'cognitiva',
+  d:'Livro nenhum interessa. O que interessa é o que foi guardado atrás deles.',
+  verbos:['olhar','abrir','mover'],
+  dentro:{txt:'Um caderno de contas. Nas últimas páginas, as contas param e começam datas.'}},
+ {id:'lampada_sala', onde:4, n:'a lâmpada do teto', cat:'visual',
+  d:'A única da casa que ainda acende sem piscar.',
+  verbos:['olhar','escutar'], som:'Chia baixo. Chia mais quando é noite.'},
+ {id:'retrato_parede', onde:4, n:'o retrato na parede', cat:'cognitiva',
+  d:'Família de quatro. Ninguém sorrindo, do jeito que se fotografava antes.',
+  verbos:['olhar','mover','selar'], sob:{txt:'Atrás dele, a parede tem um buraco do tamanho de um punho. Tapado com jornal.'}},
+
+ /* ---- 5 · COZINHA ---- */
+ {id:'fogao', onde:5, n:'o fogão', cat:'fisica',
+  d:'Boca entupida de gordura antiga. O botijão embaixo ainda tem peso.',
+  verbos:['olhar','escutar','mover'], sob:{mat:'cano',q:1},
+  som:'Gás não. Outra coisa, passando pelo cano.'},
+ {id:'pia', onde:5, n:'a pia', cat:'sonora',
+  d:'A torneira pinga desde o segundo dia.',
+  verbos:['olhar','escutar','selar'], som:'Pingo. E entre um pingo e outro, sempre, um estalo.'},
+ {id:'armario_alto', onde:5, n:'o armário de cima', cat:'fisica',
+  d:'Fundo demais pro braço alcançar o fim.',
+  verbos:['olhar','abrir'], dentro:{mat:'arame',q:1}},
+ {id:'porta_fundos', onde:5, n:'a porta dos fundos', cat:'espacial',
+  d:'Dá pro quintal. Tem tranca por dentro e marca de pé por fora.',
+  verbos:['olhar','escutar','selar'], som:'O quintal. E no quintal, passo.'},
+
+ /* ---- 6 · PORÃO ---- */
+ {id:'escada_porao', onde:6, n:'a escada do porão', cat:'espacial',
+  d:'Sete degraus. O quinto cedeu e ninguém consertou.',
+  verbos:['olhar','escutar','selar'], som:'Embaixo, coisa arrastando de vez em quando.'},
+ {id:'cisterna', onde:6, n:'a cisterna', cat:'sonora',
+  d:'Tampa de concreto, meio empurrada. A água lá dentro não é boa há muito tempo.',
+  verbos:['olhar','escutar','mover','selar'], som:'O eco devolve a sua respiração com um atraso que não é seu.'},
+ {id:'caixas_porao', onde:6, n:'as caixas empilhadas', cat:'fisica',
+  d:'Coisa de mudança que nunca foi desfeita.',
+  verbos:['olhar','abrir','mover'], dentro:{mat:'tabua',q:2}},
+ {id:'parede_umida', onde:6, n:'a parede que sua', cat:'fisica',
+  d:'Molhada o ano inteiro, mesmo sem chuva.',
+  verbos:['olhar','escutar','selar'], som:'Água correndo do outro lado. Não tem cano desse lado.'},
+
+ /* ---- 7 · ENTRADA ---- */
+ {id:'porta_frente', onde:7, n:'a porta da frente', cat:'espacial',
+  d:'Reforçada até onde deu. É por ela que eles batem.',
+  verbos:['olhar','escutar'], som:'A rua. E se você esperar o suficiente, respiração.'},
+ {id:'olho_magico', onde:7, n:'o olho mágico', cat:'visual',
+  d:'Riscado por dentro. Já foi melhor.',
+  verbos:['olhar','escutar'], som:'Nada. E o nada encosta.'},
+ {id:'capacho', onde:7, n:'o capacho', cat:'fisica',
+  d:'Gasto no meio. Muita gente passou por aqui, e não foi tudo convidado.',
+  verbos:['olhar','mover'], sob:{txt:'Debaixo dele, riscos no chão. Contagem. Alguém contava as noites antes de você.'}},
+ {id:'corrente_porta', onde:7, n:'a corrente da porta', cat:'sonora',
+  d:'Três elos. O do meio abriu e foi torcido de volta com alicate.',
+  verbos:['olhar','escutar','selar'], som:'Tinindo baixo. Sem ninguém encostando.'},
+
+ /* ---- 8 · QUINTAL ---- */
+ {id:'muro', onde:8, n:'o muro dos fundos', cat:'espacial',
+  d:'Dois metros e caco de vidro em cima. O caco acabou num pedaço.',
+  verbos:['olhar','escutar','selar'], som:'Do outro lado, o bairro. E o bairro está quieto demais.'},
+ {id:'tanque', onde:8, n:'o tanque de lavar', cat:'sonora',
+  d:'Cimento rachado, cheio de água da chuva.',
+  verbos:['olhar','escutar','mover'], sob:{mat:'cano',q:1},
+  som:'A água treme sozinha. Sempre antes de qualquer outra coisa.'},
+ {id:'galinheiro', onde:8, n:'o galinheiro vazio', cat:'fisica',
+  d:'Tela furada num canto, de dentro pra fora.',
+  verbos:['olhar','abrir','selar'], dentro:{mat:'arame',q:3}},
+ {id:'terra_revirada', onde:8, n:'a terra revirada', cat:'cognitiva',
+  d:'Um retângulo de terra mais escura que o resto. Do tamanho de gente.',
+  verbos:['olhar','escutar','mover'], som:'Nada. E você fica aliviado, e depois não fica.',
+  sob:{txt:'Ossos de bicho. Grandes demais pra cachorro. E enterrados com capricho.'}}
+];
+const COISA_POR_ID={}; COISAS.forEach(c=>COISA_POR_ID[c.id]=c);
+
+/* ---------- "de" + artigo ----------
+   Os nomes do catalogo ja vem com artigo: "a Coisa de Muitas Bocas",
+   "o Magro", "calha entupida". Concatenar "de "+nome produz "de a Coisa
+   de Muitas Bocas", que e o mesmo defeito do "do lado do cozinha" que
+   ja apareceu neste projeto — e la a licao foi que HEURISTICA ESPERTA
+   QUE ERRA E PIOR QUE TABELA CHATA.
+
+   Aqui nao e palpite: o artigo esta escrito no proprio nome, entao a
+   contracao e regra de gramatica aplicada ao que ja foi declarado.
+   Nome sem artigo ("calha entupida") fica "de calha entupida", que e o
+   certo. */
+const CONTRAI={'a ':'da ','o ':'do ','as ':'das ','os ':'dos ',
+               'A ':'da ','O ':'do '};
+function deNome(n){
+  const t=String(n||'');
+  for(const art in CONTRAI)
+    if(t.slice(0,art.length)===art)return CONTRAI[art]+t.slice(art.length);
+  return 'de '+t;
+}
+function coisasDe(id){ return COISAS.filter(c=>c.onde===(id|0)); }
+function coisaDe(id){ return COISA_POR_ID[id]||null; }
+
+/* ================= 2 · O ESTADO =================
+   So dado: nada de funcao, timer ou no de DOM (proibicao nº 4). */
+function coisas(){
+  if(!S.coisas||typeof S.coisas!=='object')S.coisas={};
+  return S.coisas;
+}
+function est(id){
+  const C=coisas(), k=String(id);
+  if(!C[k])C[k]={visto:0, aberto:false, movido:false, selado:false,
+                 quebrado:false, vezes:0, achou:false};
+  return C[k];
+}
+function coisaSelada(id){ return !!est(id).selado; }
+
+/* ================= 3 · O FOCO =================
+   A ancora de uma anomalia numa coisa da casa.
+
+   POR QUE NAO E SORTEADO: um jogador que entendeu a regra — sonora
+   ancora no que conduz som, espacial no que abre passagem — procura no
+   lugar certo. Sorteado, a unica estrategia seria varrer a casa inteira
+   todo dia, que e o oposto de investigar. */
+function focos(){
+  if(!S.focos||typeof S.focos!=='object')S.focos={};
+  return S.focos;
+}
+function focoDe(anomId){
+  const F=focos(), k=String(anomId);
+  if(F[k]!==undefined)return F[k];
+  const r=(typeof registroDe==='function')?registroDe(anomId):null;
+  const cat=(r&&r.categoria)||'fisica';
+  /* candidatas: as coisas cuja natureza combina com a categoria. Se
+     nenhuma combina, qualquer coisa nao selada serve — melhor um foco
+     de categoria torta que anomalia sem ancora nenhuma. */
+  let pool=COISAS.filter(c=>c.cat===cat&&!coisaSelada(c.id));
+  if(!pool.length)pool=COISAS.filter(c=>!coisaSelada(c.id));
+  if(!pool.length){ F[k]=null; return null; }
+  /* hash do id com o saveId: a mesma campanha da sempre o mesmo foco,
+     campanhas diferentes dao focos diferentes, e nada disso gasta o RNG
+     semeado da partida — ler nao pode mexer no sorteio de quem vem
+     depois. Ja quebrou determinismo neste projeto antes. */
+  const h=hash32(String(anomId)+'|'+String(S.saveId||''));
+  F[k]=pool[h%pool.length].id;
+  if(typeof marcarSujo==='function')marcarSujo();
+  return F[k];
+}
+/* quais anomalias ativas ancoram nesta coisa */
+function anomsNaCoisa(coisaId){
+  let ativ=[];
+  try{ ativ=(typeof ativas==='function')?ativas():[]; }catch(e){}
+  return ativ.filter(a=>focoDe(a)===coisaId);
+}
+/* a coisa denuncia? so denuncia pelos verbos silenciosos — olhar da o
+   sinal fraco, escutar da o forte. E o contrato de tell: o aviso existe
+   antes do dano, e custa atencao deliberada. */
+function tellDoFoco(coisaId,forte){
+  const as=anomsNaCoisa(coisaId);
+  if(!as.length)return null;
+  const r=(typeof registroDe==='function')?registroDe(as[0]):null;
+  const cat=(r&&r.categoria)||'fisica';
+  const FRACO={
+    fisica:'Tem peso aqui que não devia ter.',
+    espacial:'A passagem está diferente do que você lembra.',
+    sonora:'O som daqui chega com atraso.',
+    visual:'A luz cai errado nesse pedaço.',
+    cognitiva:'Você já esteve parado aqui antes e não lembra quando.'
+  };
+  const FORTE={
+    fisica:'Alguma coisa se apoia nisso do outro lado.',
+    espacial:'Do outro lado tem espaço que a casa não tem.',
+    sonora:'O que você ouve não vem daqui. Vem POR aqui.',
+    visual:'Você vê o cômodo por dentro disso, e o cômodo está vazio. Você não.',
+    cognitiva:'A sua própria voz, baixinho, repetindo o que você disse ontem.'
+  };
+  return {anom:as[0], cat, txt:forte?FORTE[cat]:FRACO[cat], forte:!!forte};
+}
+
+/* ================= 4 · OS VERBOS ================= */
+function podeSelar(){
+  const m=S.mat||{};
+  return Object.keys(COISA_CFG.custoSelar).every(k=>(m[k]|0)>=COISA_CFG.custoSelar[k]);
+}
+function faltaPraSelar(){
+  const m=S.mat||{};
+  return Object.keys(COISA_CFG.custoSelar)
+    .filter(k=>(m[k]|0)<COISA_CFG.custoSelar[k])
+    .map(k=>COISA_CFG.custoSelar[k]+' '+k);
+}
+/* achar o foco: rende estudo no dossie do §61, e so rende UMA vez por
+   anomalia — senao escutar a mesma coisa dez vezes viraria moedinha. */
+function acharFoco(coisaId,forte){
+  const t=tellDoFoco(coisaId,forte);
+  if(!t)return null;
+  const e=est(coisaId);
+  if(!forte)return t;                       /* olhar so insinua */
+  if(e.achou)return t;                      /* ja rendeu aqui    */
+  e.achou=true;
+  try{
+    if(typeof dossiEstudar==='function')
+      dossiEstudar(t.anom,COISA_CFG.estudoPorFoco);
+    if(typeof dossi==='function')dossi(t.anom).foco=coisaId;
+    const r=(typeof registroDe==='function')?registroDe(t.anom):null;
+    if(typeof anotar==='function')
+      anotar('O foco '+deNome((r&&r.nome)||t.anom)+' está em '+coisaDe(coisaId).n+'.');
+  }catch(x){}
+  if(typeof marcarSujo==='function')marcarSujo();
+  return t;
+}
+
+/* ================= 5 · A TELA =================
+   `menuComodo` ganha UMA entrada — "Olhar as coisas daqui" — e nao
+   trinta e oito botoes. O comodo ja tinha 22 botoes; despejar as coisas
+   direto na tela principal pioraria exatamente o problema que este
+   bloco nasceu pra resolver. */
+function telaCoisas(id,volta){
+  const lista=coisasDe(id);
+  limpar(); cap(comodo(id).nome+' · o que tem aqui');
+  if(!lista.length){ diz('Nada que valha olhar de perto.','fraco'); return volta(); }
+  diz('Você para e olha o cômodo como quem procura, não como quem passa.','narr');
+  AC.innerHTML='';
+  lista.forEach(c=>{
+    const e=est(c.id);
+    const marcas=[];
+    if(e.selado)marcas.push('pregado');
+    else{
+      if(e.aberto)marcas.push('aberto');
+      if(e.movido)marcas.push('arrastado');
+      if(e.quebrado)marcas.push('quebrado');
+      if(!e.visto)marcas.push('nunca olhou');
+    }
+    botao(c.n.charAt(0).toUpperCase()+c.n.slice(1),
+      ()=>telaCoisa(c.id,()=>telaCoisas(id,volta)),
+      {custo:marcas.join(' · ')||'já olhou'});
+  });
+  botao('Chega',()=>volta(),{cls:'prim'});
+}
+
+/* ARMADILHA QUE ME PEGOU AQUI, e e a MESMA que ja custou uma resposta de
+   confirmacao nesta sessao: FALAR ANTES DE REDESENHAR.
+
+   `limpar()` foi redefinido no jogo — ele NAO apaga, ele desbota o que
+   estava na tela com a classe `passado`. Entao a sequencia natural
+
+       diz('o que voce ouviu');  telaCoisa(id, volta);
+
+   desbota a frase no instante em que ela aparece: o jogador clica em
+   "Encostar o ouvido", le o tell mais importante do bloco inteiro em
+   cinza-morto, e a tela ja esta pedindo o proximo clique.
+
+   A correcao e inverter a ordem: a tela se redesenha primeiro e o `eco`
+   e dito DEPOIS, entao ele fica em pe. */
+function telaCoisa(coisaId,volta,eco){
+  const c=coisaDe(coisaId); if(!c)return volta();
+  const e=est(coisaId);
+  limpar(); cap(c.n.toUpperCase());
+  diz(c.d,'narr');
+  if(eco)eco.forEach(([t,cls])=>diz(t,cls));
+  if(e.selado){
+    diz('Você pregou tábua por cima. Não abre mais, e era essa a ideia.','sist');
+    AC.innerHTML=''; botao('Voltar',()=>volta(),{cls:'prim'});
+    return;
+  }
+  if(e.aberto&&c.dentro)diz('Já está aberto. Você já tirou o que tinha.','fraco');
+  if(e.movido&&c.sob)diz('Já está arrastado. O que estava embaixo você já viu.','fraco');
+  AC.innerHTML='';
+
+  /* ---- olhar: de graça, e insinua ---- */
+  if(c.verbos.includes('olhar'))botao(COISA_CFG.verbos.olhar.n,()=>{
+    e.visto++;
+    const t=acharFoco(coisaId,false);
+    telaCoisa(coisaId,volta,[t?[t.txt,'alerta']:['É o que parece ser.','fraco']]);
+  },{custo:COISA_CFG.verbos.olhar.d});
+
+  /* ---- escutar: silencioso, e ENTREGA o foco ---- */
+  if(c.verbos.includes('escutar'))botao(COISA_CFG.verbos.escutar.n,()=>{
+    e.visto++;
+    const t=acharFoco(coisaId,true);
+    const eco2=[];
+    if(t){
+      const r=(typeof registroDe==='function')?registroDe(t.anom):null;
+      eco2.push([t.txt,'perigo']);
+      eco2.push(['Isso é o foco '+deNome((r&&r.nome)||'alguma coisa')+
+          '. Agora você sabe onde ela mora.','sist']);
+      eco2.push(['Pregar tábua por cima resolve de vez. Custa tábua e prego.','sist']);
+    }else if(c.som)eco2.push([c.som,'narr']);
+    else eco2.push(['Nada. Só a casa.','fraco']);
+    telaCoisa(coisaId,volta,eco2);
+  },{custo:COISA_CFG.verbos.escutar.d});
+
+  /* ---- abrir ---- */
+  if(c.verbos.includes('abrir')&&!e.aberto)
+    botao(COISA_CFG.verbos.abrir.n,acaoDia(COISA_CFG.verbos.abrir.h,async()=>{
+      e.aberto=true; e.vezes++;
+      gastarRuido(COISA_CFG.verbos.abrir.ruido);
+      telaCoisa(coisaId,volta,renderAchado(c.dentro,coisaId));
+    }),{custo:COISA_CFG.verbos.abrir.d});
+
+  /* ---- arrastar ---- */
+  if(c.verbos.includes('mover')&&!e.movido)
+    botao(COISA_CFG.verbos.mover.n,acaoDia(COISA_CFG.verbos.mover.h,async()=>{
+      e.movido=true; e.vezes++;
+      gastarRuido(COISA_CFG.verbos.mover.ruido);
+      telaCoisa(coisaId,volta,renderAchado(c.sob,coisaId));
+    }),{custo:COISA_CFG.verbos.mover.d});
+
+  /* ---- forçar: barulho de verdade ---- */
+  if(c.verbos.includes('forcar')&&!e.aberto)
+    botao(COISA_CFG.verbos.forcar.n,acaoDia(COISA_CFG.verbos.forcar.h,async()=>{
+      e.aberto=true; e.quebrado=true; e.vezes++;
+      gastarRuido(COISA_CFG.verbos.forcar.ruido);
+      const eco3=[['Cede com um estalo que a casa inteira ouve.','perigo']]
+        .concat(renderAchado(c.dentro,coisaId));
+      telaCoisa(coisaId,volta,eco3);
+    }),{custo:COISA_CFG.verbos.forcar.d});
+
+  /* ---- selar: permanente, e resolve a anomalia ancorada ---- */
+  if(c.verbos.includes('selar')&&!e.selado){
+    const falta=faltaPraSelar();
+    botao(COISA_CFG.verbos.selar.n,acaoDia(COISA_CFG.verbos.selar.h,async()=>{
+      if(!podeSelar()){ diz('Falta '+falta.join(' e ')+'.','perigo'); return volta(); }
+      Object.keys(COISA_CFG.custoSelar).forEach(k=>{
+        S.mat[k]=(S.mat[k]|0)-COISA_CFG.custoSelar[k];
+      });
+      e.selado=true; e.vezes++;
+      gastarRuido(COISA_CFG.verbos.selar.ruido);
+      diz('Você prega tábua por cima até não sobrar frincha.','bom');
+      selarResolve(coisaId);
+      volta();
+    }),{custo:COISA_CFG.verbos.selar.d, falta:falta.join(' e ')});
+  }
+  botao('Voltar',()=>volta(),{cls:'prim'});
+}
+
+/* devolve o que DEVE ser dito depois do redesenho, em vez de falar
+   agora e ser desbotado pelo `limpar()` que vem logo em seguida */
+function renderAchado(a,coisaId){
+  const eco=[];
+  if(!a){ return [['Não tem nada.','fraco']]; }
+  if(a.txt)eco.push([a.txt,'bom']);
+  if(a.mat){
+    darMat(a.mat,a.q||1);
+    eco.push(['Deu pra tirar '+(a.q||1)+' de '+a.mat+'.','bom']);
+  }
+  /* o que voce mexe, a casa lembra (§60) */
+  try{
+    if(typeof lemAnotar==='function'){
+      const c=coisaDe(coisaId);
+      if(c)lemAnotar(c.onde,'objeto','FISICO');
+    }
+  }catch(e){}
+  return eco;
+}
+
+/* selar o foco e a RESOLUCAO PERMANENTE: ela conta como metodo no §61
+   (entao repetir demais tambem ensina a anomalia — selar nao escapa da
+   regra), rende estudo, e encerra a anomalia ativa. */
+function selarResolve(coisaId){
+  const as=anomsNaCoisa(coisaId);
+  try{
+    if(typeof lemAnotar==='function'){
+      const c=coisaDe(coisaId);
+      if(c)lemAnotar(c.onde,'costura','FISICO');
+    }
+  }catch(e){}
+  if(!as.length){
+    diz('Não era o foco de nada. Mas agora não entra mais nada por aí.','sist');
+    return 0;
+  }
+  as.forEach(a=>{
+    const r=(typeof registroDe==='function')?registroDe(a):null;
+    const nome=(r&&r.nome)||a;
+    try{
+      if(typeof dossiEstudar==='function')dossiEstudar(a,COISA_CFG.estudoPorSelar);
+      if(typeof dossiUsou==='function')dossiUsou(a,'selar');
+      if(typeof encerrarAtiva==='function')encerrarAtiva(a,'selada no foco');
+    }catch(e){}
+    diz(nome+' não tem mais por onde. Acabou, e acabou por causa disso.','bom');
+    if(typeof anotar==='function')
+      anotar('Selou o foco '+deNome(nome)+' em '+coisaDe(coisaId).n+'.');
+  });
+  /* o foco selado nao vale mais: a proxima anomalia procura outro */
+  const F=focos();
+  Object.keys(F).forEach(k=>{ if(F[k]===coisaId)delete F[k]; });
+  if(typeof marcarSujo==='function')marcarSujo();
+  return as.length;
+}
+
+/* `selar` entra no vocabulario de mutacao do §61: quem so sela tambem
+   ensina. A anomalia que aprendeu contra selar volta pelo lado. */
+if(typeof MUTACOES==='object'&&MUTACOES&&!MUTACOES.selar){
+  MUTACOES.selar={
+    fecha:'selar',
+    nome:'aprendeu a contornar tábua',
+    conta:'Ela mudou de foco antes de você pregar o último prego.',
+    abre:'reparar',
+    comoAbre:'O que muda de lugar deixa rastro, e rastro se conserta.',
+    tell:{tipo:'foco_mudou',intensidade:.65,turnosAntes:2}
+  };
+}
+
+/* ================= 6 · O GANCHO =================
+   UM botao no menu do comodo. */
+if(typeof menuComodo==='function'){
+  const _mc=menuComodo;
+  menuComodo=function(id){
+    const r=_mc.apply(this,arguments);
+    try{
+      const c=(id==null?SALA:id|0);
+      const lista=coisasDe(c);
+      if(lista.length){
+        const naoVistas=lista.filter(x=>!est(x.id).visto).length;
+        botao('Olhar as coisas daqui',()=>telaCoisas(c,()=>menuComodo(c)),
+          {custo:naoVistas?naoVistas+' que você nunca olhou':lista.length+' coisas'});
+      }
+    }catch(e){}
+    return r;
+  };
+}
+
+/* ================= 7 · MIGRACAO ================= */
+function migrarCoisas(d){
+  const out={};
+  const v=(d&&d.coisas&&typeof d.coisas==='object')?d.coisas:null;
+  if(v)Object.keys(v).forEach(k=>{
+    if(!COISA_POR_ID[k])return;              /* coisa que nao existe mais */
+    const x=v[k]||{};
+    out[k]={visto:x.visto|0, aberto:!!x.aberto, movido:!!x.movido,
+            selado:!!x.selado, quebrado:!!x.quebrado, vezes:x.vezes|0,
+            achou:!!x.achou};
+    Object.keys(x).forEach(c=>{ if(!(c in out[k]))out[k][c]=x[c]; });
+  });
+  return out;
+}
+function migrarFocos(d){
+  const out={};
+  const v=(d&&d.focos&&typeof d.focos==='object')?d.focos:null;
+  if(v)Object.keys(v).forEach(k=>{
+    if(v[k]===null||COISA_POR_ID[v[k]])out[k]=v[k];
+  });
+  return out;
+}
+if(typeof carregar==='function'){
+  const _car2=carregar;
+  carregar=function(){
+    const r=_car2.apply(this,arguments);
+    try{ S.coisas=migrarCoisas(S); S.focos=migrarFocos(S); }catch(e){}
+    return r;
+  };
+}
+
+/* ================= 8 · LEITURA DE FORA ================= */
+function coisasEstado(){
+  const C=coisas();
+  const porComodo={};
+  PLANTA.forEach(q=>{ porComodo[q.nome]=coisasDe(q.id).length; });
+  const porCat={};
+  COISAS.forEach(c=>{ porCat[c.cat]=(porCat[c.cat]||0)+1; });
+  const verbos={};
+  COISAS.forEach(c=>c.verbos.forEach(v=>{ verbos[v]=(verbos[v]||0)+1; }));
+  return {
+    cfg:COISA_CFG, total:COISAS.length, porComodo, porCat, verbos,
+    mexidas:Object.keys(C).length,
+    seladas:Object.keys(C).filter(k=>C[k].selado).length,
+    focos:{...focos()}
+  };
+}
+
+</script>
+<!-- s62:fim -->
+<!-- s63:inicio -->
+<script>
+/* ============ §63 · A EXPEDICAO TEM CHAO ============================
+
+   A AUDITORIA, CONTADA NO CODIGO
+
+   Uma expedicao inteira sao TRES decisoes:
+
+       etapaEntrar   "Por onde você entra?"   → 2 opcoes
+       etapaDentro   "O que procura?"         → 2 opcoes
+       etapaSair     "E agora, como sai?"     → 2 opcoes
+
+   Oito permutacoes por lugar. E cada opcao e a MESMA coisa por dentro:
+   um `+1 risco` ou um `×1.2 saque`. O texto de cada uma e otimo — "o
+   som dos seus passos volta com um atraso que nao e seu" — e embaixo
+   dele nao tem decisao nenhuma, tem um botao de volume.
+
+   E o lugar nao guarda nada entre visitas, fora `S.esgotados[id]`, que
+   e um numero.
+
+   O QUE ENTRA — E O QUE NAO E MEXIDO
+
+   O §23 tornou a expedicao TRANSACIONAL: `S.exped.levar` vive no save,
+   cada pegada marca sujo, travar no meio nao perde o saque. Isso nao
+   pode ser tocado. Entao este bloco substitui UMA etapa — a do meio, a
+   que so tinha duas opcoes — por uma caminhada, e devolve `ctx.achados`
+   do mesmo jeito pra `etapaCarga`. Entrada, carga e saida continuam
+   sendo o que sao.
+
+   A CAMINHADA
+
+   1 · O LUGAR TEM PONTOS. Voce avanca de um pro outro. Cada passo mais
+       fundo rende mais e custa mais luz.
+   2 · A LUZ E ORCAMENTO. Lampiao, lanterna e fosforo dao quanto voce
+       aguenta ir. Acabar a luz la dentro nao mata — faz voce sair as
+       pressas, e sair as pressas custa.
+   3 · OUVIR E DE GRACA, e diz o que tem no proximo ponto ANTES de voce
+       ir. E o mesmo contrato de tell da casa: o aviso vem antes do
+       dano, e custa atencao deliberada em vez de sorte.
+   4 · O LUGAR LEMBRA. O ponto que voce esvaziou fica vazio na proxima
+       visita. Voltar ao mesmo lugar passa a ser uma decisao ("ja tirei
+       o facil de la") em vez de repetir a mesma roleta.
+   5 · O NINHO. Um ponto fundo pode guardar o que explica uma anomalia
+       que esta na SUA casa. Ler rende estudo no dossie (§61). E a
+       razao de ir fundo que nao e saque.
+
+   POR QUE OS PONTOS NAO SAO TABELA POR LUGAR
+
+   Vinte e dois lugares vezes cinco pontos seriam 110 entradas escritas
+   a mao, e 110 entradas escritas a mao envelhecem: entra um lugar novo
+   e ele nasce sem pontos. Aqui o lugar declara uma FORMA (quantos
+   pontos, que tipo), e o tipo do ponto traz o texto. Lugar novo herda
+   uma forma pela cara dele e ja nasce caminhavel.
+   ===================================================================== */
+
+const DENTRO_CFG={
+  /* luz que cada fonte dá pra caminhada, em pontos de profundidade */
+  luz:{ lampiao:7, lanterna:5, fosforo:2, nenhuma:2 },
+  /* quanto cada ponto consome, por profundidade */
+  custoLuzBase: 1,
+  custoLuzPorFundura: .5,
+  /* risco somado por ponto de profundidade */
+  riscoPorFundura: .8,
+  /* multiplicador de saque por profundidade: fundo rende mais */
+  saquePorFundura: .55,
+  /* quantos pontos um lugar tem, por faixa de risco do lugar */
+  pontosPorRisco: {1:3, 2:4, 3:4, 4:5, 5:5},
+  /* o que sair no escuro custa */
+  pressaRisco: 3,
+  pressaPerda: .25,
+  /* estudo que ler um ninho rende no dossiê do §61 */
+  estudoNinho: 34,
+  /* a partir de que profundidade pode haver ninho */
+  funduraNinho: 2
+};
+
+/* ================= 1 · OS TIPOS DE PONTO =================
+   `fundura` e o quanto ele esta pra dentro. `rende` multiplica o saque
+   daquele ponto. `ouve` e o que voce escuta DESTE ponto sobre o
+   proximo — o tell. */
+const PONTOS={
+  soleira:{n:'a soleira', fundura:0, rende:.35,
+    d:'Você para no vão da porta e deixa os olhos acostumarem.',
+    ouve:'Lá dentro é fundo. Dá pra ouvir pelo jeito que o ar volta.'},
+  salao:{n:'o salão da frente', fundura:1, rende:.8,
+    d:'O que dava pra levar daqui já levaram. Sobrou o que era pesado demais.',
+    ouve:'Mais pra dentro alguma coisa goteja num ritmo certo demais.'},
+  corredor:{n:'o corredor', fundura:1, rende:.45,
+    d:'Comprido, e as portas dos dois lados estão todas do mesmo jeito: encostadas.',
+    ouve:'No fim dele o chão muda de som. De cimento pra madeira.'},
+  estoque:{n:'o estoque', fundura:2, rende:1.5,
+    d:'Prateleira de metal até o teto. Ninguém chegou aqui com tempo de escolher.',
+    ouve:'Atrás da parede do fundo tem espaço. Muito espaço.'},
+  escada:{n:'a escada', fundura:2, rende:.4,
+    d:'Desce. Os primeiros três degraus você enxerga.',
+    ouve:'Embaixo, água parada. E na água, círculo se abrindo.'},
+  subsolo:{n:'o subsolo', fundura:3, rende:1.9,
+    d:'A lanterna alcança três metros e depois desiste.',
+    ouve:'Aqui embaixo o seu próprio passo volta com atraso. Dois atrasos.'},
+  camara:{n:'a câmara fria', fundura:3, rende:1.7,
+    d:'A porta é de borracha e pesa. Do lado de dentro tem trava de emergência.',
+    ouve:'Do outro lado da porta, nada. Um nada que ocupa espaço.'},
+  fundo:{n:'o fundo do prédio', fundura:4, rende:2.2,
+    d:'É onde a construção termina e ninguém mais foi.',
+    ouve:'Não tem mais o que ouvir. Você já está no fim.'},
+  telhado:{n:'o telhado', fundura:2, rende:.7,
+    d:'De cima dá pra ver o caminho de volta inteiro.',
+    ouve:'A rua está como você deixou. Isso é uma coisa boa.'},
+  patio:{n:'o pátio', fundura:1, rende:.6,
+    d:'Aberto demais pro seu gosto, mas é passagem.',
+    ouve:'Do galpão do fundo vem cheiro. Não é de comida.'}
+};
+/* as formas: cada uma e uma sequencia de tipos, do raso pro fundo */
+const FORMAS={
+  predio:  ['soleira','salao','corredor','estoque','subsolo'],
+  galpao:  ['soleira','patio','estoque','fundo'],
+  casa:    ['soleira','salao','corredor','escada','subsolo'],
+  posto:   ['soleira','patio','estoque','subsolo'],
+  mercado: ['soleira','salao','estoque','camara','subsolo'],
+  torre:   ['soleira','salao','escada','telhado','fundo']
+};
+/* qual planta cada lugar tem. `PLANTA_DE` e nao `FORMA_DE` porque o
+   §27 (a porta) ja usa `FORMA_DE` pra outra coisa, e a guarda de
+   colisao do montar.js quebrou a build na hora — dois blocos com o
+   mesmo nome de topo fazem o segundo apagar o primeiro em silencio. Quem nao esta aqui cai numa forma escolhida
+   pela CARA do id — e nao por sorteio, porque lugar nao muda de planta
+   entre uma visita e outra. */
+const PLANTA_DE={
+  an_igreja:'torre', an_armazem:'galpao', an_roca:'galpao', an_escola:'predio',
+  pe_atacado:'galpao', pe_borracharia:'galpao', pe_farmacia:'casa',
+  pe_frigorifico:'mercado', pe_quartel:'predio',
+  su_hospital:'predio', su_industrial:'galpao', su_rodoviaria:'predio',
+  su_shopping:'mercado', su_aeroporto:'predio',
+  pi_posto:'posto', pi_fila:'patio', pi_hotel:'predio', pi_deposito:'galpao',
+  rua7:'casa', posto:'posto', mercado:'mercado', colegio:'predio', igreja:'torre'
+};
+const FORMAS_ORD=['casa','predio','galpao','posto','mercado','torre'];
+function formaDe(localId){
+  const f=PLANTA_DE[localId];
+  if(f&&FORMAS[f])return f;
+  /* lugar novo herda forma pela cara do id, deterministicamente: o
+     mesmo lugar sempre tem a mesma planta */
+  return FORMAS_ORD[hash32(String(localId||'x'))%FORMAS_ORD.length];
+}
+function pontosDe(l){
+  const forma=FORMAS[formaDe(l&&l.id)]||FORMAS.casa;
+  const teto=DENTRO_CFG.pontosPorRisco[trava(l&&l.risco||2,1,5)]||4;
+  return forma.slice(0,teto).map(t=>({tipo:t, ...PONTOS[t]}));
+}
+
+/* ================= 2 · O ESTADO DO LUGAR =================
+   O que voce esvaziou fica vazio. So dado — nada de funcao no save. */
+function lugares(){
+  if(!S.lugaresDentro||typeof S.lugaresDentro!=='object')S.lugaresDentro={};
+  return S.lugaresDentro;
+}
+function lugar(id){
+  const L=lugares(), k=String(id);
+  if(!L[k])L[k]={pontos:{}, visitas:0, ninhoLido:null};
+  return L[k];
+}
+function pontoVazio(localId,tipo){ return !!lugar(localId).pontos[tipo]; }
+function esvaziar(localId,tipo){
+  lugar(localId).pontos[tipo]=(S.dia|0)||1;
+  if(typeof marcarSujo==='function')marcarSujo();
+}
+
+/* ================= 3 · A LUZ =================
+   Quanto voce aguenta ir pra dentro. Sai do que voce CARREGA — nao e
+   numero novo, e leitura do equipamento que ja existe. */
+/* ARMADILHA QUE ME PEGOU AQUI, e ela matou o bloco inteiro por um tempo:
+
+   `tem(hab)` NAO E CHECAGEM DE INVENTARIO. Ele e
+   `S.abrigo.some(p=>p.hab===hab)` — checa HABILIDADE DE PESSOA. Entao
+   `tem('lanterna')` era sempre falso, `luzDaExpedicao()` devolvia 2 em
+   toda situacao, e o orcamento de luz — que e a decisao central desta
+   caminhada — era um numero constante. Parametro morto, proibicao nº 6,
+   e eu so vi jogando: a expedicao saia com "Luz para 2.0" mesmo com
+   lanterna na mao.
+
+   O certo e `temFerra('lanterna')` mais `S.pilhas`, que e o estado que
+   o jogo ja mantem e ja consome em outro lugar (§ do fabrico).
+
+   E A LUZ GASTA PILHA. Orcamento que nao tem preco nao e orcamento: sem
+   consumir, o jogador com uma lanterna teria luz infinita pra sempre e a
+   decisao de ir fundo custaria nada. */
+function luzDaExpedicao(){
+  try{
+    if(typeof temFerra==='function'&&temFerra('lanterna')&&(S.pilhas|0)>0)
+      return (S.pilhas|0)>=2?DENTRO_CFG.luz.lampiao:DENTRO_CFG.luz.lanterna;
+    if(typeof temMat==='function'&&temMat('fio',1))
+      return DENTRO_CFG.luz.fosforo;
+  }catch(e){}
+  return DENTRO_CFG.luz.nenhuma;
+}
+/* a pilha queima na caminhada, nao no clique: gastar por ponto faria a
+   lanterna durar meia expedicao e transformaria um recurso em imposto. */
+function gastarLuzDaExpedicao(){
+  try{
+    if(typeof temFerra==='function'&&temFerra('lanterna')&&(S.pilhas|0)>0){
+      S.pilhas=Math.max(0,(S.pilhas|0)-1);
+      if(typeof marcarSujo==='function')marcarSujo();
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+function custoDeLuz(fundura){
+  return DENTRO_CFG.custoLuzBase+fundura*DENTRO_CFG.custoLuzPorFundura;
+}
+
+/* ================= 4 · O NINHO =================
+   O que explica uma anomalia que esta na SUA casa, guardado num ponto
+   fundo de um lugar la fora.
+
+   E DETERMINISTICO: o lugar que guarda o ninho de uma anomalia sai do
+   hash do id dela com o saveId. Sorteado, a estrategia unica seria
+   varrer tudo — que e o oposto de investigar. */
+function ninhoDaExpedicao(l,fundura){
+  if(fundura<DENTRO_CFG.funduraNinho)return null;
+  let ativ=[];
+  try{ ativ=(typeof ativas==='function')?ativas():[]; }catch(e){}
+  if(!ativ.length)return null;
+  const L=lugar(l.id);
+  for(const a of ativ){
+    if(L.ninhoLido===a)continue;
+    const h=hash32(String(a)+'|ninho|'+String(S.saveId||''));
+    /* cada anomalia tem UM lugar; se este e o lugar dela, o ninho esta aqui.
+       O SORTEIO SAI DE `lugaresVisitaveis()`, NAO DAS CHAVES DE `PLANTA_DE`.
+       A primeira versao usava PLANTA_DE, que tem cinco ids a mais — rua7,
+       posto, mercado, colegio, igreja — que sao formas de ETAPAS e nao
+       lugares da cidade. Resultado: em ~22% das campanhas o ninho nascia
+       num lugar que o jogador nao alcanca por este caminho, e a pista
+       simplesmente nao existia. Pista inalcancavel e pior que pista
+       nenhuma: o jogador procura pra sempre. */
+    const lista=lugaresVisitaveis();
+    if(lista.length&&lista[h%lista.length]===l.id)return a;
+  }
+  return null;
+}
+/* os lugares que o jogador realmente alcanca numa expedicao */
+function lugaresVisitaveis(){
+  const out=[];
+  try{ Object.keys(LOCAIS_CIDADE).forEach(c=>
+    LOCAIS_CIDADE[c].forEach(l=>out.push(l.id))); }catch(e){}
+  return out;
+}
+function lerNinho(l,anomId){
+  const r=(typeof registroDe==='function')?registroDe(anomId):null;
+  const nome=(r&&r.nome)||anomId;
+  lugar(l.id).ninhoLido=anomId;
+  let ganho=0;
+  try{
+    if(typeof dossiEstudar==='function'){
+      const antes=dossi(anomId).estudo;
+      dossiEstudar(anomId,DENTRO_CFG.estudoNinho);
+      ganho=dossi(anomId).estudo-antes;
+    }
+  }catch(e){}
+  const eco=[
+    ['Não é saque. É papel, e o papel fala de uma coisa que você conhece.','narr'],
+    ['Alguém aqui tomou nota '+(typeof deNome==='function'?deNome(nome):'de '+nome)+
+     ' antes de você. Tomou nota até parar de tomar.','perigo'],
+    ['Você entende '+ganho+' pontos a mais do que ela é.','bom']
+  ];
+  try{
+    if(typeof anotar==='function')
+      anotar('Achou o ninho '+(typeof deNome==='function'?deNome(nome):'de '+nome)+
+             ' em '+l.n+'.');
+  }catch(e){}
+  if(typeof marcarSujo==='function')marcarSujo();
+  return eco;
+}
+
+/* ================= 5 · A CAMINHADA ================= */
+function andarDentro(E,ctx){
+  const l=ctx.l;
+  const pontos=pontosDe(l);
+  lugar(l.id).visitas++;
+  ctx.pontos=pontos;
+  ctx.i=0;
+  ctx.luz=luzDaExpedicao();
+  ctx.luzMax=ctx.luz;
+  ctx.gastouPilha=gastarLuzDaExpedicao();
+  ctx.achados=ctx.achados||[];
+  ctx.colhidos=[];
+  const eco=[
+    ['Você entra. A partir daqui a luz é sua e ela acaba.','sist'],
+    ['Luz para '+ctx.luz.toFixed(1)+' pontos de profundidade.','sist']
+  ];
+  if(ctx.gastouPilha)eco.push(['Queimou uma pilha. Sobram '+(S.pilhas|0)+'.','fraco']);
+  else if(ctx.luz<=DENTRO_CFG.luz.nenhuma)
+    eco.push(['Sem lanterna com pilha, você não passa da entrada.','perigo']);
+  passoDentro(E,ctx,eco);
+}
+
+function passoDentro(E,ctx,eco){
+  const l=ctx.l, pontos=ctx.pontos, p=pontos[ctx.i];
+  limpar(); cap(l.n+' · '+p.n);
+  diz(p.d,'narr');
+  if(eco)eco.forEach(([t,c])=>diz(t,c));
+  diz('Luz: '+Math.max(0,ctx.luz).toFixed(1)+' de '+ctx.luzMax.toFixed(1)+
+      ' · profundidade '+p.fundura,ctx.luz<=1?'perigo':'sist');
+  AC.innerHTML='';
+
+  const vazio=pontoVazio(l.id,p.tipo);
+
+  /* ---- vasculhar este ponto ---- */
+  if(!vazio){
+    botao('Vasculhar '+p.n,()=>{
+      const ach=colherNoPonto(l,p,ctx);
+      esvaziar(l.id,p.tipo);
+      passoDentro(E,ctx,ach);
+    },{custo:'rende '+(p.rende>=1.5?'muito':p.rende>=.7?'razoável':'pouco')});
+  }else{
+    /* "numa outra vez" so vale se foi MESMO outra vez. Jogando, a frase
+       aparecia no segundo seguinte ao saque e mentia na cara do jogador. */
+    const quando=lugar(l.id).pontos[p.tipo];
+    diz(quando===((S.dia|0)||1)
+      ? 'Você já revirou isto aqui agora. Não sobrou nada.'
+      : 'Você já tirou o que dava daqui, no dia '+quando+'.','fraco');
+  }
+
+  /* ---- o ninho ---- */
+  const nin=ninhoDaExpedicao(l,p.fundura);
+  if(nin)botao('Olhar o papel na parede',()=>{
+    passoDentro(E,ctx,lerNinho(l,nin));
+  },{cls:'prim',custo:'não é saque'});
+
+  /* ---- ouvir o proximo: de graca, e e o TELL ---- */
+  const prox=pontos[ctx.i+1];
+  if(prox)botao('Escutar antes de ir',()=>{
+    const perigo=ctx.risco+prox.fundura*DENTRO_CFG.riscoPorFundura;
+    const custo=custoDeLuz(prox.fundura);
+    passoDentro(E,ctx,[
+      [p.ouve,'narr'],
+      [custo>ctx.luz
+        ? 'A luz não chega até lá. Se você for, volta no escuro.'
+        : 'A luz chega. Sobra pouco depois.','sist'],
+      [perigo>6?'E tem coisa lá. Você não sabe o quê, mas tem.'
+              :'Parece vazio. Parece.', perigo>6?'perigo':'fraco']
+    ]);
+  },{custo:'de graça'});
+
+  /* ---- avancar ---- */
+  if(prox){
+    const custo=custoDeLuz(prox.fundura);
+    botao('Ir para '+prox.n,()=>{
+      ctx.i++;
+      ctx.luz-=custo;
+      ctx.risco+=prox.fundura*DENTRO_CFG.riscoPorFundura;
+      if(ctx.luz<=0)return sairNoEscuro(E,ctx);
+      passoDentro(E,ctx,[['Você vai mais pra dentro.','narr']]);
+    },{custo:'−'+custo.toFixed(1)+' luz · mais arriscado',
+       cls:ctx.luz-custo<=1?'':'prim'});
+  }
+
+  /* ---- sair com o que tem ---- */
+  botao('Sair com o que já pegou',()=>{
+    diz('Você refaz o caminho com a luz que sobrou.','bom');
+    etapaCarga(E,ctx);
+  },{cls:'prim',custo:ctx.colhidos.length+' coisa(s) na mão'});
+}
+
+/* colher num ponto: usa os MESMOS geradores de saque do jogo, so
+   temperados pela profundidade. Tabela nova de loot seria um segundo
+   sistema de economia divergindo do primeiro. */
+function colherNoPonto(l,p,ctx){
+  const eco=[];
+  const gasto=S.esgotados[l.id]||0;
+  const f=p.rende*(1+p.fundura*DENTRO_CFG.saquePorFundura)
+          *(gasto?.6:1)*(ctx.mult||1);
+  const AJ=(typeof ajusteRecurso==='function')?ajusteRecurso(l):{comida:1,diesel:1,estraga:1,med:0};
+  const qd=Math.round((l.diesel[0]+_ale()*(l.diesel[1]-l.diesel[0]))*f*AJ.diesel*.42);
+  const qc=Math.round((l.comida[0]+_ale()*(l.comida[1]-l.comida[0]))*f*AJ.comida*.42);
+  const cm=(typeof acharComida==='function')?acharComida(qc,AJ.estraga):{boa:qc,ruim:0};
+  const junta=(n,q,kg,extra)=>{
+    if(q<=0)return;
+    const ja=ctx.achados.find(x=>x.n===n);
+    if(ja)ja.q+=q; else ctx.achados.push({n,q,kg,...(extra||{})});
+    ctx.colhidos.push(n);
+    eco.push([n+': +'+q+'.','bom']);
+  };
+  junta('diesel',qd,1);
+  junta('comida',cm.boa,1.5);
+  if(cm.ruim)junta('lata suspeita',cm.ruim,1.5,
+    {estragada:true,d:'A tampa está estufada. Pode ser só pressão. Pode não ser.'});
+  /* item proprio do lugar: so nos pontos fundos, e uma vez */
+  if(p.fundura>=2&&typeof itensDoLocal==='function'){
+    (itensDoLocal(l)||[]).slice(0,1).forEach(it=>{
+      ctx.achados.push({n:it.n,q:1,kg:it.kg,item:it,d:it.d});
+      ctx.colhidos.push(it.n);
+      eco.push([it.n+'. Disso aqui não tem em todo lugar.','bom']);
+    });
+  }
+  if(!eco.length)eco.push(['Você revira e não acha nada que preste.','fraco']);
+  return eco;
+}
+
+/* sair no escuro: nao mata. Custa parte do saque e um susto — porque
+   punir com morte uma decisao de orcamento faria o jogador parar de
+   arriscar, e arriscar e a decisao que este bloco existe pra criar. */
+function sairNoEscuro(E,ctx){
+  limpar(); cap(ctx.l.n+' · no escuro');
+  diz('A luz acaba antes de você chegar na saída.','perigo');
+  diz('Você sai pelo tato, batendo em tudo, e deixa coisa cair no caminho.','narr');
+  ctx.risco+=DENTRO_CFG.pressaRisco;
+  const perdeu=[];
+  ctx.achados.forEach(a=>{
+    const p=Math.floor(a.q*DENTRO_CFG.pressaPerda);
+    if(p>0){ a.q-=p; perdeu.push(p+' '+a.n); }
+  });
+  if(perdeu.length)diz('Ficou pra trás: '+perdeu.join(', ')+'.','perigo');
+  AC.innerHTML='';
+  botao('Contar o que sobrou',()=>etapaCarga(E,ctx),{cls:'prim'});
+}
+
+/* ================= 6 · O GANCHO =================
+   Substitui SO a etapa do meio. Entrada, carga e saida — e as garantias
+   transacionais do §23 — continuam intactas. */
+if(typeof etapaDentro==='function'){
+  const _dentro=etapaDentro;
+  etapaDentro=function(E,ctx){
+    try{
+      if(ctx&&ctx.l&&Array.isArray(ctx.l.comida)&&Array.isArray(ctx.l.diesel))
+        return andarDentro(E,ctx);
+    }catch(e){
+      if(typeof registrarErro==='function')registrarErro(e,'andarDentro');
+    }
+    return _dentro.apply(this,arguments);
+  };
+}
+
+/* ================= 7 · MIGRACAO ================= */
+function migrarLugares(d){
+  const out={};
+  const v=(d&&d.lugaresDentro&&typeof d.lugaresDentro==='object')?d.lugaresDentro:null;
+  if(v)Object.keys(v).forEach(k=>{
+    const x=v[k]||{};
+    out[k]={pontos:(x.pontos&&typeof x.pontos==='object')?x.pontos:{},
+            visitas:x.visitas|0, ninhoLido:x.ninhoLido||null};
+    Object.keys(x).forEach(c=>{ if(!(c in out[k]))out[k][c]=x[c]; });
+  });
+  return out;
+}
+if(typeof carregar==='function'){
+  const _car3=carregar;
+  carregar=function(){
+    const r=_car3.apply(this,arguments);
+    try{ S.lugaresDentro=migrarLugares(S); }catch(e){}
+    return r;
+  };
+}
+
+/* ================= 8 · LEITURA DE FORA ================= */
+function dentroEstado(){
+  const todos=[];
+  Object.keys(LOCAIS_CIDADE).forEach(c=>LOCAIS_CIDADE[c].forEach(l=>todos.push(l)));
+  const L=lugares();
+  return {
+    cfg:DENTRO_CFG,
+    tipos:Object.keys(PONTOS).length,
+    formas:Object.keys(FORMAS).length,
+    lugares:todos.length,
+    semForma:todos.filter(l=>!PLANTA_DE[l.id]).map(l=>l.id),
+    pontosPorLugar:todos.reduce((a,l)=>{a[l.id]=pontosDe(l).length;return a;},{}),
+    funduraMax:Math.max(...Object.values(PONTOS).map(p=>p.fundura)),
+    visitados:Object.keys(L).length,
+    luzAgora:luzDaExpedicao()
+  };
+}
+
+</script>
+<!-- s63:fim -->
 </body>
 </html>

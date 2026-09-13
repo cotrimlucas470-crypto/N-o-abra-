@@ -61,6 +61,8 @@ const BLOCOS=[
   {arq:'s59-canais.js',         ini:'<!-- s59:inicio -->', fim:'<!-- s59:fim -->'},
   {arq:'s60-memoria-visual.js', ini:'<!-- s60:inicio -->', fim:'<!-- s60:fim -->'},
   {arq:'s61-anomalia-viva.js', ini:'<!-- s61:inicio -->', fim:'<!-- s61:fim -->'},
+  {arq:'s62-coisas.js', ini:'<!-- s62:inicio -->', fim:'<!-- s62:fim -->'},
+  {arq:'s63-dentro.js', ini:'<!-- s63:inicio -->', fim:'<!-- s63:fim -->'},
 ];
 
 /* A voz da abertura entra embutida. O jogo é um arquivo só — é o que a
