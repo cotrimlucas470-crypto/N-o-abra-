@@ -325,9 +325,34 @@ function passoDentro(E,ctx,eco){
     passoDentro(E,ctx,lerNinho(l,nin));
   },{cls:'prim',custo:'não é saque'});
 
-  /* ---- ouvir o proximo: de graca, e e o TELL ---- */
+  /* ---- avancar ---- */
   const prox=pontos[ctx.i+1];
-  if(prox)botao('Escutar antes de ir',()=>{
+  if(prox){
+    const custo=custoDeLuz(prox.fundura);
+    botao('Ir para '+prox.n,()=>{
+      ctx.i++; ctx.escutou=false;
+      ctx.luz-=custo;
+      ctx.risco+=prox.fundura*DENTRO_CFG.riscoPorFundura;
+      if(ctx.luz<=0)return sairNoEscuro(E,ctx);
+      passoDentro(E,ctx,[['Você vai mais pra dentro.','narr']]);
+    },{custo:'−'+custo.toFixed(1)+' luz · mais arriscado',
+       cls:ctx.luz-custo<=1?'':'prim'});
+  }
+
+  /* ---- ouvir o proximo: de graca, e e o TELL ----
+
+     UMA VEZ POR PONTO, POR VISITA. Escutar duas vezes daqui devolve a
+     MESMA frase — entao oferecer de novo e uma acao gratuita, repetivel
+     e que nao anda. O `expteste` provou isso do jeito mais direto
+     possivel: o caminhador cego dele clica sempre na primeira acao da
+     tela, e queimou os 60 passos dele em "Escutar antes de ir", sem
+     nunca chegar na carga. Nove assercoes reprovaram — e o defeito nao
+     era do teste, era da minha tela.
+
+     Por isso tambem o "Ir para" subiu pra cima do "Escutar": a acao que
+     ANDA vem antes da que so informa. */
+  if(prox&&!ctx.escutou)botao('Escutar antes de ir',()=>{
+    ctx.escutou=true;
     const perigo=ctx.risco+prox.fundura*DENTRO_CFG.riscoPorFundura;
     const custo=custoDeLuz(prox.fundura);
     passoDentro(E,ctx,[
@@ -339,19 +364,6 @@ function passoDentro(E,ctx,eco){
               :'Parece vazio. Parece.', perigo>6?'perigo':'fraco']
     ]);
   },{custo:'de graça'});
-
-  /* ---- avancar ---- */
-  if(prox){
-    const custo=custoDeLuz(prox.fundura);
-    botao('Ir para '+prox.n,()=>{
-      ctx.i++;
-      ctx.luz-=custo;
-      ctx.risco+=prox.fundura*DENTRO_CFG.riscoPorFundura;
-      if(ctx.luz<=0)return sairNoEscuro(E,ctx);
-      passoDentro(E,ctx,[['Você vai mais pra dentro.','narr']]);
-    },{custo:'−'+custo.toFixed(1)+' luz · mais arriscado',
-       cls:ctx.luz-custo<=1?'':'prim'});
-  }
 
   /* ---- sair com o que tem ---- */
   botao('Sair com o que já pegou',()=>{
