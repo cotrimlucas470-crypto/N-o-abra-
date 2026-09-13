@@ -195,86 +195,161 @@ function lemDiscorda(comodo){
 function lemPintar(w,h,comodo,py){
   if(typeof CX==='undefined')return 0;
   const c=comodo|0, P=lemPeso(c);
-  if(P<LEM_CFG.limiar.marca)return 0;
+  const mem=lemDo(c), fixo=mem.fixo||0;
+  if(P<LEM_CFG.limiar.marca && fixo<=0)return 0;
   const L=LEM_CFG.limiar, base=py||h*.72;
   const d=c*31+7;
   let camadas=0;
 
+  /* MEDIDO E CORRIGIDO — A SEGUNDA VEZ, E ESTA ERA A GRAVE.
+
+     A primeira correcao aqui foi de COR: um risco quase preto em piso
+     quase preto pintava 0,00% da tela. Resolvido.
+
+     A segunda so apareceu quando eu renderizei o mesmo comodo com peso
+     0, 4, 10, 34 e 60 lado a lado e OLHEI. Os dois ultimos eram a mesma
+     imagem — 17,61% e 17,64% de pixel mudado, mesma forca, mesmo pico.
+     O motivo estava nos tetos: `min(9,2+(P-4)/2)` satura em peso 18,
+     `min(7,2+(P-10)/4)` em 30, `min(4,1+(P-18)/6)` em 36. Ou seja: a
+     partir de peso 36 a casa parava de lembrar, e os 24 pontos de cima
+     — invasao, ritual, morte — nao pintavam nada.
+
+     Uma escada que trava no terceiro degrau e pior que nenhuma escada:
+     o jogador aprende que passar de certo ponto nao muda nada, e a
+     partir dai o peso vira numero morto.
+
+     Agora existe `f`: o quanto desta memoria ja foi preenchido, de 0 a
+     1, contra o teto de verdade (`pesoMax`). Tudo escala por ele, e a
+     escada so termina onde o peso termina. */
+  const f=trava((P-L.marca)/(LEM_CFG.pesoMax-L.marca),0,1);
+
   /* 1 · marca de uso: o que se arrasta deixa risco no chao.
-
-     MEDIDO E CORRIGIDO: a primeira versao desenhava UM risco de 1,3px
-     em cinza quase preto sobre um piso quase preto, e mudava 0,00% da
-     tela. Ou seja: existia no codigo e nao existia pro jogador, que e
-     justamente o defeito que este bloco inteiro foi escrito pra tirar.
-
-     Arranhao em piso escuro nao e mais escuro: e mais CLARO — ele tira
-     a sujeira e mostra a madeira de baixo. Entao o risco tem nucleo
-     claro com sombra de um lado, que e como arranhao se le de verdade. */
+     Arranhao em piso escuro nao e mais escuro: e mais CLARO — ele tira a
+     sujeira e mostra a madeira de baixo. Nucleo claro, sombra de um lado. */
   if(P>=L.marca){
-    const n=Math.min(9,2+Math.floor((P-L.marca)/2));
+    const n=2+Math.round(f*24);
     CX.save();
     for(let i=0;i<n;i++){
-      const x=w*(.08+semente(311+d,i)*.80), y=base+(h-base)*(.16+semente(313+d,i)*.70);
-      const lg=w*(.05+semente(317+d,i)*.13);
+      const x=w*(.06+semente(311+d,i)*.84), y=base+(h-base)*(.12+semente(313+d,i)*.76);
+      const lg=w*(.05+semente(317+d,i)*(.13+f*.12));
       const incl=(semente(319+d,i)-.5)*h*.010;
       const gr=Math.max(1,h*.0020);
-      /* a sombra do sulco, de um lado so */
-      CX.strokeStyle='rgba(6,4,3,.34)'; CX.lineWidth=gr*1.6;
+      CX.strokeStyle='rgba(6,4,3,'+(.28+f*.16).toFixed(3)+')'; CX.lineWidth=gr*1.6;
       CX.beginPath(); CX.moveTo(x,y+gr); CX.lineTo(x+lg,y+incl+gr); CX.stroke();
-      /* e a madeira limpa que apareceu no meio */
-      CX.strokeStyle='rgba(196,178,150,'+(.14+semente(323+d,i)*.10).toFixed(3)+')';
+      CX.strokeStyle='rgba(196,178,150,'+(.13+semente(323+d,i)*.10+f*.06).toFixed(3)+')';
       CX.lineWidth=gr;
       CX.beginPath(); CX.moveTo(x,y); CX.lineTo(x+lg,y+incl); CX.stroke();
     }
     CX.restore(); camadas++;
   }
-  /* 2 · sujeira que ficou: manchas que nao saem mais */
+
+  /* 2 · sujeira que ficou: manchas que nao saem mais. Elas crescem com o
+     peso, alem de serem mais — mancha velha espalha. */
   if(P>=L.sujeira){
-    const n=Math.min(7,2+Math.floor((P-L.sujeira)/4));
+    const n=2+Math.round(f*16);
     for(let i=0;i<n;i++){
-      const x=w*(.06+semente(331+d,i)*.86), y=base+(h-base)*(.10+semente(337+d,i)*.8);
-      const r=w*(.015+semente(347+d,i)*.05);
-      CX.fillStyle='rgba(18,10,8,'+(.10+semente(349+d,i)*.12).toFixed(3)+')';
+      const x=w*(.05+semente(331+d,i)*.88), y=base+(h-base)*(.08+semente(337+d,i)*.84);
+      const r=w*(.015+semente(347+d,i)*.05)*(1+f*.6);
+      CX.fillStyle='rgba(18,10,8,'+(.09+semente(349+d,i)*.12+f*.05).toFixed(3)+')';
       CX.beginPath(); CX.ellipse(x,y,r,r*.5,semente(353+d,i)*3,0,7); CX.fill();
     }
     camadas++;
   }
-  /* 3 · dano: a parede cede onde bateu muito */
+
+  /* 3 · dano: a parede cede onde bateu muito. As primeiras trincas sobem
+     do rodape; as ultimas alcancam o alto da parede. */
   if(P>=L.dano){
-    const n=Math.min(4,1+Math.floor((P-L.dano)/6));
+    const n=1+Math.round(f*8);
     CX.save();
     for(let i=0;i<n;i++){
-      const x=w*(.10+semente(359+d,i)*.8), y=base*(.30+semente(367+d,i)*.55);
-      CX.strokeStyle='rgba(0,0,0,.40)'; CX.lineWidth=Math.max(1,h*.0026);
+      const x=w*(.08+semente(359+d,i)*.84), y=base*(.24+semente(367+d,i)*.62);
+      CX.strokeStyle='rgba(0,0,0,'+(.34+f*.16).toFixed(3)+')';
+      CX.lineWidth=Math.max(1,h*.0024*(1+f*.5));
       CX.beginPath(); CX.moveTo(x,y);
       let px=x, py2=y;
-      for(let k=0;k<4;k++){ px+=(semente(373+d,i*4+k)-.45)*w*.07; py2+=base*.055;
+      const braco=3+Math.round(f*3);
+      for(let k=0;k<braco;k++){ px+=(semente(373+d,i*7+k)-.45)*w*.07; py2+=base*.050;
         CX.lineTo(px,py2); }
       CX.stroke();
-      /* poeira caindo da trinca, que e o que a faz parecer funda */
-      CX.fillStyle='rgba(198,186,166,.05)';
+      /* o reboco que soltou na beira da trinca: e ele que da fundura */
+      CX.fillStyle='rgba(198,186,166,'+(.04+f*.05).toFixed(3)+')';
       CX.fillRect(px-w*.012,py2,w*.024,base*.02);
+      CX.fillStyle='rgba(24,18,14,'+(.10+f*.10).toFixed(3)+')';
+      CX.beginPath(); CX.ellipse(px,py2+base*.012,w*.020*(1+f),base*.012,0,0,7); CX.fill();
     }
     CX.restore(); camadas++;
   }
-  /* 4 · ruina: o comodo deixou de ser cuidado */
+
+  /* 4 · ruina: o comodo deixou de ser cuidado.
+     A primeira versao era UM gradiente fixo, ligado ou desligado — por
+     isso peso 34 e peso 60 saiam iguais. Agora a ruina tem grau: escurece
+     mais conforme sobe, e a infiltracao escorre do teto, que e o que faz
+     um comodo parecer abandonado em vez de so mal iluminado. */
   if(P>=L.ruina){
+    const r=trava((P-L.ruina)/(LEM_CFG.pesoMax-L.ruina),0,1);
     const g=CX.createLinearGradient(0,0,0,h);
-    g.addColorStop(0,'rgba(10,7,6,.28)');
-    g.addColorStop(.55,'rgba(10,7,6,.10)');
-    g.addColorStop(1,'rgba(10,7,6,.30)');
+    g.addColorStop(0,  'rgba(10,7,6,'+(.20+r*.22).toFixed(3)+')');
+    g.addColorStop(.55,'rgba(10,7,6,'+(.07+r*.08).toFixed(3)+')');
+    g.addColorStop(1,  'rgba(10,7,6,'+(.22+r*.20).toFixed(3)+')');
     CX.fillStyle=g; CX.fillRect(0,0,w,h);
+    /* a infiltracao: manchas compridas descendo do alto da parede */
+    const n=2+Math.round(r*7);
+    CX.save();
+    for(let i=0;i<n;i++){
+      const x=w*(.06+semente(383+d,i)*.88);
+      const lar=w*(.012+semente(389+d,i)*.030);
+      const alt=base*(.22+semente(397+d,i)*.55)*(.5+r*.6);
+      const gg=CX.createLinearGradient(0,0,0,alt);
+      gg.addColorStop(0,'rgba(22,16,10,'+(.16+r*.14).toFixed(3)+')');
+      gg.addColorStop(1,'rgba(22,16,10,0)');
+      CX.fillStyle=gg;
+      CX.save(); CX.translate(x,0); CX.fillRect(-lar/2,0,lar,alt); CX.restore();
+      /* a beira clara do sal que a agua deixou */
+      CX.strokeStyle='rgba(190,180,158,'+(.05+r*.05).toFixed(3)+')';
+      CX.lineWidth=1;
+      CX.beginPath(); CX.moveTo(x-lar/2,0); CX.lineTo(x-lar/2,alt*.8); CX.stroke();
+    }
+    CX.restore();
     camadas++;
   }
-  /* 5 · a cicatriz que nao cicatriza: quem morreu aqui deixa o lugar */
-  const m=lemDo(c);
-  if((m.fixo||0)>0){
-    const x=w*(.16+semente(379+d,0)*.6), y=base-h*.012;
-    CX.save(); CX.globalAlpha=.55;
-    CX.fillStyle='rgba(0,0,0,.35)';
-    CX.beginPath(); CX.ellipse(x,y,w*.055,h*.010,0,0,7); CX.fill();
-    CX.fillStyle='rgba(150,140,124,.07)';
-    CX.fillRect(x-w*.03,y-h*.055,w*.06,h*.055);
+
+  /* 5 · A CICATRIZ QUE NAO CICATRIZA: quem morreu aqui deixa o lugar.
+     Era um retangulo de 6% da largura a 7% de alpha — invisivel, e ele e
+     justamente a coisa que o sistema promete que NUNCA some. O que nunca
+     some tem de ser visto; se nao, a promessa e so um campo no save.
+     Agora: a sombra parada no chao, a marca seca em volta dela, e a
+     parede atras que ficou mais escura naquele pedaco. */
+  if(fixo>0){
+    const fr=trava(fixo/20,.35,1);
+    /* A POSICAO IMPORTA TANTO QUANTO O TAMANHO. A primeira versao punha a
+       cicatriz em `base-h*.006`, ou seja colada na junta parede/piso —
+       que e a parte MAIS LONGE e mais estreita do chao em perspectiva.
+       Ela existia e ninguem via. Agora ela fica no meio do piso, onde o
+       jogador pisa. */
+    const x=w*(.20+semente(379+d,0)*.52), y=base+(h-base)*.50;
+    CX.save();
+    /* o halo seco em volta: o que escorreu e secou */
+    const rx=w*(.15+fr*.07), ry=h*(.026+fr*.012);
+    const halo=CX.createRadialGradient(x,y,w*.012,x,y,rx);
+    halo.addColorStop(0,'rgba(44,18,13,'+(.30*fr).toFixed(3)+')');
+    halo.addColorStop(.6,'rgba(38,16,12,'+(.14*fr).toFixed(3)+')');
+    halo.addColorStop(1,'rgba(38,16,12,0)');
+    CX.fillStyle=halo;
+    CX.beginPath(); CX.ellipse(x,y,rx,ry,0,0,7); CX.fill();
+    /* a sombra que ficou, com forma de gente deitada: tronco e cabeca */
+    CX.fillStyle='rgba(0,0,0,'+(.34+fr*.24).toFixed(3)+')';
+    CX.beginPath(); CX.ellipse(x,y,w*.105,h*.019,0,0,7); CX.fill();
+    CX.beginPath(); CX.ellipse(x-w*.085,y-h*.008,w*.030,h*.013,0,0,7); CX.fill();
+    /* a beira seca, mais escura que o miolo — e o que faz parecer mancha
+       velha e nao sombra de movel */
+    CX.strokeStyle='rgba(30,12,9,'+(.22+fr*.16).toFixed(3)+')';
+    CX.lineWidth=Math.max(1,h*.0016);
+    CX.beginPath(); CX.ellipse(x,y,w*.108,h*.021,0,0,7); CX.stroke();
+    /* e a parede atras, que nunca mais clareou naquele pedaco */
+    const pg=CX.createLinearGradient(0,base-h*.17,0,base);
+    pg.addColorStop(0,'rgba(0,0,0,0)');
+    pg.addColorStop(1,'rgba(0,0,0,'+(.18+fr*.16).toFixed(3)+')');
+    CX.fillStyle=pg; CX.fillRect(x-w*.12,base-h*.17,w*.24,h*.17);
     CX.restore(); camadas++;
   }
   return camadas;

@@ -1,0 +1,907 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Não Abra — showcase técnico</title>
+<style>
+  :root{--ouro:#c9a227;--osso:#d8d2c6;--fundo:#07060b;--mofo:#8b8478}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--fundo);color:var(--osso);
+    font:14px/1.5 system-ui,-apple-system,sans-serif;display:flex;
+    flex-direction:column;align-items:center;min-height:100vh}
+  #palco{position:relative;width:min(96vw,960px);aspect-ratio:16/9;
+    background:#000;box-shadow:0 0 60px rgba(0,0,0,.9);margin-top:14px}
+  #tv{width:100%;height:100%;display:block;image-rendering:auto}
+  #carga{position:absolute;inset:0;display:flex;align-items:center;
+    justify-content:center;flex-direction:column;gap:10px;background:#07060b;
+    font-family:"Share Tech Mono",ui-monospace,monospace;color:var(--ouro);
+    letter-spacing:.08em;text-align:center;padding:20px}
+  #carga small{color:var(--mofo);letter-spacing:0;font-size:12px;max-width:40ch}
+  #barra{width:min(96vw,960px);height:3px;background:#1a1720;margin-top:2px}
+  #barraIn{height:100%;width:0;background:var(--ouro);transition:width .1s linear}
+  #ctrl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+    justify-content:center;margin:12px 0 6px;width:min(96vw,960px)}
+  button{background:#151220;color:var(--osso);border:1px solid #2c2636;
+    padding:7px 13px;border-radius:3px;cursor:pointer;font:inherit;font-size:13px}
+  button:hover{border-color:var(--ouro);color:#fff}
+  button.on{background:var(--ouro);color:#140f08;border-color:var(--ouro)}
+  #lista{width:min(96vw,960px);display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:4px;
+    margin:6px 0 30px;font-size:12px}
+  #lista div{padding:5px 8px;border-left:2px solid #2c2636;color:var(--mofo);
+    cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #lista div.atual{border-left-color:var(--ouro);color:var(--osso);background:#120f18}
+  #jogo{position:absolute;width:1px;height:1px;opacity:.001;pointer-events:none;
+    left:-9999px;top:0;border:0}
+</style></head><body>
+
+<div id="palco">
+  <canvas id="tv" width="960" height="540"></canvas>
+  <div id="carga">
+    <div id="cargaT">ABRINDO O JOGO…</div>
+    <small id="cargaS">O showcase roda o jogo de verdade num quadro escondido
+      e desenha com as funções dele. Nada aqui é cópia.</small>
+  </div>
+</div>
+<div id="barra"><div id="barraIn"></div></div>
+<div id="ctrl">
+  <button id="bPlay" class="on">❚❚ pausar</button>
+  <button id="bPrev">◀ cena</button>
+  <button id="bNext">cena ▶</button>
+  <button id="bRe">↺ do começo</button>
+  <span id="info" style="color:var(--mofo);font-size:12px"></span>
+</div>
+<div id="lista"></div>
+<iframe id="jogo" src="../index.html"></iframe>
+
+<script>
+/* ====================================================================
+   SHOWCASE TÉCNICO — "Não Abra"
+
+   Isto NÃO é uma reimplementação bonita do jogo. O showcase carrega o
+   index.html de verdade num quadro escondido, espera ele abrir, e
+   desenha chamando as funções DELE: CENAS, pintarVisitante, desSilhueta,
+   texVeio, lemPintar. Se o jogo mudar, o showcase muda junto — cópia
+   diverge no primeiro ajuste.
+
+   O antes/depois também é real: em vez de guardar imagens velhas, o
+   showcase DESLIGA a função nova (material, lemPintar, frente…) e
+   redesenha. É a mesma técnica que os harnesses usam pra medir.
+   ==================================================================== */
+const TV=document.getElementById('tv'), X=TV.getContext('2d');
+const W=960, H=540;
+const carga=document.getElementById('carga');
+const cargaT=document.getElementById('cargaT'), cargaS=document.getElementById('cargaS');
+let J=null;            /* a janela do jogo */
+let pronto=false;
+/* O ESTADO VAI PRO `window` DE PROPOSITO.
+
+   `let` no topo do script NAO entra em `window` — e a mesma armadilha do
+   `CX` do jogo, que ja custou capturas pretas nesta sessao. Quem for
+   gravar este showcase (ou testar) precisa perguntar de fora se ele ja
+   esta pronto e em que cena esta. Sem isto, a unica forma seria olhar
+   pixel, que e adivinhacao. */
+window.__show={pronto:false, cena:0, nome:'', t:0, cenas:0, erro:null};
+
+/* ---------- utilidades de desenho ---------- */
+const OURO='#c9a227', OSSO='#d8d2c6', MOFO='#8b8478';
+function limpa(){ X.fillStyle='#07060b'; X.fillRect(0,0,W,H); }
+function txt(s,x,y,tam,cor,peso,alin){
+  X.save(); X.fillStyle=cor||OSSO;
+  X.font=(peso||'')+' '+(tam||20)+'px "Share Tech Mono",ui-monospace,monospace';
+  X.textAlign=alin||'left'; X.fillText(s,x,y); X.restore();
+}
+function txtSuave(s,x,y,tam,cor,a,alin){
+  X.save(); X.globalAlpha=a; txt(s,x,y,tam,cor,'',alin); X.restore();
+}
+/* texto que aparece letra por letra, como o jogo faz */
+function datilo(s,x,y,tam,cor,t,vel){
+  const n=Math.floor(Math.max(0,t)*(vel||34));
+  txt(s.slice(0,n),x,y,tam,cor);
+  return n>=s.length;
+}
+function moldura(x,y,w,h,cor){
+  X.save(); X.strokeStyle=cor||'rgba(201,162,39,.35)'; X.lineWidth=1;
+  X.strokeRect(x+.5,y+.5,w-1,h-1); X.restore();
+}
+function vinhetaTV(){
+  const g=X.createRadialGradient(W/2,H/2,H*.3,W/2,H/2,H*.95);
+  g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(0,0,0,.75)');
+  X.fillStyle=g; X.fillRect(0,0,W,H);
+}
+/* grão de filme: o showcase é sobre textura, então ele mesmo tem textura */
+let graoC=null;
+function grao(a){
+  if(!graoC){
+    graoC=document.createElement('canvas'); graoC.width=graoC.height=128;
+    const g=graoC.getContext('2d'), d=g.createImageData(128,128);
+    for(let i=0;i<d.data.length;i+=4){
+      const v=200+Math.floor(Math.random()*55);
+      d.data[i]=d.data[i+1]=d.data[i+2]=v; d.data[i+3]=255;
+    }
+    g.putImageData(d,0,0);
+  }
+  X.save(); X.globalAlpha=a||.035; X.globalCompositeOperation='overlay';
+  const p=X.createPattern(graoC,'repeat'); X.fillStyle=p;
+  X.translate((Math.random()*128)|0,(Math.random()*128)|0);
+  X.fillRect(-128,-128,W+256,H+256); X.restore();
+}
+/* a legenda de cada cena, sempre no mesmo lugar */
+function legenda(titulo,sub,t){
+  const a=Math.min(1,t*2.2);
+  X.save(); X.globalAlpha=a;
+  X.fillStyle='rgba(7,6,11,.82)'; X.fillRect(0,H-86,W,86);
+  X.fillStyle='rgba(201,162,39,.5)'; X.fillRect(0,H-86,W,1);
+  X.restore();
+  txtSuave(titulo,28,H-50,21,OURO,a);
+  if(sub)txtSuave(sub,28,H-24,14,MOFO,a*.95);
+}
+function etiqueta(s,x,y,cor){
+  X.save();
+  X.font='12px "Share Tech Mono",ui-monospace,monospace';
+  const w=X.measureText(s).width+14;
+  X.fillStyle='rgba(7,6,11,.85)'; X.fillRect(x,y-14,w,20);
+  X.fillStyle=cor||OURO; X.fillText(s,x+7,y);
+  X.restore();
+}
+
+/* ---------- A PONTE ----------
+
+   ARMADILHA QUE ME PEGOU AQUI, e é a mesma que já apareceu três vezes
+   neste projeto: `CENAS`, `CX`, `S`, `PLANTA`, `CRIATURAS` e `cena` são
+   declarados com `const`/`let` no topo do script do jogo. Isso os põe no
+   escopo léxico global — mas NÃO em `window`. De dentro da página do
+   jogo dá pra usá-los; de fora, `G.CENAS` é `undefined`.
+
+   A primeira versão do showcase lia `G.CENAS` direto e desenhava… nada:
+   o canvas ficava preto com 2.137 pixels acesos (só as legendas), e o
+   motor rodando normalmente. O `try/catch` engolia o erro, que é o que
+   fazia parecer que estava tudo bem.
+
+   A ponte é um <script> INJETADO no iframe. Script clássico enxerga o
+   escopo léxico global do documento, então ele consegue ler os `const` e
+   pendurá-los num objeto em `window`. Uma linha de ponte, e o showcase
+   volta a usar o código do jogo de verdade. */
+const PONTE=['CENAS','CX','S','PLANTA','CRIATURAS','BICHOS','cena','A','ATRIB_IDS','ANOMALIAS'];
+function montarPonte(){
+  return new Promise((ok,falha)=>{
+    try{
+      const sc=J.document.createElement('script');
+      sc.textContent='window.__api={'+PONTE.map(n=>
+        'get '+n+'(){try{return '+n+'}catch(e){return undefined}}').join(',')+'};';
+      J.document.body.appendChild(sc);
+      const a=J.__api;
+      const faltam=PONTE.filter(n=>a[n]===undefined);
+      if(faltam.length)return falha(new Error('a ponte não achou: '+faltam.join(', ')));
+      ok(a);
+    }catch(e){ falha(e); }
+  });
+}
+/* daqui pra baixo, `G` é o jogo — e `G.CENAS` funciona. */
+let G=null;
+
+/* ---------- desenhar o jogo dentro do showcase ----------
+   Empresta o #tela do jogo, desenha nele com as funções dele, e copia.
+   `CX` do jogo está amarrado àquele canvas — não adianta redirecionar,
+   e isso já custou uma captura preta antes. */
+function telaJogo(){ return J.document.getElementById('tela'); }
+function pintaComodo(i,t,lw,lh){
+  const tela=telaJogo(); if(!tela)return null;
+  if(tela.width!==lw||tela.height!==lh){ tela.width=lw; tela.height=lh; }
+  G.cena.casa=G.cena.casa||{}; G.cena.casa.voce=i;
+  G.CX.clearRect(0,0,lw,lh);
+  try{ G.CENAS[i](lw,lh,t); }catch(e){}
+  return tela;
+}
+function poeComodo(i,t,dx,dy,dw,dh){
+  const tela=pintaComodo(i,t,Math.round(dw*1.2),Math.round(dh*1.2));
+  if(tela)X.drawImage(tela,dx,dy,dw,dh);
+}
+/* O #tela É UM SÓ. Pra comparar duas versões do mesmo cômodo lado a lado
+   é preciso COPIAR a primeira antes de pintar a segunda em cima — senão
+   as duas metades mostram a mesma coisa e o antes/depois vira teatro. */
+const _copias={};
+function copiaComodo(i,t,lw,lh,chave){
+  const tela=pintaComodo(i,t,lw,lh); if(!tela)return null;
+  let c=_copias[chave];
+  if(!c){ c=_copias[chave]=document.createElement('canvas'); }
+  if(c.width!==lw||c.height!==lh){ c.width=lw; c.height=lh; }
+  const g=c.getContext('2d'); g.clearRect(0,0,lw,lh); g.drawImage(tela,0,0);
+  return c;
+}
+/* liga/desliga camadas novas pra mostrar antes/depois ao vivo */
+const GUARDA={};
+function desliga(nomes){
+  nomes.forEach(n=>{ if(GUARDA[n]===undefined&&typeof J[n]==='function'){
+    GUARDA[n]=J[n]; J[n]=function(){ return 0; }; } });
+}
+function religa(){ Object.keys(GUARDA).forEach(n=>{ J[n]=GUARDA[n]; delete GUARDA[n]; }); }
+
+/* ---------- as cenas ---------- */
+const CENAS_SHOW=[];
+function cena(nome,dur,fn){ CENAS_SHOW.push({nome,dur,fn}); }
+
+/* 1 · abertura */
+cena('Abertura',5.0,(t)=>{
+  limpa();
+  const a=Math.min(1,t*.8), b=Math.max(0,Math.min(1,(t-1.1)*.9));
+  X.save(); X.globalAlpha=a*.5;
+  const g=X.createRadialGradient(W/2,H*.44,20,W/2,H*.44,H*.8);
+  g.addColorStop(0,'rgba(201,162,39,.16)'); g.addColorStop(1,'rgba(0,0,0,0)');
+  X.fillStyle=g; X.fillRect(0,0,W,H); X.restore();
+  txtSuave('NÃO ABRA',W/2,H*.42,62,OSSO,a,'center');
+  txtSuave('showcase técnico · o que mudou na parte visual',W/2,H*.42+34,16,MOFO,b,'center');
+  txtSuave('tudo aqui é desenhado pelo código do jogo, ao vivo',W/2,H*.42+58,13,'#6a6560',b*.9,'center');
+  grao(.05); vinhetaTV();
+});
+
+/* 2 · os nove cômodos, um passeio */
+cena('Os nove cômodos',9.0,(t)=>{
+  limpa();
+  const NOMES=['sótão','quarto','despensa','oficina','sala','cozinha','porão','entrada','quintal'];
+  const passo=0.92, i=Math.min(8,Math.floor(t/passo));
+  const f=(t/passo)-i;
+  /* ---- o cômodo da vez, grande, à esquerda ---- */
+  const pw=224, ph=400, px=64, py=40;
+  const lw=Math.round(pw*1.35), lh=Math.round(ph*1.35);
+  if(i>0){ X.save(); X.globalAlpha=Math.max(0,1-f*3);
+    poeComodo(i-1,t+1.4,px,py,pw,ph); X.restore(); }
+  X.save(); X.globalAlpha=Math.min(1,f*3);
+  poeComodo(i,t+1.4,px,py,pw,ph); X.restore();
+  moldura(px,py,pw,ph,'rgba(201,162,39,.5)');
+  etiqueta(NOMES[i].toUpperCase(),px,py-8);
+
+  /* ---- os nove em grade, à direita ----
+     A primeira versão punha a fita de miniaturas embaixo do painel grande
+     e os dois se sobrepunham: o painel descia até y=430 e a fita começava
+     em y=375. Nenhum número reclamou — a imagem mostrou. */
+  const gx=352, gy=40, vao=16;
+  const cw=Math.round((W-gx-56-vao*2)/3), ch=124;
+  for(let k=0;k<9;k++){
+    const x=gx+(k%3)*(cw+vao), y=gy+Math.floor(k/3)*(ch+vao);
+    const atual=(k===i);
+    const c=copiaComodo(k,t*.3+k,Math.round(cw*1.2),Math.round(ch*2.2),'g'+k);
+    X.save(); X.globalAlpha=atual?1:.38;
+    X.fillStyle='#0c0a10'; X.fillRect(x,y,cw,ch);
+    /* recorte na altura do olho: é onde cada cômodo tem cara própria */
+    if(c)X.drawImage(c,0,Math.round(c.height*.26),c.width,Math.round(c.height*.50),x,y,cw,ch);
+    X.restore();
+    moldura(x,y,cw,ch,atual?OURO:'rgba(120,112,100,.28)');
+    X.save();
+    X.fillStyle='rgba(7,6,11,.78)'; X.fillRect(x,y+ch-19,cw,19);
+    X.font='11px "Share Tech Mono",ui-monospace,monospace';
+    X.fillStyle=atual?OURO:'rgba(139,132,120,.85)';
+    X.fillText(NOMES[k],x+7,y+ch-6); X.restore();
+  }
+  legenda('Nove cômodos, nove lugares',
+    'Cada parede tem o desgaste dela, e ele não muda de lugar quando você volta',t);
+  grao(.04); vinhetaTV();
+});
+
+/* 3 · antes e depois, AO VIVO */
+cena('Antes e depois',9.0,(t)=>{
+  limpa();
+  const sala=4;
+  const pw=236, ph=418, px=84, py=26;
+  const lw=Math.round(pw*1.3), lh=Math.round(ph*1.3);
+  /* AS CAMADAS SÃO DESLIGADAS AO VIVO, e o ANTES é COPIADO antes de
+     pintar o DEPOIS por cima — o #tela do jogo é um só (ver copiaComodo).
+     Sem a cópia, os dois lados da costura mostrariam a mesma coisa e o
+     antes/depois seria teatro. */
+  const CAMADAS=[
+    ['material()',   'os tecidos: madeira, concreto, metal'],
+    ['veioDoPiso()', 'o veio das tábuas, que aperta com a distância'],
+    ['pousar()',     'a sombra de contato embaixo dos móveis'],
+    ['frente()',     'a camada da frente, mais escura que o fundo'],
+    ['lemPintar()',  'a memória do cômodo: marca, sujeira, dano, ruína']
+  ];
+  desliga(['material','lemPintar','frente','pousar','veioDoPiso']);
+  const antes=copiaComodo(sala,t+2,lw,lh,'antes');
+  religa();
+  const depois=copiaComodo(sala,t+2,lw,lh,'depois');
+  if(!antes||!depois)return;
+
+  /* a costura vai e volta, devagar */
+  const fase=(1-Math.cos(Math.max(0,t-.5)*.9))/2;
+  const seam=px+pw*(.08+fase*.84);
+
+  X.drawImage(antes,px,py,pw,ph);
+  X.save(); X.beginPath(); X.rect(seam,py,px+pw-seam,ph); X.clip();
+  X.drawImage(depois,px,py,pw,ph); X.restore();
+  X.save(); X.strokeStyle='rgba(201,162,39,.9)'; X.lineWidth=2;
+  X.beginPath(); X.moveTo(seam,py); X.lineTo(seam,py+ph); X.stroke(); X.restore();
+  moldura(px,py,pw,ph,'rgba(201,162,39,.4)');
+  /* os rótulos moram DENTRO do painel, um de cada lado da costura */
+  X.save();
+  X.fillStyle='rgba(7,6,11,.7)'; X.fillRect(px,py,pw,22);
+  X.font='12px "Share Tech Mono",ui-monospace,monospace';
+  X.fillStyle=MOFO;  X.fillText('ANTES',px+8,py+15);
+  X.textAlign='right';
+  X.fillStyle=OURO;  X.fillText('DEPOIS',px+pw-8,py+15);
+  X.restore();
+
+  /* a coluna da direita: o que exatamente está desligado à esquerda */
+  const tx=px+pw+56, ty=py+30;
+  txt('desligado à esquerda da costura',tx,ty,15,OURO);
+  CAMADAS.forEach(([nome,oque],k)=>{
+    const yy=ty+40+k*60;
+    const ap=Math.max(0,Math.min(1,(t-.4-k*.28)*2.4));
+    if(ap<=0)return;
+    X.save(); X.globalAlpha=ap;
+    /* o quadradinho pisca junto com a costura: apagado = camada fora */
+    X.fillStyle='#2c2636'; X.fillRect(tx,yy-11,10,10);
+    X.fillStyle=OURO;     X.fillRect(tx+16,yy-11,10,10);
+    txt(nome,tx+36,yy,14,OSSO);
+    txtSuave(oque,tx+36,yy+19,12,'#6a6560',.95);
+    X.restore();
+  });
+  txtSuave('o showcase chama as funções do jogo e devolve elas no fim do quadro',
+    tx,ty+40+5*60+4,11,'#59545e',.9);
+  legenda('O mesmo cômodo, o mesmo código',
+    'À esquerda da costura as camadas novas estão desligadas em tempo real — não é print antigo',t);
+  grao(.04); vinhetaTV();
+});
+
+/* 4 · as texturas */
+cena('As texturas',9.0,(t)=>{
+  limpa();
+  const tipos=[['veioH','madeira · veio com nó',96],['poro','concreto · poro com cova',128],
+               ['risco','metal escovado',112]];
+  const s=Math.round(H*.58);
+  tipos.forEach(([n,rot,lado],k)=>{
+    const x=W*.5-(3*(s+22)-22)/2+k*(s+22), y=(H-92-s-26)/2;
+    const c=J.document.createElement('canvas'); c.width=c.height=lado;
+    const g=c.getContext('2d');
+    try{
+      if(n==='poro')J.texPoro(g,lado);
+      else if(n==='risco')J.texRisco(g,lado);
+      else J.texVeio(g,lado,0);
+    }catch(e){}
+    X.save();
+    X.fillStyle='#26221c'; X.fillRect(x,y,s,s);
+    /* dá uma passeada no ladrilho, pra mostrar que ele fecha sem emenda */
+    const off=(t*12)%lado;
+    X.beginPath(); X.rect(x,y,s,s); X.clip();
+    const esc=s/lado*2.2;
+    for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++)
+      X.drawImage(c,x-off*esc+a*lado*esc,y-off*esc*.4+b*lado*esc,lado*esc,lado*esc);
+    X.restore();
+    moldura(x,y,s,s);
+    etiqueta(rot,x,y+s+20,k===1?OSSO:OURO);
+  });
+  legenda('Três tecidos, gerados uma vez e repetidos',
+    'O ladrilho fecha nele mesmo; por quadro sobra um fillRect',t);
+  grao(.05); vinhetaTV();
+});
+
+/* 5 · profundidade */
+cena('Profundidade',7.0,(t)=>{
+  limpa();
+  /* A PRIMEIRA VERSÃO DESTA CENA ERA MENTIRA.
+     O lado "SEM RELEVO" era o mesmo tecido com `filter: grayscale
+     contrast` por cima. Isso não prova que o relevo faz diferença —
+     prova a cor do filtro. Agora o showcase chama `texRelevo(false)` no
+     jogo, que é uma chave de verdade (e entra na chave do cache, senão o
+     tecido velho ficaria guardado e o desligar não mudaria nada, calado).
+
+     E A SEGUNDA VERSÃO AINDA DESENHAVA ERRADO: o ladrilho começa com
+     `clearRect` e é TRANSPARENTE — no jogo ele vai sempre por cima de
+     uma superfície pintada. Desenhado direto no fundo preto do showcase,
+     o lado "sem relevo" ficava quase invisível e a comparação exagerava
+     a favor do relevo. Pintar a base primeiro é o que o jogo faz. */
+  const QUAIS=[
+    {id:'veio',  rot:'madeira',  base:'#3b3128', num:'muda 38,8% do tecido'},
+    {id:'poro',  rot:'concreto', base:'#3a372f', num:'muda 3,2% — só as covas grandes'},
+    {id:'risco', rot:'metal',    base:'#2a2c30', num:'muda 54,3% do tecido'}
+  ];
+  const lado=112, s=Math.round(H*.60);
+  const q=QUAIS[Math.floor(t/2.34)%3];
+  function tecido(relevo){
+    const c=document.createElement('canvas'); c.width=c.height=lado;
+    const g=c.getContext('2d');
+    try{
+      J.texRelevo(relevo);
+      if(q.id==='poro')J.texPoro(g,lado);
+      else if(q.id==='risco')J.texRisco(g,lado);
+      else J.texVeio(g,lado,0);
+    }catch(e){} finally{ try{ J.texRelevo(true); }catch(e){} }
+    return c;
+  }
+  const x0=W*.5-s-16, x1=W*.5+16, y=(H-92-s-34)/2;
+  [[x0,false],[x1,true]].forEach(([x,rel])=>{
+    X.fillStyle=q.base; X.fillRect(x,y,s,s);
+    X.save(); X.imageSmoothingEnabled=true;
+    X.drawImage(tecido(rel),x,y,s,s); X.restore();
+  });
+  moldura(x0,y,s,s,'rgba(139,132,120,.45)');
+  moldura(x1,y,s,s,'rgba(201,162,39,.6)');
+  etiqueta('SEM RELEVO · '+q.rot,x0,y-8,MOFO);
+  etiqueta('COM RELEVO · '+q.rot,x1,y-8,OURO);
+  const pulso=Math.sin(t*1.4)*.5+.5;
+  txtSuave('cada sulco é um par: luz na quina de cima, sombra logo abaixo',
+    W/2,y+s+26,13,OSSO,.45+pulso*.55,'center');
+  txtSuave(q.num,W/2,y+s+46,12,OURO,.9,'center');
+  legenda('Ajuste de profundidade',
+    'A chave existe no jogo, não só aqui — o texteste mede o grão com ela ligada e desligada',t);
+  grao(.05); vinhetaTV();
+});
+
+/* 6 · quem bate na porta */
+cena('Quem bate na porta',9.0,(t)=>{
+  limpa();
+  /* ARMADILHA QUE ME PEGOU AQUI, e custou uma cena inteira vazia:
+     `pintarVisitante(x,w,h,m,t)` — o primeiro parâmetro chamado `x` NÃO é
+     uma coordenada, é o CONTEXTO. E `modeloVisitante(v)` lê `v.pessoa`,
+     não `v.n`/`v.id`. Eu errei os dois, o `try/catch` engoliu, e a cena
+     desenhou quatro molduras vazias com 8.494 pixels acesos — número que
+     nem parecia errado. Só a imagem mostrou. Agora o catch escreve o erro
+     na tela em vez de engolir.
+
+     O ELENCO NÃO É ALEATÓRIO: os ids foram escolhidos olhando o que o
+     `modeloVisitante` deriva de cada um (capuz, gola, barba, idade, cor
+     do cabelo), pra que os cinco não saiam com o mesmo capuz. A primeira
+     versão sorteou ids redondos e saíram quatro encapuzados iguais. */
+  const ELENCO=[
+    {rot:'CRIANÇA', nome:'Tereza',  id:14, nota:'rosto menor, queixo curto'},
+    {rot:'ADULTO',  nome:'Osvaldo', id:30, nota:'luz de lado, sombra do outro'},
+    {rot:'VELHO',   nome:'Bento',   id:74, nota:'cabelo grisalho, barba'},
+    {rot:'FERIDO',  nome:'Osvaldo', id:41, tipo:'ferido', nota:'sangue seco na têmpora'},
+    {rot:'NÃO É GENTE', nome:'Alzira', id:34, anom:['olhos','brilho','simetria'],
+     nota:'olhos tortos · pupila devolve a luz'}
+  ];
+  const n=ELENCO.length, larg=Math.round(W*.148), alt=Math.round(larg*1.3);
+  const passo=larg+12, x0=W*.5-(n*passo-12)/2, y=46;
+  let retratoAdulto=null;
+  ELENCO.forEach((e,k)=>{
+    const x=x0+k*passo;
+    try{
+      const c=document.createElement('canvas');
+      c.width=larg; c.height=alt;
+      const m=J.modeloVisitante({pessoa:{n:e.nome,id:e.id}, tipo:e.tipo||'normal'});
+      /* anomalias montadas à mão: o caminho `mimico` do jogo SORTEIA, e
+         sortear aqui mexeria no RNG semeado da partida do quadro escondido
+         — foi assim que uma linha cosmética de texto deslocou todos os
+         sorteios seguintes e quebrou três asserções do diretor. */
+      if(e.anom)m.anomalias=G.ANOMALIAS.filter(a=>e.anom.indexOf(a.id)>=0);
+      J.pintarVisitante(c.getContext('2d'),larg,alt,m,t+k*1.1);
+      X.drawImage(c,x,y);
+      if(k===1)retratoAdulto=c;
+    }catch(err){
+      X.fillStyle='#1a0f0c'; X.fillRect(x,y,larg,alt);
+      txt(err.message.slice(0,20),x+6,y+alt/2,10,'#c86a4a');
+    }
+    moldura(x,y,larg,alt,k===4?'rgba(200,70,45,.5)':'rgba(201,162,39,.28)');
+    etiqueta(e.rot,x,y+alt+18,k===4?'#c86a4a':OURO);
+    txtSuave(e.nota,x,y+alt+36,10,'#6a6560',.95);
+  });
+  /* a lente do olho mágico em cima do último */
+  const lx=x0+4*passo+larg/2, ly=y+alt*.40, r=larg*.44;
+  X.save();
+  X.strokeStyle='rgba(200,70,45,'+(.25+Math.abs(Math.sin(t*1.6))*.5).toFixed(2)+')';
+  X.lineWidth=2; X.beginPath(); X.arc(lx,ly,r,0,7); X.stroke(); X.restore();
+
+  /* o detalhe, 3x: é onde mora o trabalho novo — pálpebra, anel da íris,
+     osso da bochecha, dorso do nariz. No tamanho da porta isso some. */
+  if(retratoAdulto){
+    const dw=298, dh=150, dx=W*.5-dw/2, dy=y+alt+58;
+    const sw=Math.round(larg*.72), sh=Math.round(sw*dh/dw);
+    const sx=Math.round(larg*.14), sy=Math.round(alt*.30);
+    X.save(); X.imageSmoothingEnabled=true;
+    X.drawImage(retratoAdulto,sx,sy,sw,sh,dx,dy,dw,dh); X.restore();
+    moldura(dx,dy,dw,dh,'rgba(201,162,39,.45)');
+    etiqueta('OS OLHOS, 3x',dx,dy-8,OURO);
+    const marcas=[['pálpebra',.22,.30],['anel da íris',.50,.62],['osso da bochecha',.80,.88]];
+    marcas.forEach(([rot,fx,fy],i)=>{
+      const ap=Math.max(0,Math.min(1,(t-1.4-i*.6)*2.2));
+      if(ap<=0)return;
+      X.save(); X.globalAlpha=ap;
+      X.strokeStyle='rgba(201,162,39,.6)'; X.lineWidth=1;
+      X.beginPath(); X.arc(dx+dw*fx,dy+dh*fy,7,0,7); X.stroke();
+      X.font='10px "Share Tech Mono",monospace'; X.fillStyle='rgba(201,162,39,.9)';
+      X.textAlign='center'; X.fillText(rot,dx+dw*fx,dy+dh+14); X.restore();
+    });
+  }
+  legenda('Os rostos na porta',
+    'Luz do lampião de cima e da esquerda, pálpebra, osso da bochecha, cabelo com risca — e eles piscam',t);
+  grao(.045); vinhetaTV();
+});
+
+/* 7 · as silhuetas */
+cena('As criaturas',10.0,(t)=>{
+  limpa();
+  let tipos=[];
+  try{ tipos=[...new Set(Object.values(G.CRIATURAS).map(c=>c.silhueta))]
+    .filter(x=>x&&x!=='nenhuma').sort(); }catch(e){}
+  /* O NÚMERO VEM DO REGISTRO, NÃO DA MINHA CABEÇA.
+     A primeira versão dizia "Dezesseis silhuetas" num título fixo e
+     desenhava quinze — a décima sexta é `nenhuma`, que é a ausência de
+     silhueta. Título chumbado é o mesmo defeito dos `===6` que
+     envelheceram em três harnesses nesta sessão. */
+  const cols=8, marg=26, vao=8;
+  const cel=(W-marg*2-vao*(cols-1))/cols;
+  const cw=Math.round(cel), ch=Math.round(cel*1.38);
+  const linhas=Math.ceil(Math.min(tipos.length,16)/cols);
+  const y0=(H-92-linhas*(ch+22))/2+6;
+  tipos.slice(0,16).forEach((tp,k)=>{
+    const x=Math.round(marg+(k%cols)*(cel+vao));
+    const y=Math.round(y0+Math.floor(k/cols)*(ch+22));
+    /* entram uma a uma, da esquerda pra direita */
+    const ap=Math.max(0,Math.min(1,(t-.25-k*.11)*3.4));
+    if(ap<=0)return;
+    try{
+      const c=J.silhuetaEmCanvas(tp,cw,ch);
+      X.save(); X.globalAlpha=ap;
+      X.fillStyle='#0c0a10'; X.fillRect(x,y,cw,ch);
+      X.drawImage(c,x,y);
+      X.restore();
+      moldura(x,y,cw,ch,'rgba(150,140,170,'+(.25*ap).toFixed(2)+')');
+      X.save(); X.globalAlpha=ap; X.font='10px "Share Tech Mono",monospace';
+      X.fillStyle='rgba(170,162,188,.8)'; X.textAlign='center';
+      X.fillText(tp,x+cw/2,y+ch+13); X.restore();
+    }catch(e){}
+  });
+  legenda(tipos.length+' silhuetas, uma por criatura',
+    'Elas já existiam no código e nunca chegavam à tela — agora aparecem no caderno',t);
+  grao(.04); vinhetaTV();
+});
+
+/* 8 · os dois invasores novos */
+cena('Os dois invasores novos',10.0,(t)=>{
+  limpa();
+  const pw=196, ph=350, py=64;
+  const ox=88, hx=W-88-pw;
+  /* ---- o Observador: some quando você olha ---- */
+  const ciclo=(t%3.4), olhando=ciclo>1.7;
+  X.fillStyle='#0c0a10'; X.fillRect(ox,py,pw,ph);
+  X.save();
+  X.globalAlpha=olhando?Math.max(.06,1-(ciclo-1.7)*2.4):1;
+  try{
+    const c=J.silhuetaEmCanvas('humana',pw,ph);
+    /* ele não fica no mesmo lugar: cada vez que some, reaparece deslocado */
+    const volta=Math.floor(t/3.4);
+    X.drawImage(c,((volta%3)-1)*pw*.16,0);
+  }catch(e){}
+  X.restore();
+  moldura(ox,py,pw,ph,'rgba(150,140,170,.3)');
+  etiqueta('O OBSERVADOR',ox,py-8);
+  txtSuave(olhando?'você olhou → ele muda de lugar':'você ignora → o interesse cai',
+    ox,py+ph+24,13,olhando?'#c86a4a':'#7ea06a',1);
+  const inter=olhando?Math.min(1,.34+(ciclo-1.7)*.5):Math.max(0,.62-ciclo*.2);
+  X.fillStyle='#1a1720'; X.fillRect(ox,py+ph+36,pw,7);
+  X.fillStyle=inter>.7?'#c86a4a':OURO; X.fillRect(ox,py+ph+36,pw*inter,7);
+  txtSuave('interesse',ox,py+ph+58,11,'#6a6560',.9);
+
+  /* ---- o Hóspede: o cômodo muda de dono ---- */
+  const fases=['CHEGOU','INSTALADO','ENRAIZADO','DA CASA'];
+  const fi=Math.min(3,Math.floor((t%8)/2));
+  try{
+    G.S.memoriaCasa={}; G.S.dia=10;
+    for(let i=0;i<fi*2+1;i++)J.lemAnotar(2,'hospede','AMBIENTE');
+  }catch(e){}
+  const q=copiaComodo(2,t,Math.round(pw*1.35),Math.round(ph*1.35),'hosp');
+  if(q)X.drawImage(q,hx,py,pw,ph);
+  moldura(hx,py,pw,ph,'rgba(201,162,39,.4)');
+  etiqueta('O HÓSPEDE · '+fases[fi],hx,py-8);
+  /* as quatro fases marcadas, pra ver onde ele está */
+  fases.forEach((f,k)=>{
+    const bw=(pw-9)/4, bx=hx+k*(bw+3);
+    X.fillStyle=k<=fi?OURO:'#2c2636'; X.fillRect(bx,py+ph+36,bw,7);
+  });
+  txtSuave('ele não ataca. Ele se instala, e o cômodo',hx,py+ph+24,13,MOFO,1);
+  txtSuave('deixa de ser seu.',hx,py+ph+58,13,MOFO,1);
+
+  /* ---- o miolo: o que cada um quebra ---- */
+  const cxm=W/2, cy0=py+40;
+  txt('o que muda',cxm,cy0,14,OURO,'','center');
+  const par=[
+    ['olhar é seguro','olhar alimenta'],
+    ['o perigo vem até você','o perigo já está'],
+    ['sobreviver = resistir','sobreviver = recuperar']
+  ];
+  par.forEach(([a,b],k)=>{
+    const yy=cy0+44+k*54;
+    const ap=Math.max(0,Math.min(1,(t-.6-k*.7)*2.2));
+    X.save(); X.globalAlpha=ap;
+    txt(a,cxm,yy,12,'#6a6560','','center');
+    txt('↓',cxm,yy+17,12,'rgba(201,162,39,.7)','','center');
+    txt(b,cxm,yy+34,12,OSSO,'','center');
+    X.restore();
+  });
+  legenda('Dois invasores que fazem o que nenhum outro faz',
+    'Um inverte o incentivo de olhar. O outro nunca encosta em você',t);
+  grao(.04); vinhetaTV();
+});
+
+/* 9 · A MEMÓRIA VISUAL DO MUNDO — a peça central */
+cena('A casa lembra',13.0,(t)=>{
+  limpa();
+  const sala=4;
+  const pw=214, ph=400, px=34, py=54;
+  const lw=Math.round(pw*1.35), lh=Math.round(ph*1.35);
+  const etapas=[
+    {ate:2.0, n:0,  rot:'dia 1 — nada aconteceu aqui'},
+    {ate:4.5, n:2,  rot:'alguém se arrastou por aqui'},
+    {ate:7.0, n:4,  rot:'houve sangue'},
+    {ate:9.5, n:7,  rot:'e houve invasão'},
+    {ate:13., n:11, rot:'e alguém morreu neste cômodo'}
+  ];
+  let et=etapas[etapas.length-1];
+  for(const e of etapas)if(t<=e.ate){ et=e; break; }
+  try{
+    G.S.memoriaCasa={}; G.S.dia=12;
+    const receita=[['rastro','ENTIDADE'],['rastro','ENTIDADE'],['sangue','FISICO'],
+      ['sangue','FISICO'],['invasao','ENTIDADE'],['invasao','ENTIDADE'],
+      ['invasao','ENTIDADE'],['costura','ANOMALIA'],['costura','ANOMALIA'],
+      ['invasao','ENTIDADE'],['morte','NPC']];
+    for(let i=0;i<et.n;i++)J.lemAnotar(sala,receita[i][0],receita[i][1]);
+  }catch(e){}
+  const quarto=copiaComodo(sala,t,lw,lh,'lembra');
+  if(quarto)X.drawImage(quarto,px,py,pw,ph);
+  moldura(px,py,pw,ph,'rgba(201,162,39,.45)');
+  etiqueta(et.rot,px,py-8);
+
+  /* A LUPA NÃO É ENFEITE. A tinta da memória mora no piso e no rodapé, e
+     no painel inteiro ela cabe em poucos pixels — foi exatamente assim
+     que a camada de peso baixo passou despercebida desenhando 0,00% da
+     tela. Aqui o mesmo pedaço aparece a 3x, do lado. */
+  const mx=px+pw+26, my=py, mw=236, mh=ph;
+  const rw=Math.round(lw*.66), rh=Math.round(rw*mh/mw);
+  const rx=Math.round(lw*.17), ry=Math.round(lh*.60);
+  if(quarto)X.drawImage(quarto,rx,ry,rw,rh,mx,my,mw,mh);
+  moldura(mx,my,mw,mh,'rgba(201,162,39,.45)');
+  etiqueta('O PISO, 3x',mx,my-8,OURO);
+  X.save(); X.strokeStyle='rgba(201,162,39,.5)'; X.setLineDash([4,3]);
+  X.strokeRect(px+pw*rx/lw,py+ph*ry/lh,pw*rw/lw,ph*rh/lh); X.restore();
+
+  /* o painel da direita: peso, camadas e origem */
+  const tx=mx+mw+34, ty=py+16;
+  let peso=0, origem='—', eventos=0;
+  try{ peso=J.lemPeso(sala); origem=J.lemOrigem(sala)||'—';
+    eventos=J.lemEventos(sala).length; }catch(e){}
+  const larguraBarra=W-tx-90;
+  txt('PESO DE MEMÓRIA',tx,ty,15,OURO);
+  X.fillStyle='#1a1720'; X.fillRect(tx,ty+12,larguraBarra,14);
+  X.fillStyle=peso>32?'#c86a4a':peso>18?'#c9a227':'#7ea06a';
+  X.fillRect(tx,ty+12,larguraBarra*Math.min(1,peso/60),14);
+  txt(Math.round(peso)+' / 60',tx+larguraBarra+10,ty+24,13,MOFO);
+  const camadas=[['marca',4],['sujeira',10],['dano',18],['ruína',32]];
+  camadas.forEach(([n,lim],k)=>{
+    const yy=ty+52+k*24, on=peso>=lim;
+    X.fillStyle=on?OURO:'#2c2636';
+    X.beginPath(); X.arc(tx+6,yy-4,4,0,7); X.fill();
+    txt(n+'  (peso '+lim+')',tx+20,yy,13,on?OSSO:'#4a4550');
+  });
+  txt('origem dominante: '+origem,tx,ty+164,13,MOFO);
+  txt('eventos guardados: '+eventos,tx,ty+186,13,MOFO);
+  /* a cicatriz que não some: só acende quando a morte entra */
+  const morreu=et.n>=11;
+  X.fillStyle=morreu?'#c86a4a':'#2c2636';
+  X.beginPath(); X.arc(tx+6,ty+212,4,0,7); X.fill();
+  txt('cicatriz permanente',tx+20,ty+216,13,morreu?'#c86a4a':'#4a4550');
+  txtSuave('o peso cai 0,6 por dia — menos o que nunca cicatriza',
+    tx,ty+248,12,'#6a6560',.9);
+  legenda('A casa lembra do que aconteceu nela',
+    'Cada coisa pesa o seu, o peso vira tinta, e a morte não cicatriza nunca',t);
+  grao(.045); vinhetaTV();
+});
+
+/* 10 · a memória fica — e às vezes discorda */
+cena('O que fica, e o que não bate',9.0,(t)=>{
+  limpa();
+  const cw=Math.round(H*.56*0.56), ch=Math.round(H*.56);
+  const y=H*.17;
+  try{
+    G.S.memoriaCasa={}; G.S.dia=12;
+    for(let i=0;i<4;i++)J.lemAnotar(6,'invasao','ENTIDADE');
+    for(let i=0;i<3;i++)J.lemAnotar(6,'costura','ANOMALIA');
+    J.lemAnotar(6,'morte','NPC');
+  }catch(e){}
+  /* três visitas ao mesmo cômodo, em dias diferentes */
+  const dias=[12,18,26];
+  dias.forEach((dia,k)=>{
+    try{ G.S.dia=dia; }catch(e){}
+    const x=W*.5-(3*(cw+18))/2+k*(cw+18);
+    poeComodo(6,t+k*.7,x,y,cw,ch);
+    moldura(x,y,cw,ch,k===0?'rgba(201,162,39,.5)':'rgba(150,140,170,.25)');
+    let p=0; try{ p=J.lemPeso(6); }catch(e){}
+    etiqueta('dia '+dia+' · peso '+Math.round(p),x,y-8,k===0?OURO:MOFO);
+  });
+  try{ G.S.dia=12; }catch(e){}
+  const pisca=Math.sin(t*2.6)>.4;
+  if(t>4.2&&pisca)
+    txtSuave('e tem uma coisa aqui que não bate com nada que você lembra',
+      W/2,y+ch+34,15,'#c86a4a',.9,'center');
+  legenda('O tempo cicatriza — o que pode cicatrizar',
+    'A invasão desbota em 30 dias. A morte fica. E onde houve anomalia, a memória pode mentir',t);
+  grao(.045); vinhetaTV();
+});
+
+/* 11 · fecho */
+cena('Fecho',6.0,(t)=>{
+  limpa();
+  const a=Math.min(1,t*.9);
+  txtSuave('NÃO ABRA',W/2,H*.36,46,OSSO,a,'center');
+  /* O NÚMERO VEM DO REGISTRO. Esta linha dizia "dezesseis silhuetas" e a
+     cena 7 desenhava quinze — a décima sexta é `nenhuma`, a ausência de
+     silhueta. Número chumbado num texto envelhece calado. */
+  let nSil=0;
+  try{ nSil=[...new Set(Object.values(G.CRIATURAS).map(c=>c.silhueta))]
+    .filter(x=>x&&x!=='nenhuma').length; }catch(e){}
+  const linhas=['nove cômodos com desgaste próprio','texturas com relevo de verdade',
+    nSil+' silhuetas que chegaram à tela','dois invasores que nenhum outro jogo faz igual',
+    'e uma casa que lembra do que aconteceu nela'];
+  linhas.forEach((l,k)=>{
+    const b=Math.max(0,Math.min(1,(t-.5-k*.45)*1.6));
+    txtSuave('· '+l,W/2,H*.46+k*26,15,k===4?OURO:MOFO,b,'center');
+  });
+  grao(.05); vinhetaTV();
+});
+
+/* ---------- o motor ---------- */
+let iCena=0, tCena=0, tocando=true, ultimo=0;
+const total=()=>CENAS_SHOW.reduce((a,c)=>a+c.dur,0);
+function montarLista(){
+  const L=document.getElementById('lista'); L.innerHTML='';
+  CENAS_SHOW.forEach((c,k)=>{
+    const d=document.createElement('div');
+    d.textContent=(k+1)+'. '+c.nome;
+    d.onclick=()=>{ iCena=k; tCena=0; };
+    L.appendChild(d);
+  });
+}
+function marcarLista(){
+  const L=document.getElementById('lista');
+  [...L.children].forEach((d,k)=>d.classList.toggle('atual',k===iCena));
+}
+function quadro(ms){
+  const dt=Math.min(.05,(ms-ultimo)/1000||0); ultimo=ms;
+  if(pronto){
+    if(tocando){
+      tCena+=dt;
+      if(tCena>=CENAS_SHOW[iCena].dur){ tCena=0; iCena=(iCena+1)%CENAS_SHOW.length; marcarLista(); }
+    }
+    try{ CENAS_SHOW[iCena].fn(tCena); }catch(e){
+      limpa(); txt('erro na cena: '+e.message,24,40,14,'#c86a4a');
+    }
+    /* progresso */
+    let antes=0; for(let k=0;k<iCena;k++)antes+=CENAS_SHOW[k].dur;
+    const prog=(antes+tCena)/total();
+    document.getElementById('barraIn').style.width=(prog*100)+'%';
+    window.__show.cena=iCena; window.__show.nome=CENAS_SHOW[iCena].nome;
+    window.__show.t=+(antes+tCena).toFixed(2);
+    document.getElementById('info').textContent=
+      (iCena+1)+'/'+CENAS_SHOW.length+' · '+CENAS_SHOW[iCena].nome
+      +' · '+Math.round(antes+tCena)+'s de '+Math.round(total())+'s';
+  }
+  requestAnimationFrame(quadro);
+}
+
+/* ---------- abrir o jogo no quadro escondido ---------- */
+const jogo=document.getElementById('jogo');
+function passo(txt2){ cargaT.textContent=txt2; }
+jogo.addEventListener('load',async()=>{
+  J=jogo.contentWindow;
+  const esp=ms=>new Promise(r=>setTimeout(r,ms));
+  try{
+    passo('ABRINDO O JOGO…'); await esp(900);
+    const b=J.document.getElementById('btn-boot'); if(b)b.click();
+    await esp(1400);
+    passo('PULANDO A ABERTURA…');
+    const s=J.document.getElementById('cine-pular'); if(s)s.click();
+    await esp(1600);
+    passo('LIGANDO A PONTE…');
+    G=await montarPonte();
+    passo('ENTRANDO…');
+    const nm=J.document.getElementById('nm');
+    if(nm){ nm.value='Showcase'; nm.dispatchEvent(new J.Event('input',{bubbles:true})); }
+    const go=J.document.getElementById('go'); if(go)go.click();
+    await esp(900);
+    if(J.document.getElementById('ficha')){
+      try{
+        G.ATRIB_IDS.forEach(k=>J.fichaJogador().pontos[k]=0);
+        J.fichaJogador().pontos.forca=10;
+        J.document.querySelector('#ficha .ok').disabled=false;
+        J.document.querySelector('#ficha .ok').click();
+      }catch(e){}
+      await esp(700);
+    }
+    passo('CARREGANDO O MUNDO…');
+    cargaS.textContent='O jogo tem uma abertura narrada de ~20 segundos. O showcase espera ela terminar.';
+    await esp(21000);
+    /* silencia o jogo: o showcase é visual */
+    try{ if(G.A&&G.A.master)G.A.master.gain.value=0; }catch(e){}
+    try{ G.S.saveId='showcase'; G.S.dia=8; delete G.S.rngEstado; J.semearRNG(); }catch(e){}
+    pronto=true;
+    window.__show.pronto=true;
+    carga.style.display='none';
+  }catch(e){
+    passo('NÃO DEU PRA ABRIR O JOGO');
+    cargaS.textContent=e.message;
+    window.__show.erro=e.message;
+  }
+});
+
+/* ================= GRAVAÇÃO =================
+
+   O showcase grava a si mesmo. Isso existe por dois motivos:
+
+   1. o pedido é explícito em deixar a demonstração "preparada para
+      captura/exportação posterior";
+   2. e porque a captura de fora NÃO SERVE aqui. Medido: neste ambiente
+      o `screenshot` do navegador headless devolve o canvas em branco
+      (2 KB de PNG, 2.137 pixels acesos) enquanto o mesmo canvas, lido
+      por `toDataURL`, tem 411 KB e 396.532 pixels acesos. A tela existe;
+      quem não a enxerga é o compositor da captura.
+
+   `captureStream` + `MediaRecorder` pegam o canvas na fonte, então o
+   arquivo sai com o que está realmente desenhado — e começa quando eu
+   mando, sem os ~27 segundos de abertura do jogo no meio. */
+function melhorMime(){
+  const tenta=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
+  for(const m of tenta)if(window.MediaRecorder&&MediaRecorder.isTypeSupported(m))return m;
+  return '';
+}
+window.__gravar=function(segundos,fps){
+  return new Promise((ok,falha)=>{
+    if(!window.MediaRecorder)return falha(new Error('sem MediaRecorder'));
+    const mime=melhorMime();
+    if(!mime)return falha(new Error('nenhum formato de vídeo suportado'));
+    let stream;
+    try{ stream=TV.captureStream(fps||30); }
+    catch(e){ return falha(new Error('captureStream falhou: '+e.message)); }
+    const pedacos=[];
+    const rec=new MediaRecorder(stream,{mimeType:mime, videoBitsPerSecond:4500000});
+    rec.ondataavailable=e=>{ if(e.data&&e.data.size)pedacos.push(e.data); };
+    rec.onerror=e=>falha(new Error('erro na gravação: '+e.message));
+    rec.onstop=async()=>{
+      const b=new Blob(pedacos,{type:mime});
+      const buf=await b.arrayBuffer();
+      /* base64 em pedaços: String.fromCharCode com o array inteiro
+         estoura a pilha em arquivo grande */
+      const u8=new Uint8Array(buf); let bin='';
+      for(let i=0;i<u8.length;i+=0x8000)
+        bin+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));
+      ok({mime, bytes:u8.length, b64:btoa(bin)});
+    };
+    /* do começo, sem pausa, e sem depender de quem clicou no quê */
+    iCena=0; tCena=0; tocando=true; marcarLista();
+    rec.start(250);
+    setTimeout(()=>{ try{rec.stop();}catch(e){} },segundos*1000);
+  });
+};
+/* e o botão, pra quem abrir o showcase na mão */
+const bGrava=document.createElement('button');
+bGrava.textContent='● gravar o showcase';
+bGrava.onclick=async()=>{
+  bGrava.disabled=true; bGrava.textContent='● gravando…';
+  try{
+    const r=await window.__gravar(Math.ceil(total())+1,30);
+    const a2=document.createElement('a');
+    a2.href='data:'+r.mime+';base64,'+r.b64;
+    a2.download='nao-abra-showcase.webm'; a2.click();
+    bGrava.textContent='● gravar de novo';
+  }catch(e){ bGrava.textContent='falhou: '+e.message; }
+  bGrava.disabled=false;
+};
+document.getElementById('ctrl').appendChild(bGrava);
+
+document.getElementById('bPlay').onclick=(e)=>{
+  tocando=!tocando; e.target.textContent=tocando?'❚❚ pausar':'▶ tocar';
+  e.target.classList.toggle('on',tocando);
+};
+document.getElementById('bPrev').onclick=()=>{ iCena=(iCena-1+CENAS_SHOW.length)%CENAS_SHOW.length; tCena=0; marcarLista(); };
+document.getElementById('bNext').onclick=()=>{ iCena=(iCena+1)%CENAS_SHOW.length; tCena=0; marcarLista(); };
+document.getElementById('bRe').onclick=()=>{ iCena=0; tCena=0; marcarLista(); };
+/* atalho pra captura: ?auto=1 começa do zero e não pausa */
+if(new URLSearchParams(location.search).get('auto')==='1'){ iCena=0; tCena=0; tocando=true; }
+window.__show.cenas=CENAS_SHOW.length;
+window.__irPara=(k,t)=>{
+  const n=CENAS_SHOW.length; iCena=((k%n)+n)%n; tCena=Math.max(0,Math.min(t||0,CENAS_SHOW[iCena].dur-.01));
+  marcarLista();
+};
+window.__cenasInfo=()=>CENAS_SHOW.map(c=>({nome:c.nome,dur:c.dur}));
+window.__tocar=(v)=>{
+  tocando=!!v; const b=document.getElementById('bPlay');
+  b.textContent=tocando?'\u275a\u275a pausar':'\u25b6 tocar'; b.classList.toggle('on',tocando);
+};
+montarLista(); marcarLista();
+limpa(); requestAnimationFrame(quadro);
+</script></body></html>

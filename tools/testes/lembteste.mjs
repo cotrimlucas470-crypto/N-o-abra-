@@ -113,6 +113,79 @@ console.log('\n3. O DESENHO DO CÔMODO MUDA — A ASSERÇÃO QUE IMPORTA');
   ok('e não vaza pro cômodo do lado',      d.vizinhoMudou===0);
 }
 
+console.log('\n3b. A ESCADA NÃO TRAVA NO MEIO — E A CICATRIZ SE VÊ');
+{
+  /* AS DUAS ASSERÇÕES QUE FALTAVAM, e as duas nasceram de defeito real
+     que o bloco 3 acima NÃO pegava.
+
+     DEFEITO 1 — A ESCADA TRAVAVA. O bloco 3 compara peso 6 com peso 38 e
+     os dois cresciam, então ele passava. Mas renderizando peso 0, 4, 10,
+     34 e 60 lado a lado, os dois ÚLTIMOS eram a mesma imagem: 17,61% e
+     17,64%. Os tetos das camadas (`min(9,…)`, `min(7,…)`, `min(4,…)`)
+     saturavam em peso 18, 30 e 36 — então de 36 pra cima a casa parava
+     de lembrar, e invasão, ritual e morte não pintavam nada.
+     Escada que trava no terceiro degrau é pior que nenhuma escada: o
+     jogador aprende que passar de certo ponto não muda nada.
+
+     DEFEITO 2 — A CICATRIZ ERA INVISÍVEL. Ela é a única coisa que o
+     sistema promete que NUNCA some, e desenhava um retângulo de 6% da
+     largura a 7% de alpha, colado na junta parede/piso — que é a parte
+     mais distante e estreita do chão em perspectiva. Promessa que não
+     se vê é um campo no save, não uma cicatriz. */
+  const d=await p.evaluate(()=>{
+    __zerar();
+    const limpo=__pinta(4);
+    const passo=[];
+    /* sobe até o teto de peso em degraus, medindo cada um */
+    const receita=['rastro','rastro','sangue','sangue','invasao','invasao',
+                   'invasao','costura','costura','invasao','invasao','ritual'];
+    for(const t of receita){
+      lemAnotar(4,t,'FISICO');
+      passo.push({peso:+lemPeso(4).toFixed(1), dif:__dif(limpo,__pinta(4))});
+    }
+    /* e a cicatriz sozinha, sem nenhum peso em volta */
+    __zerar();
+    const limpo2=__pinta(6);
+    lemAnotar(6,'morte','NPC');
+    const soCicatriz=__dif(limpo2,__pinta(6));
+    /* que continua lá depois de muito tempo, quando o resto já cicatrizou */
+    const diaAntes=S.dia; S.dia=diaAntes+90;
+    const depoisDeMuito=__dif(limpo2,__pinta(6));
+    S.dia=diaAntes;
+    return {passo, soCicatriz, depoisDeMuito};
+  });
+  d.passo.forEach(x=>console.log('    peso '+String(x.peso).padStart(5)+' → '+
+    String(x.dif).padStart(6)+'% da tela'));
+  /* O LIMITE DE 1,25x QUE EU TINHA POSTO AQUI NAO PEGAVA O DEFEITO.
+     Plantei a saturacao de volta e a asserção passou: 2,6% -> 4,32% e
+     1,66x, acima de 1,25x. Com os tetos tirados o mesmo trecho da escada
+     cresce 6,7x (3,93% -> 26,17%). 3x fica no meio, e diz uma coisa de
+     verdade: a METADE DE CIMA do peso ainda mais que triplica a tinta.
+
+     E a outra asserção era pior: comparava o ultimo degrau com o
+     PRIMEIRO, que vale 0% — e qualquer coisa e maior que zero vezes
+     oito. Comparacao contra zero nao e comparacao. Agora a escada tem de
+     subir degrau a degrau, sem descer em nenhum. */
+  const alto=d.passo.filter(x=>x.peso>=32);
+  const cresceuNoTopo=alto.length>1 && alto[alto.length-1].dif>alto[0].dif*3;
+  let desceu=null;
+  for(let i=1;i<d.passo.length;i++)
+    if(d.passo[i].dif < d.passo[i-1].dif-0.01){ desceu=d.passo[i]; break; }
+  console.log('    no topo da escada (peso ≥ 32): '+
+    (alto.length>1
+      ? alto[0].dif+'% → '+alto[alto.length-1].dif+'%  ('
+        +(alto[alto.length-1].dif/Math.max(.01,alto[0].dif)).toFixed(1)+'x)'
+      : 'degraus de menos'));
+  console.log('    algum degrau desceu: '+(desceu?'SIM, em peso '+desceu.peso:'nenhum'));
+  console.log('    só a cicatriz, sem mais nada: '+d.soCicatriz+'% da tela');
+  console.log('    e 90 dias depois: '+d.depoisDeMuito+'% (não cicatriza)');
+  ok('a metade de cima do peso ainda mais que triplica a tinta',
+     cresceuNoTopo);
+  ok('e nenhum degrau da escada desce',  desceu===null);
+  ok('a cicatriz da morte se vê sozinha',   d.soCicatriz>0.5);
+  ok('e 90 dias depois ela continua igual', d.depoisDeMuito>=d.soCicatriz*0.95);
+}
+
 console.log('\n4. VOLTAR NO CÔMODO CONFIRMA O QUE VOCÊ VIU');
 {
   const d=await p.evaluate(()=>{

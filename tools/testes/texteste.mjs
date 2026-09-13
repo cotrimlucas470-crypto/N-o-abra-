@@ -223,7 +223,104 @@ console.log('\n5. O CUSTO');
   ok('e sobra folga de verdade (média < 5 ms)',     d.media<5);
 }
 
-console.log('\n6. NADA QUEBROU');
+console.log('\n6. A CHAVE DO RELEVO DESLIGA MESMO');
+{
+  /* POR QUE ESTE BLOCO EXISTE.
+     `texRelevo(false)` foi acrescentado pro showcase mostrar o
+     antes/depois da profundidade SEM mentir — a primeira versao da cena
+     comparava o tecido contra ele mesmo com um filtro de cor por cima,
+     o que prova a cor do filtro e mais nada. Chave que so a demonstracao
+     usa e parametro morto; aqui ela vira medida.
+
+     DUAS ARMADILHAS QUE ME PEGARAM MONTANDO ESTA MEDIDA:
+
+     1. O LADRILHO E TRANSPARENTE. Ele comeca com `clearRect` e so
+        desenha os sulcos — no jogo vai sempre POR CIMA de uma superficie
+        pintada. Medido cru, o pixel vazio conta como preto: a madeira
+        aparecia com +121% de contraste e o metal com media 175 de 255,
+        numeros que nao existem na tela. Compor primeiro, medir depois.
+        (E compor num SEGUNDO canvas: pintar a base antes de chamar o
+        gerador nao adianta, o clearRect dele apaga.)
+
+     2. MEDIA NAO ENXERGA EFEITO LOCALIZADO. O relevo do concreto mora
+        nas covas grandes, que ocupam uma fatia pequena do tecido: na
+        media ele mexe 0,0%, e na fatia que ele toca mexe 3,5 niveis de
+        brilho. E o mesmo engano que ja custou uma leitura errada do
+        desgaste de parede aqui — o par com a MENOR media era o que
+        mudava a MAIOR fatia. */
+  const d=await p.evaluate(()=>{
+    const BASE={veio:'#3b3128', poro:'#3a372f', risco:'#2a2c30'};
+    const brilho=(qual,relevo,n)=>{
+      const c=document.createElement('canvas'); c.width=c.height=n;
+      const g=c.getContext('2d');
+      texRelevo(relevo);
+      if(qual==='poro')texPoro(g,n); else if(qual==='risco')texRisco(g,n);
+      else texVeio(g,n,0);
+      texRelevo(true);
+      const f=document.createElement('canvas'); f.width=f.height=n;
+      const h=f.getContext('2d');
+      h.fillStyle=BASE[qual]; h.fillRect(0,0,n,n); h.drawImage(c,0,0);
+      const px=h.getImageData(0,0,n,n).data, v=new Float64Array(n*n);
+      for(let i=0,k=0;i<px.length;i+=4,k++)v[k]=(px[i]+px[i+1]+px[i+2])/3;
+      return {v,n,cru:c};
+    };
+    /* o par: em volta de um minimo local na vertical, quanto o vizinho de
+       CIMA e mais claro que o de BAIXO. E a definicao de relevo em uma
+       conta — luz na quina de cima, sombra logo abaixo. */
+    const par=({v,n})=>{let s=0,c=0;
+      for(let y=2;y<n-2;y++)for(let x=0;x<n;x++){
+        const a=v[(y-1)*n+x],m=v[y*n+x],q=v[(y+1)*n+x];
+        if(m<a&&m<q){ s+=(a-q); c++; }
+      } return c?+(s/c).toFixed(3):0;};
+    const r={};
+    for(const qual of ['veio','poro','risco']){
+      const L=brilho(qual,false,128), R=brilho(qual,true,128);
+      let mud=0,soma=0,pico=0;
+      for(let i=0;i<L.v.length;i++){
+        const dd=Math.abs(L.v[i]-R.v[i]);
+        if(dd>2){mud++; soma+=dd;} if(dd>pico)pico=dd;
+      }
+      /* e religar tem de devolver o desenho identico, byte a byte */
+      const R2=brilho(qual,true,128);
+      let volta=true;
+      for(let i=0;i<R.v.length;i++)if(R.v[i]!==R2.v[i]){volta=false;break;}
+      r[qual]={fatia:+(mud/L.v.length*100).toFixed(2),
+               forca:+(mud?soma/mud:0).toFixed(2), pico:+pico.toFixed(1),
+               parL:par(L), parR:par(R), volta};
+    }
+    /* e o cache nao pode servir o tecido errado: pede com relevo,
+       desliga, pede de novo — tem de vir outro objeto, e o mesmo de
+       volta quando a chave volta */
+    texRelevo(true);  const pa=texPadrao('__t',64,(g,n)=>texVeio(g,n,0));
+    texRelevo(false); const pb=texPadrao('__t',64,(g,n)=>texVeio(g,n,0));
+    texRelevo(true);  const pc=texPadrao('__t',64,(g,n)=>texVeio(g,n,0));
+    return {...r, cacheSepara:pa!==pb, cacheVolta:pa===pc};
+  });
+  for(const q of ['veio','poro','risco']){
+    const v=d[q];
+    console.log('    '+q.padEnd(6)+' muda '+String(v.fatia).padStart(5)+'% do tecido'
+      +' · força '+v.forca+' · pico '+v.pico
+      +' · par '+v.parL+' → '+v.parR);
+  }
+  /* madeira e metal sao sulco em toda a superficie: o relevo pega quase
+     tudo, e o par tem de crescer — e ele que diz "luz em cima" */
+  ok('o relevo muda boa parte da madeira',   d.veio.fatia>20);
+  ok('e o par luz/sombra cresce nela',        d.veio.parR>d.veio.parL*2);
+  ok('o relevo muda boa parte do metal',      d.risco.fatia>30);
+  ok('e o par luz/sombra cresce nele',        d.risco.parR>d.risco.parL*2);
+  /* concreto e cova, nao sulco: o relevo mora so nas covas grandes.
+     Fatia pequena, forca de verdade onde ela cai. Cobrar media aqui
+     seria cobrar a regua errada — e foi o que fez este passe ficar tres
+     versoes invisivel, pintando circulos de meio pixel a 1% de alpha. */
+  ok('o relevo pega as covas do concreto',    d.poro.fatia>1.5);
+  ok('e com força onde pega',                 d.poro.forca>2);
+  ok('religar devolve o mesmo desenho, byte a byte',
+     d.veio.volta&&d.poro.volta&&d.risco.volta);
+  ok('o cache guarda os dois tecidos em chaves separadas', d.cacheSepara);
+  ok('e devolve o mesmo padrão quando a chave volta',      d.cacheVolta);
+}
+
+console.log('\n7. NADA QUEBROU');
 console.log('    erros de página: '+(erros.length?erros.join(' | '):'nenhum'));
 ok('nenhum erro de página', erros.length===0);
 await b.close();
