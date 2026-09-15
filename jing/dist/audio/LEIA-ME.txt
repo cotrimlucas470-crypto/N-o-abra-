@@ -1,0 +1,19 @@
+SLOTS DE ÁUDIO
+==============
+
+Solte aqui os arquivos com estes nomes exatos e eles assumem o lugar da
+síntese WebAudio automaticamente — sem tocar em uma linha de código:
+
+  ambiente.mp3    drone do salão (loop)
+  vento.mp3       corrente de ar entre os espelhos (loop)
+  vidro.mp3       cacos, estilhaço curto
+  impacto.mp3     golpe grave
+  metal.mp3       ressonância metálica
+  transicao.mp3   varredura de transição entre seções
+  pulso.mp3       pulso grave (quebra de tempo, final)
+
+Enquanto os arquivos não existirem, src/utils/audio.js sintetiza equivalentes
+em WebAudio. O botão SOM: ON/OFF já funciona de qualquer jeito, e o áudio
+nunca inicia sozinho.
+
+Volumes e nomes de arquivo: src/data/config.js › AUDIO.faixas
