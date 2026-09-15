@@ -1,0 +1,285 @@
+/* ==========================================================================
+   JING — SALÃO DE ESPELHOS FRAGMENTADOS
+   Base: tokens, reset, tipografia, superfícies de vidro, sistema de brilho.
+   ========================================================================== */
+
+:root {
+  /* paleta */
+  --abismo: #050814;
+  --profundo: #080d1c;
+  --superficie: #10172b;
+  --roxo-escuro: #1a1235;
+  --espectral: #7b61ff;
+  --ciano: #00e5ff;
+  --prata: #b8c4d8;
+  --prata-branca: #e8f1ff;
+  --branco: #ffffff;
+
+  --vidro: color-mix(in srgb, var(--superficie) 42%, transparent);
+  --vidro-forte: color-mix(in srgb, var(--superficie) 68%, transparent);
+  --borda: color-mix(in srgb, var(--prata) 16%, transparent);
+  --borda-viva: color-mix(in srgb, var(--ciano) 42%, transparent);
+
+  /* tipografia */
+  --f-display: 'Chakra Petch', 'Segoe UI', system-ui, sans-serif;
+  --f-ui: 'Rajdhani', 'Segoe UI', system-ui, sans-serif;
+  --f-tec: 'Share Tech Mono', ui-monospace, 'SFMono-Regular', Consolas, monospace;
+
+  --t-hero: clamp(4.5rem, 16vw, 13rem);
+  --t-secao: clamp(1.9rem, 5.4vw, 4.2rem);
+  --t-sub: clamp(1.05rem, 1.9vw, 1.5rem);
+  --t-corpo: clamp(0.95rem, 1.15vw, 1.08rem);
+  --t-mini: clamp(0.66rem, 0.82vw, 0.78rem);
+
+  /* ritmo */
+  --gutter: clamp(1.15rem, 4vw, 4.5rem);
+  --pilha: clamp(2rem, 5vw, 4rem);
+
+  /* movimento */
+  --e-suave: cubic-bezier(0.22, 1, 0.36, 1);
+  --e-entrada: cubic-bezier(0.16, 1, 0.3, 1);
+  --e-tenso: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* recortes de caco */
+  --corte-p: polygon(0 10px, 10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
+  --corte-g: polygon(0 22px, 22px 0, 100% 0, 100% calc(100% - 22px), calc(100% - 22px) 100%, 0 100%);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--abismo);
+  /* nada de scroll-behavior: smooth — a rolagem suave é feita pelo GSAP,
+     e o suavizador nativo brigaria com ela (e com o scrub da câmera). */
+  scroll-behavior: auto;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100svh;
+  color: var(--prata);
+  font-family: var(--f-ui);
+  font-size: var(--t-corpo);
+  font-weight: 500;
+  line-height: 1.62;
+  letter-spacing: 0.01em;
+  background: var(--abismo);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body[data-travado] {
+  overflow: hidden;
+  height: 100svh;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--f-display);
+  font-weight: 600;
+  line-height: 1.02;
+  margin: 0;
+  color: var(--prata-branca);
+  letter-spacing: 0.02em;
+}
+
+p { margin: 0 0 1em; }
+p:last-child { margin-bottom: 0; }
+
+a {
+  color: var(--ciano);
+  text-decoration: none;
+  transition: color 0.3s var(--e-suave);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--ciano) 35%, transparent);
+  color: var(--branco);
+}
+
+/* ---------- canvas 3D ---------- */
+#cena {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  z-index: 0;
+  touch-action: pan-y;
+}
+
+/* véu que aprofunda o contraste sob o texto sem matar a cena */
+#veu {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 78% at 50% 44%, transparent 30%, rgba(5, 8, 20, 0.5) 78%, rgba(5, 8, 20, 0.86) 100%),
+    linear-gradient(180deg, rgba(5, 8, 20, 0.62) 0%, transparent 16%, transparent 82%, rgba(5, 8, 20, 0.72) 100%);
+  mix-blend-mode: normal;
+}
+
+#conteudo {
+  position: relative;
+  z-index: 2;
+}
+
+/* ---------- utilidades ---------- */
+.rotulo-tec {
+  font-family: var(--f-tec);
+  font-size: var(--t-mini);
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--ciano) 78%, var(--prata));
+  opacity: 0.85;
+}
+
+.so-leitor {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.editavel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  padding: 0.12em 0.55em;
+  font-family: var(--f-tec);
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--espectral) 85%, var(--branco));
+  border: 1px solid color-mix(in srgb, var(--espectral) 40%, transparent);
+  background: color-mix(in srgb, var(--espectral) 12%, transparent);
+  clip-path: var(--corte-p);
+  white-space: nowrap;
+}
+.editavel::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  background: var(--espectral);
+  transform: rotate(45deg);
+  box-shadow: 0 0 6px var(--espectral);
+}
+
+/* ---------- vidro ---------- */
+.vidro {
+  position: relative;
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--superficie) 58%, transparent) 0%,
+                            color-mix(in srgb, var(--profundo) 62%, transparent) 62%,
+                            color-mix(in srgb, var(--roxo-escuro) 48%, transparent) 100%);
+  backdrop-filter: blur(18px) saturate(135%);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+  clip-path: var(--corte-g);
+  isolation: isolate;
+}
+
+/* moldura desenhada por gradiente, sem "border" genérica */
+.vidro::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  clip-path: var(--corte-g);
+  padding: 1px;
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--prata-branca) 30%, transparent) 0%,
+    color-mix(in srgb, var(--ciano) 22%, transparent) 28%,
+    transparent 52%,
+    color-mix(in srgb, var(--espectral) 26%, transparent) 88%
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* linhas de HUD quase invisíveis dentro do vidro */
+.vidro::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(0deg, rgba(184, 196, 216, 0.035) 0 1px, transparent 1px 4px),
+    radial-gradient(90% 60% at 12% 0%, color-mix(in srgb, var(--ciano) 10%, transparent), transparent 62%);
+  pointer-events: none;
+  opacity: 0.8;
+  z-index: 1;
+}
+
+/* ---------- sistema de brilho reutilizável (.sheen) ---------- */
+.sheen {
+  position: relative;
+  overflow: hidden;
+}
+.sheen > .sheen-luz {
+  position: absolute;
+  inset: -40% -120%;
+  z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(
+    105deg,
+    transparent 38%,
+    color-mix(in srgb, var(--prata-branca) 18%, transparent) 47%,
+    color-mix(in srgb, var(--branco) 34%, transparent) 50%,
+    color-mix(in srgb, var(--prata-branca) 16%, transparent) 53%,
+    transparent 62%
+  );
+  transform: translate3d(-60%, 0, 0);
+  animation: sheen-passa 7.5s var(--e-suave) infinite;
+  animation-delay: var(--sheen-atraso, 0s);
+  mix-blend-mode: screen;
+  opacity: 0.9;
+}
+@keyframes sheen-passa {
+  0%, 62% { transform: translate3d(-65%, 0, 0); }
+  86%, 100% { transform: translate3d(65%, 0, 0); }
+}
+
+/* ---------- foco de teclado ---------- */
+:where(a, button, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--ciano);
+  outline-offset: 3px;
+  border-radius: 1px;
+}
+
+/* ---------- barra de rolagem ---------- */
+@supports selector(::-webkit-scrollbar) {
+  ::-webkit-scrollbar { width: 9px; }
+  ::-webkit-scrollbar-track { background: var(--abismo); }
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(var(--ciano), var(--espectral));
+    border: 2px solid var(--abismo);
+  }
+}
+html { scrollbar-color: var(--espectral) var(--abismo); scrollbar-width: thin; }
+
+/* ---------- movimento reduzido ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.12s !important;
+  }
+  .sheen > .sheen-luz { display: none; }
+  #veu { background: linear-gradient(180deg, rgba(5,8,20,.72), rgba(5,8,20,.5) 30%, rgba(5,8,20,.72)); }
+}

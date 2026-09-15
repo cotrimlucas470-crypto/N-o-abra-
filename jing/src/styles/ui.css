@@ -1,0 +1,281 @@
+/* ==========================================================================
+   Peças de interface: CTA, botão de quebra temporal, chips, abas.
+   Nada de botão padrão — cada peça é uma lâmina de vidro com moldura viva.
+   ========================================================================== */
+
+.botao {
+  --brilho: 0;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: clamp(0.95rem, 1.8vw, 1.25rem) clamp(1.5rem, 3.4vw, 2.6rem);
+  background: linear-gradient(140deg,
+    color-mix(in srgb, var(--superficie) 72%, transparent),
+    color-mix(in srgb, var(--roxo-escuro) 58%, transparent));
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  border: 0;
+  color: var(--prata-branca);
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: clamp(0.76rem, 1.1vw, 0.92rem);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  cursor: pointer;
+  clip-path: var(--corte-g);
+  overflow: hidden;
+  isolation: isolate;
+  transition: color .4s var(--e-suave), transform .5s var(--e-suave), letter-spacing .5s var(--e-suave);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* moldura desenhada, que acende no hover */
+.botao::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  clip-path: var(--corte-g);
+  background: linear-gradient(140deg,
+    color-mix(in srgb, var(--ciano) calc(30% + var(--brilho) * 60%), transparent),
+    color-mix(in srgb, var(--prata-branca) calc(12% + var(--brilho) * 40%), transparent) 45%,
+    color-mix(in srgb, var(--espectral) calc(28% + var(--brilho) * 55%), transparent));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  z-index: 2;
+  transition: background .5s var(--e-suave);
+}
+
+/* pulso de luz interno */
+.botao::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 140% at var(--mx, 50%) var(--my, 50%),
+    color-mix(in srgb, var(--ciano) 26%, transparent) 0%, transparent 62%);
+  opacity: var(--brilho);
+  transition: opacity .45s var(--e-suave);
+  z-index: 1;
+}
+
+.botao > * { position: relative; z-index: 3; }
+
+.botao:hover,
+.botao:focus-visible {
+  --brilho: 1;
+  color: var(--branco);
+  transform: translateY(-3px);
+  letter-spacing: 0.26em;
+}
+.botao:active { transform: translateY(-1px) scale(0.99); }
+
+.botao .marcador {
+  width: 9px;
+  height: 9px;
+  background: var(--ciano);
+  transform: rotate(45deg);
+  box-shadow: 0 0 14px var(--ciano);
+  transition: transform .5s var(--e-suave), box-shadow .4s;
+  flex: none;
+}
+.botao:hover .marcador { transform: rotate(225deg) scale(1.25); box-shadow: 0 0 22px var(--ciano); }
+
+.botao.primario {
+  padding-block: clamp(1.1rem, 2.2vw, 1.5rem);
+  font-size: clamp(0.8rem, 1.2vw, 1rem);
+  background: linear-gradient(140deg,
+    color-mix(in srgb, var(--ciano) 12%, var(--superficie)),
+    color-mix(in srgb, var(--espectral) 16%, var(--roxo-escuro)));
+}
+.botao.fantasma {
+  background: color-mix(in srgb, var(--superficie) 28%, transparent);
+  color: color-mix(in srgb, var(--prata) 90%, transparent);
+}
+
+/* ---------- botão QUEBRAR O TEMPO ---------- */
+.botao-quebra {
+  --p: 0;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 1rem 1.6rem 1rem 1.2rem;
+  background: color-mix(in srgb, var(--abismo) 72%, transparent);
+  border: 0;
+  color: var(--prata-branca);
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: 0.8rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  cursor: pointer;
+  clip-path: var(--corte-p);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: color .35s, transform .4s var(--e-suave);
+  width: 100%;
+  justify-content: space-between;
+}
+.botao-quebra::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  clip-path: var(--corte-p);
+  background: linear-gradient(120deg, var(--espectral), var(--ciano));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  opacity: 0.55;
+  transition: opacity .4s;
+}
+.botao-quebra:hover::before { opacity: 1; }
+.botao-quebra:hover { transform: translateY(-2px); }
+.botao-quebra[disabled] { cursor: progress; color: color-mix(in srgb, var(--prata) 50%, transparent); }
+.botao-quebra .medidor {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 2px;
+  background: color-mix(in srgb, var(--prata) 14%, transparent);
+  overflow: hidden;
+}
+.botao-quebra .medidor i {
+  display: block;
+  height: 100%;
+  width: calc(var(--p) * 100%);
+  background: linear-gradient(90deg, var(--espectral), var(--ciano));
+  box-shadow: 0 0 10px var(--ciano);
+}
+.botao-quebra .selo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border: 1px solid color-mix(in srgb, var(--ciano) 60%, transparent);
+  transform: rotate(45deg);
+  transition: transform .6s var(--e-tenso), border-color .4s;
+}
+.botao-quebra .selo b {
+  transform: rotate(-45deg);
+  font-family: var(--f-tec);
+  font-size: 0.62rem;
+  color: var(--ciano);
+}
+.botao-quebra:hover .selo { transform: rotate(225deg); }
+
+/* ---------- chips ---------- */
+.chip {
+  position: relative;
+  padding: 0.5rem 1rem;
+  background: color-mix(in srgb, var(--superficie) 40%, transparent);
+  border: 1px solid color-mix(in srgb, var(--prata) 14%, transparent);
+  color: color-mix(in srgb, var(--prata) 88%, transparent);
+  font-family: var(--f-tec);
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  cursor: pointer;
+  clip-path: var(--corte-p);
+  transition: color .3s, border-color .3s, background .3s, transform .3s var(--e-suave);
+  -webkit-tap-highlight-color: transparent;
+}
+.chip:hover { color: var(--branco); border-color: var(--borda-viva); transform: translateY(-2px); }
+.chip[aria-pressed='true'], .chip[aria-selected='true'] {
+  color: var(--branco);
+  border-color: var(--borda-viva);
+  background: color-mix(in srgb, var(--ciano) 16%, transparent);
+  box-shadow: 0 0 26px -10px var(--ciano);
+}
+
+/* ---------- controle deslizante ---------- */
+.deslizante {
+  --p: 0.3;
+  position: relative;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  touch-action: none;
+}
+.deslizante input[type='range'] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  margin: 0;
+  cursor: grab;
+}
+.deslizante input[type='range']:active { cursor: grabbing; }
+.deslizante .trilho {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: color-mix(in srgb, var(--prata) 14%, transparent);
+}
+.deslizante .preenchido {
+  position: absolute;
+  left: 0;
+  height: 2px;
+  width: calc(var(--p) * 100%);
+  background: linear-gradient(90deg, var(--espectral), var(--ciano));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--ciano) 65%, transparent);
+}
+.deslizante .punho {
+  position: absolute;
+  left: calc(var(--p) * 100%);
+  width: 18px;
+  height: 18px;
+  transform: translateX(-50%) rotate(45deg);
+  background: var(--abismo);
+  border: 1px solid var(--ciano);
+  box-shadow: 0 0 18px -2px var(--ciano);
+  transition: box-shadow .3s, transform .3s var(--e-suave);
+  pointer-events: none;
+}
+.deslizante input:focus-visible ~ .punho,
+.deslizante:hover .punho { transform: translateX(-50%) rotate(45deg) scale(1.18); box-shadow: 0 0 26px 0 var(--ciano); }
+.deslizante .escala {
+  position: absolute;
+  top: 30px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--f-tec);
+  font-size: 0.56rem;
+  letter-spacing: 0.14em;
+  opacity: 0.45;
+}
+
+/* ---------- transição cinematográfica (véu de corte) ---------- */
+#corte {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  pointer-events: none;
+  opacity: 0;
+  background:
+    linear-gradient(105deg, transparent 42%, rgba(0, 229, 255, 0.16) 48%, rgba(232, 241, 255, 0.5) 50%, rgba(123, 97, 255, 0.16) 52%, transparent 58%),
+    rgba(5, 8, 20, 0.001);
+  background-size: 300% 100%;
+}
+
+/* ---------- entradas com animação de viewport ---------- */
+[data-revelar] {
+  opacity: 0;
+  transform: translateY(26px);
+  will-change: opacity, transform;
+}
+[data-revelar].revelado {
+  opacity: 1;
+  transform: none;
+  transition: opacity 1s var(--e-entrada), transform 1.1s var(--e-entrada);
+  transition-delay: var(--atraso, 0s);
+}
+html[data-reduzir='sim'] [data-revelar] { opacity: 1; transform: none; }

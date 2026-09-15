@@ -1,0 +1,19 @@
+{
+  "name": "jing-salao-de-espelhos-fragmentados",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "JING — QUEBRE O PRÓPRIO ESPELHO. Experiência 3D/WebGL de apresentação de personagem.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4173"
+  },
+  "dependencies": {
+    "gsap": "^3.13.0",
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "vite": "^7.0.0"
+  }
+}

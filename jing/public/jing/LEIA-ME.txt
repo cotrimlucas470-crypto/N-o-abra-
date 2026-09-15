@@ -1,0 +1,26 @@
+ARTE DA PERSONAGEM
+==================
+
+Este diretório está vazio de propósito: o projeto não embute nenhum asset
+oficial de Honor of Kings e não inventa uma aparência para a Jing.
+
+O centro da cena usa uma COMPOSIÇÃO DE PRESENÇA abstrata (volume de luz em
+pose de combate implícita + arco de lâmina + espiral de cacos + ecos
+temporais).
+
+Para usar uma arte real que você tenha o direito de usar:
+
+  1. coloque o arquivo aqui, por exemplo  public/jing/jing.png
+     (PNG com fundo transparente funciona melhor)
+  2. aponte em src/data/config.js:
+
+       export const PERSONAGEM = {
+         imagem: 'jing/jing.png',
+         alturaMundo: 7.2,
+         ecos: 3,
+         ...
+       };
+
+A textura entra no lugar do volume abstrato e herda o mesmo tratamento:
+refração, eco temporal, aberração cromática e dissolução fragmentada.
+Se o arquivo não existir, a composição abstrata continua valendo.

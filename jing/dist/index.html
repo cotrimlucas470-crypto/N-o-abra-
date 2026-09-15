@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="pt-BR" data-tier="3">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#050814" />
+    <title>JING — Quebre o Próprio Espelho</title>
+    <meta
+      name="description"
+      content="Salão de espelhos fragmentados: uma experiência 3D sobre recuperar a mecânica da Jing — tempo, reflexo e controle."
+    />
+    <meta name="color-scheme" content="dark" />
+
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <meta property="og:title" content="JING — Quebre o Próprio Espelho" />
+    <meta
+      property="og:description"
+      content="Um salão de espelhos fragmentados onde o tempo obedece a você. Experiência 3D conceitual sobre recuperar a mecânica."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <!-- fontes servidas pelo próprio projeto: ver src/styles/fontes.css -->
+    <script type="module" crossorigin src="./assets/index-CSMjeBzQ.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/gsap-Bxtl4DJ9.js">
+    <link rel="modulepreload" crossorigin href="./assets/three-7iOAx3oj.js">
+    <link rel="modulepreload" crossorigin href="./assets/geometrias-Nin4fyTE.js">
+    <link rel="stylesheet" crossorigin href="./assets/index-Ba5kN9Dv.css">
+  </head>
+
+  <body>
+    <!-- filtro de distorção usado pelo reflexo do título (vidro/água) -->
+    <svg width="0" height="0" aria-hidden="true" focusable="false" style="position: absolute">
+      <filter id="distorcao-reflexo" x="-12%" y="-12%" width="124%" height="124%">
+        <feTurbulence id="turbulencia-reflexo" type="fractalNoise" baseFrequency="0.011 0.055" numOctaves="2" seed="7" result="ruido" />
+        <feDisplacementMap in="SourceGraphic" in2="ruido" scale="9" xChannelSelector="R" yChannelSelector="G" />
+      </filter>
+    </svg>
+
+    <canvas id="cena" aria-hidden="true"></canvas>
+    <div id="veu" aria-hidden="true"></div>
+    <div id="corte" aria-hidden="true"></div>
+
+    <!-- ===================== ABERTURA ===================== -->
+    <div id="abertura" role="status" aria-live="polite">
+      <div class="abertura-ponto" aria-hidden="true"></div>
+      <div class="abertura-linha" aria-hidden="true"></div>
+      <p class="abertura-texto" id="abertura-texto"></p>
+      <div class="abertura-medidor" aria-hidden="true"><i></i></div>
+      <button type="button" class="abertura-pular" id="pular-abertura">PULAR ABERTURA</button>
+    </div>
+
+    <!-- ===================== HUD ===================== -->
+    <div id="hud" aria-hidden="true">
+      <div class="hud-canto hud-ce">
+        <span class="hud-sistema" id="hud-sistema">JING // SYSTEM ONLINE</span>
+        <span id="hud-linha-1"></span>
+        <span id="hud-linha-2"></span>
+      </div>
+      <div class="hud-canto hud-cd" id="hud-leituras"></div>
+      <div class="hud-canto hud-be">
+        <span id="hud-coords"></span>
+        <span id="hud-tier"></span>
+      </div>
+      <div class="hud-canto hud-bd">
+        <span id="hud-tempo">ESCALA TEMPORAL 1.00x</span>
+        <span id="hud-fps"></span>
+      </div>
+      <nav class="hud-trilha" id="hud-trilha" aria-label="Seções"></nav>
+    </div>
+
+    <!-- ===================== CONTROLES ===================== -->
+    <div id="controles">
+      <button type="button" class="botao-icone" id="botao-som" aria-pressed="false">
+        <span class="onda-som" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span>SOM: <b id="som-estado">OFF</b></span>
+      </button>
+    </div>
+
+    <!-- cursor -->
+    <div id="cursor-distorcao" aria-hidden="true"></div>
+    <div id="cursor-anel" aria-hidden="true"></div>
+    <div id="cursor" aria-hidden="true"></div>
+
+    <main id="conteudo">
+      <!-- ===================== HERO ===================== -->
+      <section class="secao" id="hero" aria-labelledby="hero-titulo">
+        <div class="interior">
+          <div class="hero-marca" data-revelar>
+            <i aria-hidden="true"></i>
+            <span class="rotulo-tec" id="hero-assinatura">SALÃO DE ESPELHOS FRAGMENTADOS</span>
+            <i aria-hidden="true"></i>
+          </div>
+
+          <div class="hero-titulo-caixa">
+            <h1 class="hero-titulo" id="hero-titulo">JING</h1>
+            <span class="brilho-titulo" aria-hidden="true">JING</span>
+          </div>
+          <div class="hero-reflexo-caixa" aria-hidden="true">
+            <div class="hero-reflexo">JING</div>
+          </div>
+
+          <p class="hero-sub" data-revelar>QUEBRE O PRÓPRIO ESPELHO</p>
+
+          <p class="hero-manifesto" data-revelar id="hero-manifesto"></p>
+
+          <div class="hero-acoes" data-revelar>
+            <button type="button" class="botao primario sheen" id="cta-principal">
+              <span class="marcador" aria-hidden="true"></span>
+              <span>INICIAR RECUPERAÇÃO MECÂNICA</span>
+              <span class="sheen-luz" aria-hidden="true" style="--sheen-atraso: 1.2s"></span>
+            </button>
+          </div>
+
+          <div class="hero-rodape" data-revelar id="hero-rodape"></div>
+
+          <div class="rolar" aria-hidden="true">
+            <span>ROLE PARA ATRAVESSAR</span>
+            <i></i>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== CHRONO MIRROR ===================== -->
+      <section class="secao" id="chrono" aria-labelledby="chrono-titulo">
+        <div class="interior">
+          <header class="cabecalho-secao" data-revelar>
+            <span class="rotulo-tec">SISTEMA DE TEMPO</span>
+            <h2 id="chrono-titulo">CHRONO MIRROR</h2>
+            <p id="chrono-descricao"></p>
+          </header>
+
+          <div class="chrono-caixa">
+            <div class="vidro chrono-painel sheen" data-revelar data-espelho>
+              <span class="sheen-luz" aria-hidden="true" style="--sheen-atraso: 2.4s"></span>
+              <span class="rotulo-tec" id="chrono-subtitulo">TEMPO DE RECUPERAÇÃO DO REFLEXO</span>
+              <div class="chrono-leitura">
+                <span class="chrono-valor" id="chrono-valor">1.00x</span>
+                <span>
+                  <span class="chrono-estado" id="chrono-estado">FLUXO NORMAL</span><br />
+                  <span class="chrono-nota" id="chrono-nota">ritmo de partida</span>
+                </span>
+              </div>
+
+              <div class="linha-temporal" id="linha-temporal">
+                <div class="trilho" aria-hidden="true"></div>
+                <div class="agulha" id="chrono-agulha" aria-hidden="true"></div>
+                <input
+                  type="range"
+                  id="chrono-range"
+                  min="0.15"
+                  max="2.4"
+                  step="0.01"
+                  value="1"
+                  aria-label="Escala de tempo do salão"
+                />
+              </div>
+              <p style="margin-top: 1.6rem; font-size: 0.9rem; opacity: 0.8" id="chrono-explica"></p>
+            </div>
+
+            <div class="chrono-lateral">
+              <div class="vidro chrono-painel" data-revelar style="--atraso: 0.1s" data-espelho>
+                <span class="rotulo-tec">LEITURA DO DOMÍNIO</span>
+                <div class="chrono-metricas" id="chrono-metricas" style="margin-top: 1rem"></div>
+              </div>
+              <div class="vidro chrono-painel" data-revelar style="--atraso: 0.2s; padding: 1.1rem">
+                <button type="button" class="botao-quebra" id="botao-quebra">
+                  <span class="selo" aria-hidden="true"><b>⏱</b></span>
+                  <span id="quebra-rotulo">QUEBRAR O TEMPO</span>
+                  <span class="medidor" aria-hidden="true"><i></i></span>
+                </button>
+                <p style="margin-top: 0.9rem; font-size: 0.8rem; opacity: 0.65" id="quebra-nota"></p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== CURVA DE APRENDIZADO ===================== -->
+      <section class="secao" id="curva" aria-labelledby="curva-titulo">
+        <div class="interior">
+          <header class="cabecalho-secao" data-revelar>
+            <span class="rotulo-tec">CURVA DE APRENDIZADO</span>
+            <h2 id="curva-titulo">CRONÔMETRO DO DOMÍNIO</h2>
+            <p id="curva-subtitulo"></p>
+          </header>
+          <div class="grade-estagios" id="grade-estagios"></div>
+        </div>
+      </section>
+
+      <!-- ===================== CALCULADORA ===================== -->
+      <section class="secao" id="calculadora" aria-labelledby="calc-titulo">
+        <div class="interior">
+          <header class="cabecalho-secao" data-revelar>
+            <span class="rotulo-tec">ESTIMATIVA DE RECUPERAÇÃO</span>
+            <h2 id="calc-titulo">QUANTO TEMPO ATÉ O REFLEXO VOLTAR?</h2>
+          </header>
+
+          <div class="calc-caixa">
+            <div class="vidro calc-entrada sheen" data-revelar data-espelho>
+              <span class="sheen-luz" aria-hidden="true" style="--sheen-atraso: 3.6s"></span>
+              <label class="rotulo-tec" for="calc-range" id="calc-rotulo">HORAS DE TREINO POR DIA</label>
+              <div class="calc-valor">
+                <b id="calc-horas">1.5</b>
+                <span>H / DIA</span>
+              </div>
+              <div class="deslizante" id="calc-deslizante">
+                <div class="trilho" aria-hidden="true"></div>
+                <div class="preenchido" aria-hidden="true"></div>
+                <div class="punho" aria-hidden="true"></div>
+                <input type="range" id="calc-range" min="0.25" max="6" step="0.25" value="1.5" />
+                <div class="escala" aria-hidden="true"><span>0.25h</span><span>3h</span><span>6h</span></div>
+              </div>
+              <div class="calc-presets" id="calc-presets" role="group" aria-label="Atalhos de horas por dia"></div>
+              <div class="calc-formula" id="calc-formula"></div>
+            </div>
+
+            <div class="calc-saida" id="calc-saida"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== PROTOCOLO ===================== -->
+      <section class="secao" id="protocolo" aria-labelledby="protocolo-titulo">
+        <div class="interior">
+          <header class="cabecalho-secao" data-revelar>
+            <span class="rotulo-tec">LINHA TEMPORAL</span>
+            <h2 id="protocolo-titulo">PROTOCOLO DE RETORNO</h2>
+            <p id="protocolo-subtitulo"></p>
+          </header>
+          <div class="protocolo-lista" id="protocolo-lista"></div>
+        </div>
+      </section>
+
+      <!-- ===================== MECÂNICAS ===================== -->
+      <section class="secao" id="mecanicas" aria-labelledby="mecanicas-titulo">
+        <div class="interior">
+          <header class="cabecalho-secao" data-revelar>
+            <span class="rotulo-tec">MECÂNICAS</span>
+            <h2 id="mecanicas-titulo">MAPA DO REFLEXO</h2>
+            <p id="mecanicas-subtitulo"></p>
+          </header>
+          <div class="mapa-caixa">
+            <div class="mapa-nodos" id="mapa-nodos" role="tablist" aria-label="Mecânicas"></div>
+            <div class="vidro mapa-detalhe" id="mapa-detalhe" role="tabpanel" data-espelho></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== COMBOS ===================== -->
+      <section class="secao" id="combos" aria-labelledby="combos-titulo">
+        <div class="interior">
+          <header class="cabecalho-secao" data-revelar>
+            <span class="rotulo-tec">SEQUÊNCIAS</span>
+            <h2 id="combos-titulo">ARQUIVO DE COMBOS</h2>
+            <p id="combos-subtitulo"></p>
+          </header>
+          <div class="combo-abas" id="combo-abas" role="tablist" aria-label="Combos"></div>
+          <div class="combo-sequencia" id="combo-sequencia" role="tabpanel"></div>
+          <p style="margin-top: 1.6rem" id="combos-aviso"></p>
+        </div>
+      </section>
+
+      <!-- ===================== FINAL ===================== -->
+      <section class="secao" id="final" aria-labelledby="final-titulo">
+        <div class="interior">
+          <div class="final-linhas" id="final-linhas">
+            <p class="final-1" id="final-titulo"></p>
+            <p class="final-2"></p>
+            <p class="final-3"></p>
+          </div>
+          <div class="final-acoes">
+            <button type="button" class="botao sheen" id="cta-final">
+              <span class="marcador" aria-hidden="true"></span>
+              <span>RETORNAR AO CAMPO</span>
+              <span class="sheen-luz" aria-hidden="true" style="--sheen-atraso: 0.6s"></span>
+            </button>
+          </div>
+          <p class="final-rodape" id="final-rodape"></p>
+        </div>
+      </section>
+    </main>
+
+    <noscript>
+      <div id="sem-webgl">
+        Esta experiência precisa de JavaScript. O conteúdo textual continua disponível abaixo do salão.
+      </div>
+    </noscript>
+
+  </body>
+</html>
