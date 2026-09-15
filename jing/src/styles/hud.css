@@ -221,12 +221,16 @@
   .hud-cd, .hud-bd { display: none; }
 }
 
+@media (max-width: 900px) {
+  /* o canto inferior esquerdo pertence ao botão de som nessas larguras:
+     as leituras técnicas sairiam por cima do conteúdo da seção. */
+  .hud-be { display: none; }
+}
+
 @media (max-width: 720px) {
   #hud { font-size: 0.6rem; }
-  #hud-coords { display: none; }
   .hud-canto { padding: 0.75rem 0.9rem; gap: 0.25rem; letter-spacing: 0.16em; }
-  .hud-ce::before, .hud-be::before { display: none; }
-  .hud-be { padding-bottom: 3.2rem; }
+  .hud-ce::before { display: none; }
 }
 
 /* ---------- controles fixos ---------- */

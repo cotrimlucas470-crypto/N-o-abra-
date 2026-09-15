@@ -182,7 +182,7 @@ export class Estrutura {
     else this._montarPainel();
   }
 
-  _addPainel(l, a, z = -0.35) {
+  _addPainel(l, a, z = 0) {
     const p = criarPainelHolo(l, a, this.tom);
     p.position.z = z;
     this.envelope.add(p);
@@ -195,7 +195,7 @@ export class Estrutura {
 
     const prisma = new THREE.Mesh(criarPrisma(), materialVidroHolo(envMap, this.tom > 0.5 ? 0x4b3ba8 : 0x1c5f9e));
     prisma.scale.set(0.82, 1.35, 0.82);
-    prisma.position.set(0, 0.25, 0.4);
+    prisma.position.set(0, 0.25, 0);
     this.envelope.add(prisma);
     this.nucleo = prisma;
 
@@ -211,7 +211,7 @@ export class Estrutura {
     // barra de progresso vertical, em luz
     this.barra = criarFeixeTemporal();
     this.barra.scale.set(0.09, 3.0, 1);
-    this.barra.position.set(-1.45, 0.1, 0.65);
+    this.barra.position.set(-1.45, 0.1, 0.2);
     this.envelope.add(this.barra);
 
     // gráfico: uma linha 3D real com os valores do config
@@ -219,7 +219,7 @@ export class Estrutura {
       const pts = grafico.map((v, i) => new THREE.Vector3(
         -0.95 + (i / (grafico.length - 1)) * 1.9,
         -1.55 + v * 1.1,
-        0.75
+        0.2
       ));
       const curva = new THREE.CatmullRomCurve3(pts);
       const g = new THREE.BufferGeometry().setFromPoints(curva.getPoints(48));
@@ -234,7 +234,7 @@ export class Estrutura {
         new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })
       );
       // eco holográfico do índice: canto inferior direito, bem discreto
-      spr.position.set(1.34, -1.86, 0.8);
+      spr.position.set(1.34, -1.86, 0.2);
       spr.scale.setScalar(0.72);
       this.envelope.add(spr);
       this.rotulo = spr;
@@ -287,12 +287,14 @@ export class Estrutura {
   }
 
   _montarNodo(envMap, _rotulo) {
-    this._addPainel(2.5, 2.5, -0.55);
-    const geo = new THREE.IcosahedronGeometry(0.62, 0);
+    this._addPainel(2.5, 2.5);
+    // gaiola holográfica em volta do conteúdo: o símbolo e o rótulo do HTML
+    // ficam legíveis por dentro, sem nada sólido por cima deles.
+    const geo = new THREE.IcosahedronGeometry(0.88, 0);
     const mat = materialVidroHolo(envMap, this.tom > 0.5 ? 0x5b46c8 : 0x1f74b8);
-    mat.opacity = 0.32;
+    mat.opacity = 0.14;
     const nodo = new THREE.Mesh(geo, mat);
-    nodo.position.y = 0.34;
+    nodo.position.y = 0.06;
     this.envelope.add(nodo);
     this.nucleo = nodo;
     this.nodoMat = mat;
@@ -303,7 +305,7 @@ export class Estrutura {
     this.arestas = arestas;
 
     const nucleo = new THREE.Mesh(
-      new THREE.SphereGeometry(0.13, 16, 12),
+      new THREE.SphereGeometry(0.055, 12, 8),
       new THREE.MeshBasicMaterial({ color: 0xbff2ff, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false })
     );
     nucleo.position.copy(nodo.position);
@@ -314,7 +316,7 @@ export class Estrutura {
   }
 
   _montarSlot(envMap, rotulo) {
-    this._addPainel(2.3, 3.0, -0.4);
+    this._addPainel(2.3, 3.0);
     const anel = new THREE.Mesh(
       new THREE.TorusGeometry(0.72, 0.03, 6, 6),
       new THREE.MeshBasicMaterial({ color: 0x00e5ff, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false })
@@ -328,7 +330,7 @@ export class Estrutura {
       materialVidroHolo(envMap, 0x2a5fa8)
     );
     interno.rotation.z = Math.PI / 6;
-    interno.position.z = -0.05;
+    interno.position.z = 0;
     this.envelope.add(interno);
 
     if (rotulo) {
@@ -337,7 +339,7 @@ export class Estrutura {
         new THREE.PlaneGeometry(0.95, 0.95),
         new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })
       );
-      spr.position.z = 0.2;
+      spr.position.z = 0.12;
       this.envelope.add(spr);
       this.rotulo = spr;
     }
@@ -437,10 +439,10 @@ export class Estrutura {
         this.arestas.material.opacity = (0.5 + this.foco * 0.45) * this.aparicao;
       }
     }
-    if (this.nodoMat) this.nodoMat.opacity = (0.3 + this.foco * 0.35) * this.aparicao;
+    if (this.nodoMat) this.nodoMat.opacity = (0.1 + this.foco * 0.22) * this.aparicao;
     if (this.brilho) {
       this.brilho.scale.setScalar(0.8 + Math.sin(tempoEscalado * 1.6) * 0.1 + this.foco * 0.6);
-      this.brilho.material.opacity = (0.5 + this.foco * 0.5) * this.aparicao;
+      this.brilho.material.opacity = (0.22 + this.foco * 0.45) * this.aparicao;
     }
     if (this.rotulo) this.rotulo.material.opacity = (0.22 + this.foco * 0.4) * this.aparicao;
     if (this.grafico) this.grafico.material.opacity = (0.45 + this.foco * 0.5) * this.aparicao;

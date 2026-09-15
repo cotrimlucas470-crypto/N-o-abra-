@@ -35,10 +35,20 @@ export class EspelhoFinal {
     this._formas = formas;
 
     const total = clamp(Math.round((perfil.fragmentos.longe + perfil.fragmentos.medio) * 0.55), 40, 240);
-    const material = criarMaterialFragmento({ envMap: this.envMap, rugosidade: 0.045, metalico: 1 });
+    // o espelho final precisa LER como uma superfície só: muito reflexo,
+    // pouca variação de tom, borda discreta. A variedade vem do que ele
+    // reflete, não da cor de cada caco.
+    const material = criarMaterialFragmento({
+      envMap: this.envMap,
+      rugosidade: 0.03,
+      metalico: 1,
+      cor: 0x0a1020,
+    });
+    material.envMapIntensity = 3.4;
     material.userData.uniforms.uDeriva.value = 0.02;
     material.userData.uniforms.uMouseForca.value = 0.05;
-    material.userData.uniforms.uRimForca.value = 1.4;
+    material.userData.uniforms.uRimForca.value = 0.7;
+    material.userData.uniforms.uRachadura.value = 0.45;
     this.material = material;
 
     // malha alinhada: grade irregular cobrindo o plano do espelho
@@ -105,8 +115,8 @@ export class EspelhoFinal {
 
         aSeed[i] = rnd();
         aVel[i] = randRange(rnd, 0.02, 0.12);
-        aBrilho[i] = randRange(rnd, 0.1, 0.6);
-        aRug[i] = randRange(rnd, 0.3, 1.1);
+        aBrilho[i] = randRange(rnd, 0.06, 0.3);
+        aRug[i] = randRange(rnd, 0.35, 0.8);
         aEscalaInv[i] = 0.6;
         aEixo[i * 3] = 0;
         aEixo[i * 3 + 1] = 1;

@@ -53,6 +53,7 @@ export function montarCombos({ gsap }) {
         el('span', { class: 'rotulo', text: p.rotulo }),
         el('span', { style: { fontSize: '.78rem', opacity: '.7' }, text: `janela ${p.janela}` }),
         el('span', { class: 'seta', 'aria-hidden': 'true', text: '↓' }),
+        el('span', { class: 'dica-toque', 'aria-hidden': 'true', text: 'TOQUE PARA O TIMING' }),
         el(
           'div',
           { class: 'detalhe-passo' },
