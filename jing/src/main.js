@@ -78,148 +78,158 @@ function palcoInerte() {
   };
 }
 
-let stage;
-if (temWebGL()) {
-  const { Stage } = await import('./scene/Stage.js');
-  stage = new Stage({ canvas: $('#cena'), perf });
-  stage.iniciar();
-} else {
-  stage = palcoInerte();
-  $('#cena')?.remove();
-  document.body.append(
-    el('div', {
-      id: 'sem-webgl',
-      text: 'WebGL indisponível neste dispositivo — o salão 3D foi desligado, mas todo o conteúdo continua acessível.',
-    })
-  );
-  document.querySelectorAll('[data-revelar]').forEach((n) => n.classList.add('revelado'));
-}
-
 /* ------------------------------------------------------------------ *
- * Interface
+ * Arranque. Tudo mora aqui dentro em vez de no topo do módulo: sem
+ * top-level await, o mesmo código compila tanto para o bundle com code
+ * splitting quanto para a versão de arquivo único (IIFE clássico).
  * ------------------------------------------------------------------ */
-// superfície única de depuração (também usada pelos testes visuais)
-window.__jing = { palco: stage, tempo, gsap, ScrollTrigger, perf };
+async function iniciar() {
+  let stage;
+  if (temWebGL()) {
+    // o bundle 3D só é buscado quando existe WebGL para gastá-lo
+    const { Stage } = await import('./scene/Stage.js');
+    stage = new Stage({ canvas: $('#cena'), perf });
+    stage.iniciar();
+  } else {
+    stage = palcoInerte();
+    $('#cena')?.remove();
+    document.body.append(
+      el('div', {
+        id: 'sem-webgl',
+        text: 'WebGL indisponível neste dispositivo — o salão 3D foi desligado, mas todo o conteúdo continua acessível.',
+      })
+    );
+    document.querySelectorAll('[data-revelar]').forEach((n) => n.classList.add('revelado'));
+  }
 
-montarAudio();
-const navegacao = { irPara: () => {} };
-const hud = montarHud({ perf, aoIrPara: (id) => navegacao.irPara(id) });
-const cursor = montarCursor(perf);
+  /* ------------------------------------------------------------------ *
+   * Interface
+   * ------------------------------------------------------------------ */
+  // superfície única de depuração (também usada pelos testes visuais)
+  window.__jing = { palco: stage, tempo, gsap, ScrollTrigger, perf };
 
-const escurecerCena = (v) => stage.escurecer(v);
+  montarAudio();
+  const navegacao = { irPara: () => {} };
+  const hud = montarHud({ perf, aoIrPara: (id) => navegacao.irPara(id) });
+  const cursor = montarCursor(perf);
 
-const hero = montarHero({
-  gsap,
-  stage,
-  perf,
-  aoAvancar: () => navegacao.irPara('chrono'),
-});
-const chrono = montarChrono({ stage, gsap });
-montarCurva({ stage, escurecerCena });
-montarCalculadora({ stage });
-const protocolo = montarProtocolo({ stage, escurecerCena });
-montarMapa({ stage, gsap, escurecerCena });
-montarCombos({ gsap });
-const final = montarFinal({ stage, gsap, ScrollTrigger });
+  const escurecerCena = (v) => stage.escurecer(v);
 
-montarSheen();
+  const hero = montarHero({
+    gsap,
+    stage,
+    perf,
+    aoAvancar: () => navegacao.irPara('chrono'),
+  });
+  const chrono = montarChrono({ stage, gsap });
+  montarCurva({ stage, escurecerCena });
+  montarCalculadora({ stage });
+  const protocolo = montarProtocolo({ stage, escurecerCena });
+  montarMapa({ stage, gsap, escurecerCena });
+  montarCombos({ gsap });
+  const final = montarFinal({ stage, gsap, ScrollTrigger });
 
-const scroll = montarScroll({ gsap, ScrollTrigger, stage, hud, perf });
-navegacao.irPara = scroll.irPara;
+  montarSheen();
 
-/* ------------------------------------------------------------------ *
- * Ponteiro: -1..1, alimentando câmera, fragmentos, partículas e presença.
- * ------------------------------------------------------------------ */
-let px = 0;
-let py = 0;
-window.addEventListener(
-  'pointermove',
-  (e) => {
-    px = (e.clientX / window.innerWidth) * 2 - 1;
-    py = -((e.clientY / window.innerHeight) * 2 - 1);
-    stage.definirMouse(px, py);
-  },
-  { passive: true }
-);
-window.addEventListener(
-  'pointerleave',
-  () => {
-    px = 0;
-    py = 0;
-    stage.definirMouse(0, 0);
-  },
-  { passive: true }
-);
+  const scroll = montarScroll({ gsap, ScrollTrigger, stage, hud, perf });
+  navegacao.irPara = scroll.irPara;
 
-// dispositivos com giroscópio ganham um parallax suave sem mouse
-if (perf.toqueApenas && window.DeviceOrientationEvent && !perf.reduzirMovimento) {
+  /* ------------------------------------------------------------------ *
+   * Ponteiro: -1..1, alimentando câmera, fragmentos, partículas e presença.
+   * ------------------------------------------------------------------ */
+  let px = 0;
+  let py = 0;
   window.addEventListener(
-    'deviceorientation',
+    'pointermove',
     (e) => {
-      if (e.gamma == null || e.beta == null) return;
-      px = Math.max(-1, Math.min(1, e.gamma / 35));
-      py = Math.max(-1, Math.min(1, (e.beta - 45) / 45));
-      stage.definirMouse(px * 0.6, py * 0.4);
+      px = (e.clientX / window.innerWidth) * 2 - 1;
+      py = -((e.clientY / window.innerHeight) * 2 - 1);
+      stage.definirMouse(px, py);
     },
     { passive: true }
   );
-}
+  window.addEventListener(
+    'pointerleave',
+    () => {
+      px = 0;
+      py = 0;
+      stage.definirMouse(0, 0);
+    },
+    { passive: true }
+  );
 
-/* ------------------------------------------------------------------ *
- * Um único laço: o palco chama os componentes que precisam de quadro.
- * ------------------------------------------------------------------ */
-function quadroDOM(dtReal, dtEscalado, _t, dtBruto = dtReal) {
-  cursor.atualizar(dtReal);
-  hud.atualizar(dtReal);
-  chrono.atualizar(dtReal);
-  hero.atualizar(dtReal);
-  protocolo.atualizar(dtReal, tempo.atual);
-  // o espelho final conta em tempo de relógio (escalado pelo domínio temporal):
-  // a pausa com o espelho inteiro tem que durar segundos de verdade, mesmo
-  // num aparelho lento onde o dt da simulação é limitado.
-  final.atualizar(Math.min(dtBruto, 0.5) * tempo.atual);
-}
-
-if (stage.inerte) {
-  let anterior = performance.now();
-  const laco = (agora) => {
-    const dt = Math.min((agora - anterior) / 1000, 0.05);
-    anterior = agora;
-    tempo.passo(dt);
-    quadroDOM(dt, dt);
-    requestAnimationFrame(laco);
-  };
-  requestAnimationFrame(laco);
-} else {
-  stage.aoQuadro(quadroDOM);
-}
-
-/* ------------------------------------------------------------------ *
- * Abertura cinematográfica
- * ------------------------------------------------------------------ */
-montarIntro({
-  gsap,
-  stage,
-  perf,
-  aoTerminar: () => {
-    ScrollTrigger.refresh();
-    document.documentElement.dataset.pronto = 'sim';
-  },
-});
-
-// última rede: se qualquer coisa impedir a abertura de terminar, a página
-// volta a rolar sozinha em vez de ficar presa.
-setTimeout(() => {
-  if (document.body.dataset.travado) {
-    delete document.body.dataset.travado;
-    const capa = document.getElementById('abertura');
-    if (capa) capa.hidden = true;
-    ScrollTrigger.refresh();
+  // dispositivos com giroscópio ganham um parallax suave sem mouse
+  if (perf.toqueApenas && window.DeviceOrientationEvent && !perf.reduzirMovimento) {
+    window.addEventListener(
+      'deviceorientation',
+      (e) => {
+        if (e.gamma == null || e.beta == null) return;
+        px = Math.max(-1, Math.min(1, e.gamma / 35));
+        py = Math.max(-1, Math.min(1, (e.beta - 45) / 45));
+        stage.definirMouse(px * 0.6, py * 0.4);
+      },
+      { passive: true }
+    );
   }
-}, 20000);
 
-// a escala de tempo também empurra o áudio
-tempo.escutar((ev) => {
-  if (ev === 'quebra-inicio') document.documentElement.dataset.quebrado = 'sim';
-  if (ev === 'quebra-fim') delete document.documentElement.dataset.quebrado;
-});
+  /* ------------------------------------------------------------------ *
+   * Um único laço: o palco chama os componentes que precisam de quadro.
+   * ------------------------------------------------------------------ */
+  function quadroDOM(dtReal, dtEscalado, _t, dtBruto = dtReal) {
+    cursor.atualizar(dtReal);
+    hud.atualizar(dtReal);
+    chrono.atualizar(dtReal);
+    hero.atualizar(dtReal);
+    protocolo.atualizar(dtReal, tempo.atual);
+    // o espelho final conta em tempo de relógio (escalado pelo domínio temporal):
+    // a pausa com o espelho inteiro tem que durar segundos de verdade, mesmo
+    // num aparelho lento onde o dt da simulação é limitado.
+    final.atualizar(Math.min(dtBruto, 0.5) * tempo.atual);
+  }
+
+  if (stage.inerte) {
+    let anterior = performance.now();
+    const laco = (agora) => {
+      const dt = Math.min((agora - anterior) / 1000, 0.05);
+      anterior = agora;
+      tempo.passo(dt);
+      quadroDOM(dt, dt);
+      requestAnimationFrame(laco);
+    };
+    requestAnimationFrame(laco);
+  } else {
+    stage.aoQuadro(quadroDOM);
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Abertura cinematográfica
+   * ------------------------------------------------------------------ */
+  montarIntro({
+    gsap,
+    stage,
+    perf,
+    aoTerminar: () => {
+      ScrollTrigger.refresh();
+      document.documentElement.dataset.pronto = 'sim';
+    },
+  });
+
+  // última rede: se qualquer coisa impedir a abertura de terminar, a página
+  // volta a rolar sozinha em vez de ficar presa.
+  setTimeout(() => {
+    if (document.body.dataset.travado) {
+      delete document.body.dataset.travado;
+      const capa = document.getElementById('abertura');
+      if (capa) capa.hidden = true;
+      ScrollTrigger.refresh();
+    }
+  }, 20000);
+
+  // a escala de tempo também empurra o áudio
+  tempo.escutar((ev) => {
+    if (ev === 'quebra-inicio') document.documentElement.dataset.quebrado = 'sim';
+    if (ev === 'quebra-fim') delete document.documentElement.dataset.quebrado;
+  });
+}
+
+iniciar();

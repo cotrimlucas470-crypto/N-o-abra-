@@ -41,6 +41,9 @@ export class AudioManager {
   async _carregarArquivos() {
     if (this.carregado) return;
     this.carregado = true;
+    // em file:// o fetch é bloqueado por CORS e o navegador registra o erro
+    // no console mesmo capturado. Aberto do disco, vai direto para a síntese.
+    if (location.protocol === 'file:') return;
     const base = import.meta.env?.BASE_URL || './';
     await Promise.all(
       Object.entries(AUDIO.faixas).map(async ([nome, faixa]) => {

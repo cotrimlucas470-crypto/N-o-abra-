@@ -6,7 +6,7 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     assetsInlineLimit: 0,
-    target: 'es2022',
+    target: 'es2020',
     rollupOptions: {
       output: {
         // code splitting: o bundle da engine 3D fica separado do código da experiência

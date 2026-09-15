@@ -12,20 +12,32 @@ a interface montada *dentro* dele.
 
 ---
 
-## Rodar
+## Abrir sem instalar nada
+
+**`JING-abrir-offline.html`** é a experiência inteira num arquivo só — JS, CSS
+e fontes embutidos. Dois cliques e abre, direto do disco, sem servidor e sem
+internet. É o caminho mais curto para só ver a coisa rodando.
+
+O áudio nesse modo usa sempre a síntese WebAudio (o navegador bloqueia leitura
+de arquivos vizinhos por `file://`), e o arquivo não tem code splitting — ele
+carrega tudo de uma vez. Para publicar de verdade, use o build normal.
+
+## Rodar como projeto
 
 ```bash
 cd jing
 npm install
-npm run dev        # http://127.0.0.1:5173
-npm run build      # gera dist/
-npm run preview    # serve o dist em http://127.0.0.1:4173
+npm run dev              # http://127.0.0.1:5173
+npm run build            # gera dist/
+npm run preview          # serve o dist em http://127.0.0.1:4173
+npm run build:portatil   # regenera o JING-abrir-offline.html
 ```
 
 O `dist/` versionado já está pronto: dá para abrir a experiência servindo essa
 pasta em qualquer servidor estático (o `base` do Vite é relativo, então funciona
-tanto na raiz quanto numa subpasta). Não abra o `index.html` por `file://` —
-módulos ES precisam de HTTP.
+tanto na raiz quanto numa subpasta). O `dist/index.html` **não** abre por
+`file://` — módulos ES precisam de HTTP; é justamente para isso que existe o
+arquivo portátil acima.
 
 Sem dependência de CDN: fontes, shaders e ícone são servidos pelo próprio
 projeto. A página abre offline depois do primeiro carregamento.
@@ -88,6 +100,8 @@ O som nunca inicia sozinho — só depois de um gesto do usuário.
 jing/
 ├── index.html              casca semântica + filtro SVG do reflexo
 ├── vite.config.js          base relativo, code splitting (three / gsap / app)
+├── vite.config.portatil.js build IIFE de arquivo único, para abrir por file://
+├── tools/                  costura do build portátil
 ├── public/                 favicon, slots de áudio e de arte
 └── src/
     ├── main.js             composição: perf → palco → componentes → abertura
