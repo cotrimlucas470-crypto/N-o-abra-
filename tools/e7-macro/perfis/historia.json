@@ -1,0 +1,32 @@
+{
+  "nome": "Modo História (avançar estágios)",
+  "descricao": "Inicia a batalha, liga o Auto, espera terminar, recolhe as recompensas e vai para o próximo estágio.",
+  "pontos": [
+    { "nome": "iniciar_batalha",  "descricao": "Botão 'Iniciar Batalha' na tela do estágio (o primeiro, antes da formação)." },
+    { "nome": "confirmar_equipe", "descricao": "Botão 'Iniciar Batalha' na tela de formação da equipe." },
+    { "nome": "auto",             "descricao": "Botão 'Auto' DENTRO da batalha (entre em uma batalha antes de calibrar este)." },
+    { "nome": "recompensa",       "descricao": "Um ponto seguro para tocar nas telas de recompensa/resultado — use uma área vazia do centro, longe de botões de loja ou invocação." },
+    { "nome": "proximo",          "descricao": "Botão 'Próximo estágio' na tela de resultado." },
+    { "nome": "pular_dialogo",    "descricao": "Botão de pular diálogo/cutscene (menu ▸ ou 'Skip').", "opcional": true },
+    { "nome": "confirmar_pular",  "descricao": "Botão que confirma o pular ('Sim'/'Confirmar').", "opcional": true }
+  ],
+  "regioes": [
+    { "nome": "centro", "descricao": "Faixa central da tela, usada para detectar carregamento e fim de batalha.", "padrao_central": true }
+  ],
+  "passos": [
+    { "acao": "log", "texto": "▶ iniciando batalha" },
+    { "acao": "tocar", "ponto": "iniciar_batalha", "depois": 1.8 },
+    { "acao": "tocar", "ponto": "confirmar_equipe", "depois": 1.2 },
+    { "acao": "esperar_mudanca", "regiao": "centro", "timeout": 30, "tolerancia": 12,
+      "motivo": "carregamento da batalha", "obrigatorio": true },
+    { "acao": "esperar", "segundos": 6, "motivo": "abertura da batalha" },
+    { "acao": "tocar", "ponto": "auto", "se_opcao": "ligar_auto", "depois": 0.6 },
+    { "acao": "esperar_estavel", "regiao": "centro", "minimo": 20, "timeout": 300,
+      "estavel_por": 3.0, "tolerancia": 6 },
+    { "acao": "log", "texto": "✓ batalha encerrada — recolhendo recompensas" },
+    { "acao": "tocar_repetido", "ponto": "recompensa", "vezes": 6, "intervalo": 0.9 },
+    { "acao": "tocar", "ponto": "proximo", "depois": 2.5 },
+    { "acao": "tocar", "ponto": "pular_dialogo", "opcional": true, "depois": 1.0 },
+    { "acao": "tocar", "ponto": "confirmar_pular", "opcional": true, "depois": 1.5 }
+  ]
+}

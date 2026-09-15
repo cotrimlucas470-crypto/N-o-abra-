@@ -1,0 +1,27 @@
+{
+  "nome": "Repetir o mesmo estágio",
+  "descricao": "Para farmar um estágio já liberado: inicia, liga o Auto, espera acabar e usa o botão 'Repetir' da tela de resultado.",
+  "pontos": [
+    { "nome": "iniciar_batalha",  "descricao": "Botão 'Iniciar Batalha' na tela do estágio." },
+    { "nome": "confirmar_equipe", "descricao": "Botão 'Iniciar Batalha' na tela de formação da equipe." },
+    { "nome": "auto",             "descricao": "Botão 'Auto' dentro da batalha." },
+    { "nome": "recompensa",       "descricao": "Ponto seguro para tocar nas telas de recompensa (área vazia do centro)." },
+    { "nome": "repetir",          "descricao": "Botão 'Repetir' na tela de resultado." }
+  ],
+  "regioes": [
+    { "nome": "centro", "descricao": "Faixa central da tela, para detectar carregamento e fim de batalha.", "padrao_central": true }
+  ],
+  "passos": [
+    { "acao": "log", "texto": "▶ iniciando batalha" },
+    { "acao": "tocar", "ponto": "iniciar_batalha", "depois": 1.8 },
+    { "acao": "tocar", "ponto": "confirmar_equipe", "depois": 1.2 },
+    { "acao": "esperar_mudanca", "regiao": "centro", "timeout": 30, "tolerancia": 12,
+      "motivo": "carregamento da batalha", "obrigatorio": true },
+    { "acao": "esperar", "segundos": 6, "motivo": "abertura da batalha" },
+    { "acao": "tocar", "ponto": "auto", "se_opcao": "ligar_auto", "depois": 0.6 },
+    { "acao": "esperar_estavel", "regiao": "centro", "minimo": 15, "timeout": 300,
+      "estavel_por": 3.0, "tolerancia": 6 },
+    { "acao": "tocar_repetido", "ponto": "recompensa", "vezes": 5, "intervalo": 0.9 },
+    { "acao": "tocar", "ponto": "repetir", "depois": 2.5 }
+  ]
+}

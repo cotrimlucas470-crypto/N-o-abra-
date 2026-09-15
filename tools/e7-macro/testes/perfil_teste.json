@@ -1,0 +1,21 @@
+{
+  "nome": "perfil de teste (tempos curtos)",
+  "pontos": [
+    { "nome": "iniciar_batalha",  "descricao": "iniciar" },
+    { "nome": "confirmar_equipe", "descricao": "confirmar" },
+    { "nome": "auto",             "descricao": "auto" },
+    { "nome": "recompensa",       "descricao": "recompensa" },
+    { "nome": "proximo",          "descricao": "proximo" }
+  ],
+  "regioes": [ { "nome": "centro", "descricao": "centro", "padrao_central": true } ],
+  "passos": [
+    { "acao": "log", "texto": "iniciando" },
+    { "acao": "tocar", "ponto": "iniciar_batalha", "depois": 0.05 },
+    { "acao": "tocar", "ponto": "confirmar_equipe", "depois": 0.05 },
+    { "acao": "esperar_mudanca", "regiao": "centro", "timeout": 5, "tolerancia": 12, "intervalo": 0.05 },
+    { "acao": "tocar", "ponto": "auto", "se_opcao": "ligar_auto", "depois": 0.05 },
+    { "acao": "esperar_estavel", "regiao": "centro", "minimo": 0, "timeout": 8, "estavel_por": 0.2, "intervalo": 0.05 },
+    { "acao": "tocar_repetido", "ponto": "recompensa", "vezes": 3, "intervalo": 0.05 },
+    { "acao": "tocar", "ponto": "proximo", "depois": 0.05 }
+  ]
+}
