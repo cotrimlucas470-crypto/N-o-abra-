@@ -1,0 +1,103 @@
+================================================================
+ESPELHO — Sistema de Recuperação e Evolução (Jing / Luna)
+Honor of Kings · feito sob medida para o seu HUD e o Poco X7 Pro
+================================================================
+
+COMO COLOCAR NO AR
+------------------
+Opção 1 — Netlify Drop (recomendado):
+  1. Abra https://app.netlify.com/drop
+  2. Arraste a PASTA "jing-trainer" inteira (ou o .zip) para a área indicada.
+  3. Pegue o link que aparecer e abra no celular.
+  4. No Chrome: menu → "Adicionar à tela inicial". Ele abre em tela cheia,
+     em paisagem, e funciona offline depois da primeira abertura.
+
+Opção 2 — direto no celular, sem internet:
+  Descompacte e abra o arquivo index.html. Funciona igual, mas o modo
+  offline (service worker) só liga quando está servido por http/https.
+
+IMPORTANTE ANTES DO PRIMEIRO TREINO
+-----------------------------------
+1. Vire o celular na horizontal.
+2. Config → "Tela cheia + travar em paisagem".
+   Sem isso a barra de gestos do Android rouba a faixa de baixo — exatamente
+   onde ficam o ataque e a habilidade 1.
+3. Aba HUD → confira se a réplica bate com o seu jogo. Se algum botão estiver
+   fora do lugar, use "Calibrar arrastando" e mova até bater.
+   Isso não é enfeite: todo o treino de precisão mede a distância do seu dedo
+   até o centro do botão. HUD errado = medida errada.
+4. Faça o DIAGNÓSTICO inteiro, sem pausar. São ~9 minutos.
+
+POR QUE COMEÇA COM UM DIAGNÓSTICO
+---------------------------------
+Um mês parado quase nunca apaga a memória de uma rota. O que ele faz é:
+  · deixar a execução lenta,
+  · deixar o ritmo irregular,
+  · e, principalmente, tirar o AUTOMATISMO — você volta a executar
+    "pensando", e em luta a atenção que você gasta pensando no combo é
+    exatamente a que faltava para ler o inimigo.
+
+As provas 3 e 4 do diagnóstico usam A MESMA ROTA de propósito. A prova 4
+acrescenta uma leitura simultânea com a mão esquerda. A diferença entre as
+duas é a medida mais importante do sistema: ela separa
+
+      "eu não sei mais fazer"        de       "eu sei, estou enferrujado"
+
+e essas duas coisas pedem treinos opostos. Quem não sabe precisa voltar ao
+passo lento. Quem está enferrujado precisa de carga, não de repetição lenta.
+
+OS SETE NÍVEIS
+--------------
+1 RECONEXÃO     reencontrar o HUD — só onde o dedo encosta
+2 ESTABILIZAÇÃO repetir igual (regularidade antes de velocidade)
+3 AUTOMATIZAÇÃO executar sem gastar atenção (dupla tarefa)
+4 VELOCIDADE    acelerar sem quebrar — com freio automático
+5 PRESSÃO       ruído, mudança repentina, sinal de perigo
+6 INTEGRAÇÃO    decisão pesa mais que mecânica
+7 DOMÍNIO       manutenção e teto
+
+Você não escolhe o nível. O diagnóstico define onde você começa e o sistema
+promove sozinho quando as portas de cada nível são batidas.
+
+O FREIO DE VELOCIDADE
+---------------------
+Se a sua taxa de erro subir junto com o tempo, o sistema VOLTA a dificuldade
+e trava novas acelerações até a precisão estabilizar. Velocidade que gera erro
+não é progresso. Isso é regra do sistema, não sugestão.
+
+LUNA
+----
+Fechada de propósito no começo. As duas competem pelo mesmo recurso: o mapa
+de posições do seu polegar direito. Enquanto esse mapa estiver instável,
+treinar Luna ATRASA a Jing. Ela abre quando a Jing chegar ao nível 4 com
+precisão ≥ 68 e consistência ≥ 68.
+
+O QUE EU ENCONTREI NO SEU HUD (resumo — detalhes na aba HUD)
+------------------------------------------------------------
+· O item do elmo está com a borda encostada na linha reta entre a
+  Habilidade 1 e o Ataque — o trajeto mais percorrido do jogo (32,7 mm).
+  É o único ajuste que eu recomendo fazer AGORA: uns 4 mm para longe.
+· Habilidade 1 → Ultimate são 31,8 mm de percurso de polegar: a maior
+  distância do seu layout e a mecânica que mais enferruja numa pausa.
+  NÃO mexa nisso agora — trate como treino (exercício "Pontes"). Reavalie
+  só a partir do nível 4.
+· Invocador a 13,3 mm da Habilidade 1, com o caminho cruzando o item.
+  É o botão que você mais aperta em pânico. Existe uma ponte específica
+  para ele nos exercícios.
+· Analógico, Retornar e Recuperar estão bem posicionados. Não mexa.
+
+SEUS DADOS
+----------
+Fica tudo só no seu aparelho (localStorage). Nada é enviado para lugar nenhum.
+Config → "Exportar backup" gera um arquivo .json que você pode guardar e
+reimportar em outro aparelho ou depois de limpar o navegador.
+
+ATENÇÃO: se você limpar os dados do site no Chrome, o histórico vai junto.
+Faça um backup de vez em quando.
+
+ROTAS
+-----
+As rotas foram nomeadas pela FUNÇÃO (Entrada, Marca, Recorte, Reflexo, Saída,
+Execução, Espelho Inteiro) e não pelo nome das habilidades, para continuarem
+válidas se a build ou o patch mudarem. Se a sua ordem for diferente, edite em
+Config → Rotas da Jing. Todo o treino passa a usar a sequência nova na hora.

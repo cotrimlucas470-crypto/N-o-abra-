@@ -1,0 +1,13 @@
+{
+  "name": "ESPELHO — Treino Jing",
+  "short_name": "ESPELHO",
+  "description": "Sistema de recuperação e evolução mecânica para Jing e Luna.",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#05060a",
+  "theme_color": "#05060a",
+  "icons": [
+    { "src": "icone.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

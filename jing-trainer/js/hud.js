@@ -1,0 +1,650 @@
+/* ============================================================
+   hud.js — Réplica 1:1 do HUD da Jing + superfície de toque
+   Geometria extraída do print enviado (2000x901 ≈ 20:9),
+   normalizada para fração da viewport do jogo. O Poco X7 Pro
+   (1220x2712, 6.67", ~160.3 x 71.7 mm em paisagem) é a régua.
+   ============================================================ */
+'use strict';
+(function (U) {
+
+  /* Tela física de referência, em milímetros (paisagem) */
+  const TELA_MM = { w: 160.3, h: 71.7 };
+
+  /* ---------- Geometria medida no print ----------
+     x,y = centro normalizado (0..1). r = raio normalizado pela LARGURA.  */
+  const HUD_PADRAO = {
+    joy:   { x: 0.136, y: 0.822, r: 0.044, tipo: 'joy',  nome: 'Movimento',    curto: 'MOV',  cor: '#7fd4ff' },
+    s1:    { x: 0.735, y: 0.877, r: 0.031, tipo: 'hab',  nome: 'Habilidade 1', curto: '1',    cor: '#a78bfa' },
+    s2:    { x: 0.800, y: 0.710, r: 0.0325,tipo: 'hab',  nome: 'Habilidade 2', curto: '2',    cor: '#a78bfa' },
+    s3:    { x: 0.870, y: 0.552, r: 0.034, tipo: 'ult',  nome: 'Ultimate',     curto: '3',    cor: '#c4b5fd' },
+    aa:    { x: 0.939, y: 0.880, r: 0.040, tipo: 'aa',   nome: 'Ataque',       curto: 'AA',   cor: '#9fb6d4' },
+    pass:  { x: 0.7975,y: 0.505, r: 0.0225,tipo: 'info', nome: 'Passiva',      curto: 'P',    cor: '#6b7a91' },
+    it1:   { x: 0.950, y: 0.688, r: 0.017, tipo: 'item', nome: 'Item ativo',   curto: 'I1',   cor: '#7fa8d0' },
+    it2:   { x: 0.806, y: 0.915, r: 0.0165,tipo: 'item', nome: 'Item (elmo)',  curto: 'I2',   cor: '#7fa8d0' },
+    flash: { x: 0.6525,y: 0.897, r: 0.0225,tipo: 'inv',  nome: 'Invocador',    curto: 'FL',   cor: '#f472b6' },
+    cura:  { x: 0.595, y: 0.897, r: 0.022, tipo: 'sis',  nome: 'Recuperar',    curto: 'REC',  cor: '#6ee7a8' },
+    volta: { x: 0.534, y: 0.897, r: 0.022, tipo: 'sis',  nome: 'Retornar',     curto: 'RET',  cor: '#7dd3fc' },
+  };
+
+  /* Botões que contam como entrada de combate */
+  const ACIONAVEIS = ['s1', 's2', 's3', 'aa', 'flash', 'it1', 'it2'];
+  /* Botões que, se tocados sem querer, são erro de HUD e não de memória */
+  const ARMADILHAS = ['it1', 'it2', 'pass', 'cura', 'volta'];
+
+  const NOMES = {
+    joy: 'Movimento', s1: 'Hab. 1', s2: 'Hab. 2', s3: 'Ultimate', aa: 'Ataque',
+    flash: 'Invocador', it1: 'Item 1', it2: 'Item 2', pass: 'Passiva',
+    cura: 'Recuperar', volta: 'Retornar',
+  };
+
+  function getHud() {
+    const d = U.DB.load();
+    if (!d.hud) { d.hud = JSON.parse(JSON.stringify(HUD_PADRAO)); U.DB.save(); }
+    // completa chaves novas sem apagar calibração do usuário
+    for (const k in HUD_PADRAO) {
+      if (!d.hud[k]) d.hud[k] = { ...HUD_PADRAO[k] };
+      else for (const p in HUD_PADRAO[k]) if (!(p in d.hud[k])) d.hud[k][p] = HUD_PADRAO[k][p];
+    }
+    return d.hud;
+  }
+  function resetHud() { U.DB.load().hud = JSON.parse(JSON.stringify(HUD_PADRAO)); U.DB.save(); }
+
+  /* ---------- Análise ergonômica ---------- */
+  const mmX = (dx) => dx * TELA_MM.w;
+  const mmY = (dy) => dy * TELA_MM.h;
+  function distMM(a, b) { return Math.hypot(mmX(a.x - b.x), mmY(a.y - b.y)); }
+  function raioMM(b) { return b.r * TELA_MM.w; }
+  /** Folga entre as bordas de dois botões, em mm. Negativo = sobreposição. */
+  function folgaMM(a, b) { return distMM(a, b) - raioMM(a) - raioMM(b); }
+
+  /** Percurso de polegar entre dois botões, em mm. */
+  function percurso(hud, a, b) { return distMM(hud[a], hud[b]); }
+
+  /**
+   * Relatório ergonômico do HUD atual.
+   * Um polegar adulto encosta num círculo de ~9-13 mm. Abaixo de ~5 mm de
+   * folga entre bordas, o toque rápido começa a encostar no vizinho.
+   */
+  function analisarHud(hud = getHud()) {
+    const riscos = [];
+    const chaves = Object.keys(hud);
+    for (let i = 0; i < chaves.length; i++) {
+      for (let j = i + 1; j < chaves.length; j++) {
+        const a = chaves[i], b = chaves[j];
+        if (a === 'joy' || b === 'joy') continue;
+        const f = folgaMM(hud[a], hud[b]);
+        if (f < 6.0) {
+          const critico = ACIONAVEIS.includes(a) && (ACIONAVEIS.includes(b) || ARMADILHAS.includes(b))
+                       || ACIONAVEIS.includes(b) && ARMADILHAS.includes(a);
+          riscos.push({
+            a, b, folga: f,
+            grau: f < 2.5 ? 'alto' : f < 4.5 ? 'medio' : 'baixo',
+            critico: !!critico,
+          });
+        }
+      }
+    }
+    riscos.sort((x, y) => x.folga - y.folga);
+
+    const rotas = [
+      ['s1', 's2'], ['s2', 's3'], ['s1', 's3'], ['s1', 'aa'], ['s2', 'aa'],
+      ['s3', 'aa'], ['aa', 'flash'], ['s1', 'flash'], ['s3', 'flash'],
+    ].map(([a, b]) => ({ a, b, mm: percurso(hud, a, b) }))
+      .sort((x, y) => y.mm - x.mm);
+
+    // Corredor mais usado: s1 -> aa. Quem estiver perto dessa linha atrapalha.
+    const corredor = [];
+    const A = hud.s1, B = hud.aa;
+    for (const k of ARMADILHAS) {
+      const P = hud[k];
+      const vx = mmX(B.x - A.x), vy = mmY(B.y - A.y);
+      const wx = mmX(P.x - A.x), wy = mmY(P.y - A.y);
+      const L2 = vx * vx + vy * vy;
+      const t = U.clamp(L2 ? (wx * vx + wy * vy) / L2 : 0, 0, 1);
+      const d = Math.hypot(wx - vx * t, wy - vy * t) - raioMM(P);
+      if (d < 8) corredor.push({ k, dist: d });
+    }
+    corredor.sort((x, y) => x.dist - y.dist);
+
+    const arco = percurso(hud, 's1', 's3');
+    return { riscos, rotas, corredor, arco, telaMM: TELA_MM };
+  }
+
+  /* ============================================================
+     HudSurface — canvas interativo com multitoque real
+     ============================================================ */
+  class HudSurface {
+    /**
+     * @param {HTMLCanvasElement} canvas
+     * @param {object} opts { onPress, onRelease, onJoy, modoCalibra }
+     */
+    constructor(canvas, opts = {}) {
+      this.cv = canvas;
+      this.ctx = canvas.getContext('2d');
+      this.opts = opts;
+      this.hud = getHud();
+      this.box = { x: 0, y: 0, w: 1, h: 1 };
+      this.dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+
+      this.estado = {};                 // id -> {destaque, cd, bloqueado, rotulo, pulso}
+      this.joy = { ativo: false, cx: 0, cy: 0, dx: 0, dy: 0, ang: 0, mag: 0 };
+      this.ponteiros = new Map();       // pointerId -> {id, x, y, t}
+      this.efeitos = [];                // anéis / cacos
+      this.overlay = null;              // {tipo, texto, cor} desenhado sobre o HUD
+      this.alvoVisual = null;           // {x,y,r,cor,rotulo} — alvo no campo
+      this.travado = false;             // ignora toques (entre tentativas)
+      this.quadrantes = false;          // mão esquerda vira 4 zonas (dupla tarefa)
+      this.campo = [];                  // cartas/alvos tocáveis no campo
+      this.trilhas = [];                // ruído visual
+      this.quadAceso = -1;              // quadrante piscando agora
+      this.calibrando = false;
+      this.arrastando = null;
+
+      this._bind();
+      this.resize();
+      this.ticker = new U.Ticker(() => this.draw());
+      this.ticker.start();
+    }
+
+    destroy() {
+      this.ticker.stop();
+      this._unbind();
+    }
+
+    /* ---------- layout ---------- */
+    resize() {
+      const r = this.cv.getBoundingClientRect();
+      const w = Math.max(320, r.width), h = Math.max(180, r.height);
+      this.cv.width = Math.round(w * this.dpr);
+      this.cv.height = Math.round(h * this.dpr);
+      this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+      // O HUD ocupa a área toda, preservando 20:9 (a proporção do celular)
+      const alvo = 2712 / 1220;
+      let bw = w, bh = w / alvo;
+      if (bh > h) { bh = h; bw = h * alvo; }
+      this.box = { x: (w - bw) / 2, y: (h - bh) / 2, w: bw, h: bh };
+      this.vw = w; this.vh = h;
+    }
+
+    px(b) { return { x: this.box.x + b.x * this.box.w, y: this.box.y + b.y * this.box.h, r: b.r * this.box.w }; }
+
+    /** Converte coordenada de ponteiro em coordenada do canvas. */
+    local(ev) {
+      const r = this.cv.getBoundingClientRect();
+      return { x: ev.clientX - r.left, y: ev.clientY - r.top };
+    }
+
+    /** Qual botão foi tocado. Tolerância generosa, mas registra o desvio. */
+    acertou(x, y) {
+      let melhor = null, melhorD = Infinity;
+      for (const id in this.hud) {
+        const b = this.hud[id];
+        if (b.tipo === 'joy') continue;
+        const p = this.px(b);
+        const d = Math.hypot(x - p.x, y - p.y);
+        const rel = d / p.r;                       // 0 = centro exato
+        if (rel < melhorD) { melhorD = rel; melhor = id; }
+      }
+      if (melhorD <= 1.0)  return { id: melhor, rel: melhorD, tipo: 'limpo' };
+      if (melhorD <= 1.75) return { id: melhor, rel: melhorD, tipo: 'borda' };
+      return { id: null, rel: melhorD, tipo: 'vazio', perto: melhor };
+    }
+
+    /* ---------- entrada ---------- */
+    _bind() {
+      this._d = (e) => this.onDown(e);
+      this._m = (e) => this.onMove(e);
+      this._u = (e) => this.onUp(e);
+      this._r = () => this.resize();
+      this.cv.addEventListener('pointerdown', this._d, { passive: false });
+      window.addEventListener('pointermove', this._m, { passive: false });
+      window.addEventListener('pointerup', this._u, { passive: false });
+      window.addEventListener('pointercancel', this._u, { passive: false });
+      window.addEventListener('resize', this._r);
+      this.cv.style.touchAction = 'none';
+    }
+    _unbind() {
+      this.cv.removeEventListener('pointerdown', this._d);
+      window.removeEventListener('pointermove', this._m);
+      window.removeEventListener('pointerup', this._u);
+      window.removeEventListener('pointercancel', this._u);
+      window.removeEventListener('pointercancel', this._u);
+      window.removeEventListener('resize', this._r);
+    }
+
+    onDown(ev) {
+      ev.preventDefault();
+      U.Sfx.unlock();
+      const p = this.local(ev);
+      const t = U.now();
+
+      if (this.calibrando) {
+        let alvo = null, dmin = Infinity;
+        for (const id in this.hud) {
+          const q = this.px(this.hud[id]);
+          const d = Math.hypot(p.x - q.x, p.y - q.y);
+          if (d < Math.max(q.r * 1.4, 26) && d < dmin) { dmin = d; alvo = id; }
+        }
+        if (alvo) { this.arrastando = { id: alvo, pid: ev.pointerId }; this.opts.onSelecionar?.(alvo); }
+        return;
+      }
+      if (this.travado) return;
+
+      // cartas no campo (prioridade de alvo, cenários)
+      for (const cta of this.campo) {
+        const q = this.cartaPx(cta);
+        if (p.x >= q.x && p.x <= q.x + q.w && p.y >= q.y && p.y <= q.y + q.h) {
+          cta.pulso = 1;
+          this.opts.onCampo?.({ id: cta.id, carta: cta, t });
+          return;
+        }
+      }
+
+      // metade esquerda = analógico  (ou 4 quadrantes, na dupla tarefa)
+      const joyP = this.px(this.hud.joy);
+      const zonaJoy = p.x < this.box.x + this.box.w * 0.42;
+      if (zonaJoy && this.quadrantes) {
+        const rx = (p.x - this.box.x) / (this.box.w * 0.42);
+        const ry = (p.y - this.box.y) / this.box.h;
+        const q = (ry < 0.5 ? 0 : 2) + (rx < 0.5 ? 0 : 1);
+        this.efeitos.push({ t: 0, tipo: 'anel', x: p.x, y: p.y, r: 26, cor: '#7fd4ff' });
+        U.Haptic.tap();
+        this.opts.onPress?.({ id: 'q' + q, tipo: 'quadrante', rel: 0, x: p.x, y: p.y, t, precisao: 1, joy: this.joyInfo() });
+        return;
+      }
+      if (zonaJoy) {
+        this.joy.ativo = true; this.joy.pid = ev.pointerId;
+        this.joy.cx = joyP.x; this.joy.cy = joyP.y;
+        this.updJoy(p);
+        this.ponteiros.set(ev.pointerId, { id: 'joy', t });
+        this.opts.onJoyStart?.(this.joyInfo());
+        return;
+      }
+
+      const hit = this.acertou(p.x, p.y);
+      this.ponteiros.set(ev.pointerId, { id: hit.id, t });
+      if (hit.id) {
+        this.pulsar(hit.id);
+        U.Haptic.tap();
+      } else {
+        this.caco(p.x, p.y, '#6b7a91', 5);
+      }
+      this.opts.onPress?.({
+        id: hit.id, tipo: hit.tipo, rel: hit.rel, perto: hit.perto,
+        x: p.x, y: p.y, t,
+        precisao: hit.id ? U.clamp(1 - hit.rel, 0, 1) : 0,
+        joy: this.joyInfo(),
+      });
+    }
+
+    onMove(ev) {
+      if (this.calibrando && this.arrastando && this.arrastando.pid === ev.pointerId) {
+        ev.preventDefault();
+        const p = this.local(ev);
+        const b = this.hud[this.arrastando.id];
+        b.x = U.clamp((p.x - this.box.x) / this.box.w, 0.02, 0.98);
+        b.y = U.clamp((p.y - this.box.y) / this.box.h, 0.04, 0.97);
+        return;
+      }
+      if (this.joy.ativo && this.joy.pid === ev.pointerId) {
+        ev.preventDefault();
+        this.updJoy(this.local(ev));
+        this.opts.onJoy?.(this.joyInfo());
+      }
+    }
+
+    onUp(ev) {
+      if (this.calibrando && this.arrastando && this.arrastando.pid === ev.pointerId) {
+        this.arrastando = null; U.DB.save(); this.opts.onCalibrado?.(); return;
+      }
+      if (this.joy.ativo && this.joy.pid === ev.pointerId) {
+        this.joy.ativo = false; this.joy.dx = 0; this.joy.dy = 0; this.joy.mag = 0;
+        this.opts.onJoyEnd?.();
+      }
+      const rec = this.ponteiros.get(ev.pointerId);
+      if (rec) {
+        this.ponteiros.delete(ev.pointerId);
+        if (rec.id && rec.id !== 'joy') this.opts.onRelease?.({ id: rec.id, dur: U.now() - rec.t });
+      }
+    }
+
+    updJoy(p) {
+      const r = this.px(this.hud.joy).r;
+      let dx = p.x - this.joy.cx, dy = p.y - this.joy.cy;
+      const m = Math.hypot(dx, dy);
+      const lim = r * 1.15;
+      if (m > lim) { dx *= lim / m; dy *= lim / m; }
+      this.joy.dx = dx; this.joy.dy = dy;
+      this.joy.mag = U.clamp(Math.hypot(dx, dy) / lim, 0, 1);
+      this.joy.ang = Math.atan2(dy, dx);
+    }
+    joyInfo() {
+      return { ativo: this.joy.ativo, ang: this.joy.ang, mag: this.joy.mag,
+               dir: this.joy.mag > 0.28 ? this.setor(this.joy.ang) : null };
+    }
+    /** 8 direções: 0=direita, sentido horário. */
+    setor(ang) {
+      let a = (ang * 180 / Math.PI + 360) % 360;
+      return Math.round(a / 45) % 8;
+    }
+
+    /* ---------- API visual ---------- */
+    marcar(id, opt = {}) { this.estado[id] = { ...(this.estado[id] || {}), ...opt }; }
+    limparMarcas() { this.estado = {}; }
+    pulsar(id) { const s = this.estado[id] || (this.estado[id] = {}); s.pulso = 1; }
+    acerto(id) {
+      const p = this.px(this.hud[id] || this.hud.aa);
+      this.efeitos.push({ t: 0, tipo: 'anel', x: p.x, y: p.y, r: p.r, cor: '#6ee7a8' });
+      this.caco(p.x, p.y, '#9df5c4', 8);
+    }
+    erro(id) {
+      const b = this.hud[id];
+      const p = b ? this.px(b) : { x: this.box.x + this.box.w * 0.8, y: this.box.y + this.box.h * 0.75, r: 30 };
+      this.efeitos.push({ t: 0, tipo: 'anel', x: p.x, y: p.y, r: p.r, cor: '#ff5470' });
+      this.caco(p.x, p.y, '#ff8fa3', 12);
+    }
+    caco(x, y, cor, n = 8) {
+      if (U.DB.load().opts.fx === 'baixo') n = Math.min(n, 3);
+      for (let i = 0; i < n; i++) {
+        const a = U.rnd(0, Math.PI * 2), v = U.rnd(0.6, 3.2);
+        this.efeitos.push({ t: 0, tipo: 'caco', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
+                            rot: U.rnd(0, 6.28), vr: U.rnd(-0.2, 0.2), s: U.rnd(3, 9), cor });
+      }
+    }
+    setOverlay(o) { this.overlay = o; }
+    setAlvo(a) { this.alvoVisual = a; }
+
+    /* ---------- desenho ---------- */
+    draw() {
+      const c = this.ctx, B = this.box;
+      c.clearRect(0, 0, this.vw, this.vh);
+
+      // campo
+      const g = c.createLinearGradient(B.x, B.y, B.x + B.w, B.y + B.h);
+      g.addColorStop(0, '#0b1220'); g.addColorStop(0.5, '#0d1524'); g.addColorStop(1, '#0a0f1b');
+      c.fillStyle = g; c.fillRect(B.x, B.y, B.w, B.h);
+
+      // grade sutil de espelho
+      c.save(); c.globalAlpha = 0.16; c.strokeStyle = '#2a3c5c'; c.lineWidth = 1;
+      for (let i = 1; i < 10; i++) {
+        const x = B.x + B.w * i / 10;
+        c.beginPath(); c.moveTo(x, B.y); c.lineTo(x - B.h * 0.18, B.y + B.h); c.stroke();
+      }
+      c.restore();
+
+      if (this.quadrantes) this.drawQuadrantes();
+      if (this.trilhas.length) this.drawTrilhas();
+      if (this.campo.length) this.drawCampo();
+      if (this.alvoVisual) this.drawAlvo();
+
+      // botões
+      for (const id in this.hud) {
+        const b = this.hud[id];
+        if (b.tipo === 'joy') this.drawJoy(b, id);
+        else this.drawBtn(b, id);
+      }
+
+      // efeitos
+      this.drawFx();
+
+      // overlay
+      if (this.overlay) this.drawOverlay();
+
+      if (this.calibrando) {
+        c.save();
+        c.fillStyle = 'rgba(126,200,255,.85)'; c.font = '600 13px system-ui'; c.textAlign = 'center';
+        c.fillText('Arraste os botões até baterem com o seu HUD real', B.x + B.w / 2, B.y + 22);
+        c.restore();
+      }
+    }
+
+    cartaPx(c) {
+      const B = this.box;
+      return { x: B.x + c.x * B.w, y: B.y + c.y * B.h, w: c.w * B.w, h: c.h * B.h };
+    }
+
+    drawQuadrantes() {
+      const c = this.ctx, B = this.box;
+      const W = B.w * 0.42;
+      c.save();
+      for (let i = 0; i < 4; i++) {
+        const x = B.x + (i % 2) * W / 2, y = B.y + (i < 2 ? 0 : B.h / 2);
+        const aceso = this.quadAceso === i;
+        c.globalAlpha = aceso ? 0.55 : 0.10;
+        c.fillStyle = aceso ? '#ff5470' : '#2a3c5c';
+        c.fillRect(x + 4, y + 4, W / 2 - 8, B.h / 2 - 8);
+        c.globalAlpha = aceso ? 1 : 0.35;
+        c.strokeStyle = aceso ? '#ff8fa3' : '#3d5478'; c.lineWidth = aceso ? 3 : 1.4;
+        c.strokeRect(x + 4, y + 4, W / 2 - 8, B.h / 2 - 8);
+        if (aceso) {
+          c.fillStyle = '#fff'; c.font = `900 ${Math.round(B.h * 0.12)}px system-ui`;
+          c.textAlign = 'center'; c.textBaseline = 'middle';
+          c.fillText('!', x + W / 4, y + B.h / 4);
+        }
+      }
+      c.restore();
+    }
+
+    drawTrilhas() {
+      const c = this.ctx, B = this.box;
+      for (let i = this.trilhas.length - 1; i >= 0; i--) {
+        const r = this.trilhas[i];
+        r.t += 1;
+        const k = r.t / r.vida;
+        if (k >= 1) { this.trilhas.splice(i, 1); continue; }
+        c.save();
+        c.globalAlpha = Math.sin(k * Math.PI) * 0.7;
+        c.fillStyle = r.cor;
+        const x = B.x + r.x * B.w, y = B.y + r.y * B.h, s = r.s * B.w;
+        if (r.forma === 'quadrado') { c.fillRect(x - s, y - s, s * 2, s * 2); }
+        else { c.beginPath(); c.arc(x, y, s, 0, 6.2832); c.fill(); }
+        c.restore();
+      }
+    }
+
+    drawCampo() {
+      const c = this.ctx;
+      for (const cta of this.campo) {
+        const q = this.cartaPx(cta);
+        if (cta.pulso) cta.pulso = Math.max(0, cta.pulso - 0.06);
+        c.save();
+        const sel = cta.selecionado, mk = cta.marca;
+        c.globalAlpha = 0.95;
+        const g = c.createLinearGradient(q.x, q.y, q.x, q.y + q.h);
+        g.addColorStop(0, sel ? 'rgba(80,60,130,.95)' : 'rgba(26,34,50,.95)');
+        g.addColorStop(1, sel ? 'rgba(40,30,70,.95)' : 'rgba(14,20,32,.95)');
+        c.fillStyle = g;
+        this.roundRect(q.x, q.y, q.w, q.h, 10); c.fill();
+        c.lineWidth = sel ? 3.2 : (mk ? 2.4 : 1.4);
+        c.strokeStyle = mk || (sel ? '#c4b5fd' : '#3d5478');
+        this.roundRect(q.x, q.y, q.w, q.h, 10); c.stroke();
+
+        c.textAlign = 'center'; c.textBaseline = 'middle';
+        c.fillStyle = '#e8eefc';
+        c.font = `800 ${Math.round(q.h * 0.28)}px system-ui`;
+        c.fillText(cta.icone || '?', q.x + q.w / 2, q.y + q.h * 0.28);
+        c.font = `700 ${Math.round(q.h * 0.15)}px system-ui`;
+        c.fillStyle = '#b9c8e4';
+        c.fillText(cta.titulo || '', q.x + q.w / 2, q.y + q.h * 0.56);
+        if (cta.hp != null) {
+          const bw = q.w * 0.76, bx = q.x + q.w * 0.12, by = q.y + q.h * 0.70, bh = q.h * 0.10;
+          c.fillStyle = 'rgba(0,0,0,.55)'; c.fillRect(bx, by, bw, bh);
+          c.fillStyle = cta.hp > 0.5 ? '#3ddc97' : cta.hp > 0.25 ? '#ffd479' : '#ff5470';
+          c.fillRect(bx, by, bw * cta.hp, bh);
+          c.strokeStyle = 'rgba(255,255,255,.25)'; c.lineWidth = 1; c.strokeRect(bx, by, bw, bh);
+        }
+        if (cta.nota) {
+          c.font = `600 ${Math.round(q.h * 0.12)}px system-ui`;
+          c.fillStyle = cta.notaCor || '#8fa3c4';
+          c.fillText(cta.nota, q.x + q.w / 2, q.y + q.h * 0.90);
+        }
+        if (cta.pulso) {
+          c.globalAlpha = cta.pulso * 0.8; c.strokeStyle = '#fff'; c.lineWidth = 3;
+          this.roundRect(q.x - 3, q.y - 3, q.w + 6, q.h + 6, 12); c.stroke();
+        }
+        c.restore();
+      }
+    }
+
+    roundRect(x, y, w, h, r) {
+      const c = this.ctx;
+      c.beginPath();
+      c.moveTo(x + r, y);
+      c.arcTo(x + w, y, x + w, y + h, r);
+      c.arcTo(x + w, y + h, x, y + h, r);
+      c.arcTo(x, y + h, x, y, r);
+      c.arcTo(x, y, x + w, y, r);
+      c.closePath();
+    }
+
+    ruido(n = 1) {
+      for (let i = 0; i < n; i++) {
+        this.trilhas.push({
+          t: 0, vida: U.ri(22, 46),
+          x: U.rnd(0.05, 0.95), y: U.rnd(0.05, 0.92),
+          s: U.rnd(0.008, 0.028),
+          cor: U.pick(['#ff5470', '#ffd479', '#7fd4ff', '#a78bfa', '#6ee7a8']),
+          forma: Math.random() < 0.5 ? 'quadrado' : 'circulo',
+        });
+      }
+    }
+
+    drawAlvo() {
+      const c = this.ctx, B = this.box, a = this.alvoVisual;
+      const x = B.x + a.x * B.w, y = B.y + a.y * B.h, r = (a.r || 0.035) * B.w;
+      c.save();
+      c.globalAlpha = 0.9;
+      c.strokeStyle = a.cor || '#ff5470'; c.lineWidth = 2.5;
+      c.beginPath(); c.arc(x, y, r, 0, 6.2832); c.stroke();
+      c.globalAlpha = 0.18; c.fillStyle = a.cor || '#ff5470'; c.fill();
+      c.globalAlpha = 1;
+      if (a.rotulo) {
+        c.fillStyle = '#e8eefc'; c.font = `700 ${Math.round(r * 0.62)}px system-ui`;
+        c.textAlign = 'center'; c.textBaseline = 'middle';
+        c.fillText(a.rotulo, x, y);
+      }
+      c.restore();
+    }
+
+    drawJoy(b, id) {
+      const c = this.ctx, p = this.px(b), st = this.estado[id] || {};
+      c.save();
+      c.strokeStyle = st.destaque ? '#7fd4ff' : 'rgba(150,180,220,.35)';
+      c.lineWidth = st.destaque ? 3 : 2;
+      c.beginPath(); c.arc(p.x, p.y, p.r, 0, 6.2832); c.stroke();
+      c.globalAlpha = 0.12; c.fillStyle = '#7fd4ff'; c.fill(); c.globalAlpha = 1;
+      // seta-alvo (direção pedida pelo exercício)
+      if (st.dirAlvo != null) {
+        const a = st.dirAlvo * Math.PI / 4;
+        c.strokeStyle = '#ffd479'; c.lineWidth = 4; c.globalAlpha = 0.9;
+        c.beginPath();
+        c.moveTo(p.x + Math.cos(a) * p.r * 0.5, p.y + Math.sin(a) * p.r * 0.5);
+        c.lineTo(p.x + Math.cos(a) * p.r * 1.55, p.y + Math.sin(a) * p.r * 1.55);
+        c.stroke(); c.globalAlpha = 1;
+      }
+      // manete
+      const hx = p.x + this.joy.dx, hy = p.y + this.joy.dy;
+      c.fillStyle = this.joy.ativo ? '#bfe6ff' : 'rgba(200,225,255,.55)';
+      c.beginPath(); c.arc(hx, hy, p.r * 0.42, 0, 6.2832); c.fill();
+      c.restore();
+    }
+
+    drawBtn(b, id) {
+      const c = this.ctx, p = this.px(b), st = this.estado[id] || {};
+      const destaque = !!st.destaque;
+      const bloq = !!st.bloqueado;
+      c.save();
+
+      if (st.pulso) { st.pulso = Math.max(0, st.pulso - 0.06); }
+      const esc = 1 + (st.pulso || 0) * 0.10;
+      const r = p.r * esc;
+
+      // corpo
+      const g = c.createRadialGradient(p.x, p.y - r * 0.3, r * 0.1, p.x, p.y, r);
+      if (bloq) { g.addColorStop(0, '#1a1f2b'); g.addColorStop(1, '#0d1118'); }
+      else if (destaque) { g.addColorStop(0, this.mix(b.cor, 0.55)); g.addColorStop(1, this.mix(b.cor, 0.12)); }
+      else { g.addColorStop(0, 'rgba(40,52,74,.95)'); g.addColorStop(1, 'rgba(18,25,38,.95)'); }
+      c.fillStyle = g;
+      c.beginPath(); c.arc(p.x, p.y, r, 0, 6.2832); c.fill();
+
+      // aro
+      const aro = b.tipo === 'hab' || b.tipo === 'ult' ? '#e8c46a' : '#5b708f';
+      c.lineWidth = destaque ? 3.4 : (b.tipo === 'hab' || b.tipo === 'ult' ? 2.4 : 1.6);
+      c.strokeStyle = destaque ? (st.cor || '#fff1c9') : (bloq ? '#2a3240' : aro);
+      c.beginPath(); c.arc(p.x, p.y, r, 0, 6.2832); c.stroke();
+
+      if (destaque) {
+        c.shadowColor = st.cor || b.cor; c.shadowBlur = 18;
+        c.beginPath(); c.arc(p.x, p.y, r, 0, 6.2832); c.stroke();
+        c.shadowBlur = 0;
+      }
+
+      // recarga
+      if (st.cd > 0) {
+        c.globalAlpha = 0.62; c.fillStyle = '#05070c';
+        c.beginPath(); c.moveTo(p.x, p.y);
+        c.arc(p.x, p.y, r, -Math.PI / 2, -Math.PI / 2 + 6.2832 * st.cd);
+        c.closePath(); c.fill(); c.globalAlpha = 1;
+      }
+
+      // rótulo
+      c.fillStyle = bloq ? '#4a5566' : (destaque ? '#ffffff' : '#c9d6ec');
+      c.font = `800 ${Math.round(r * 0.78)}px ui-rounded, system-ui, sans-serif`;
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText(st.rotulo || b.curto, p.x, p.y + r * 0.02);
+
+      c.restore();
+    }
+
+    mix(hex, a) {
+      const n = parseInt(hex.slice(1), 16);
+      return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+    }
+
+    drawFx() {
+      const c = this.ctx;
+      for (let i = this.efeitos.length - 1; i >= 0; i--) {
+        const f = this.efeitos[i];
+        f.t += 1;
+        if (f.tipo === 'anel') {
+          const k = f.t / 22;
+          if (k >= 1) { this.efeitos.splice(i, 1); continue; }
+          c.save(); c.globalAlpha = (1 - k) * 0.9; c.strokeStyle = f.cor; c.lineWidth = 3 * (1 - k) + 1;
+          c.beginPath(); c.arc(f.x, f.y, f.r * (1 + k * 1.1), 0, 6.2832); c.stroke(); c.restore();
+        } else {
+          const k = f.t / 34;
+          if (k >= 1) { this.efeitos.splice(i, 1); continue; }
+          f.x += f.vx; f.y += f.vy; f.vy += 0.09; f.rot += f.vr;
+          c.save(); c.globalAlpha = (1 - k); c.translate(f.x, f.y); c.rotate(f.rot);
+          c.fillStyle = f.cor;
+          c.beginPath(); c.moveTo(0, -f.s); c.lineTo(f.s * 0.5, 0); c.lineTo(0, f.s * 0.8); c.lineTo(-f.s * 0.42, 0);
+          c.closePath(); c.fill(); c.restore();
+        }
+      }
+    }
+
+    drawOverlay() {
+      const c = this.ctx, B = this.box, o = this.overlay;
+      c.save();
+      if (o.fundo !== false) { c.fillStyle = o.fundo || 'rgba(5,8,14,.62)'; c.fillRect(B.x, B.y, B.w, B.h); }
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      const cx = B.x + B.w * (o.cx ?? 0.42), cy = B.y + B.h * (o.cy ?? 0.42);
+      if (o.texto) {
+        c.fillStyle = o.cor || '#e8eefc';
+        c.font = `900 ${Math.round(B.h * (o.tam || 0.16))}px ui-rounded, system-ui, sans-serif`;
+        c.shadowColor = o.cor || '#8b6cf0'; c.shadowBlur = 24;
+        c.fillText(o.texto, cx, cy);
+        c.shadowBlur = 0;
+      }
+      if (o.sub) {
+        c.fillStyle = o.subCor || 'rgba(200,214,236,.9)';
+        c.font = `600 ${Math.round(B.h * 0.055)}px system-ui, sans-serif`;
+        c.fillText(o.sub, cx, cy + B.h * (o.tam || 0.16) * 0.72);
+      }
+      c.restore();
+    }
+  }
+
+  U.HUD = { HUD_PADRAO, ACIONAVEIS, ARMADILHAS, NOMES, TELA_MM, getHud, resetHud, analisarHud, HudSurface, folgaMM, distMM, percurso };
+
+})(window.U);
