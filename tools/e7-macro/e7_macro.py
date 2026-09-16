@@ -432,12 +432,14 @@ class ParadaSegura(RuntimeError):
 
 
 class Executor:
-    def __init__(self, adb: ADB, cfg: Config, verboso: bool = True):
+    def __init__(self, adb: ADB, cfg: Config, verboso: bool = True, arquivo_parada: Path | None = None):
         self.adb = adb
         self.cfg = cfg
         self.verboso = verboso
+        self.arquivo_parada = arquivo_parada
         self.parar = False
         self.ciclo = 0
+        self._checado_em = 0.0
 
     # ------------------------------------------------------------------ helpers
 
@@ -448,10 +450,22 @@ class Executor:
         # variação pequena: tempos de carregamento e animação não são constantes
         return max(0.05, segundos * random.uniform(1 - j, 1 + j))
 
+    def pediram_parada(self) -> bool:
+        """Ctrl+C ou o arquivo de parada (usado pelo atalho 'E7 Parar' no celular)."""
+        if self.parar:
+            return True
+        agora = time.time()
+        if self.arquivo_parada and agora - self._checado_em > 1.0:
+            self._checado_em = agora
+            if self.arquivo_parada.exists():
+                self.parar = True
+                return True
+        return False
+
     def dormir(self, segundos: float) -> None:
         alvo = time.time() + self._jitter(segundos)
         while time.time() < alvo:
-            if self.parar:
+            if self.pediram_parada():
                 raise KeyboardInterrupt
             time.sleep(min(0.2, max(0.0, alvo - time.time())))
 
@@ -525,7 +539,7 @@ class Executor:
         ultima = None
         estavel_desde = None
         while time.time() - inicio < timeout:
-            if self.parar:
+            if self.pediram_parada():
                 raise KeyboardInterrupt
             try:
                 atual = self.cor_regiao(nome)
@@ -555,7 +569,7 @@ class Executor:
         base = self.cor_regiao(nome)
         inicio = time.time()
         while time.time() - inicio < timeout:
-            if self.parar:
+            if self.pediram_parada():
                 raise KeyboardInterrupt
             time.sleep(intervalo)
             if distancia_cor(self.cor_regiao(nome), base) > tolerancia:
@@ -579,19 +593,17 @@ class Executor:
 
     # -------------------------------------------------------------------- laço
 
-    def rodar(self, perfil: dict, ciclos: int, arquivo_parada: Path | None) -> int:
+    def rodar(self, perfil: dict, ciclos: int) -> int:
         passos = perfil["passos"]
         feitos = 0
         for i in range(1, ciclos + 1):
-            if self.parar:
-                break
-            if arquivo_parada and arquivo_parada.exists():
-                print(f"\n■ arquivo de parada encontrado ({arquivo_parada}) — encerrando.")
+            if self.pediram_parada():
+                print("\n■ parada solicitada — encerrando.")
                 break
             self.ciclo = i
             print(f"\n── ciclo {i}/{ciclos} ─────────────────────────────")
             for passo in passos:
-                if self.parar:
+                if self.pediram_parada():
                     break
                 acao = self.ACOES.get(passo.get("acao"))
                 if not acao:
@@ -605,6 +617,58 @@ class Executor:
 # -----------------------------------------------------------------------------
 # CLI
 # -----------------------------------------------------------------------------
+
+
+def conectar_sem_fio(adb: ADB, porta: str | None = None) -> bool:
+    """Conecta o ADB ao próprio aparelho (depuração sem fio). Descobre a porta via mDNS."""
+    if porta:
+        alvos = [porta if ":" in porta else f"127.0.0.1:{porta}"]
+    else:
+        alvos = []
+        try:
+            saida = adb.run("mdns", "services", timeout=15)
+            for linha in saida.splitlines():
+                if "_adb-tls-connect" in linha:
+                    m = re.search(r"(\S+):(\d+)\s*$", linha)
+                    if m:
+                        alvos.append(f"{m.group(1)}:{m.group(2)}")
+        except ErroADB:
+            pass
+        alvos.append("127.0.0.1:5555")
+
+    for alvo in alvos:
+        try:
+            saida = adb.run("connect", alvo, timeout=20)
+        except ErroADB as e:
+            print(f"  {alvo}: {e}")
+            continue
+        if "connected" in saida.lower() and "cannot" not in saida.lower():
+            print(f"  ✓ conectado em {alvo}")
+            return True
+        print(f"  {alvo}: {saida.strip()}")
+    return False
+
+
+def cmd_conectar(args, adb: ADB, cfg: Config) -> int:
+    """Pareia e/ou conecta a depuração sem fio — é como rodar tudo só no celular."""
+    if args.parear:
+        print("Em Opções do desenvolvedor → Depuração sem fio → 'Parear dispositivo com código'.")
+        porta = input("  porta de PAREAMENTO (o número depois dos dois-pontos): ").strip()
+        codigo = input("  código de 6 dígitos: ").strip()
+        try:
+            saida = adb.run("pair", f"127.0.0.1:{porta}", codigo, timeout=30)
+            print("  " + saida.strip())
+        except ErroADB as e:
+            print(f"  falha no pareamento: {e}")
+            return 1
+
+    print("Procurando o aparelho…")
+    if not conectar_sem_fio(adb, args.porta):
+        print("\nNão consegui conectar sozinho. Na tela 'Depuração sem fio' aparece um\n"
+              "endereço IP:PORTA — rode:  e7_macro.py conectar --porta PORTA\n"
+              "Se for a primeira vez neste aparelho, pareie antes: conectar --parear")
+        return 1
+    return cmd_dispositivos(args, adb, cfg)
 
 
 def cmd_dispositivos(args, adb: ADB, cfg: Config) -> int:
@@ -657,6 +721,11 @@ def cmd_testar(args, adb: ADB, cfg: Config) -> int:
     return 0
 
 
+def eh_epic_seven(pacote: str) -> bool:
+    p = (pacote or "").lower()
+    return any(marca in p for marca in ("epic7", "epicseven", "stove", "smilegate"))
+
+
 def cmd_rodar(args, adb: ADB, cfg: Config) -> int:
     perfil = carregar_perfil(args.perfil)
     if not cfg.dados.get("resolucao"):
@@ -672,21 +741,33 @@ def cmd_rodar(args, adb: ADB, cfg: Config) -> int:
     if args.ligar_auto is not None:
         cfg.opcoes["ligar_auto"] = args.ligar_auto
 
-    if not args.pular_checagem_app:
+    if args.esperar_jogo > 0:
+        # cenário celular: você inicia aqui e troca para o jogo
+        print(f"\nAbra o Epic Seven agora — começando em {args.esperar_jogo}s…")
+        for restante in range(args.esperar_jogo, 0, -1):
+            print(f"  {restante}… ", end="", flush=True)
+            time.sleep(1)
+        print()
         foco = adb.app_em_primeiro_plano()
-        if foco and "stove" not in foco.lower() and "epic7" not in foco.lower():
+        if foco and not eh_epic_seven(foco):
+            print(f"[aviso] app em foco: {foco} — não parece o Epic Seven. Continuando mesmo assim.")
+    elif not args.pular_checagem_app:
+        foco = adb.app_em_primeiro_plano()
+        if foco and not eh_epic_seven(foco):
             print(f"[aviso] app em foco: {foco} — não parece o Epic Seven.")
             if input("continuar mesmo assim? [s/N]: ").strip().lower() not in ("s", "sim", "y"):
                 return 1
 
-    executor = Executor(adb, cfg, verboso=not args.silencioso)
+    arquivo_parada = Path(args.arquivo_parada) if args.arquivo_parada else None
+    if arquivo_parada and arquivo_parada.exists():
+        arquivo_parada.unlink()          # limpa uma parada antiga antes de começar
+    executor = Executor(adb, cfg, verboso=not args.silencioso, arquivo_parada=arquivo_parada)
 
     def parar(_sig, _frm):
         print("\n■ parada solicitada — terminando o passo atual…")
         executor.parar = True
     signal.signal(signal.SIGINT, parar)
 
-    arquivo_parada = Path(args.arquivo_parada) if args.arquivo_parada else None
     print(f"Perfil: {perfil.get('nome', args.perfil)} · ciclos: {args.ciclos} · "
           f"auto: {'ligado' if cfg.opcoes.get('ligar_auto') else 'não mexer'}"
           f"{' · SIMULAÇÃO' if adb.seco else ''}")
@@ -695,7 +776,7 @@ def cmd_rodar(args, adb: ADB, cfg: Config) -> int:
     inicio = time.time()
     codigo = 0
     try:
-        feitos = executor.rodar(perfil, args.ciclos, arquivo_parada)
+        feitos = executor.rodar(perfil, args.ciclos)
     except ParadaSegura as e:
         print(f"\n⚠ PARADA DE SEGURANÇA: {e}")
         feitos = executor.ciclo - 1
@@ -706,6 +787,73 @@ def cmd_rodar(args, adb: ADB, cfg: Config) -> int:
     minutos = (time.time() - inicio) / 60
     print(f"\nCiclos completos: {feitos} · tempo: {minutos:.1f} min · toques: {adb.toques}")
     return codigo
+
+
+def cmd_menu(args, adb: ADB, cfg: Config) -> int:
+    """Menu numérico — pensado para usar no celular, sem digitar comandos."""
+    from types import SimpleNamespace as NS
+
+    def pergunta(texto: str, padrao: str = "") -> str:
+        try:
+            resp = input(texto).strip()
+        except EOFError:
+            return ""
+        return resp or padrao
+
+    print("\n" + "=" * 46)
+    print(" MACRO EPIC SEVEN — menu")
+    print(" Automação viola os Termos de Serviço do jogo;")
+    print(" contas flagradas podem ser banidas.")
+    print("=" * 46)
+
+    while True:
+        calibrado = "✓" if cfg.pontos else "—"
+        print(f"""
+  1) Conectar o celular (depuração sem fio)
+  2) Verificar conexão
+  3) Calibrar botões            [{calibrado}]
+  4) Ver calibração / testar toque
+  5) RODAR — modo história
+  6) RODAR — repetir o mesmo estágio
+  7) Ensaio (simulação, não toca na tela)
+  0) Sair""")
+        opcao = pergunta("\n  escolha: ")
+        if opcao in ("0", "q", "sair", ""):
+            return 0
+
+        try:
+            if opcao == "1":
+                parear = pergunta("  é a primeira vez neste aparelho? [s/N]: ").lower() in ("s", "sim", "y")
+                cmd_conectar(NS(parear=parear, porta=None), adb, cfg)
+            elif opcao == "2":
+                cmd_dispositivos(NS(), adb, cfg)
+            elif opcao == "3":
+                perfil = "repetir" if pergunta("  perfil [1] história  [2] repetir: ", "1") == "2" else "historia"
+                refazer = pergunta("  recalibrar tudo do zero? [s/N]: ").lower() in ("s", "sim", "y")
+                cmd_calibrar(NS(perfil=perfil, manual=False, refazer=refazer), adb, cfg)
+            elif opcao == "4":
+                ponto = pergunta("  tocar em qual ponto? (enter p/ só listar): ")
+                cmd_testar(NS(tocar=ponto or None), adb, cfg)
+            elif opcao in ("5", "6", "7"):
+                perfil = "repetir" if opcao == "6" else "historia"
+                ciclos = int(pergunta("  quantas batalhas? [20]: ", "20"))
+                auto = pergunta("  tocar no botão Auto a cada batalha? [S/n]: ").lower() not in ("n", "nao", "não")
+                simular = opcao == "7"
+                adb.seco = simular
+                espera = 0 if simular else int(pergunta("  segundos para você abrir o jogo [10]: ", "10"))
+                print("\n  (para parar: Ctrl+C aqui, ou o atalho 'E7 Parar' na tela inicial)")
+                cmd_rodar(NS(perfil=perfil, ciclos=ciclos, arquivo_parada=str(PASTA_PADRAO / "PARAR"),
+                             ligar_auto=auto, pular_checagem_app=False, silencioso=False,
+                             esperar_jogo=espera), adb, cfg)
+                adb.seco = False
+            else:
+                print("  opção inválida.")
+        except KeyboardInterrupt:
+            print("\n  (voltando ao menu)")
+        except (ErroADB, ParadaSegura, SystemExit) as e:
+            print(f"  ⚠ {e}")
+        except ValueError:
+            print("  número inválido.")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -720,6 +868,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--simular", action="store_true", help="não envia toques; só mostra o que faria")
     p.add_argument("--versao", action="version", version=f"e7_macro {VERSAO}")
     sub = p.add_subparsers(dest="comando", required=True)
+
+    s = sub.add_parser("menu", help="menu numérico (uso no celular, sem digitar comandos)")
+    s.set_defaults(func=cmd_menu)
+
+    s = sub.add_parser("conectar", help="conecta pela depuração sem fio (sem PC)")
+    s.add_argument("--parear", action="store_true", help="parear antes (primeira vez no aparelho)")
+    s.add_argument("--porta", help="porta da depuração sem fio, se a busca automática falhar")
+    s.set_defaults(func=cmd_conectar)
 
     s = sub.add_parser("dispositivos", help="lista dispositivos ADB e a resolução")
     s.set_defaults(func=cmd_dispositivos)
@@ -744,6 +900,8 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--nao-ligar-auto", dest="ligar_auto", action="store_false",
                    help="não tocar no Auto (use se o jogo já mantém ligado)")
     s.add_argument("--pular-checagem-app", action="store_true")
+    s.add_argument("--esperar-jogo", type=int, default=0, metavar="SEGUNDOS",
+                   help="conta esse tempo antes de começar, para você abrir o jogo (uso no celular)")
     s.add_argument("--silencioso", action="store_true")
     s.set_defaults(func=cmd_rodar)
 

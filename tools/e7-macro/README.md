@@ -36,13 +36,59 @@ Três coisas que fazem diferença na prática:
   em vez de sair tocando às cegas. É o que evita toque acidental em loja, invocação ou
   qualquer confirmação que gaste recurso.
 
-## 2. O que você precisa
+## 2. Ativar no celular com um toque (Termux)
+
+Sem PC. Instala, cria o comando `e7` e coloca três ícones na tela inicial do Android.
+
+**Uma vez só:**
+
+1. Instale o **Termux** e o **Termux:Widget** (F-Droid — a versão da Play Store é antiga).
+2. Copie a pasta do macro para o celular e, no Termux:
+
+   ```bash
+   cd ~/storage/downloads/e7-macro      # ou onde você descompactou
+   bash mobile/instalar.sh
+   ```
+
+   (se for a primeira vez no Termux, rode `termux-setup-storage` antes para enxergar a pasta Downloads)
+
+3. Ligue em *Configurações → Opções do desenvolvedor*:
+   **Depuração sem fio** e, na Xiaomi/POCO, **Depuração USB (Configurações de segurança)**.
+
+4. Ainda no Termux:
+
+   ```bash
+   e7 conectar --parear   # informe a porta de pareamento e o código de 6 dígitos
+   e7 calibrar            # toque em cada botão quando ele pedir
+   ```
+
+   O botão **Auto** precisa ser calibrado com você **dentro de uma batalha**.
+
+5. Segure um espaço vazio da tela inicial → *Widgets* → **Termux:Widget** → escolha o atalho.
+
+**Do dia a dia em diante:**
+
+| Ícone | O que faz |
+|---|---|
+| **E7 Macro** | abre o menu numérico (conectar, calibrar, rodar, ensaio) |
+| **E7 Historia** | conecta, dá 10 s para você abrir o jogo e roda 20 batalhas |
+| **E7 Parar** | para o macro na hora — o laço checa esse pedido a cada segundo, mesmo no meio da batalha |
+
+Também dá para usar só o comando: `e7` (menu), `e7 rodar --perfil historia --ciclos 30`.
+
+> O Termux precisa continuar vivo em segundo plano enquanto você joga: os atalhos já
+> chamam `termux-wake-lock`, e na notificação do Termux existe *Acquire wakelock*.
+> Nas configurações de bateria do Android, deixe o Termux como **sem restrições**.
+
+---
+
+## 3. O que você precisa
 
 * Python 3.8+
 * `adb` (Android platform-tools)
 * Depuração USB (ou sem fio) ligada no celular
 
-### Opção A — pelo PC (mais simples)
+### Opção A — pelo PC
 
 1. Celular: *Configurações → Sobre o telefone* → toque 7× em **Versão do MIUI/HyperOS**
    para liberar as Opções do desenvolvedor.
@@ -51,7 +97,7 @@ Três coisas que fazem diferença na prática:
 3. Conecte o cabo, aceite o aviso "Permitir depuração USB" no celular.
 4. No PC: `adb devices` tem que listar o aparelho como `device`.
 
-### Opção B — só no celular, sem PC (Termux + depuração sem fio)
+### Opção B — só no celular (o instalador acima já faz isso)
 
 Funciona no Android 11+ (inclui HyperOS 2):
 
@@ -65,7 +111,7 @@ adb devices
 
 Depois é só rodar o script dentro do Termux, com o jogo aberto em outra janela/aplicativo.
 
-## 3. Uso
+## 4. Uso (linha de comando)
 
 ```bash
 cd tools/e7-macro
@@ -107,6 +153,7 @@ touch ~/.e7-macro/PARAR
 | `--arquivo-parada CAMINHO` | arquivo cuja existência interrompe o laço |
 | `--serial XXXX` | escolher o aparelho quando há mais de um |
 | `--silencioso` | menos log |
+| `--esperar-jogo 10` | conta 10 s antes de começar, para você trocar para o jogo |
 
 ### Ajuste fino
 
@@ -127,7 +174,7 @@ Os perfis (`perfis/*.json`) são listas de passos legíveis — dá para reorden
 esperas ou criar o seu (`--perfil caminho/do/meu.json`). Ações disponíveis:
 `tocar`, `tocar_repetido`, `esperar`, `esperar_mudanca`, `esperar_estavel`, `log`.
 
-## 4. Problemas comuns
+## 5. Problemas comuns
 
 | Sintoma | Causa provável |
 |---|---|
@@ -139,7 +186,7 @@ esperas ou criar o seu (`--perfil caminho/do/meu.json`). Ações disponíveis:
 | Batalha longa cortada | aumente `espera_max_batalha` |
 | Fim de batalha detectado cedo demais | aumente `estavel_por` (ex.: 4.0) ou diminua `tolerancia` no perfil |
 
-## 5. Testes
+## 6. Testes
 
 Há um `adb` falso que responde como um aparelho real, para validar sem celular:
 
@@ -150,7 +197,7 @@ bash testes/rodar_testes.sh
 Verifica a conversão das coordenadas do `getevent` (0x800/0x400 em 4095 → 610,678 em
 1220×2712), a sequência de toques do ciclo e a parada de segurança quando a tela não muda.
 
-## 6. Sem ADB (alternativa no dedo)
+## 7. Sem ADB (alternativa no dedo)
 
 Se não quiser mexer com ADB: um app de auto-clique por acessibilidade (MacroDroid,
 Auto Clicker, Tasker + AutoInput) grava a mesma sequência de toques. Fica mais frágil

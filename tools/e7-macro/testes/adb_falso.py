@@ -18,6 +18,17 @@ def png(cor):
     return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 40, 40, 8, 2, 0, 0, 0))
             + chunk(b"IDAT", raw) + chunk(b"IEND", b""))
 
+if args[:1] == ["mdns"]:
+    print("List of discovered mdns services")
+    print("adb-FAKE123-abc\t_adb-tls-connect._tcp\t192.168.0.50:4321")
+    sys.exit(0)
+
+if args[:1] == ["connect"]:
+    print(f"connected to {args[1]}"); sys.exit(0)
+
+if args[:1] == ["pair"]:
+    print("Successfully paired to 127.0.0.1:37109 [guid=adb-FAKE123]"); sys.exit(0)
+
 if args[:1] == ["devices"]:
     print("List of devices attached"); print("FAKE123\tdevice"); sys.exit(0)
 

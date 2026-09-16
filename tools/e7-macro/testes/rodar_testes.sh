@@ -49,4 +49,16 @@ obtido="$(sed 's/.*input tap //' "$TMP/estado/toques.log")"
 [ "$obtido" = "$esperado" ] || { echo "FALHOU: sequência de toques"; diff <(echo "$esperado") <(echo "$obtido"); exit 1; }
 echo "  ✓ sequência de toques correta (iniciar → equipe → auto → recompensas → próximo)"
 echo "  ✓ parada de segurança quando a tela não muda"
+echo; echo "== instalador (HOME temporário) =="
+HOME="$TMP/home" bash ../mobile/instalar.sh --sem-pacotes >/dev/null 2>&1 || true
+for f in "$TMP/home/e7-macro/e7_macro.py" "$TMP/home/e7-macro/perfis/historia.json" \
+         "$TMP/home/.shortcuts/E7 Macro.sh" "$TMP/home/.shortcuts/E7 Historia.sh" \
+         "$TMP/home/.shortcuts/E7 Parar.sh"; do
+  [ -f "$f" ] || { echo "FALHOU: instalador não criou $f"; exit 1; }
+done
+HOME="$TMP/home" bash "$TMP/home/.shortcuts/E7 Parar.sh" >/dev/null
+[ -f "$TMP/home/.e7-macro/PARAR" ] || { echo "FALHOU: atalho de parada"; exit 1; }
+echo "  ✓ instalador cria o comando e os 3 atalhos"
+echo "  ✓ atalho 'E7 Parar' registra o pedido de parada"
+
 echo; echo "TODOS OS TESTES PASSARAM"
