@@ -119,7 +119,7 @@ const DB = {
       criado: Date.now(),
       perfil: { nome: 'Jogador', parado: 30 },
       hud: null,               // sobrescrito pela calibração
-      opts: { som: true, vibra: true, maoInvertida: false, fx: 'alto' },
+      opts: { som: true, vibra: true, fx: 'alto', musica: true, volMusica: 0.5, volSfx: 0.6, feedbackDesvanecido: true },
       skills: null,            // vetor de habilidade (criado no diagnóstico)
       nivel: 1,
       diagnostico: null,
@@ -130,6 +130,10 @@ const DB = {
       lunaLiberada: false,
       lunaSkills: null,
       pares: {},               // tempos de transição botão->botão
+      toques: {},              // dispersão do dedo dentro de cada botão
+      retencao: [],            // testes de retenção (aprendizado, não desempenho)
+      ssrt: [],                // histórico de tempo de frenagem
+      antecipacao: [],         // curva de oclusão temporal
       streak: { dias: 0, ultimo: 0 },
     };
   },
@@ -168,7 +172,7 @@ const Sfx = {
     try {
       this.ctx = new AC();
       this.master = this.ctx.createGain();
-      this.master.gain.value = 0.35;
+      this.master.gain.value = this.volAlvo();
       this.master.connect(this.ctx.destination);
     } catch (e) { return false; }
     return true;
@@ -178,6 +182,8 @@ const Sfx = {
     if (this.ctx.state === 'suspended') this.ctx.resume();
   },
   on() { return DB.load().opts.som !== false; },
+  volAlvo() { return clamp(DB.load().opts.volSfx ?? 0.6, 0, 1) * 0.6; },
+  atualizarVolume() { if (this.master) this.master.gain.value = this.volAlvo(); },
   tone(freq, dur = 0.08, type = 'sine', gain = 1, slide = 0) {
     if (!this.on() || !this.ready()) return;
     const t = this.ctx.currentTime;

@@ -1,54 +1,93 @@
 ================================================================
-ESPELHO — Sistema de Recuperação e Evolução (Jing / Luna)
+ESPELHO v2 — Sistema de Recuperação e Evolução (Jing / Luna)
 Honor of Kings · feito sob medida para o seu HUD e o Poco X7 Pro
 ================================================================
 
 COMO COLOCAR NO AR
 ------------------
-Opção 1 — Netlify Drop (recomendado):
-  1. Abra https://app.netlify.com/drop
-  2. Arraste a PASTA "jing-trainer" inteira (ou o .zip) para a área indicada.
-  3. Pegue o link que aparecer e abra no celular.
-  4. No Chrome: menu → "Adicionar à tela inicial". Ele abre em tela cheia,
-     em paisagem, e funciona offline depois da primeira abertura.
+Netlify Drop (recomendado):
+  1. https://app.netlify.com/drop
+  2. Arraste a PASTA "jing-trainer" (ou o .zip) para a área indicada.
+  3. Abra o link no celular. Chrome → menu → "Adicionar à tela inicial".
+     Abre em tela cheia, em paisagem, e funciona offline depois da 1ª vez.
 
-Opção 2 — direto no celular, sem internet:
-  Descompacte e abra o arquivo index.html. Funciona igual, mas o modo
-  offline (service worker) só liga quando está servido por http/https.
+Sem internet: descompacte e abra o index.html. Funciona igual; só o modo
+offline (service worker) precisa de http/https.
 
-IMPORTANTE ANTES DO PRIMEIRO TREINO
------------------------------------
-1. Vire o celular na horizontal.
-2. Config → "Tela cheia + travar em paisagem".
-   Sem isso a barra de gestos do Android rouba a faixa de baixo — exatamente
-   onde ficam o ataque e a habilidade 1.
-3. Aba HUD → confira se a réplica bate com o seu jogo. Se algum botão estiver
-   fora do lugar, use "Calibrar arrastando" e mova até bater.
-   Isso não é enfeite: todo o treino de precisão mede a distância do seu dedo
-   até o centro do botão. HUD errado = medida errada.
-4. Faça o DIAGNÓSTICO inteiro, sem pausar. São ~9 minutos.
+ANTES DO PRIMEIRO TREINO
+------------------------
+1. Celular na horizontal.
+2. Config → "Tela cheia + travar em paisagem". Sem isso a barra de gestos do
+   Android come a faixa de baixo — onde ficam o ataque e a habilidade 1.
+3. Aba HUD → confira se a réplica bate com o seu jogo. Se não, "Calibrar
+   arrastando". HUD errado = todo o treino de precisão mede a coisa errada.
+4. Config → ajuste o volume da trilha e dos efeitos.
+5. Faça o DIAGNÓSTICO inteiro, sem pausar (~10 min).
 
-POR QUE COMEÇA COM UM DIAGNÓSTICO
----------------------------------
-Um mês parado quase nunca apaga a memória de uma rota. O que ele faz é:
-  · deixar a execução lenta,
-  · deixar o ritmo irregular,
-  · e, principalmente, tirar o AUTOMATISMO — você volta a executar
-    "pensando", e em luta a atenção que você gasta pensando no combo é
-    exatamente a que faltava para ler o inimigo.
+O QUE MUDOU NESTA VERSÃO
+------------------------
+· TRILHA SONORA generativa, feita pelo próprio aparelho (zero arquivo de áudio
+  no pacote). Quatro climas, escolhidos pelo tipo de exercício: com batida nos
+  de ritmo e velocidade — no andamento-alvo do próprio exercício — e quase muda
+  nos de leitura e decisão. O volume abaixa sozinho quando um sinal importante
+  toca. Música reduz divagação mental e encurta o tempo de reação, mas aumenta
+  distração externa: por isso ela não é a mesma o tempo todo.
 
-As provas 3 e 4 do diagnóstico usam A MESMA ROTA de propósito. A prova 4
-acrescenta uma leitura simultânea com a mão esquerda. A diferença entre as
-duas é a medida mais importante do sistema: ela separa
+· TESTE DE RETENÇÃO. Toda sessão começa medindo o que ficou da anterior:
+  5 tentativas do exercício mais difícil, mesma dificuldade, sem retorno e sem
+  botão aceso, pelo menos 5h depois. É a única medida que mostra APRENDIZADO —
+  o resto é desempenho do dia, que sobe fácil e cai sozinho. Vira um gráfico
+  próprio em Dados, sobreposto à curva de treino.
 
-      "eu não sei mais fazer"        de       "eu sei, estou enferrujado"
+· ESQUEMA DE PRÁTICA que escalona: BLOCO (níveis 1-2) → SÉRIE (3) → ALEATÓRIO
+  (4+). Prática aleatória piora a sua nota hoje e melhora a retenção depois.
+  O esquema aparece na faixa de cada exercício.
 
-e essas duas coisas pedem treinos opostos. Quem não sabe precisa voltar ao
-passo lento. Quem está enferrujado precisa de carga, não de repetição lenta.
+· FREIO DE MÃO virou um teste de sinal de parada de verdade, com escada
+  adaptativa de ±50 ms e atraso que pode ser NEGATIVO. Devolve o seu SSRT em
+  milissegundos (faixa típica em adultos: 200-250 ms), com o gráfico da escada
+  e um aviso quando a medida ainda não é confiável. A escada continua de onde
+  parou entre sets.
+
+· ANTECIPAÇÃO (exercício novo): a situação aparece por janelas de 600 a 140 ms
+  e é mascarada. Você decide com o que viu. Monta a sua CURVA DE ANTECIPAÇÃO:
+  onde ela desaba é a informação mínima de que você ainda precisa.
+
+· LEI DE FITTS sobre os seus próprios tempos. O gráfico separa os trajetos que
+  já estão no limite do layout (não adianta treinar — mexa no HUD) dos que têm
+  treino sobrando. Só aparece quando há dados suficientes para ser honesto.
+
+· DISPERSÃO DO TOQUE: cada toque é gravado com a posição exata dentro do botão.
+  O gráfico mostra onde o seu dedo realmente cai. Centro deslocado significa
+  erro sistemático de mira — corrige-se mirando o lado oposto, não treinando mais.
+
+· FEEDBACK DESVANECIDO a partir da dificuldade 5 (retorno em ~2 de cada 3
+  tentativas). A evidência disso é disputada e está marcada como tal — dá para
+  desligar em Config.
+
+· ESPAÇAMENTO: o sistema conta suas sessões por dia e avisa quando empilhar
+  deixou de comprar aprendizado.
+
+· INSTRUÇÕES REESCRITAS com foco externo (apontam o alvo, não a sua mão).
+
+· ABA MÉTODO: as 12 decisões do sistema, o que cada uma mudou aqui, e o link
+  para a fonte. Inclui as que vão CONTRA o que seria mais agradável de fazer.
+
+· GRÁFICOS refeitos com paleta validada para tela escura (banda de
+  luminosidade, piso de croma, separação para daltonismo e contraste checados
+  por script). Toque em qualquer ponto para ver o valor exato.
+
+O QUE O SISTEMA NÃO PROMETE
+---------------------------
+Reflexo melhor "em geral". A revisão de escopo sobre esports e cognição não
+sustenta ganho cognitivo amplo vindo de jogar nem de treinos genéricos. O que
+dá para construir é específico: os seus botões, as suas distâncias, as suas
+rotas, as decisões deste jogo. É por isso que aqui não existe "clique no
+quadrado que acender" — e é por isso que tudo acontece sobre a réplica do seu HUD.
 
 OS SETE NÍVEIS
 --------------
-1 RECONEXÃO     reencontrar o HUD — só onde o dedo encosta
+1 RECONEXÃO     reencontrar o HUD
 2 ESTABILIZAÇÃO repetir igual (regularidade antes de velocidade)
 3 AUTOMATIZAÇÃO executar sem gastar atenção (dupla tarefa)
 4 VELOCIDADE    acelerar sem quebrar — com freio automático
@@ -56,48 +95,32 @@ OS SETE NÍVEIS
 6 INTEGRAÇÃO    decisão pesa mais que mecânica
 7 DOMÍNIO       manutenção e teto
 
-Você não escolhe o nível. O diagnóstico define onde você começa e o sistema
-promove sozinho quando as portas de cada nível são batidas.
-
-O FREIO DE VELOCIDADE
----------------------
-Se a sua taxa de erro subir junto com o tempo, o sistema VOLTA a dificuldade
-e trava novas acelerações até a precisão estabilizar. Velocidade que gera erro
-não é progresso. Isso é regra do sistema, não sugestão.
+O diagnóstico define onde você começa. O sistema promove sozinho.
+Se a pressa gerar erro, ele VOLTA a dificuldade e trava novas acelerações.
 
 LUNA
 ----
-Fechada de propósito no começo. As duas competem pelo mesmo recurso: o mapa
-de posições do seu polegar direito. Enquanto esse mapa estiver instável,
-treinar Luna ATRASA a Jing. Ela abre quando a Jing chegar ao nível 4 com
-precisão ≥ 68 e consistência ≥ 68.
+Abre no nível 4 com precisão ≥ 68 e consistência ≥ 68. Antes disso as duas
+competem pelo mesmo mapa de polegar e treinar Luna ATRASA a Jing.
 
-O QUE EU ENCONTREI NO SEU HUD (resumo — detalhes na aba HUD)
-------------------------------------------------------------
-· O item do elmo está com a borda encostada na linha reta entre a
-  Habilidade 1 e o Ataque — o trajeto mais percorrido do jogo (32,7 mm).
-  É o único ajuste que eu recomendo fazer AGORA: uns 4 mm para longe.
-· Habilidade 1 → Ultimate são 31,8 mm de percurso de polegar: a maior
-  distância do seu layout e a mecânica que mais enferruja numa pausa.
-  NÃO mexa nisso agora — trate como treino (exercício "Pontes"). Reavalie
-  só a partir do nível 4.
+SEU HUD — resumo (detalhes na aba HUD)
+--------------------------------------
+· O item do elmo está com a borda encostada na linha Habilidade 1 → Ataque, o
+  trajeto mais percorrido do jogo (32,7 mm). Único ajuste recomendado AGORA:
+  uns 4 mm para longe.
+· Habilidade 1 → Ultimate são 31,8 mm, a maior distância do layout. NÃO mexa
+  agora — é treino (exercício Pontes). Reavalie a partir do nível 4.
 · Invocador a 13,3 mm da Habilidade 1, com o caminho cruzando o item.
-  É o botão que você mais aperta em pânico. Existe uma ponte específica
-  para ele nos exercícios.
 · Analógico, Retornar e Recuperar estão bem posicionados. Não mexa.
 
 SEUS DADOS
 ----------
-Fica tudo só no seu aparelho (localStorage). Nada é enviado para lugar nenhum.
-Config → "Exportar backup" gera um arquivo .json que você pode guardar e
-reimportar em outro aparelho ou depois de limpar o navegador.
-
-ATENÇÃO: se você limpar os dados do site no Chrome, o histórico vai junto.
-Faça um backup de vez em quando.
+Tudo fica no seu aparelho (localStorage). Nada é enviado para lugar nenhum.
+Config → "Exportar backup" gera um .json. Limpar os dados do site no Chrome
+apaga o histórico — faça backup de vez em quando.
 
 ROTAS
 -----
-As rotas foram nomeadas pela FUNÇÃO (Entrada, Marca, Recorte, Reflexo, Saída,
-Execução, Espelho Inteiro) e não pelo nome das habilidades, para continuarem
-válidas se a build ou o patch mudarem. Se a sua ordem for diferente, edite em
-Config → Rotas da Jing. Todo o treino passa a usar a sequência nova na hora.
+Nomeadas pela FUNÇÃO (Entrada, Marca, Recorte, Reflexo, Saída, Execução,
+Espelho Inteiro) para continuarem válidas se a build ou o patch mudarem.
+Config → Rotas da Jing edita qualquer uma; o treino usa a nova na hora.

@@ -10,7 +10,7 @@
   const S = {
     surf: null, motor: null, drill: null, dif: 1, cfg: null,
     fila: null, idx: 0, diag: null, provas: [], aberto: false,
-    ultimoRel: null,
+    ultimoRel: null, modoRetencao: null, aquecido: false,
   };
 
   /* ---------- superfície ---------- */
@@ -34,6 +34,7 @@
   function fecharPalco() {
     pararMotor();
     if (S.surf) { S.surf.destroy(); S.surf = null; }
+    U.Musica.parar();
     $('#treino').classList.remove('on');
     document.body.classList.remove('treinando');
     $('#brief').classList.remove('on');
@@ -87,32 +88,45 @@
   function abrir(drill, dif, opts = {}) {
     abrirPalco();
     S.drill = drill; S.dif = U.clamp(dif, 1, 10); S.diag = null;
-    const ctx = { rotasAtivas: drill.heroi === 'luna' ? null : C.rotasAtivas() };
-    S.cfg = Object.assign({}, drill.cfg(S.dif, ctx), { drillId: drill.id, pisoIki: C.pisoIki() });
+    const ctx = { rotasAtivas: drill.heroi === 'luna' ? null : C.rotasAtivas(), esquema: C.esquemaAtual() };
+    S.cfg = Object.assign({}, drill.cfg(S.dif, ctx), {
+      drillId: drill.id, pisoIki: C.pisoIki(), feedback: C.fracaoFeedback(S.dif),
+    });
+    if (S.cfg.freio && S.cfg.ssdInicial == null) S.cfg.ssdInicial = C.ssdInicial();
     if (opts.cfg) Object.assign(S.cfg, opts.cfg);
+    S.modoRetencao = opts.retencao || null;
 
     const rotasTxt = S.cfg.rotas
       ? [...new Set(S.cfg.rotas.map(r => r.map(k => H.getHud()[k]?.curto || k).join(' › ')))].slice(0, 4).join('   ·   ')
       : null;
 
-    faixa(drill.nome, `<span class="chip">dif ${S.dif}/10</span>`);
+    const esq = U.CI.ESQUEMAS[S.cfg.esquema];
+    faixa(drill.nome, `<span class="chip">dif ${S.dif}/10</span>` + (esq ? `<span class="chip">${esq.nome}</span>` : ''));
     brief(drill.nome, drill.objetivo, drill.explicacao,
       `<div class="sep"></div>
        ${rotasTxt ? `<div class="mini"><b>Rotas desta rodada:</b> <span style="color:var(--gold);font-weight:800">${rotasTxt}</span></div>` : ''}
+       ${esq ? `<div class="mini" style="margin-top:5px"><b>Esquema:</b> ${esq.nome} — ${esq.desc}</div>` : ''}
        <div class="mini" style="margin-top:5px"><b>Tentativas:</b> ${S.cfg.tentativas} ·
-       <b>Treina:</b> ${Object.keys(drill.treina).map(k => M.EIXOS[k].nome).join(', ')}</div>
+       <b>Treina:</b> ${Object.keys(drill.treina).map(k => M.EIXOS[k].nome).join(', ')}
+       ${S.cfg.feedback < 1 ? ' · <b>retorno em 2 de cada 3 tentativas</b>' : ''}</div>
+       ${drill.pesquisa ? `<div class="aviso" style="margin-top:8px"><b>Por que este exercício:</b> ${drill.pesquisa.nota}
+         <div><button class="btn sec sm" style="margin-top:7px;min-height:34px" data-princ="${drill.pesquisa.principio}">ver a pesquisa</button></div></div>` : ''}
        <div class="mini" style="margin-top:5px"><b>Para avançar de dificuldade:</b> 80 pontos.
        Abaixo de 62 o sistema baixa a dificuldade sozinho — e isso é parte do método, não um castigo.</div>`,
       () => rodar());
+    $$('#brief [data-princ]').forEach(b => b.addEventListener('click', (ev) => {
+      ev.stopPropagation(); UI.verPrincipio(b.dataset.princ);
+    }));
   }
 
   function rodar() {
     pararMotor();
     S.surf.resize();
+    U.Musica.paraExercicio(S.drill, S.cfg);
     const api = {
       info: ({ i, n, ok, acc }) => faixa(S.drill.nome, `<span class="chip">dif ${S.dif}</span>` + chipsPadrao(i, n, ok, acc)),
       mensagem,
-      fim: (g) => finalizarSet(g),
+      fim: (g) => finalizarSet(g, S.motor ? S.motor.extras() : {}),
     };
     const Motor = { sequencia: U.E.MotorSequencia, escolha: U.E.MotorEscolha,
                     prioridade: U.E.MotorPrioridade, cenario: U.E.MotorCenario }[S.drill.motor];
@@ -136,11 +150,13 @@
   /* ============================================================
      FIM DE SET
      ============================================================ */
-  function finalizarSet(g) {
+  function finalizarSet(g, extras = {}) {
+    const ex = extras || {};
     pararMotor();
-    if (S.diag) return proximaProva(g);
+    if (S.diag) return proximaProva(g, ex);
+    if (S.modoRetencao) return finalizarRetencao(g, ex);
 
-    const r = C.avaliarSet(S.drill, g, S.cfg);
+    const r = C.avaliarSet(S.drill, g, S.cfg, ex);
     C.registrarSet(r.rec);
     S.dif = r.difNova;
 
@@ -199,10 +215,29 @@
             <b style="margin-left:5px">${x.nome}</b> — ${M.ESTADOS[x.estado]?.texto || ''}</div>`).join('')}
         </div>` : ''}
 
+      ${r.rec.ssrt != null ? `<div class="sep"></div>
+        <div class="aviso ${!r.rec.ssrtConfiavel ? '' : r.rec.ssrt < 260 ? 'ok' : r.rec.ssrt < 340 ? '' : 'bad'}">
+        <b>Seu tempo de frenagem (SSRT): ${r.rec.ssrt} ms.</b><br>
+        É quanto tempo leva, do sinal de perigo até a jogada realmente parar. O atraso de equilíbrio da escada
+        ficou em ${r.rec.ssd50} ms com ${Math.round((r.rec.taxaParada || 0) * 100)}% de paradas —
+        perto de 50% é o que torna a medida válida.<br>
+        ${!r.rec.ssrtConfiavel
+          ? '<b>Ainda não confie neste número:</b> a taxa de parada ficou longe de 50%, então a escada não encontrou o ponto de equilíbrio. Faça mais um set deste exercício.'
+          : r.rec.ssrt < 260 ? 'Está dentro da faixa típica de adultos (~200-250 ms).'
+          : r.rec.ssrt < 340 ? 'Um pouco acima da faixa típica: dá para melhorar.'
+          : 'Bem acima da faixa típica — é o seu maior gargalo em luta, não a velocidade do combo.'}
+        </div>` : ''}
+
       ${prox ? `<div class="sep"></div>
         <div class="aviso"><b>Próximo:</b> ${prox.drill.nome} (dif ${prox.dif})<br>${prox.motivo}</div>` : ''}
     `, [
-      { txt: 'Repetir', cls: 'sec sm', fn: () => { $('#res').classList.remove('on'); S.cfg = Object.assign({}, S.drill.cfg(S.dif, { rotasAtivas: C.rotasAtivas() }), { drillId: S.drill.id, pisoIki: C.pisoIki() }); rodar(); } },
+      { txt: 'Repetir', cls: 'sec sm', fn: () => {
+          $('#res').classList.remove('on');
+          const ctx = { rotasAtivas: S.drill.heroi === 'luna' ? null : C.rotasAtivas(), esquema: C.esquemaAtual() };
+          S.cfg = Object.assign({}, S.drill.cfg(S.dif, ctx),
+            { drillId: S.drill.id, pisoIki: C.pisoIki(), feedback: C.fracaoFeedback(S.dif) });
+          rodar();
+        } },
       { txt: S.fila ? 'Próximo da sessão' : 'Próximo exercício', cls: 'full', fn: () => avancar(prox) },
       { txt: 'Encerrar', cls: 'sec sm', fn: () => encerrarSessao() },
     ]);
@@ -261,14 +296,81 @@
     S.fila = f; S.idx = 0;
     C.abrirSessao();
     abrirPalco();
+    const esq = U.CI.ESQUEMAS[C.esquemaAtual()];
+    const ret = C.alvoRetencao();
+    const esp = U.CI.conselhoEspacamento();
     brief('Sessão de hoje', `${f.length} exercícios escolhidos pelo seu estado atual`,
-      f.map((x, i) => `<b>${x.drill.nome}</b> (dif ${x.dif}) — ${x.drill.objetivo}`),
+      f.map((x) => `<b>${x.drill.nome}</b> (dif ${x.dif}) — ${x.drill.objetivo}`),
       `<div class="sep"></div>
-       <div class="mini">A ordem não é aleatória: precisão e regularidade vêm antes de qualquer coisa que exija
-       velocidade, porque velocidade construída sobre execução instável só multiplica erro.</div>
+       ${ret ? `<div class="aviso ok"><b>Antes de treinar: teste de retenção.</b><br>
+         5 tentativas de <b>${ret.drill.nome}</b> na dificuldade ${ret.dif}, sem retorno e sem botão aceso,
+         ${Math.round(ret.horas)}h depois da última sessão. Essa nota não entra no treino: ela existe para
+         medir o que ficou. O que você faz durante a prática é desempenho; aprendizado só aparece num teste
+         assim, depois e sem ajuda.</div>` : ''}
+       ${esp.aviso ? `<div class="aviso ${esp.ok ? '' : 'bad'}" style="margin-top:7px">${esp.txt}</div>` : ''}
+       <div class="mini" style="margin-top:7px"><b>Esquema de hoje: ${esq.nome}</b> — ${esq.desc}.</div>
+       <div class="mini" style="margin-top:5px">A ordem não é aleatória: precisão e regularidade vêm antes de
+       qualquer coisa que exija velocidade, porque velocidade construída sobre execução instável só multiplica erro.</div>
        <div class="mini" style="margin-top:5px">A dificuldade de cada um se ajusta durante a sessão. Se um exercício
        ficar fácil demais ele sobe na hora; se te derrubar, ele desce.</div>`,
-      () => abrir(f[0].drill, f[0].dif), 'Começar sessão');
+      () => ret ? abrirRetencao(ret) : abrir(f[0].drill, f[0].dif), 'Começar sessão');
+  }
+
+  /* ============================================================
+     TESTE DE RETENÇÃO — mede aprendizado, não desempenho
+     ============================================================ */
+  function abrirRetencao(ret) {
+    abrir(ret.drill, ret.dif, {
+      retencao: ret,
+      cfg: { tentativas: 5, mostrarRota: 'antes', feedback: 0, esquema: 'bloco', tempoLeitura: 800 },
+    });
+  }
+
+  function finalizarRetencao(g, ex) {
+    const ret = S.modoRetencao;
+    S.modoRetencao = null;
+    const motor = S.cfg.modo === 'compasso' ? 'compasso' : S.cfg.freio ? 'freio' : 'sequencia';
+    const { score } = M.pontuar(motor, g, S.cfg);
+    const anteriores = C.serieRetencao().filter(r => r.drill === ret.drill.id);
+    const ant = anteriores.length ? anteriores[anteriores.length - 1].score : null;
+    const rec = {
+      t: Date.now(), drill: ret.drill.id, nome: ret.drill.nome, dif: ret.dif,
+      score, acc: g.acuracia, horas: Math.round(ret.horas),
+      scoreTreino: ret.scoreAnterior,
+    };
+    C.registrarRetencao(rec);
+    M.aplicarSet(ret.drill.treina, score, 0.5);       // medida limpa, peso menor (só 5 tentativas)
+    M.registrarToques(ex.toques);
+    U.Sfx.done();
+
+    const delta = ret.scoreAnterior != null ? score - ret.scoreAnterior : null;
+    painelFinal(`
+      <div class="flex" style="gap:14px;align-items:center">
+        ${anel(score)}
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.95rem;font-weight:900">Teste de retenção — ${ret.drill.nome}</div>
+          <div class="mini">${g.acertos}/${g.n} certas, ${Math.round(ret.horas)}h depois da última sessão,
+          sem retorno por tentativa e sem botão aceso.</div>
+        </div>
+      </div>
+      <div class="sep"></div>
+      <div class="aviso ${delta == null ? '' : delta >= -6 ? 'ok' : 'bad'}">
+        ${delta == null
+          ? 'Primeira medição deste exercício. A partir da próxima sessão isso vira uma linha no gráfico de retenção.'
+          : `Na sessão passada, treinando, você fez <b>${Math.round(ret.scoreAnterior)}</b>. Hoje, sem ajuda nenhuma,
+             <b>${score}</b> (${delta >= 0 ? '+' : ''}${Math.round(delta)}).<br>
+             ${delta >= -6
+               ? 'Isso é aprendizado de verdade: o que você fez ontem ficou. Segue o plano.'
+               : 'A queda mostra que boa parte do desempenho de ontem vinha das dicas na tela. Não é regressão — é a medida honesta. O sistema vai insistir mais nesse exercício.'}`}
+      </div>
+      ${ant != null ? `<div class="mini" style="margin-top:7px">Retenção anterior deste exercício:
+        <b>${Math.round(ant)}</b> → <b>${score}</b> (${score - ant >= 0 ? '+' : ''}${Math.round(score - ant)}).</div>` : ''}
+      <div class="mini" style="margin-top:8px">Agora começa a sessão de treino.</div>
+    `, [{ txt: 'Começar treino', cls: 'full', fn: () => {
+      $('#res').classList.remove('on');
+      const x = S.fila ? S.fila[0] : null;
+      x ? abrir(x.drill, x.dif) : fecharPalco();
+    } }]);
   }
 
   function encerrarSessao() {
@@ -369,13 +471,15 @@
      ============================================================ */
   function diagnostico() {
     abrirPalco();
-    S.diag = { i: 0 }; S.provas = [];
+    S.diag = { i: 0 }; S.provas = []; S.modoRetencao = null; S.fila = null;
     brief('Diagnóstico de recuperação',
-      '6 provas curtas · cerca de 9 minutos',
+      '6 provas curtas · cerca de 10 minutos',
       [
         'Não tente ir bem. Tente ir <b>como você está hoje</b> — uma medida inflada estraga o plano inteiro.',
         'As provas 3 e 4 usam <b>a mesma rota</b> de propósito. A prova 4 acrescenta uma leitura simultânea.',
         'A diferença entre as duas é a coisa mais importante daqui: ela separa o que você executa <b>pensando</b> do que executa <b>sozinho</b>.',
+        'A prova 5 mostra a situação por janelas curtas e depois mascara: é assim que se mede antecipação.',
+        'A prova 6 é um teste de sinal de parada com escada — o sinal vai chegar cada vez mais tarde até você falhar metade das vezes. Isso é proposital.',
         'Segure o celular como você joga. Use os dois polegares.',
         'Não pause entre as provas. Fadiga faz parte da medida.',
       ],
@@ -415,9 +519,10 @@
       }, i === 0 ? 'Começar prova 1' : 'Começar');
   }
 
-  function proximaProva(g) {
+  function proximaProva(g, ex = {}) {
     const p = D.DIAGNOSTICO[S.diag.i];
-    S.provas.push({ id: p.id, g, cfg: S.cfg });
+    S.provas.push({ id: p.id, g, cfg: S.cfg, extras: ex });
+    M.registrarToques(ex.toques);
     U.Sfx.done();
     const i = S.diag.i + 1;
     if (i >= D.DIAGNOSTICO.length) return fecharDiagnostico();
@@ -508,6 +613,21 @@
         </div>
       </div>
 
+      ${diag.notas.ssrt != null ? `<div class="sep"></div>
+        <div class="aviso ${diag.notas.ssrt < 260 ? 'ok' : diag.notas.ssrt < 340 ? '' : 'bad'}">
+          <b>Tempo de frenagem (SSRT): ${diag.notas.ssrt} ms.</b><br>${diag.notas.freio}<br>
+          ${!diag.notas.ssrtConfiavel ? 'Atenção: a taxa de parada ficou longe de 50%, então este número ainda é aproximado — o exercício Freio de Mão vai refiná-lo.'
+            : diag.notas.ssrt < 260 ? 'Dentro da faixa típica. Seu freio não é o gargalo.'
+            : diag.notas.ssrt < 340 ? 'Acima da faixa típica: existe ganho real aqui.'
+            : 'Bem acima da faixa típica. Numa luta isso aparece como "eu vi e mesmo assim continuei" — e é provavelmente o que mais te mata.'}
+        </div>` : ''}
+
+      ${diag.notas.antecipacao ? `<div class="sep"></div>
+        <div class="mini"><b>Sua curva de antecipação</b> — acerto por quantidade de informação</div>
+        <canvas class="graf" id="diag-ant" data-h="140" style="margin-top:5px"></canvas>
+        <div class="xs" style="margin-top:4px">Onde a linha desaba é a janela mínima em que você ainda lê a
+        situação. O exercício Antecipação empurra esse ponto.</div>` : ''}
+
       ${botoesFracos.length ? `<div class="sep"></div>
         <div class="mini"><b>Botões onde seu dedo encosta pior</b></div>
         <div class="mini" style="margin-top:3px">
@@ -548,8 +668,9 @@
       if (cv) {
         const alvos = {}; const nv = C.nivelAtual();
         M.EIXO_IDS.forEach(k => alvos[k] = C.alvoEixo(k, nv));
-        G.radar(cv, UI.EIXOS_RADAR, [{ valores: diag.eixos, cor: '#a78bfa' }], alvos);
+        G.radar(cv, UI.EIXOS_RADAR, [{ valores: diag.eixos, cor: G.T.serie[0], nome: 'você' }], alvos);
       }
+      if ($('#diag-ant') && diag.notas.antecipacao) G.antecipacao($('#diag-ant'), diag.notas.antecipacao);
     }, 50);
   }
 

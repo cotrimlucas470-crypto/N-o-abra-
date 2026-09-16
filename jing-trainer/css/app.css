@@ -69,7 +69,7 @@ body.treinando #rail{display:none}
   -webkit-background-clip:text;background-clip:text;color:transparent}
 .railbtn{
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
-  min-height:46px;border-radius:var(--r2);color:var(--dim2);
+  min-height:40px;border-radius:var(--r2);color:var(--dim2);
   border:1px solid transparent;transition:.16s;flex:1 1 auto;
 }
 .railbtn .ic{font-size:1.05rem;line-height:1}
@@ -142,6 +142,32 @@ body.treinando #rail{display:none}
 .tag.vio{color:var(--vio);border-color:rgba(167,139,250,.45);background:rgba(167,139,250,.10)}
 
 .mini{font-size:.68rem;color:var(--dim);line-height:1.45}
+
+/* dica de gráfico (num celular, "passar o mouse" é tocar) */
+#grafdica{position:fixed;z-index:95;pointer-events:none;opacity:0;transform:translateY(4px);
+  transition:opacity .12s,transform .12s;background:rgba(10,14,22,.97);color:#e8eefc;
+  border:1px solid rgba(125,155,205,.35);border-radius:9px;padding:6px 9px;
+  font-size:.66rem;line-height:1.45;box-shadow:0 8px 24px rgba(0,0,0,.6)}
+#grafdica.on{opacity:1;transform:none}
+#grafdica b{color:#fff}
+
+/* legenda de gráfico */
+.leg{display:flex;flex-wrap:wrap;gap:10px;margin-top:5px;font-size:.62rem;color:var(--dim)}
+.leg i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+
+/* controle deslizante grande o bastante para o polegar */
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:34px;background:transparent}
+input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:99px;
+  background:linear-gradient(90deg,var(--vio),var(--cy))}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;border-radius:50%;
+  background:#fff;border:2px solid var(--vio2);margin-top:-10px;box-shadow:0 2px 8px rgba(0,0,0,.5)}
+input[type=range]::-moz-range-track{height:6px;border-radius:99px;background:var(--vio)}
+input[type=range]::-moz-range-thumb{width:26px;height:26px;border-radius:50%;background:#fff;border:2px solid var(--vio2)}
+
+/* cartão de princípio */
+.princ{border:1px solid var(--line);border-radius:var(--r2);padding:9px 11px;
+  background:rgba(16,21,33,.75)}
+.princ h3{margin:0 0 4px;font-size:.82rem;font-weight:800;color:var(--txt)}
 .mini b{color:var(--txt)}
 .xs{font-size:.6rem;color:var(--dim2)}
 .forte{color:var(--txt);font-weight:700}
@@ -204,6 +230,7 @@ body.treinando #rail{display:none}
 #fb.on{opacity:1}
 #fb.ok{color:var(--ok);border-color:rgba(61,220,151,.5)}
 #fb.erro{color:var(--bad);border-color:rgba(255,84,112,.5)}
+#fb.mudo{color:var(--dim2);opacity:.55}
 
 #dica{position:absolute;left:8px;right:8px;bottom:30px;text-align:center;
   font-size:.66rem;color:var(--dim);opacity:0;transition:.2s;pointer-events:none;z-index:3}

@@ -136,9 +136,17 @@
       <div class="grade g4">
         ${kpi(n, 'nível', 'var(--vio)')}
         ${kpi(d.sets.length, 'sets')}
-        ${kpi(ultima ? Math.round(U.mean(ultima.sets.map(s => s.score))) : '—', 'últ. sessão')}
+        ${(() => { const r = C.serieRetencao(); return kpi(r.length ? r[r.length - 1].score : '—', 'retenção',
+          r.length ? (r[r.length - 1].score >= 70 ? 'var(--ok)' : 'var(--warn)') : null); })()}
         ${kpi(d.streak.dias || 0, 'dias seguidos', 'var(--gold)')}
       </div>
+
+      ${(() => {
+        const e = U.CI.conselhoEspacamento();
+        if (!e.aviso) return '';
+        return `<div class="aviso ${e.ok ? '' : 'bad'}"><b>Espaçamento:</b> ${e.txt}
+          <div><button class="btn sec sm" style="margin-top:7px;min-height:34px" data-princ="espacamento">por quê</button></div></div>`;
+      })()}
 
       <div class="grade g2" style="align-items:start">
         <div class="painel">
@@ -202,6 +210,7 @@
       U.T.abrir(dr, C.estadoDrill(id).dif);
     });
     $('#ir-sessao')?.addEventListener('click', () => U.T.sessaoGuiada());
+    $$('#tela-inicio [data-princ]').forEach(b => b.addEventListener('click', () => verPrincipio(b.dataset.princ)));
   }
 
   /* ============================================================
@@ -351,10 +360,47 @@
         </div>
       </div>
 
-      ${pares.length ? `<div class="painel">
-        <h2>Percursos mais lentos do seu polegar</h2>
-        <div class="mini" style="margin-bottom:6px">Medido nos seus próprios toques. Os trajetos do topo são os que o exercício <b>Pontes</b> vai priorizar.</div>
-        <canvas class="graf" id="graf-pares"></canvas>
+      ${(() => {
+        const aj = C.fitts();
+        if (!aj || !aj.valido) return `<div class="painel">
+          <h2>Layout ou habilidade? — ainda coletando</h2>
+          <div class="mini">Para separar o que é limite do HUD do que é limite seu, preciso de pelo menos
+          5 trajetos com uns 25 toques no total${aj ? ` (tenho ${aj.n} trajetos e ${aj.amostras} toques)` : ''}.
+          Um ou dois sets do exercício <b>Pontes</b> resolvem — ou o diagnóstico, que já mede 12 trajetos.</div>
+          ${pares.length ? `<div class="mini" style="margin-top:7px"><b>Por enquanto, os mais lentos:</b></div>
+          <canvas class="graf" id="graf-pares" style="margin-top:4px"></canvas>` : ''}
+        </div>`;
+        const acima = aj.pontos.filter(x => x.z > 0.9).sort((x, y) => y.resid - x.resid);
+        const naReta = aj.pontos.filter(x => x.z <= 0.9).sort((x, y) => y.mt - x.mt);
+        return `<div class="painel frag">
+          <h2>Layout ou habilidade? — a sua reta de Fitts</h2>
+          <div class="mini" style="margin-bottom:6px">O tempo de um toque apontado é previsível a partir da distância
+          e do tamanho do alvo. A linha tracejada é o que o SEU layout impõe. Quem está <b>em cima</b> dela já está
+          no limite do HUD — treinar não resolve, só mexer no layout. Quem está <b>acima</b> tem treino sobrando.</div>
+          <canvas class="graf" id="g-fitts" data-h="180"></canvas>
+          <div class="leg"><span><i style="background:${G.T.serie[0]}"></i>no limite do layout</span>
+          <span><i style="background:${G.T.serie[1]}"></i>com treino sobrando</span></div>
+          ${acima.length ? `<div class="aviso" style="margin-top:8px"><b>Treine estes trajetos</b> — estão
+            ${Math.round(acima[0].resid)}ms acima do previsto:
+            ${acima.slice(0, 3).map(x => `<b>${x.rotulo}</b>`).join(', ')}.
+            O exercício <b>Pontes</b> já os prioriza.</div>`
+          : `<div class="aviso ok" style="margin-top:8px">Nenhum trajeto seu está muito acima da reta. Os tempos que
+            sobram são do layout, não da sua mão — o que dá para ganhar aqui é mexendo no HUD.</div>`}
+          ${naReta.length ? `<div class="mini" style="margin-top:6px">Mais lentos, mas já no limite do layout:
+            ${naReta.slice(0, 3).map(x => `${x.rotulo} (${Math.round(x.mt)}ms)`).join(' · ')}.
+            Insistir neles rende pouco.</div>` : ''}
+          <div class="xs" style="margin-top:5px">Ajuste com ${aj.n} trajetos (${aj.amostras || 0} toques) ·
+          R² ${aj.r2.toFixed(2)} · base ${Math.round(aj.a)}ms + ${Math.round(aj.b)}ms por bit de dificuldade.
+          ${(aj.amostras || 0) < 30 ? ' <b>Poucos dados ainda</b> — o exercício Pontes preenche isso rápido.' : ''}</div>
+        </div>`;
+      })()}
+
+      ${M.dispersaoToques().length ? `<div class="painel">
+        <h2>Onde o seu dedo realmente cai</h2>
+        <div class="mini" style="margin-bottom:6px">Cada ponto é um toque seu, medido dentro do botão. O círculo
+        colorido é a média e a dispersão. Um centro deslocado quer dizer que você mira torto de forma
+        <b>sistemática</b> — e isso se corrige mirando o lado oposto, não treinando mais.</div>
+        <canvas class="graf" id="g-toques" data-h="170"></canvas>
       </div>` : ''}
 
       <div class="painel">
@@ -409,54 +455,133 @@
         .sort((x, y) => y[1].med - x[1].med).slice(0, 8);
       G.barras(gp, pares.map(([k, e]) => ({
         nome: k.split('>').map(x => H.getHud()[x]?.curto || x).join('→'),
-        valor: e.med, cor: e.med > 500 ? '#ff5470' : e.med > 380 ? '#ffd479' : '#3ddc97',
+        valor: e.med, status: e.med > 500 ? 'critico' : null,
       })), { fmt: v => Math.round(v) + 'ms', ml: 60 });
     }
+    if ($('#g-fitts')) G.fitts($('#g-fitts'), C.fitts());
+    if ($('#g-toques')) G.toques($('#g-toques'), M.dispersaoToques());
   }
 
   /* ============================================================
      TELA — DADOS
      ============================================================ */
+  function catErros() {
+    const d = U.DB.load();
+    const tot = {};
+    for (const x of d.sets) for (const k in x.erros) tot[k] = (tot[k] || 0) + x.erros[k];
+    const ord = Object.entries(tot).sort((a, b) => b[1] - a[1]).map(e => e[0]);
+    const topo = ord.slice(0, 4);
+    const cats = topo.map((id, i) => ({ id, nome: M.ERROS[id]?.nome || id, cor: G.T.serie[i] }));
+    if (ord.length > 4) cats.push({ id: '__outros', nome: 'Outros', cor: G.T.tintaMuda });
+    return { cats, extras: ord.slice(4) };
+  }
+
   function telaRel() {
     const d = U.DB.load();
     const sess = d.sessoes.slice(-14);
     const diag = d.diagnostico;
-    const erros = {};
-    for (const s of d.sets.slice(-40)) for (const k in s.erros) erros[k] = (erros[k] || 0) + s.erros[k];
-    const errosOrd = Object.entries(erros).sort((a, b) => b[1] - a[1]);
+    const ret = C.serieRetencao();
     const mec = Object.entries(d.mecanicas || {});
+    const ssrt = (d.ssrt || []).slice(-12);
+    const curva = C.curvaAntecipacao();
+    const aj = C.fitts();
 
     if (!d.sets.length) {
       return `<div class="topo"><h1>▤ Dados</h1></div>
       <div class="rolagem"><div class="painel"><h2>Sem dados ainda</h2>
-      <div class="mini">Faça o diagnóstico e alguns exercícios. Esta tela compara sessões, mostra o que melhorou,
-      o que piorou e qual erro mais se repete.</div></div></div>`;
+      <div class="mini">Faça o diagnóstico e alguns exercícios. Esta tela separa o que você <b>aprendeu</b>
+      do que você apenas <b>executou bem no dia</b> — são coisas diferentes e só a primeira conta.</div></div></div>`;
     }
+    const { cats } = catErros();
 
     return `
     <div class="topo"><h1>▤ Dados</h1><div class="espaco"></div>
-      <span class="sub">${d.sets.length} sets · ${d.sessoes.length} sessões</span></div>
+      <span class="sub">${d.sets.length} sets · ${d.sessoes.length} sessões · ${ret.length} testes de retenção</span></div>
     <div class="rolagem pilha">
+
+      <div class="painel frag">
+        <h2>Aprendizado × desempenho</h2>
+        <div class="mini" style="margin-bottom:7px">A linha cheia é o que você fez <b>durante</b> o treino, com dica
+        na tela e retorno a cada tentativa. Os pontos são os <b>testes de retenção</b>: mesma dificuldade, no dia
+        seguinte, sem ajuda nenhuma. Só a segunda mede aprendizado — a primeira sobe fácil e cai sozinha.</div>
+        ${ret.length ? `<canvas class="graf" id="g-ret" data-h="150"></canvas>
+          <div class="leg"><span><i style="background:${G.T.serie[0]}"></i>treino (desempenho)</span>
+          <span><i style="background:${G.T.serie[1]}"></i>retenção (aprendizado)</span></div>
+          ${ret.length >= 2 ? (() => {
+            const a = ret[ret.length - 2].score, b = ret[ret.length - 1].score;
+            return `<div class="aviso ${b >= a ? 'ok' : 'bad'}" style="margin-top:7px">
+              Última retenção: <b>${b}</b> (antes ${a}). ${b >= a
+                ? 'O que você treinou ficou. É o sinal que vale.'
+                : 'Caiu. Normalmente significa que o treino está indo rápido demais para o que está sendo fixado — o sistema vai segurar a dificuldade.'}</div>`;
+          })() : ''}`
+        : `<div class="aviso">Ainda sem teste de retenção. Ele aparece automaticamente no começo da próxima
+           sessão, desde que tenham passado pelo menos 5 horas desde a última — o intervalo faz parte da medida.</div>`}
+      </div>
 
       ${sess.length >= 2 ? `<div class="painel">
         <h2>Evolução por sessão</h2>
         <canvas class="graf" id="g-sess" data-h="140"></canvas>
-        <div class="xs flex wrap" style="gap:9px;margin-top:4px">
-          <span style="color:var(--vio)">━ pontuação média</span>
-          <span style="color:var(--cy)">━ acerto</span>
-        </div>
+        <div class="leg"><span><i style="background:${G.T.serie[0]}"></i>pontuação média</span>
+        <span><i style="background:${G.T.serie[2]}"></i>acerto</span></div>
       </div>` : ''}
 
       <div class="grade g2" style="align-items:start">
         <div class="painel">
-          <h2>Agora × diagnóstico</h2>
-          <canvas class="graf" id="g-radar2" data-h="180"></canvas>
+          <h2>Perfil agora × diagnóstico</h2>
+          <canvas class="graf" id="g-radar2" data-h="185"></canvas>
+          <div class="leg"><span><i style="background:${G.T.serie[0]}"></i>agora</span>
+          <span><i style="background:${G.T.tintaMuda}"></i>diagnóstico</span>
+          <span><i style="background:${G.T.atencao}"></i>alvo do nível</span></div>
         </div>
         <div class="painel">
-          <h2>Seus erros (últimos 40 sets)</h2>
-          ${errosOrd.length ? `<canvas class="graf" id="g-erros"></canvas>
-          <div class="mini" style="margin-top:6px"><b>${M.ERROS[errosOrd[0][0]]?.nome || errosOrd[0][0]}</b> —
-          ${M.ERROS[errosOrd[0][0]]?.dica || ''}</div>` : '<div class="mini">Nenhum erro registrado.</div>'}
+          <h2>Velocidade × precisão</h2>
+          <canvas class="graf" id="g-velacc" data-h="165"></canvas>
+          <div class="mini" style="margin-top:5px">Cada bolha é um set; as maiores são as recentes. Se elas
+          caminham para a esquerda <b>e</b> para baixo, você está comprando velocidade com erro — e o sistema
+          devolve o tempo sozinho quando isso acontece.</div>
+        </div>
+      </div>
+
+      ${curva.length ? `<div class="painel">
+        <h2>Curva de antecipação</h2>
+        <canvas class="graf" id="g-ant" data-h="150"></canvas>
+        <div class="mini" style="margin-top:5px">Acerto por quantidade de informação. Onde a linha desaba é a
+        janela mínima que você ainda consegue ler. Treinar oclusão temporal empurra esse ponto para a direita —
+        é a técnica de treino perceptivo com melhor evidência de transferência.</div>
+      </div>` : ''}
+
+      ${ssrt.length ? (() => {
+        const u = ssrt[ssrt.length - 1];
+        const pool = C.ssrtAtual();
+        return `<div class="painel">
+          <h2>Freio — tempo real de frenagem</h2>
+          <div class="flex" style="gap:12px;align-items:center;margin-bottom:7px">
+            <div style="font-size:1.6rem;font-weight:900;color:${!pool.confiavel ? 'var(--dim)' : pool.ssrt < 260 ? 'var(--ok)' : pool.ssrt < 340 ? 'var(--warn)' : 'var(--bad)'}">
+              ${pool.ssrt}<span style="font-size:.7rem;color:var(--dim)">ms</span>
+              <div class="xs" style="font-weight:600">média de ${pool.n} set${pool.n > 1 ? 's' : ''}</div></div>
+            <div class="mini" style="flex:1">SSRT: o tempo entre o sinal de perigo e a jogada realmente parar.
+            Faixa típica em adultos: 200-250 ms. Sua taxa de parada ficou em
+            <b>${Math.round((u.taxa || 0) * 100)}%</b> — perto de 50% é o que torna a medida válida.
+            ${u.confiavel === false ? '<br><b style="color:var(--warn)">Medida ainda aproximada:</b> a escada não achou o equilíbrio neste set.' : ''}</div>
+          </div>
+          <canvas class="graf" id="g-escada" data-h="140"></canvas>
+          <div class="mini" style="margin-top:5px">A escada sobe 50 ms quando você consegue parar e desce 50 ms
+          quando não consegue. Ela procura sozinha o atraso em que você falha metade das vezes.</div>
+        </div>`;
+      })() : ''}
+
+      <div class="grade g2" style="align-items:start">
+        <div class="painel">
+          <h2>Natureza dos erros ao longo das sessões</h2>
+          ${sess.length ? `<canvas class="graf" id="g-comp" data-h="140"></canvas>
+          <div class="leg">${cats.map(c => `<span><i style="background:${c.cor}"></i>${c.nome}</span>`).join('')}</div>
+          <div class="mini" style="margin-top:5px">Erro de HUD encolhendo significa que o layout parou de atrapalhar.
+          Erro de memória encolhendo e o de pressa crescendo significa que você está pronto para acelerar.</div>`
+          : '<div class="mini">Sem sessões registradas.</div>'}
+        </div>
+        <div class="painel">
+          <h2>Erros acumulados (últimos 40 sets)</h2>
+          <canvas class="graf" id="g-erros"></canvas>
         </div>
       </div>
 
@@ -468,22 +593,26 @@
           <td>${chipEstado(m.estado)}</td>
           <td>${Math.round((m.acc || 0) * 100)}%</td>
           <td>±${Math.round((m.cv || 0) * 100)}%</td>
-          <td>${m.quedaCarga != null ? (m.quedaCarga > 0.26 ? `<span style="color:var(--bad)">-${Math.round(m.quedaCarga*100)}%</span>` : `<span style="color:var(--ok)">-${Math.round(Math.max(0,m.quedaCarga)*100)}%</span>`) : '—'}</td>
+          <td>${m.quedaCarga != null
+            ? (m.quedaCarga > 0.26
+               ? `<span style="color:var(--bad)">-${Math.round(m.quedaCarga * 100)}%</span>`
+               : `<span style="color:var(--ok)">-${Math.round(Math.max(0, m.quedaCarga) * 100)}%</span>`)
+            : '—'}</td>
         </tr>`).join('')}
         </tbody></table>
-        <div class="xs" style="margin-top:6px">"Sob carga" é quanto a rota piora quando você precisa ler a tela ao mesmo tempo.
-        Acima de 26% significa que ela ainda é consciente, não automática.</div>
+        <div class="xs" style="margin-top:6px">"Sob carga" é quanto a rota piora quando você precisa ler a tela ao
+        mesmo tempo. Acima de 26% ela ainda é consciente, não automática.</div>
       </div>` : ''}
 
       <div class="painel">
         <h2>Histórico de sessões</h2>
         <div class="pilha" style="gap:5px">
-          ${d.sessoes.slice().reverse().slice(0, 12).map((s, i) => {
+          ${d.sessoes.slice().reverse().slice(0, 12).map((x, i) => {
             const idx = d.sessoes.length - 1 - i;
-            const md = Math.round(U.mean(s.sets.map(x => x.score)));
+            const md = Math.round(U.mean(x.sets.map(y => y.score)));
             return `<div class="item" data-sess="${idx}">
-              <div class="ic">${s.heroi === 'luna' ? '☾' : '◈'}</div>
-              <div class="txt"><b>${U.dateTime(s.t)}</b><span>${s.sets.length} exercícios · nível ${s.nivelDepois}</span></div>
+              <div class="ic">${x.heroi === 'luna' ? '☾' : '◈'}</div>
+              <div class="txt"><b>${U.dateTime(x.t)}</b><span>${x.sets.length} exercícios · nível ${x.nivelDepois}</span></div>
               <span class="tag ${md >= 78 ? 'ok' : md >= 60 ? '' : 'bad'}">${md}</span>
             </div>`;
           }).join('')}
@@ -502,31 +631,61 @@
   function depoisRel() {
     const d = U.DB.load();
     const sess = d.sessoes.slice(-14);
+    const ret = C.serieRetencao();
+
+    if ($('#g-ret') && ret.length) {
+      const rot = ret.map(r => U.dateShort(r.t));
+      G.linha($('#g-ret'), [
+        { dados: ret.map(r => r.scoreTreino ?? null), cor: G.T.serie[0], nome: 'treino', area: true },
+        { dados: ret.map(r => r.score), cor: G.T.serie[1], nome: 'retenção' },
+      ], rot, { max: 100 });
+    }
     if (sess.length >= 2 && $('#g-sess')) {
-      G.linha($('#g-sess'),
-        [{ dados: sess.map(s => U.mean(s.sets.map(x => x.score))), cor: '#a78bfa', area: true },
-         { dados: sess.map(s => U.mean(s.sets.map(x => x.acc)) * 100), cor: '#4ee0ff' }],
-        sess.map(s => U.dateShort(s.t)));
+      G.linha($('#g-sess'), [
+        { dados: sess.map(x => U.mean(x.sets.map(y => y.score))), cor: G.T.serie[0], nome: 'pontos', area: true },
+        { dados: sess.map(x => U.mean(x.sets.map(y => y.acc)) * 100), cor: G.T.serie[2], nome: 'acerto' },
+      ], sess.map(x => U.dateShort(x.t)), { max: 100 });
     }
     if ($('#g-radar2')) {
       const series = [];
-      if (d.diagnostico) series.push({ valores: d.diagnostico.eixos, cor: '#66748f', preenche: false, grossura: 1.5, pontos: false });
-      series.push({ valores: M.valores(), cor: '#a78bfa' });
+      if (d.diagnostico) series.push({ valores: d.diagnostico.eixos, cor: G.T.tintaMuda, nome: 'diagnóstico', preenche: false, grossura: 1.4, pontos: false });
+      series.push({ valores: M.valores(), cor: G.T.serie[0], nome: 'agora' });
       const alvos = {}; const n = C.nivelAtual();
       M.EIXO_IDS.forEach(k => alvos[k] = C.alvoEixo(k, n));
       G.radar($('#g-radar2'), EIXOS_RADAR, series, alvos);
     }
+    if ($('#g-velacc')) G.velAcc($('#g-velacc'), C.pontosVelAcc());
+    if ($('#g-ant')) G.antecipacao($('#g-ant'), C.curvaAntecipacao());
+    if ($('#g-escada')) {
+      const u = (d.ssrt || []).slice(-1)[0];
+      if (u) G.escada($('#g-escada'), u.escada || [], u.ssd50);
+    }
+    if ($('#g-comp')) {
+      const { cats, extras } = catErros();
+      const dados = sess.map(x => {
+        const e = {};
+        for (const st of x.sets) for (const k in st.erros) {
+          const id = extras.includes(k) ? '__outros' : k;
+          e[id] = (e[id] || 0) + st.erros[k];
+        }
+        return { rotulo: U.dateShort(x.t), erros: e };
+      });
+      G.composicao($('#g-comp'), dados, cats);
+    }
     if ($('#g-erros')) {
       const erros = {};
-      for (const s of d.sets.slice(-40)) for (const k in s.erros) erros[k] = (erros[k] || 0) + s.erros[k];
-      const cores = { hud: '#ff5470', velocidade: '#ffd479', memoria: '#a78bfa', decisao: '#4ee0ff',
-                      freio: '#ff8a5c', posicionamento: '#3ddc97', lento: '#7fa8d0', antecipado: '#c4b5fd', mira: '#66748f' };
-      G.barras($('#g-erros'), Object.entries(erros).sort((a, b) => b[1] - a[1])
-        .map(([k, v]) => ({ nome: M.ERROS[k]?.nome || k, valor: v, cor: cores[k] || '#a78bfa' })), { ml: 74 });
+      for (const x of d.sets.slice(-40)) for (const k in x.erros) erros[k] = (erros[k] || 0) + x.erros[k];
+      const ord = Object.entries(erros).sort((a, b) => b[1] - a[1]);
+      G.barras($('#g-erros'), ord.map(([k, v]) => ({
+        nome: M.ERROS[k]?.nome || k, valor: v,
+        status: k === 'hud' ? 'critico' : null,
+        nota: M.ERROS[k]?.dica || '',
+      })), { ml: 74 });
     }
+
     $$('#tela-rel .item[data-sess]').forEach(it => it.addEventListener('click', () => {
-      const s = U.DB.load().sessoes[+it.dataset.sess];
-      if (s) U.T.mostrarRelatorio(C.relatorio(s), true);
+      const x = U.DB.load().sessoes[+it.dataset.sess];
+      if (x) U.T.mostrarRelatorio(C.relatorio(x), true);
     }));
     $('#ver-diag')?.addEventListener('click', () => U.T.mostrarDiagnostico(U.DB.load().diagnostico));
     $('#refazer-diag')?.addEventListener('click', () => {
@@ -535,9 +694,7 @@
         <div class="flex" style="margin-top:12px;gap:8px">
           <button class="btn sec full sm" data-fecha>Cancelar</button>
           <button class="btn full sm" id="cf-diag">Refazer</button></div>`,
-        (cx) => {
-          cx.querySelector('#cf-diag').addEventListener('click', () => { fecharModal(); U.T.diagnostico(); });
-        });
+        (cx) => cx.querySelector('#cf-diag').addEventListener('click', () => { fecharModal(); U.T.diagnostico(); }));
     });
   }
 
@@ -636,10 +793,49 @@
         <button class="btn sec full sm" id="fs">Tela cheia + travar em paisagem</button>
         <div class="xs" style="margin-top:5px">Recomendado antes de treinar: evita que a barra de gestos entre no caminho do polegar.</div>
       </div>
+      <div class="painel">
+        <h2>Trilha sonora</h2>
+        <div class="mini" style="margin-bottom:7px">A trilha é gerada na hora pelo próprio aparelho — não há arquivo
+        de áudio no pacote. O clima é escolhido pelo exercício: com batida nos de ritmo e velocidade (no
+        andamento-alvo do próprio exercício), quase muda nos de leitura e decisão. Música reduz divagação e
+        encurta o tempo de reação, mas aumenta distração externa — por isso ela não é a mesma o tempo todo.
+        </div><button class="btn sec sm" style="margin-top:8px;min-height:34px" data-princ="musica">ver a pesquisa</button>
+        <button class="btn ${o.musica !== false ? '' : 'sec'} full sm" id="o-musica">
+          Trilha ${o.musica !== false ? 'ligada' : 'desligada'}</button>
+        <div class="flex" style="margin-top:9px;gap:9px;align-items:center">
+          <span class="mini" style="flex:0 0 4.6rem">Volume trilha</span>
+          <input type="range" id="v-mus" min="0" max="100" value="${Math.round((o.volMusica ?? .5) * 100)}">
+          <span class="mini" id="v-mus-n" style="flex:0 0 2.2rem;text-align:right">${Math.round((o.volMusica ?? .5) * 100)}%</span>
+        </div>
+        <div class="flex" style="gap:9px;align-items:center">
+          <span class="mini" style="flex:0 0 4.6rem">Volume efeitos</span>
+          <input type="range" id="v-sfx" min="0" max="100" value="${Math.round((o.volSfx ?? .6) * 100)}">
+          <span class="mini" id="v-sfx-n" style="flex:0 0 2.2rem;text-align:right">${Math.round((o.volSfx ?? .6) * 100)}%</span>
+        </div>
+        <div class="mini" style="margin-top:8px"><b>Experimente os climas</b></div>
+        <div class="flex wrap" style="gap:6px;margin-top:5px">
+          ${Object.entries(U.Musica.CLIMAS).filter(([k]) => k !== 'silencio').map(([k, c]) =>
+            `<button class="btn sec sm" data-clima="${k}">${c.nome}</button>`).join('')}
+          <button class="btn sec sm" data-clima="parar">■ parar</button>
+        </div>
+        <div class="xs" id="clima-desc" style="margin-top:5px">&nbsp;</div>
+      </div>
+
       <div class="grade g3">
-        <button class="btn ${o.som ? '' : 'sec'} sm" id="o-som">Som ${o.som ? 'ligado' : 'desligado'}</button>
+        <button class="btn ${o.som ? '' : 'sec'} sm" id="o-som">Efeitos ${o.som ? 'ligados' : 'desligados'}</button>
         <button class="btn ${o.vibra ? '' : 'sec'} sm" id="o-vibra">Vibração ${o.vibra ? 'ligada' : 'desligada'}</button>
-        <button class="btn ${o.fx === 'alto' ? '' : 'sec'} sm" id="o-fx">Efeitos ${o.fx === 'alto' ? 'completos' : 'reduzidos'}</button>
+        <button class="btn ${o.fx === 'alto' ? '' : 'sec'} sm" id="o-fx">Efeitos visuais ${o.fx === 'alto' ? 'completos' : 'reduzidos'}</button>
+      </div>
+
+      <div class="painel">
+        <h2>Feedback desvanecido</h2>
+        <div class="mini">A partir da dificuldade 5, o retorno por tentativa aparece em cerca de 2 de cada 3 —
+        a ideia é você construir o próprio detector de erro em vez de depender da tela. A evidência sobre isso
+        é <b>disputada</b>: um estudo aponta 67% como melhor que 100%, e a meta-análise de 2022 não sustenta o
+        efeito. Por isso dá para desligar.
+        </div><button class="btn sec sm" style="margin-top:8px;min-height:34px" data-princ="feedback">ver a pesquisa</button>
+        <button class="btn ${o.feedbackDesvanecido !== false ? '' : 'sec'} full sm" id="o-fb" style="margin-top:8px">
+          ${o.feedbackDesvanecido !== false ? 'Ativado (2 de cada 3)' : 'Desativado (retorno sempre)'}</button>
       </div>
 
       <div class="painel">
@@ -680,6 +876,31 @@
     $('#fs')?.addEventListener('click', () => { U.Screen.fullscreen(); U.Sfx.unlock(); toast('Tela cheia'); });
     const alt = (k, v) => { d.opts[k] = v; U.DB.save(); render('ajustes'); };
     $('#o-som')?.addEventListener('click', () => { alt('som', !d.opts.som); U.Sfx.unlock(); U.Sfx.hit(); });
+    $('#o-musica')?.addEventListener('click', () => {
+      d.opts.musica = d.opts.musica === false; U.DB.save();
+      U.Sfx.unlock();
+      d.opts.musica ? U.Musica.tocar('espelho') : U.Musica.parar();
+      render('ajustes');
+    });
+    $('#o-fb')?.addEventListener('click', () => alt('feedbackDesvanecido', d.opts.feedbackDesvanecido === false));
+    const liga = (id, chave, aoMudar) => {
+      const el = $(id); if (!el) return;
+      el.addEventListener('input', () => {
+        d.opts[chave] = el.value / 100; U.DB.save();
+        const n = $(id + '-n'); if (n) n.textContent = el.value + '%';
+        aoMudar && aoMudar();
+      });
+    };
+    liga('#v-mus', 'volMusica', () => { U.Sfx.unlock(); U.Musica.atualizarVolume(); });
+    liga('#v-sfx', 'volSfx', () => { U.Sfx.unlock(); U.Sfx.atualizarVolume(); U.Sfx.hit(); });
+    $$('#tela-ajustes [data-clima]').forEach(b => b.addEventListener('click', () => {
+      U.Sfx.unlock();
+      const k = b.dataset.clima;
+      if (k === 'parar') { U.Musica.parar(); $('#clima-desc').textContent = 'trilha parada'; return; }
+      U.Musica.tocar(k);
+      $('#clima-desc').textContent = U.Musica.CLIMAS[k].desc;
+    }));
+    $$('#tela-ajustes [data-princ]').forEach(b => b.addEventListener('click', () => verPrincipio(b.dataset.princ)));
     $('#o-vibra')?.addEventListener('click', () => { alt('vibra', !d.opts.vibra); U.Haptic.good(); });
     $('#o-fx')?.addEventListener('click', () => alt('fx', d.opts.fx === 'alto' ? 'baixo' : 'alto'));
 
@@ -756,6 +977,57 @@
   }
 
   /* ============================================================
+     TELA — MÉTODO (por que cada coisa é do jeito que é)
+     ============================================================ */
+  function telaMetodo() {
+    const CI = U.CI;
+    return `
+    <div class="topo"><h1>✎ Método</h1><div class="espaco"></div>
+      <span class="sub">${CI.PRINCIPIOS.length} decisões, com a fonte de cada uma</span></div>
+    <div class="rolagem pilha">
+      <div class="painel frag">
+        <h2>A pergunta que este sistema tenta responder</h2>
+        <div class="mini">Qual é exatamente o seu maior problema agora, e qual exercício corrige isso mais rápido.
+        Tudo abaixo existe porque mudou alguma resposta a essa pergunta. Onde a evidência é fraca ou está em
+        disputa, está escrito — inclusive quando ela vai <b>contra</b> o que seria mais agradável de implementar.</div>
+      </div>
+
+      ${CI.PRINCIPIOS.map(pr => `
+        <div class="painel princ" data-princ="${pr.id}">
+          <div class="flex" style="gap:7px;align-items:flex-start">
+            <div style="flex:1;min-width:0">
+              <h3>${pr.titulo}</h3>
+              <span class="tag ${pr.forca === 'forte' ? 'ok' : pr.forca === 'contra' ? 'bad' : 'warn'}">${CI.FORCA[pr.forca].nome}</span>
+            </div>
+          </div>
+          <div class="mini" style="margin-top:6px">${pr.achado}</div>
+          <div class="aviso ok" style="margin-top:7px"><b>O que isso mudou aqui:</b> ${pr.aplico}</div>
+          <div class="xs" style="margin-top:6px">${pr.fontes.map(f => `<a href="${f.u}" target="_blank" rel="noopener" style="color:var(--cy);display:block;margin-top:2px">↗ ${f.t}</a>`).join('')}</div>
+        </div>`).join('')}
+
+      <div class="painel">
+        <h2>O que este sistema NÃO promete</h2>
+        <div class="mini">Não vai te dar reflexo melhor "em geral". A revisão de escopo sobre esports e cognição
+        não sustenta ganho cognitivo amplo vindo de jogar ou de treinos genéricos. O que dá para construir é
+        <b>específico</b>: os seus botões, as suas distâncias, as suas rotas e as decisões deste jogo. É por isso
+        que aqui não existe "clique no quadrado que acender".</div>
+      </div>
+    </div>`;
+  }
+
+  function verPrincipio(id) {
+    const pr = U.CI.PRINCIPIOS.find(x => x.id === id);
+    if (!pr) return;
+    modal(`
+      <span class="tag ${pr.forca === 'forte' ? 'ok' : pr.forca === 'contra' ? 'bad' : 'warn'}">${U.CI.FORCA[pr.forca].nome}</span>
+      <h2 style="margin:8px 0 6px;font-size:.95rem;color:var(--txt);text-transform:none;letter-spacing:0">${pr.titulo}</h2>
+      <div class="mini">${pr.achado}</div>
+      <div class="aviso ok" style="margin-top:8px"><b>O que isso mudou aqui:</b> ${pr.aplico}</div>
+      <div class="xs" style="margin-top:8px">${pr.fontes.map(f => `<a href="${f.u}" target="_blank" rel="noopener" style="color:var(--cy);display:block;margin-top:3px">↗ ${f.t}</a>`).join('')}</div>
+      <button class="btn full sm" style="margin-top:12px" data-fecha>Fechar</button>`);
+  }
+
+  /* ============================================================
      Router
      ============================================================ */
   const TELAS = {
@@ -764,6 +1036,7 @@
     mapa: [telaMapa, depoisMapa],
     rel: [telaRel, depoisRel],
     luna: [telaLuna, depoisLuna],
+    metodo: [telaMetodo, depoisMetodo],
     ajustes: [telaAjustes, depoisAjustes],
   };
 
@@ -776,6 +1049,8 @@
     depois && depois();
   }
 
-  U.UI = { ir, render, toast, modal, fecharModal, barrasEixos, kpi, chipEstado, EIXOS_RADAR, CURTOS, get telaAtual() { return telaAtual; } };
+  function depoisMetodo() {}
+
+  U.UI = { ir, render, toast, modal, fecharModal, barrasEixos, kpi, chipEstado, verPrincipio, EIXOS_RADAR, CURTOS, get telaAtual() { return telaAtual; } };
 
 })(window.U);

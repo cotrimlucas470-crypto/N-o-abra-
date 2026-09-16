@@ -40,6 +40,8 @@
     placar() {
       this.api.info({ i: this.i, n: this.n, ok: this.g.acertos, acc: this.g.acuracia });
     }
+    /** Resultados extras do set (sobrescrito por quem tiver). */
+    extras() { return {}; }
     /* eventos vindos da HudSurface */
     press() {}
     joy() {}
@@ -58,8 +60,24 @@
       this.estado = 'ocioso';
       this.pisoIki = cfg.pisoIki || 105;
       this.rotas = cfg.rotas && cfg.rotas.length ? cfg.rotas : [cfg.rota || ['s1']];
-      this.sorteio = U.dealer(this.rotas);
+      /* Interferência contextual: a ORDEM das rotas no set é decidida aqui,
+         não sorteada na hora. Bloco para reencontrar o padrão, aleatório para
+         reter. Ver ciencia.js § "ci". */
+      this.esquema = cfg.esquema || 'aleatorio';
+      this.ordem = U.CI.ordenarRotas(this.rotas, this.n, this.esquema);
+      /* Sinal de parada com escada adaptativa (só nos exercícios de freio). */
+      this.escada = cfg.freio ? new U.CI.Escada(cfg.ssdInicial ?? 0, cfg.ssdPasso ?? 50) : null;
+      this.goRTs = [];
+      this.toques = [];
       this.amostrasMov = [];
+    }
+
+    /** Feedback desvanecido: a partir de certa dificuldade, nem toda tentativa
+        recebe retorno imediato — o resumo do fim do set continua completo. */
+    mostraFeedback() {
+      const f = this.cfg.feedback;
+      if (f == null || f >= 1) return true;
+      return Math.random() < f;
     }
 
     proxima() {
@@ -68,27 +86,30 @@
       this.i++;
       this.placar();
 
-      this.rota = this.sorteio().slice();
+      this.rota = (this.ordem[this.i - 1] || this.rotas[0]).slice();
       this.passo = 0;
       this.marcas = [];
       this.erroTrial = null;
       this.deveParar = false;
       this.tParada = 0;
+      this.stopFalhou = false;
+      this.semSinal = false;
+      this.sinalSaiu = false;
+      this.timerStop = null;
       this.secOk = null; this.secRt = null; this.secEsperado = -1; this.secT = 0;
       this.amostrasMov = [];
       this.trocou = false;
+      this.desvios = null;
 
       this.hud.limparMarcas();
       this.hud.quadrantes = !!this.cfg.dupla;
       this.hud.quadAceso = -1;
 
       const c = this.cfg;
-      const mostra = c.mostrarRota === 'nunca' ? false
-                   : c.mostrarRota === 'antes' ? true
-                   : true;
+      const mostra = c.mostrarRota !== 'nunca';
       if (mostra) {
         this.hud.setOverlay({
-          texto: this.rota.map(k => H.NOMES[k] ? (H.getHud()[k].curto) : k).join(' › '),
+          texto: this.rota.map(k => H.getHud()[k] ? H.getHud()[k].curto : k).join(' › '),
           sub: c.mostrarRota === 'antes' ? 'memorize — vai sumir' : 'execute nesta ordem',
           tam: 0.15, cor: '#c4b5fd',
         });
@@ -112,6 +133,7 @@
       this.estado = 'executando';
       this.t0 = U.now();
       this.tUltimo = this.t0;
+      this.tCue = this.t0;
       this.ikis = [];
       U.Sfx.cue();
       this.hud.setOverlay({ texto: 'VAI', tam: 0.14, cor: '#6ee7a8', fundo: 'rgba(5,8,14,.25)' });
@@ -120,7 +142,6 @@
 
       const c = this.cfg;
 
-      /* compasso: batidas audíveis, uma por passo */
       if (c.modo === 'compasso') {
         this.beats = [];
         for (let k = 0; k < this.rota.length; k++) {
@@ -133,11 +154,10 @@
         }
       }
 
-      /* movimento obrigatório durante a execução */
       if (c.mover) {
         this.dirAlvo = U.ri(0, 7);
         this.hud.marcar('joy', { destaque: true, dirAlvo: this.dirAlvo });
-        this.amostrador = this.T.every(70, () => {
+        this.T.every(70, () => {
           if (this.estado !== 'executando') return;
           const j = this.hud.joyInfo();
           let dentro = 0;
@@ -157,7 +177,6 @@
         }
       }
 
-      /* dupla tarefa: ameaça pisca num quadrante da mão esquerda */
       if (c.dupla) {
         const quando = U.rnd(180, Math.max(400, (c.alvoMs || 1200) * 0.7));
         this.T.after(quando, () => {
@@ -170,17 +189,14 @@
         });
       }
 
-      /* ruído visual */
       if (c.ruido) {
         this.T.every(Math.max(120, 420 - c.ruido * 90), () => {
           if (this.estado === 'executando') this.hud.ruido(c.ruido);
         });
       }
 
-      /* rota mutante */
       if (c.mutante && Math.random() < c.mutante) {
-        const quando = U.rnd(250, 900);
-        this.T.after(quando, () => {
+        this.T.after(U.rnd(250, 900), () => {
           if (this.estado !== 'executando' || this.passo >= this.rota.length - 1) return;
           const resto = this.rota.slice(this.passo);
           const novo = U.shuffle(['s1', 's2', 's3', 'aa']).filter(k => k !== resto[0]).slice(0, resto.length);
@@ -194,12 +210,25 @@
         });
       }
 
-      /* freio: sinal de perigo no meio da rota */
-      if (c.freio && Math.random() < c.freio) {
-        const passoAlvo = U.ri(1, Math.max(1, this.rota.length - 1));
-        this.freioNoPasso = passoAlvo;
-      } else {
-        this.freioNoPasso = -1;
+      /* ---- sinal de parada ----
+         Adaptação do paradigma clássico para uma sequência: cada passo é um
+         ensaio de "ir". Num ensaio de "parar", o sinal aparece SSD ms depois
+         do passo ser pedido, e o SSD sobe/desce numa escada para travar a
+         taxa de parada em ~50% — é isso que torna o SSRT interpretável. */
+      this.ensaioParada = !!(c.freio && Math.random() < c.freio);
+      this.stopStep = this.ensaioParada ? U.ri(1, Math.max(1, this.rota.length - 1)) : -1;
+      this.ssdAtual = this.escada ? this.escada.ssd : 0;
+      this.sinalSaiu = false;
+      if (this.ensaioParada) {
+        /* O sinal é agendado a partir do início: chega no momento em que o
+           passo-alvo DEVERIA ser pedido, mais (ou menos) o atraso da escada. */
+        const ikiEst = this.ikiEstimado();
+        const atraso = Math.max(0, this.stopStep * ikiEst + this.ssdAtual);
+        this.timerStop = this.T.after(atraso, () => {
+          if (this.estado !== 'executando' || this.deveParar) return;
+          this.sinalSaiu = true;
+          this.dispararFreio();
+        });
       }
 
       const lim = c.deadline || (c.modo === 'compasso'
@@ -219,23 +248,36 @@
       if (k) this.hud.marcar(k, { destaque: true, cor: '#ffd479' });
     }
 
+    /** Intervalo típico entre dois toques deste jogador, para ancorar o sinal. */
+    ikiEstimado() {
+      if (this.ikisSet && this.ikisSet.length >= 4) return U.median(this.ikisSet);
+      if (this.cfg.alvoMs && this.rota) return this.cfg.alvoMs / Math.max(1, this.rota.length);
+      return 320;
+    }
+
     dispararFreio() {
       this.deveParar = true;
       this.tParada = U.now();
       U.Sfx.stop(); U.Haptic.stop();
       this.hud.limparMarcas();
       this.hud.setOverlay({
-        texto: 'PARAR', sub: U.pick(this.cfg.motivosFreio || ['3 inimigos pela lateral', 'sua ultimate não sai a tempo', 'o suporte está em cima de você']),
+        texto: 'PARAR',
+        sub: U.pick(this.cfg.motivosFreio || ['3 inimigos pela lateral', 'sua ultimate não sai a tempo', 'o suporte está em cima de você']),
         tam: 0.20, cor: '#ff5470', fundo: 'rgba(40,4,12,.55)',
       });
       this.T.after(this.cfg.janelaFreio ?? 750, () => {
         if (this.estado !== 'executando' || !this.deveParar) return;
-        // segurou: acerto
+        this.registrarParada(true);
         this.hud.setOverlay(null);
         this.encerrar(true, null, { tipo: 'parar', latencia: this.cfg.janelaFreio ?? 750 });
       });
-      // recuo com o analógico dá bônus de precisão
       this.T.after(60, () => { this.hud.marcar('joy', { destaque: true, dirAlvo: 4 }); });
+    }
+
+    registrarParada(parou) {
+      if (!this.escada || this.paradaRegistrada) return;
+      this.paradaRegistrada = true;
+      this.escada.registrar(parou);
     }
 
     press(e) {
@@ -247,7 +289,6 @@
       }
       if (this.estado !== 'executando') return;
 
-      /* resposta da tarefa secundária (mão esquerda) */
       if (e.id && e.id.startsWith('q')) {
         if (this.secEsperado < 0) { this.secOk = false; return; }
         if (this.secOk == null) {
@@ -260,8 +301,9 @@
 
       const t = U.now();
 
-      /* estamos no modo "parar": qualquer habilidade é erro de freio */
+      /* já veio o sinal: qualquer habilidade é falha de inibição */
       if (this.deveParar) {
+        this.registrarParada(false);
         this.hud.erro(e.id); U.Sfx.miss();
         return this.encerrar(false, 'freio', { tipo: 'parar', latencia: t - this.tParada });
       }
@@ -270,13 +312,19 @@
       const iki = t - this.tUltimo;
 
       if (e.id !== esperado) {
+        if (e.dx != null) this.toques.push({ id: e.id, dx: e.dx, dy: e.dy });
         this.hud.erro(e.id); U.Sfx.miss(); U.Haptic.bad();
         return this.encerrar(false, this.classificarErro(e, esperado, iki));
       }
 
-      /* acerto de passo */
       this.marcas.push({ id: e.id, t, precisao: e.precisao, iki, rel: e.rel });
-      if (this.passo > 0) this.ikis.push(iki);
+      if (e.dx != null) this.toques.push({ id: e.id, dx: e.dx, dy: e.dy });
+      if (this.passo > 0) {
+        this.ikis.push(iki);
+        (this.ikisSet || (this.ikisSet = [])).push(iki);
+        /* tempo de resposta do "ir": é ele que, menos o atraso de equilíbrio, dá o SSRT */
+        if (!this.ensaioParada) this.goRTs.push(iki);
+      }
       this.tUltimo = t;
 
       let desvio = null;
@@ -295,10 +343,16 @@
       }
       this.hud.acerto(e.id); U.Haptic.good();
       this.passo++;
-
-      if (this.passo === this.freioNoPasso) { this.dispararFreio(); return; }
+      this.tCue = t;
 
       if (this.passo >= this.rota.length) {
+        /* terminou a rota e o sinal nunca saiu: o atraso estava longo demais.
+           Não é culpa dele — a escada desce e a tentativa vira um "ir" normal. */
+        if (this.ensaioParada && !this.sinalSaiu) {
+          if (this.timerStop != null) { this.T.cancel(this.timerStop); this.timerStop = null; }
+          this.registrarParada(false);
+          this.semSinal = true;
+        }
         if (this.cfg.modo === 'janela') {
           const total = t - this.t0;
           const [lo, hi] = this.cfg.faixa || [700, 1100];
@@ -311,14 +365,12 @@
     }
 
     classificarErro(e, esperado, iki) {
-      if (!e.id) {
-        return (e.perto && e.rel < 2.4) ? 'hud' : 'mira';
-      }
+      if (!e.id) return (e.perto && e.rel < 2.4) ? 'hud' : 'mira';
       const hud = H.getHud();
       const a = hud[esperado], b = hud[e.id];
       if (a && b) {
         const folga = H.folgaMM(a, b);
-        if (folga < 5.2) return 'hud';               // botões colados: culpa do layout
+        if (folga < 5.2) return 'hud';
         if (H.ARMADILHAS.includes(e.id) && e.rel > 0.55) return 'hud';
       }
       if (iki < this.pisoIki) return 'velocidade';
@@ -333,6 +385,8 @@
       if (this.estado === 'fim' || this.estado === 'ocioso') return;
       this.estado = 'fim';
       this.T.clear();
+      this.timerStop = null;
+      this.paradaRegistrada = false;
       this.hud.limparMarcas();
       this.hud.setOverlay(null);
       this.hud.quadAceso = -1;
@@ -341,7 +395,6 @@
       const movDentro = this.amostrasMov.length ? U.mean(this.amostrasMov) : null;
       const precisao = this.marcas.length ? U.mean(this.marcas.map(m => m.precisao)) : null;
 
-      /* na dupla tarefa, errar a leitura também conta como falha */
       let okFinal = ok;
       if (this.cfg.dupla && ok && this.secEsperado >= 0 && this.secOk !== true) {
         okFinal = false; erro = erro || 'decisao';
@@ -360,24 +413,44 @@
         carga: this.cfg.dupla ? 1 : 0,
         extra: {
           ...extra,
-          tipo: extra.tipo || 'seguir',
+          tipo: extra.tipo || (this.ensaioParada && !this.semSinal ? 'parar' : 'seguir'),
+          semSinal: !!this.semSinal,
           desvio: this.desvios && this.desvios.length ? U.mean(this.desvios.map(Math.abs)) : (extra.desvio ?? null),
           dentro: movDentro,
           secOk: this.secOk, secRt: this.secRt,
           trocou: this.trocou,
           passos: this.passo,
+          ssd: this.ensaioParada ? this.ssdAtual : null,
+          esquema: this.esquema,
         },
       });
       this.desvios = null;
 
-      const msg = okFinal
-        ? (this.cfg.modo === 'compasso' ? 'no compasso' : total ? `${Math.round(total)}ms` : 'certo')
-        : (M.ERROS[erro]?.nome || 'erro');
-      this.api.mensagem(msg, okFinal ? 'ok' : 'erro', erro ? M.ERROS[erro]?.dica : null);
-      okFinal ? U.Sfx.perfect() : null;
+      if (this.mostraFeedback()) {
+        const msg = okFinal
+          ? (this.cfg.modo === 'compasso' ? 'no compasso' : total ? `${Math.round(total)}ms` : 'certo')
+          : (M.ERROS[erro]?.nome || 'erro');
+        this.api.mensagem(msg, okFinal ? 'ok' : 'erro', erro ? M.ERROS[erro]?.dica : null);
+      } else {
+        this.api.mensagem('·', 'mudo', null);
+      }
 
       this.placar();
       this.T.after(okFinal ? 520 : 900, () => this.proxima());
+    }
+
+    /** Resultados extras que o treinador usa depois do set. */
+    extras() {
+      const o = { toques: this.toques };
+      if (this.escada && this.escada.historico.length) {
+        o.escada = this.escada.historico.slice();
+        o.ssd50 = this.escada.ssd50();
+        o.ssrt = this.escada.ssrt(this.goRTs);
+        o.taxaParada = this.escada.taxaParada();
+        o.confiavel = this.escada.confiavel();
+        o.goRT = this.goRTs.length ? U.median(this.goRTs) : null;
+      }
+      return o;
     }
   }
 
@@ -397,6 +470,16 @@
       super(hud, cfg, api);
       this.estado = 'ocioso';
       this.sorteio = U.dealer(cfg.sinais);
+      this.toques = [];
+      /* Oclusão temporal: a cena aparece por uma janela curta e é mascarada.
+         Rodar TODAS as janelas do conjunto (e não só a mais difícil) é o que
+         permite desenhar a curva de antecipação. Ver ciencia.js § "oclusao". */
+      this.janelas = cfg.janelas || null;
+      if (this.janelas) {
+        const lista = [];
+        for (let i = 0; i < this.n; i++) lista.push(this.janelas[i % this.janelas.length]);
+        this.ordemJanela = U.shuffle(lista);
+      }
     }
     proxima() {
       if (!this.ativo) return;
@@ -409,6 +492,7 @@
       /* botões válidos ficam visíveis — o exercício é escolher, não caçar */
       for (const k of ['s3', 'flash', 'aa']) this.hud.marcar(k, { destaque: false });
       this.sinal = this.sorteio();
+      this.janela = this.ordemJanela ? this.ordemJanela[this.i - 1] : (this.cfg.mascara || null);
       this.estado = 'esperando';
       this.T.after(U.rnd(this.cfg.isiMin ?? 700, this.cfg.isiMax ?? 2100), () => this.mostrar());
     }
@@ -421,10 +505,10 @@
         texto: this.sinal.icone, sub: this.sinal.texto,
         tam: 0.30, cor: this.sinal.cor || '#ff5470', fundo: 'rgba(6,9,16,.45)',
       });
-      if (this.cfg.mascara) {
-        this.T.after(this.cfg.mascara, () => {
+      if (this.janela) {
+        this.T.after(this.janela, () => {
           if (this.estado !== 'ativo') return;
-          this.hud.setOverlay({ texto: '?', sub: 'decida com o que viu', tam: 0.26, cor: '#8fa3c4', fundo: 'rgba(6,9,16,.45)' });
+          this.hud.setOverlay({ texto: '▚▚▚', sub: 'decida com o que viu', tam: 0.18, cor: '#8fa3c4', fundo: 'rgba(6,9,16,.55)' });
         });
       }
       const lim = this.cfg.limite ?? 1500;
@@ -445,6 +529,7 @@
     }
     press(e) {
       if (!this.ativo || !e.id) return;
+      if (e.dx != null) this.toques.push({ id: e.id, dx: e.dx, dy: e.dy });
       if (e.id === 's3') return this.responder('ult');
       if (e.id === 'flash') return this.responder('inv');
       if (e.id === 'aa' || e.id === 's1') return this.responder('seguir');
@@ -460,7 +545,8 @@
       this.g.add({
         ok, erro, rt: ok ? rt : (erro === 'antecipado' ? null : rt),
         alvo: this.sinal.id, feito: dado || null,
-        extra: { esperado: this.sinal.resposta, tipo: this.sinal.resposta === 'nada' ? 'parar' : 'seguir' },
+        extra: { esperado: this.sinal.resposta, janela: this.janela || null,
+                 tipo: this.sinal.resposta === 'nada' ? 'parar' : 'seguir' },
       });
       ok ? (U.Sfx.perfect(), U.Haptic.good()) : (U.Sfx.miss(), U.Haptic.bad());
       this.hud.setOverlay({
@@ -471,6 +557,21 @@
       this.placar();
       this.api.mensagem(ok ? 'leitura certa' : 'leitura errada', ok ? 'ok' : 'erro', this.sinal.porque);
       this.T.after(ok ? 900 : 1700, () => this.proxima());
+    }
+    extras() {
+      const o = { toques: this.toques };
+      if (this.ordemJanela) {
+        const porJanela = {};
+        for (const t of this.g.tentativas) {
+          const j = t.extra && t.extra.janela;
+          if (!j) continue;
+          (porJanela[j] || (porJanela[j] = [])).push(t.ok);
+        }
+        o.antecipacao = Object.entries(porJanela)
+          .map(([j, v]) => ({ janela: +j, acc: v.filter(Boolean).length / v.length, n: v.length }))
+          .sort((a, b) => b.janela - a.janela);
+      }
+      return o;
     }
   }
 
@@ -738,6 +839,7 @@
 
     press(e) {
       if (this.estado !== 'execucao' || !e.id || e.id.startsWith('q')) return;
+      if (e.dx != null) (this.toques || (this.toques = [])).push({ id: e.id, dx: e.dx, dy: e.dy });
       if (this.deveParar) {
         this.hud.erro(e.id); U.Sfx.miss(); U.Haptic.bad();
         const r = this.cen.reviravolta;
@@ -776,6 +878,7 @@
       this.placar();
       this.T.after(1700, () => { this.hud.campo = []; this.proxima(); });
     }
+    extras() { return { toques: this.toques || [] }; }
   }
 
   U.E = { MotorBase, MotorSequencia, MotorEscolha, MotorPrioridade, MotorCenario, RESPOSTAS, PAPEIS };

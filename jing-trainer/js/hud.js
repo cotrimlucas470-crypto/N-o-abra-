@@ -176,18 +176,20 @@
 
     /** Qual botão foi tocado. Tolerância generosa, mas registra o desvio. */
     acertou(x, y) {
-      let melhor = null, melhorD = Infinity;
+      let melhor = null, melhorD = Infinity, mdx = 0, mdy = 0;
       for (const id in this.hud) {
         const b = this.hud[id];
         if (b.tipo === 'joy') continue;
         const p = this.px(b);
         const d = Math.hypot(x - p.x, y - p.y);
         const rel = d / p.r;                       // 0 = centro exato
-        if (rel < melhorD) { melhorD = rel; melhor = id; }
+        if (rel < melhorD) { melhorD = rel; melhor = id; mdx = (x - p.x) / p.r; mdy = (y - p.y) / p.r; }
       }
-      if (melhorD <= 1.0)  return { id: melhor, rel: melhorD, tipo: 'limpo' };
-      if (melhorD <= 1.75) return { id: melhor, rel: melhorD, tipo: 'borda' };
-      return { id: null, rel: melhorD, tipo: 'vazio', perto: melhor };
+      // dx/dy: posição do toque DENTRO do botão, em fração do raio.
+      // É o dado que monta o gráfico de dispersão do polegar.
+      if (melhorD <= 1.0)  return { id: melhor, rel: melhorD, dx: mdx, dy: mdy, tipo: 'limpo' };
+      if (melhorD <= 1.75) return { id: melhor, rel: melhorD, dx: mdx, dy: mdy, tipo: 'borda' };
+      return { id: null, rel: melhorD, dx: mdx, dy: mdy, tipo: 'vazio', perto: melhor };
     }
 
     /* ---------- entrada ---------- */
@@ -271,6 +273,7 @@
       }
       this.opts.onPress?.({
         id: hit.id, tipo: hit.tipo, rel: hit.rel, perto: hit.perto,
+        dx: hit.dx, dy: hit.dy,
         x: p.x, y: p.y, t,
         precisao: hit.id ? U.clamp(1 - hit.rel, 0, 1) : 0,
         joy: this.joyInfo(),

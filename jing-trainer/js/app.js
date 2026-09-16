@@ -75,6 +75,14 @@
     }
   })();
 
+  /* trilha: para quando o app sai de vista, volta quando retorna ao treino */
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) U.Musica.parar(false);
+    else if (document.body.classList.contains('treinando') && U.T && U.T._S && U.T._S.drill) {
+      U.Musica.paraExercicio(U.T._S.drill, U.T._S.cfg);
+    }
+  });
+
   /* decaimento por dias parados + boot */
   U.M.aplicarDecaimento();
   U.HUD.getHud();
@@ -89,8 +97,10 @@
   /* recalcula gráficos ao virar a tela */
   window.addEventListener('resize', () => {
     clearTimeout(window.__rz);
+    U.G.esconderDica();
     window.__rz = setTimeout(() => { if (!$('#treino').classList.contains('on')) U.UI.render(); }, 260);
   });
 
-  console.log('ESPELHO pronto ·', U.D.DRILLS.length, 'exercícios ·', U.C.NIVEIS.length, 'níveis');
+  console.log('ESPELHO pronto ·', U.D.DRILLS.length, 'exercícios ·', U.C.NIVEIS.length, 'níveis ·',
+    U.CI.PRINCIPIOS.length, 'princípios aplicados');
 })(window.U);

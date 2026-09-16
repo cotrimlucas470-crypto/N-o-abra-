@@ -47,14 +47,11 @@
   };
 
   /**
-   * Decaimento por tempo parado. Um mês sem jogar não apaga a habilidade;
-   * torna ela lenta e instável. Por isso precisão/decisão decaem devagar,
-   * e velocidade/automatismo decaem rápido — é exatamente o que se perde.
+   * Esquecimento. Meia-vida exponencial sobre o GANHO acima da linha de base,
+   * com as meias-vidas da meta-análise de retenção e decaimento de habilidades
+   * procedimentais (ver ciencia.js). Não é uma queda linear inventada, e o
+   * diagnóstico MEDE em vez de assumir — isto só preenche o vazio entre sessões.
    */
-  const TAXA_DECAI = {
-    precisao: 0.35, velocidade: 0.95, consistencia: 0.80, automatismo: 1.15,
-    reflexo: 0.70, decisao: 0.40, freio: 0.60, movimento: 0.75,
-  };
   function aplicarDecaimento() {
     const s = getSkills();
     const agora = Date.now();
@@ -63,9 +60,8 @@
       if (!e.ultimo) continue;
       const dias = (agora - e.ultimo) / U.DAY;
       if (dias < 1) continue;
-      const perda = Math.min(22, dias * TAXA_DECAI[k]);
-      e.valor = U.clamp(e.valor - perda, 8, 100);
-      e.conf = U.clamp(e.conf - dias * 0.04, 0, 1);
+      e.valor = U.clamp(U.CI.decair(e.valor, dias, k), 8, 100);
+      e.conf = U.clamp(e.conf - dias * 0.03, 0, 1);
       e.ultimo = agora;
     }
     U.DB.save();
@@ -299,6 +295,26 @@
     return ESTADOS[estado] || ESTADOS.lenta;
   }
 
+  /* ---------- Onde o dedo cai: dispersão por botão ---------- */
+  function registrarToques(lista) {
+    if (!lista || !lista.length) return;
+    const d = U.DB.load();
+    if (!d.toques) d.toques = {};
+    for (const t of lista) {
+      if (!t.id || t.dx == null) continue;
+      const arr = d.toques[t.id] || (d.toques[t.id] = []);
+      arr.push({ dx: +t.dx.toFixed(3), dy: +t.dy.toFixed(3) });
+      if (arr.length > 120) d.toques[t.id] = arr.slice(-120);
+    }
+    U.DB.save();
+  }
+  function dispersaoToques() {
+    const d = U.DB.load().toques || {};
+    return Object.entries(d)
+      .filter(([, v]) => v.length >= 5)
+      .map(([id, pontos]) => ({ id, nome: U.HUD.getHud()[id]?.curto || id, pontos }));
+  }
+
   /* ---------- Registro de sets e sessões ---------- */
   function salvarSet(rec) {
     const d = U.DB.load();
@@ -323,6 +339,7 @@
     vetorNovo, getSkills, valores, aplicarDecaimento, aplicarSet,
     Gravador, pontuar, notaTempo, notaCV, notaRitmo,
     classificar, leitura, salvarSet, setsDoDrill, tendencia,
+    registrarToques, dispersaoToques,
   };
 
 })(window.U);

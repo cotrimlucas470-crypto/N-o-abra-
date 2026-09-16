@@ -91,6 +91,116 @@
      ============================================================ */
   function nivelAtual() { return U.clamp(U.DB.load().nivel || 1, 1, 7); }
 
+  /** Esquema de interferência contextual do nível atual. */
+  function esquemaAtual() { return U.CI.esquemaPorNivel(nivelAtual()); }
+
+  /** Fração de tentativas que recebem retorno imediato. */
+  function fracaoFeedback(dif) {
+    if (U.DB.load().opts.feedbackDesvanecido === false) return 1;
+    return dif >= 5 ? 0.67 : 1;     // 67% foi a frequência com melhor resultado no estudo citado
+  }
+
+  /* ============================================================
+     TESTE DE RETENÇÃO
+     Desempenho durante a prática não é aprendizado. A nota que
+     importa é esta: sem feedback, sem destaque, um dia depois.
+     ============================================================ */
+  function alvoRetencao() {
+    const d = U.DB.load();
+    if (!d.sessoes.length) return null;
+    const ult = d.sessoes[d.sessoes.length - 1];
+    const horas = (Date.now() - (ult.fim || ult.t)) / 3600e3;
+    if (horas < 5) return null;                       // o intervalo faz parte da medida
+    /* procura nas últimas 3 sessões; se nenhuma tiver exercício de sequência,
+       cai para o set de sequência mais recente do histórico */
+    let cands = [];
+    for (const s of d.sessoes.slice(-3)) {
+      const querLuna = !!d.focoLuna;
+      cands = cands.concat(s.sets.filter(x => {
+        const dr = D.porId(x.drill);
+        if (!dr || dr.motor !== 'sequencia') return false;
+        return (dr.heroi === 'luna') === querLuna;
+      }));
+    }
+    if (!cands.length) {
+      cands = d.sets.filter(x => { const dr = D.porId(x.drill); return dr && dr.motor === 'sequencia'; }).slice(-6);
+    }
+    if (!cands.length) return null;
+    cands.sort((a, b) => (b.dif - a.dif) || (a.score - b.score));
+    const alvo = cands[0];
+    const drill = D.porId(alvo.drill);
+    if (!drill) return null;
+    return { drill, dif: alvo.dif, scoreAnterior: alvo.score, quando: ult.fim || ult.t, horas };
+  }
+
+  function registrarRetencao(rec) {
+    const d = U.DB.load();
+    d.retencao.push(rec);
+    if (d.retencao.length > 80) d.retencao = d.retencao.slice(-80);
+    U.DB.save();
+  }
+  function serieRetencao() { return U.DB.load().retencao || []; }
+
+  /** A escada continua de onde parou: recomeçar do zero a cada set
+      desperdiça metade das tentativas só procurando a região certa. */
+  function ssdInicial() {
+    const h = U.DB.load().ssrt || [];
+    if (!h.length) return 0;
+    return U.clamp(Math.round(h[h.length - 1].ssd50 || 0), -600, 800);
+  }
+
+  /** SSRT combinado dos últimos sets confiáveis — mais estável que um set só. */
+  function ssrtAtual() {
+    const h = (U.DB.load().ssrt || []).slice(-4);
+    const bons = h.filter(x => x.confiavel);
+    const usar = bons.length ? bons : h;
+    if (!usar.length) return null;
+    return {
+      ssrt: Math.round(U.mean(usar.map(x => x.ssrt))),
+      n: usar.length,
+      confiavel: bons.length > 0,
+      ultimo: h[h.length - 1],
+    };
+  }
+
+  /* ---------- Lei de Fitts sobre os SEUS tempos ---------- */
+  function pontosFitts() {
+    const hud = U.HUD.getHud();
+    const pares = U.DB.load().pares || {};
+    const pts = [];
+    for (const k in pares) {
+      const e = pares[k];
+      if (e.n < 2) continue;
+      const [a, b] = k.split('>');
+      if (!hud[a] || !hud[b]) continue;
+      const Dmm = U.HUD.distMM(hud[a], hud[b]);
+      const Wmm = 2 * hud[b].r * U.HUD.TELA_MM.w;     // largura do alvo = diâmetro
+      pts.push({
+        id: U.CI.indiceDificuldade(Dmm, Wmm), mt: e.med, n: e.n,
+        rotulo: `${hud[a].curto}→${hud[b].curto}`, par: k, d: Dmm, w: Wmm,
+      });
+    }
+    return pts;
+  }
+  function fitts() {
+    const pts = pontosFitts();
+    const aj = U.CI.ajusteFitts(pts);
+    if (!aj) return null;
+    aj.amostras = pts.reduce((a, x) => a + x.n, 0);
+    /* Um ajuste com poucos trajetos, poucos toques ou inclinação negativa não
+       descreve nada: apresentar isso como "o limite do seu layout" seria mentira. */
+    aj.valido = aj.n >= 5 && aj.amostras >= 25 && aj.b > 0 && aj.r2 >= 0.25;
+    return aj;
+  }
+
+  /* ---------- Velocidade × precisão ---------- */
+  function pontosVelAcc(drillId) {
+    return U.DB.load().sets
+      .filter(s => (!drillId || s.drill === drillId) && s.totalMed && s.acc != null)
+      .slice(-24)
+      .map(s => ({ tempo: s.totalMed, acc: s.acc, rotulo: `${s.nome} · ${U.dateShort(s.t)}` }));
+  }
+
   function checarNivel() {
     const d = U.DB.load();
     const v = M.valores();
@@ -132,7 +242,7 @@
   /* ============================================================
      AVALIAR UM SET
      ============================================================ */
-  function avaliarSet(drill, g, cfgUsada) {
+  function avaliarSet(drill, g, cfgUsada, extras = {}) {
     const motor = motorPontuacao(drill, cfgUsada);
     const { score, parciais } = M.pontuar(motor, g, cfgUsada);
     const est = estadoDrill(drill.id);
@@ -181,9 +291,27 @@
       ikis: g.ikisTodos().slice(0, 60),
       carga: cfgUsada.dupla ? 1 : 0,
       rotas: [...new Set(g.tentativas.map(t => t.alvo).filter(Boolean))],
+      esquema: cfgUsada.esquema || null,
+      ssrt: extras.ssrt != null ? Math.round(extras.ssrt) : null,
+      ssd50: extras.ssd50 != null ? Math.round(extras.ssd50) : null,
+      taxaParada: extras.taxaParada ?? null,
+      ssrtConfiavel: extras.confiavel ?? null,
       nota,
     };
     M.salvarSet(rec);
+    M.registrarToques(extras.toques);
+    const dd = U.DB.load();
+    if (extras.ssrt != null && isFinite(extras.ssrt)) {
+      dd.ssrt.push({ t: Date.now(), ssrt: Math.round(extras.ssrt), ssd50: Math.round(extras.ssd50 || 0),
+                     taxa: extras.taxaParada, confiavel: !!extras.confiavel,
+                     goRT: Math.round(extras.goRT || 0), escada: (extras.escada || []).slice(-40) });
+      if (dd.ssrt.length > 40) dd.ssrt = dd.ssrt.slice(-40);
+    }
+    if (extras.antecipacao && extras.antecipacao.length) {
+      dd.antecipacao.push({ t: Date.now(), dados: extras.antecipacao });
+      if (dd.antecipacao.length > 40) dd.antecipacao = dd.antecipacao.slice(-40);
+    }
+    U.DB.save();
     atualizarPares(g);
     atualizarMecanicas(g, cfgUsada, score);
     const subiu = checarNivel();
@@ -445,15 +573,41 @@
         : 'Nenhuma resposta impulsiva nas provas de controle.';
     }
 
+    /* d5b — curva de antecipação (janelas de oclusão da prova 5) */
+    if (byId.d5 && byId.d5.extras && byId.d5.extras.antecipacao) {
+      notas.antecipacao = byId.d5.extras.antecipacao;
+      const dd0 = U.DB.load();
+      dd0.antecipacao.push({ t: Date.now(), dados: byId.d5.extras.antecipacao });
+      U.DB.save();
+    }
+
     /* d6 — freio */
     if (byId.d6) {
       const g = byId.d6.g;
+      const ex = byId.d6.extras || {};
+      if (ex.ssrt != null && isFinite(ex.ssrt)) {
+        notas.ssrt = Math.round(ex.ssrt);
+        notas.ssd50 = Math.round(ex.ssd50 || 0);
+        notas.taxaParada = ex.taxaParada;
+        notas.ssrtConfiavel = !!ex.confiavel;
+        const dd1 = U.DB.load();
+        dd1.ssrt.push({ t: Date.now(), ssrt: Math.round(ex.ssrt), ssd50: Math.round(ex.ssd50 || 0),
+                        taxa: ex.taxaParada, confiavel: !!ex.confiavel,
+                        goRT: Math.round(ex.goRT || 0), escada: (ex.escada || []).slice(-40) });
+        U.DB.save();
+      }
       const par = g.tentativas.filter(t => t.extra && t.extra.tipo === 'parar');
       const seg = g.tentativas.filter(t => !t.extra || t.extra.tipo === 'seguir');
       const pAcc = par.length ? par.filter(t => t.ok).length / par.length : 0.5;
       const sAcc = seg.length ? seg.filter(t => t.ok).length / seg.length : 0.5;
-      eixos.freio = Math.round(U.clamp(pAcc * 70 + sAcc * 30, 5, 100));
-      notas.freio = `Conseguiu abortar em ${par.filter(t => t.ok).length} de ${par.length} sinais de perigo; manteve a execução em ${seg.filter(t => t.ok).length} de ${seg.length}.`;
+      /* Com escada adaptativa a taxa de parada tende a 50% por construção,
+         então a nota vem do SSRT — quanto MENOR, melhor — e não da contagem. */
+      eixos.freio = notas.ssrt != null
+        ? Math.round(U.clamp(M.notaTempo(notas.ssrt, 190, 520), 5, 100))
+        : Math.round(U.clamp(pAcc * 70 + sAcc * 30, 5, 100));
+      notas.freio = notas.ssrt != null
+        ? `Tempo de frenagem (SSRT): ${notas.ssrt} ms, com atraso de equilíbrio em ${notas.ssd50} ms e ${Math.round((notas.taxaParada || 0) * 100)}% de paradas. A faixa típica em adultos fica entre 200 e 250 ms.`
+        : `Conseguiu abortar em ${par.filter(t => t.ok).length} de ${par.length} sinais de perigo; manteve a execução em ${seg.filter(t => t.ok).length} de ${seg.length}.`;
     }
 
     eixos.movimento = 45;
@@ -577,8 +731,11 @@
       .sort((a, b) => (a.acc || 0) - (b.acc || 0));
 
     const prox = proximo();
+    const espaco = U.CI.conselhoEspacamento();
+    const ret = serieRetencao().slice(-2);
 
     return {
+      espaco, retencao: ret,
       sessao: s,
       duracao: (s.fim - s.t),
       sets: s.sets.length,
@@ -611,8 +768,23 @@
     return { hud, total, frac: total ? hud / total : 0 };
   }
 
+  /** Curva de antecipação acumulada (todas as sessões). */
+  function curvaAntecipacao() {
+    const d = U.DB.load().antecipacao || [];
+    const por = {};
+    for (const s of d) for (const x of s.dados) {
+      const e = por[x.janela] || (por[x.janela] = { ok: 0, n: 0 });
+      e.ok += x.acc * x.n; e.n += x.n;
+    }
+    return Object.entries(por).map(([j, e]) => ({ janela: +j, acc: e.n ? e.ok / e.n : 0, n: e.n }))
+      .sort((a, b) => b.janela - a.janela);
+  }
+
   U.C = {
     NIVEIS, nivelInfo, nivelAtual, checarNivel, faltaParaSubir, alvoEixo,
+    esquemaAtual, fracaoFeedback, alvoRetencao, registrarRetencao, serieRetencao,
+    ssdInicial, ssrtAtual,
+    pontosFitts, fitts, pontosVelAcc, curvaAntecipacao,
     estadoDrill, pisoIki, rotasAtivas, candidatos, deficits,
     avaliarSet, proximo, fila, diagnosticar, sugereNivelInicial,
     abrirSessao, fecharSessao, relatorio, registrarSet, culpaDoHud,

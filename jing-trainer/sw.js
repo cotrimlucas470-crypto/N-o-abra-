@@ -1,7 +1,8 @@
-const CACHE = 'espelho-v1';
+const CACHE = 'espelho-v2';
 const ARQS = [
   './', './index.html', './css/app.css', './manifest.json', './icone.svg',
-  './js/util.js', './js/hud.js', './js/metrics.js', './js/engines.js',
+  './js/util.js', './js/ciencia.js', './js/musica.js', './js/hud.js',
+  './js/metrics.js', './js/engines.js',
   './js/drills.js', './js/coach.js', './js/graf.js', './js/ui.js',
   './js/treino.js', './js/app.js',
 ];
