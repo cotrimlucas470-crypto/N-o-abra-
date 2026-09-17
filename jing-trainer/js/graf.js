@@ -333,6 +333,115 @@
       (m.lo != null ? `<br>intervalo ${m.lo}–${m.hi}` : '') + `<br>${m.n} tentativas · ${U.S.rotuloNivel(m.nivel)}`, 40);
   }
 
-  U.G = { linhaIC, barrasIC, curvaIC, fitts, toques, medidor, T, esconderDica: esconder };
+  /* ============================================================
+     7) MATRIZ DE EVOLUÇÃO
+     ------------------------------------------------------------
+     Dez eixos numa linha só ficariam ilegíveis, e a pergunta não é
+     "qual o valor" e sim "onde evoluí, onde estabilizei, onde caí".
+     Isso é estado, não magnitude: cada célula é uma sessão, pintada
+     com a cor do estado daquele eixo naquele ponto. As quatro cores
+     são as de status (reservadas, nunca usadas para série), e cada
+     uma vem com rótulo na legenda — a cor nunca carrega sozinha.
+     ============================================================ */
+  const COR_ESTADO = { evolucao: T.bom, estavel: '#3d4657', suspeita: T.serio, queda: T.critico, semDados: '#242b38' };
+
+  function matriz(cv, linhas, rotulos, opts = {}) {
+    const alt = Math.max(60, linhas.length * 21 + 26);
+    const { c, w } = prep(cv, alt);
+    if (!linhas.length) return vazio(c, w, alt, 'sem histórico ainda');
+    const ml = opts.ml || 96, mr = 38;
+    const gw = w - ml - mr;
+    const n = Math.max(1, rotulos.length);
+    const cw = Math.max(4, gw / n);
+
+    rotulos.forEach((r, i) => {
+      if (i % Math.max(1, Math.ceil(n / 6)) && i !== n - 1) return;
+      txt(c, r, ml + cw * (i + 0.5), 10, { cor: T.tintaMuda, tam: 7.5, al: 'center' });
+    });
+
+    linhas.forEach((L, j) => {
+      const y = 18 + j * 21;
+      txt(c, L.nome, ml - 6, y + 8, { cor: T.tintaSec, tam: 9, peso: 700, al: 'right' });
+      L.estados.forEach((e, i) => {
+        const x = ml + cw * i;
+        c.fillStyle = COR_ESTADO[e] || COR_ESTADO.semDados;
+        c.fillRect(x + 1, y + 1, Math.max(2, cw - 2), 15);
+        if (e === 'queda' || e === 'evolucao') {
+          c.fillStyle = 'rgba(255,255,255,.85)';
+          c.font = `800 8px ${FONTE}`; c.textAlign = 'center'; c.textBaseline = 'middle';
+          c.fillText(e === 'queda' ? '↓' : '↑', x + cw / 2, y + 9);
+        }
+        marcar(cv, x + cw / 2, y + 8,
+          `<b>${L.nome}</b><br>${rotulos[i]}<br>nota ${L.valores[i] != null ? L.valores[i] : '—'}<br>${
+            { evolucao: 'evolução', estavel: 'estável', suspeita: 'queda suspeita',
+              queda: 'queda consistente', semDados: 'sem dados' }[e]}`,
+          Math.max(14, cw));
+      });
+      const ult = L.valores[L.valores.length - 1];
+      txt(c, ult != null ? String(ult) : '—', w - mr + 6, y + 8,
+          { cor: T.tintaPrim, tam: 9.5, peso: 800 });
+    });
+  }
+
+  /* ============================================================
+     8) FUNÇÃO PSICOMÉTRICA — o seu limite
+     ============================================================ */
+  function psicometrica(cv, f, opts = {}) {
+    const { c, w, h } = prep(cv, cv.dataset.h ? +cv.dataset.h : 180);
+    if (!f || !f.ok) return vazio(c, w, h, (f && f.motivo) || 'sem dados suficientes');
+    const ml = 34, mr = 18, mt = 12, mb = 26;
+    const gw = w - ml - mr, gh = h - mt - mb;
+    const xs = f.pontos.map(p => p.x);
+    const x0 = Math.min(...xs) - 0.4, x1 = Math.max(...xs) + 0.4;
+    const X = (v) => ml + gw * (v - x0) / (x1 - x0);
+    const Y = (v) => mt + gh - gh * U.clamp(v, 0, 1);
+
+    c.strokeStyle = T.grade; c.lineWidth = 1;
+    for (let k = 0; k <= 4; k++) {
+      const y = Math.round(mt + gh - gh * k / 4) + 0.5;
+      c.beginPath(); c.moveTo(ml, y); c.lineTo(w - mr, y); c.stroke();
+      txt(c, (k * 25) + '%', ml - 4, y, { cor: T.tintaMuda, tam: 8, al: 'right' });
+    }
+    /* faixas: consistente / oscila / quebra */
+    const faixas = [
+      { v: f.consistente, cor: T.bom, rot: 'consistente' },
+      { v: f.oscila, cor: T.atencao, rot: 'oscila' },
+      { v: f.quebra, cor: T.critico, rot: 'quebra' },
+    ].filter(z => z.v != null && z.v >= x0 && z.v <= x1);
+    for (const z of faixas) {
+      c.save(); c.setLineDash([4, 4]); c.globalAlpha = .75;
+      c.strokeStyle = z.cor; c.lineWidth = 1.4;
+      c.beginPath(); c.moveTo(X(z.v), mt); c.lineTo(X(z.v), mt + gh); c.stroke(); c.restore();
+      txt(c, z.rot, X(z.v), mt + gh + 10, { cor: z.cor, tam: 7.5, peso: 800, al: 'center' });
+    }
+    /* teto imposto pelo lapso */
+    if (f.lambda > 0.02) {
+      c.save(); c.setLineDash([2, 4]); c.globalAlpha = .6; c.strokeStyle = T.tintaMuda;
+      c.beginPath(); c.moveTo(ml, Y(1 - f.lambda)); c.lineTo(w - mr, Y(1 - f.lambda)); c.stroke(); c.restore();
+      txt(c, `teto ${Math.round((1 - f.lambda) * 100)}% (lapsos)`, w - mr - 2, Y(1 - f.lambda) - 7,
+          { cor: T.tintaMuda, tam: 7.5, peso: 700, al: 'right' });
+    }
+    /* curva ajustada */
+    c.beginPath();
+    for (let i = 0; i <= 60; i++) {
+      const x = x0 + (x1 - x0) * i / 60;
+      const y = Y(f.prever(x));
+      i ? c.lineTo(X(x), y) : c.moveTo(X(x), y);
+    }
+    c.strokeStyle = T.serie[0]; c.lineWidth = 2; c.stroke();
+    /* pontos observados, tamanho pelo n */
+    for (const p of f.pontos) {
+      const x = X(p.x), y = Y(p.k / p.n);
+      const r = U.clamp(2.5 + Math.sqrt(p.n) * 0.5, 3, 8);
+      c.beginPath(); c.arc(x, y, r, 0, 6.2832);
+      c.fillStyle = T.serie[0] + 'bb'; c.fill();
+      c.lineWidth = 1.6; c.strokeStyle = T.superficie; c.stroke();
+      marcar(cv, x, y, `dificuldade ${p.x}<br>acerto <b>${Math.round(p.k / p.n * 100)}%</b><br>${p.n} tentativas`, 20);
+    }
+    txt(c, 'dificuldade →', ml + gw / 2, mt + gh + 20, { cor: T.tintaMuda, tam: 8, al: 'center' });
+  }
+
+  U.G = { linhaIC, barrasIC, curvaIC, fitts, toques, medidor, matriz, psicometrica,
+          COR_ESTADO, T, esconderDica: esconder };
 
 })(window.U);

@@ -77,6 +77,45 @@
       };
     }
     extras() { return {}; }
+
+    /* ------------------------------------------------------------
+       CONFIANÇA — três níveis, tocados no campo.
+       Só CALIBRAÇÃO (a sensação bate com o acerto?) entra no
+       sistema. Sensibilidade metacognitiva ficou de fora: tem
+       confiabilidade teste-reteste ruim e é confundida com o
+       próprio desempenho em tarefa onde dá para chutar. Seria
+       precisão inventada.
+       ------------------------------------------------------------ */
+    perguntarConfianca(depois) {
+      if (!this.cfg.confianca) return depois(null);
+      this.estado = 'confianca';
+      const ops = [
+        { id: 'cf0', titulo: 'CHUTEI', v: 0.15, icone: '🤷' },
+        { id: 'cf1', titulo: 'ACHO QUE SIM', v: 0.55, icone: '🤔' },
+        { id: 'cf2', titulo: 'CERTEZA', v: 0.90, icone: '💡' },
+      ];
+      const larg = 0.165, gap = 0.03;
+      const total = ops.length * larg + (ops.length - 1) * gap;
+      const x0 = 0.05 + (0.60 - total) / 2;
+      this.hud.campo = ops.map((o, k) => ({
+        id: o.id, icone: o.icone, titulo: o.titulo, conf: o.v,
+        x: x0 + k * (larg + gap), y: 0.42, w: larg, h: 0.30, marca: '#5b708f',
+      }));
+      this.hud.setOverlay({ texto: '', sub: 'quanta certeza você tinha?', cx: 0.36, cy: 0.16,
+                            tam: 0.01, fundo: false, subCor: '#8fa3c4' });
+      this._confCb = depois;
+      this.T.after(this.cfg.tempoConfianca || 2200, () => {
+        if (this.estado === 'confianca') this.responderConfianca(null);
+      });
+    }
+    responderConfianca(v) {
+      if (this.estado !== 'confianca') return;
+      this.hud.campo = []; this.hud.setOverlay(null);
+      const cb = this._confCb; this._confCb = null;
+      U.Sfx.tick();
+      cb && cb(v);
+    }
+
     press() {} joy() {} campo() {}
   }
 
@@ -96,6 +135,14 @@
       this.ikisSet = [];
       this.ordemIkis = [];      // para detectar lentidão proativa
       this.trajetos = [];       // {rota, ikis} — alimenta a reta de Fitts
+      /* Caos controlado: UMA variável perturbada por vez, marcada na
+         tentativa, e misturada com tentativas normais dentro do MESMO
+         set. Comparar dentro do set controla o efeito de dia, de humor
+         e de aquecimento — comparar entre sets não controla nada. */
+      this.pert = cfg.perturbacao || null;
+      this.pertProb = cfg.pertProb ?? 0.4;
+      this.variante = cfg.variante ? (cfg.varianteProb ?? 0.4) : 0;
+      this.trocaProb = cfg.troca || 0;
     }
 
     proxima() {
@@ -104,6 +151,22 @@
       this.i++; this.placar();
 
       this.rota = (this.ordem[this.i - 1] || this.rotas[0]).slice();
+      this.rotaOriginal = this.rota.slice();
+      this.pertAtual = 'nenhuma'; this.vrAtual = 'base';
+      this.trocaFeita = false; this.tTroca = 0; this.latTroca = null;
+      this.deadlineExtra = 1;
+
+      /* variante: mesma estrutura, botões trocados — testa se o que
+         foi aprendido é a regra ou a superfície */
+      if (this.variante && Math.random() < this.variante) {
+        this.rota = transformarRota(this.rota);
+        this.vrAtual = 'trocado';
+      }
+      /* perturbação da tentativa */
+      if (this.pert && Math.random() < this.pertProb) {
+        this.pertAtual = this.pert;
+        this.aplicarPerturbacao();
+      }
       this.passo = 0; this.marcas = []; this.ikis = []; this.desvios = null;
       this.deveParar = false; this.tParada = 0; this.paradaReg = false;
       this.semSinal = false; this.sinalSaiu = false; this.timerStop = null;
@@ -117,8 +180,9 @@
       const c = this.cfg;
       const mostra = c.mostrarRota !== 'nunca';
       if (mostra) {
+        const vis = this.ocultarUltimo ? this.rota.slice(0, -1).concat(['?']) : this.rota;
         this.hud.setOverlay({
-          texto: this.rota.map(k => (H.getHud()[k] || {}).curto || k).join(' › '),
+          texto: vis.map(k => k === '?' ? '?' : ((H.getHud()[k] || {}).curto || k)).join(' › '),
           sub: c.mostrarRota === 'antes' ? 'memorize — vai sumir' : 'execute nesta ordem',
           tam: 0.15, cor: '#c4b5fd',
         });
@@ -212,12 +276,59 @@
         });
       }
 
-      const lim = c.deadline || (c.modo === 'compasso'
-        ? (this.rota.length + 1.6) * c.beat : 900 + this.rota.length * 900);
+      /* estímulo falso: parece perigo e não é. Continuar é o certo. */
+      if (this.pertAtual === 'falso') {
+        this.T.after(U.rnd(250, 700), () => {
+          if (this.estado !== 'executando') return;
+          U.Sfx.alert();
+          this.hud.setOverlay({ texto: 'ATENÇÃO', sub: 'aliado entrou na luta — siga',
+                                tam: 0.15, cor: '#ffd479', fundo: 'rgba(40,32,4,.40)' });
+          this.T.after(620, () => { if (this.estado === 'executando') this.hud.setOverlay(null); });
+        });
+      }
+      /* ameaça inesperada: um PARAR num exercício que normalmente não tem */
+      if (this.pertAtual === 'ameaca' && !this.ensaioParadaForcada) {
+        this.ensaioParadaForcada = true;
+        this.T.after(U.rnd(400, 1000), () => {
+          if (this.estado !== 'executando' || this.deveParar) return;
+          this.sinalSaiu = true; this.ensaioParada = true; this.dispararFreio();
+        });
+      }
+      /* troca de plano: no meio, a rota restante muda */
+      if (this.trocaProb && Math.random() < this.trocaProb && this.rota.length >= 3) {
+        this.trocaNoPasso = U.ri(1, this.rota.length - 2);
+      } else this.trocaNoPasso = -1;
+
+      const lim = (c.deadline || (c.modo === 'compasso'
+        ? (this.rota.length + 1.6) * c.beat : 900 + this.rota.length * 900)) * this.deadlineExtra;
       this.T.after(lim, () => {
         if (this.estado !== 'executando') return;
         this.encerrar(false, this.deveParar ? null : 'lento');
       });
+    }
+
+    /** Aplica a perturbação da tentativa. Uma variável, marcada. */
+    aplicarPerturbacao() {
+      const c = this.cfg;
+      switch (this.pertAtual) {
+        case 'ordem':
+          this.rota = U.shuffle(this.rota.slice());
+          break;
+        case 'alvo':
+          this.rota = transformarRota(this.rota);
+          this.vrAtual = 'trocado';
+          break;
+        case 'janela':
+          this.deadlineExtra = 0.72;
+          break;
+        case 'ritmo':
+          this.deadlineExtra = Math.random() < 0.5 ? 0.8 : 1.3;
+          break;
+        case 'incompleta':
+          this.ocultarUltimo = true;
+          break;
+        /* 'falso' e 'ameaca' são agendados dentro de ir() */
+      }
     }
 
     ikiEstimado() {
@@ -310,6 +421,19 @@
       this.hud.acerto(e.id); U.Haptic.good();
       this.passo++;
 
+      if (this.passo === this.trocaNoPasso && !this.trocaFeita) {
+        this.trocaFeita = true; this.tTroca = t;
+        const resto = this.rota.slice(this.passo);
+        const novo = transformarRota(resto, true);
+        this.rota = this.rota.slice(0, this.passo).concat(novo);
+        U.Sfx.alert(); U.Haptic.stop();
+        this.hud.setOverlay({ texto: 'TROCA', sub: novo.map(k => (H.getHud()[k] || {}).curto || k).join(' › '),
+                              tam: 0.13, cor: '#ffd479', fundo: 'rgba(40,32,4,.42)' });
+        this.T.after(700, () => { if (this.estado === 'executando') this.hud.setOverlay(null); });
+        this.destacar();
+        return;
+      }
+
       if (this.passo >= this.rota.length) {
         if (this.ensaioParada && !this.sinalSaiu) {
           if (this.timerStop != null) { this.T.cancel(this.timerStop); this.timerStop = null; }
@@ -351,7 +475,13 @@
       if (this.cfg.mover && okF && mov != null && mov < (this.cfg.movMin ?? 0.55)) { okF = false; e2 = 'movimento'; }
 
       const tipoParada = this.ensaioParada && !this.semSinal;
-      if (okF && this.ikis.length) this.trajetos.push({ rota: this.rota.slice(), ikis: this.ikis.slice() });
+      if (okF && this.ikis.length && this.vrAtual === 'base' && this.pertAtual === 'nenhuma')
+        this.trajetos.push({ rota: this.rota.slice(), ikis: this.ikis.slice() });
+      /* regularidade DENTRO da tentativa: é o que separa um acerto
+         firme de um acerto que passou raspando */
+      const cvi = this.ikis.length >= 2 ? S.cv(this.ikis) : null;
+      if (this.trocaFeita && okF && this.marcas.length > this.trocaNoPasso)
+        this.latTroca = this.marcas[this.trocaNoPasso].t - this.tTroca;
       this.anota({
         k: this.cfg.integra ? 'integra' : 'rota', ok: okF, err: e2,
         tot: okF ? total : null,
@@ -361,6 +491,17 @@
           mov: mov != null ? +mov.toFixed(2) : undefined,
           sec: this.secOk == null ? undefined : (this.secOk ? 1 : 0),
           desvio: this.desvios ? Math.round(U.mean(this.desvios.map(Math.abs))) : undefined,
+          cvi: cvi != null ? +cvi.toFixed(3) : undefined,
+          passos: this.rota.length,
+          /* Num set COM perturbação configurada, as tentativas limpas também
+             são marcadas ('nenhuma'). São elas a linha de base da comparação:
+             mesmo set, mesmo dia, mesmo cansaço. Sem essa marca a única base
+             disponível eram tentativas de outros dias, e aí a comparação
+             media também o dia. Set sem perturbação nenhuma continua sem marca. */
+          pert: this.pert ? this.pertAtual : undefined,
+          vr: this.vrAtual,
+          sw: this.trocaNoPasso > 0 ? (this.trocaFeita ? 1 : 0) : undefined,
+          lat: this.latTroca != null ? Math.round(this.latTroca) : undefined,
         },
       });
 
@@ -405,6 +546,20 @@
       if (this.desviosSet) o.compasso = U.mean(this.desviosSet);
       return o;
     }
+  }
+
+  /* ------------------------------------------------------------
+     Transforma uma rota mantendo a ESTRUTURA e trocando os botões.
+     É o "espelho quebrado" do lado mecânico: se o desempenho desaba
+     aqui, o que foi aprendido foi a sequência específica e não o
+     padrão de movimento.
+     ------------------------------------------------------------ */
+  const TROCA = { s1: 's2', s2: 's1', s3: 's3', aa: 'aa', flash: 'flash' };
+  const TROCA2 = { s1: 's3', s3: 's1', s2: 's2', aa: 'aa', flash: 'flash' };
+  function transformarRota(rota, agressiva) {
+    const mapa = agressiva ? (Math.random() < 0.5 ? TROCA : TROCA2) : TROCA;
+    const nova = rota.map(k => mapa[k] || k);
+    return nova.join('') === rota.join('') ? rota.map(k => TROCA2[k] || k) : nova;
   }
 
   /* ============================================================
@@ -467,10 +622,25 @@
       if (j.mag > 0.55 && j.dir != null && j.dir >= 3 && j.dir <= 5) this.responder('recuar');
     }
     resolver(ok, err, rt, dado) {
-      if (this.estado === 'fim') return;
-      this.estado = 'fim'; this.T.clear();
+      if (this.estado === 'fim' || this.estado === 'confianca') return;
+      this.T.clear();
+      this._pend = { ok, err, rt, dado };
+      if (this.cfg.confianca) {
+        this.hud.setOverlay(null);
+        return this.perguntarConfianca((conf) => this.fecharLeitura(conf));
+      }
+      this.fecharLeitura(null);
+    }
+    campo(e) {
+      if (this.estado === 'confianca' && e.carta && e.carta.conf != null)
+        this.responderConfianca(e.carta.conf);
+    }
+    fecharLeitura(conf) {
+      const { ok, err, rt, dado } = this._pend;
+      this.estado = 'fim';
       this.anota({ k: 'leitura', ok, err, rt: ok ? rt : null,
-                   x: { j: this.janela, s: this.sinal.id, r: dado || null } });
+                   x: { j: this.janela, s: this.sinal.id, r: dado || null,
+                        conf: conf != null ? conf : undefined } });
       ok ? (U.Sfx.perfect(), U.Haptic.good()) : (U.Sfx.miss(), U.Haptic.bad());
       if (this.retorno) {
         this.hud.setOverlay({
@@ -513,7 +683,8 @@
       if (!this.ativo) return;
       if (this.i >= this.n) return this.concluir();
       this.i++; this.placar();
-      this.sit = CO.gerarSituacao(this.dif);
+      this.sit = CO.gerarSituacao(this.dif, null,
+        this.cfg.soArmadilhas ? { armadilha: true } : {});
       if (this.cfg.rotaFixa) this.sit.rota = this.cfg.rotaFixa.slice();
       this.hud.limparMarcas(); this.hud.campo = [];
       this.fasePercepcao();
@@ -568,6 +739,8 @@
     }
 
     campo(e) {
+      if (this.estado === 'confianca' && e.carta && e.carta.conf != null)
+        return this.responderConfianca(e.carta.conf);
       if (this.estado === 'decisao' && e.carta.opcao) return this.escolher(e.carta);
     }
 
@@ -579,18 +752,55 @@
       const decOk = escolha === this.sit.certa;
       this.decOk = decOk; this.decRt = rt; this.escolha = escolha;
       this.decisoes.push({ ok: decOk, rt, certa: this.sit.certa, feita: escolha });
-      MD.gravar({ d: this.cfg.drillId, mo: this.mo, k: 'decisao', ok: decOk, rt,
-                  err: decOk ? null : 'leitura', dif: this.dif, ref: this.ref,
-                  x: { certa: this.sit.certa, feita: escolha, ocultos: this.sit.ocultos } });
-
+      this._decisao = { decOk, rt, escolha, carta };
       decOk ? U.Sfx.perfect() : U.Sfx.miss();
       this.hud.campo = this.hud.campo.filter(c => !c.opcao || c === carta);
+      this.hud.setOverlay(null);
+      if (this.cfg.confianca) return this.perguntarConfianca((cf) => this.aposConfianca(cf));
+      this.aposConfianca(null);
+    }
 
-      /* Só executa quando ele escolheu ENTRAR e isso era certo:
-         medir a execução depois de uma decisão errada mistura as
-         duas coisas e estraga o custo da decisão. */
+    aposConfianca(conf) {
+      const { decOk, rt, escolha, carta } = this._decisao;
+      this.confAtual = conf;
+      MD.gravar({ d: this.cfg.drillId, mo: this.mo, k: 'decisao', ok: decOk, rt,
+                  err: decOk ? null : 'leitura', dif: this.dif, ref: this.ref,
+                  x: { certa: this.sit.certa, feita: escolha, ocultos: this.sit.ocultos,
+                       vr: this.sit.variante, pista: this.sit.pista,
+                       conf: conf != null ? conf : undefined } });
+      if (this.sit.ocultos > 0 && this.retorno) return this.revelar();
+      this.seguirDepoisDaDecisao();
+    }
+
+    /* ------------------------------------------------------------
+       REVELAÇÃO — o passo que faltava no fluxo.
+       Perceber → interpretar → decidir → EXECUTAR → revelar o resto.
+       Mostrar depois o que estava escondido é o que permite separar
+       "decidi errado" de "decidi bem com o que dava para ver".
+       ------------------------------------------------------------ */
+    revelar() {
+      this.estado = 'revelando';
+      const ocultos = this.sit.unid.filter(u => u.oculto);
+      for (const c of this.hud.campo) {
+        const u = c.dados;
+        if (!u || !u.oculto) continue;
+        c.icone = u.icone; c.titulo = u.nome; c.hp = u.hp;
+        c.nota = u.nota || 'sem estado'; c.marca = '#c98500'; c.pulso = 1;
+      }
+      const mudava = ocultos.some(u => u.vAmeaca > 1.1 || u.vAbate > 1.1);
+      this.hud.setOverlay({
+        texto: '', cx: 0.36, cy: 0.80, tam: 0.01, fundo: false, subCor: '#ffd479',
+        sub: mudava
+          ? `O que estava escondido importava: ${ocultos.map(u => u.nome).join(' e ')}.`
+          : `O que estava escondido não mudava a conta.`,
+      });
+      U.Sfx.tick();
+      this.T.after(1500, () => { this.hud.setOverlay(null); this.seguirDepoisDaDecisao(); });
+    }
+
+    seguirDepoisDaDecisao() {
+      const { decOk, rt, escolha, carta } = this._decisao;
       const vaiExecutar = decOk && this.sit.certa === 'entrar';
-
       if (this.cfg.explicaNaHora !== false && this.retorno) {
         this.hud.setOverlay({
           texto: decOk ? '✔' : '✘',
@@ -600,7 +810,8 @@
       }
       if (!vaiExecutar) {
         this.anota({ k: 'integra', ok: decOk, err: decOk ? null : 'leitura', rt,
-                     x: { fase: 'so_decisao', decOk: decOk ? 1 : 0 } });
+                     x: { fase: 'so_decisao', decOk: decOk ? 1 : 0, vr: this.sit.variante,
+                          conf: this.confAtual != null ? this.confAtual : undefined } });
         this.placar();
         return this.T.after(this.retorno ? 1600 : 700, () => { this.hud.campo = []; this.proxima(); });
       }
@@ -695,7 +906,8 @@
       this.estado = 'fim'; this.T.clear();
       const total = U.now() - this.t0;
       this.anota({ k: 'integra', ok, err, tot: ok ? total : null, rt: total,
-                   x: { fase: 'execucao', decOk: 1 } });
+                   x: { fase: 'execucao', decOk: 1, vr: this.sit.variante,
+                        conf: this.confAtual != null ? this.confAtual : undefined } });
       ok ? U.Sfx.perfect() : U.Sfx.miss();
       if (this.retorno) {
         this.hud.setOverlay({ texto: ok ? `✔ ${Math.round(total)}ms` : '✘ execução falhou',

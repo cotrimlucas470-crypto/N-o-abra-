@@ -145,14 +145,17 @@
     if (!sacoResposta.length) sacoResposta = U.shuffle(['entrar', 'esperar', 'recuar']);
     return sacoResposta.pop();
   }
-  function gerarSituacao(dif, alvo) {
+  function gerarSituacao(dif, alvo, opts = {}) {
     const querida = alvo || proximaResposta();
-    let s = null;
-    for (let i = 0; i < 60; i++) {
+    const querArmadilha = opts.armadilha != null ? opts.armadilha : (Math.random() < U.clamp((dif - 2) * 0.05, 0, 0.40));
+    let s = null, primeiroValido = null;
+    for (let i = 0; i < 80; i++) {
       s = montarSituacao(dif);
-      if (s.certa === querida) return s;
+      if (s.certa !== querida) continue;
+      if (!primeiroValido) primeiroValido = s;
+      if ((s.variante === 'armadilha') === querArmadilha) return s;
     }
-    return s;   // desistiu de equilibrar: melhor uma situação válida que nenhuma
+    return primeiroValido || s;
   }
 
   function montarSituacao(dif) {
@@ -232,9 +235,24 @@
 
     const contexto = `Você: ${Math.round(meuHp * 100)}% de vida${temInv ? ', invocador pronto' : ', SEM invocador'}. ${aliadoIniciou ? 'Seu time já iniciou.' : 'Ninguém iniciou ainda.'}`;
 
+    /* ------------------------------------------------------------
+       ESPELHO QUEBRADO, versão decisão.
+       A pista mais saliente da tela é "tem um alvo valioso com pouca
+       vida por perto". Quem decide por pista responde ENTRAR sempre
+       que ela aparece. Quando a pista aponta para um lado e a conta
+       aponta para o outro, a tentativa vira ARMADILHA — e a diferença
+       de acerto entre armadilha e concordante é a medida de quanto
+       você decide por regra e quanto por reconhecimento de padrão.
+       Não precisa de nenhuma máquina extra: basta marcar.
+       ------------------------------------------------------------ */
+    const pista = (melhorAlvo.hp < 0.45 && melhorAlvo.dist.id !== 'longe' &&
+                   (melhorAlvo.papel === 'atirador' || melhorAlvo.papel === 'mago'))
+                  ? 'entrar' : 'recuar';
+    const variante = (pista === certa) ? 'base' : 'armadilha';
+
     return {
       unid, opcoes, certa, porque, reviravolta, contexto,
-      meuHp, temInv, aliadoIniciou, margem,
+      meuHp, temInv, aliadoIniciou, margem, pista, variante,
       melhorAlvo: melhorAlvo.id, maiorRisco: maiorRisco.id,
       rota: U.pick([['s1', 'aa', 's2'], ['s1', 'aa', 's2', 'aa'], ['s2', 's1', 'aa']]),
       ocultos: ocultar,

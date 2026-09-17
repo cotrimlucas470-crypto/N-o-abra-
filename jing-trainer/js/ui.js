@@ -617,6 +617,274 @@
   }
 
   /* ============================================================
+     TELA — ESTADO (índice de evolução)
+     ============================================================ */
+  function telaEstado() {
+    const IX = U.IX, GM = U.GM;
+    const eixos = IX.calcularEixos();
+    const g = IX.global(eixos);
+    const hist = U.DB.load().indiceHist || [];
+    const ach = GM.achados({});
+    const lim = IX.limite({});
+
+    return `
+    <div class="topo"><h1>◈ Estado Jing</h1><div class="espaco"></div>
+      <span class="sub">${g.eixosUsados || 0} de ${g.total} eixos medidos · ${hist.length} pontos</span></div>
+    <div class="rolagem pilha">
+
+      <div class="painel hero">
+        <div class="mini" style="color:var(--gold);font-weight:800;letter-spacing:.08em;text-transform:uppercase">Nível de desempenho confiável</div>
+        ${g.v == null
+          ? `<h2 class="heroT">Ainda não dá</h2><div class="mini" style="margin-top:4px">${g.texto}</div>`
+          : `<div class="flex" style="gap:14px;align-items:flex-end;margin-top:2px">
+              <div class="numero" style="font-size:2.6rem">${g.v}<span class="de">/100</span></div>
+              <div class="mini" style="flex:1;padding-bottom:6px">
+                ${g.lo != null ? `intervalo <b>${g.lo}–${g.hi}</b> · ` : ''}${S.rotuloNivel(g.nivel)}
+                <br>média simples seria ${g.aritmetica}${g.diferencaParaMedia > 2
+                  ? ` — <b>${g.diferencaParaMedia} pontos acima</b>, e é por isso que o índice não é a média` : ''}
+              </div>
+            </div>
+            <div class="mini" style="margin-top:6px">Não é a média das notas: é uma média <b>harmônica</b> ponderada
+            pela confiabilidade de cada eixo. Numa luta o desempenho é limitado pelo elo mais fraco — dedo rápido
+            não compensa leitura lenta — e a harmônica pune o componente fraco muito mais do que a aritmética
+            premia o forte. O peso de cada eixo é a própria confiabilidade dele, não um juízo meu sobre importância.</div>
+            ${g.gargalo ? `<div class="aviso" style="margin-top:8px"><b>O que está segurando o índice:</b>
+              ${g.puxandoBaixo.map(e => `<b>${e.nome}</b> (${e.nota})`).join(', ') || `<b>${g.gargalo.nome}</b> (${g.gargalo.nota})`}.
+              ${g.puxandoCima.length ? `Puxando para cima: ${g.puxandoCima.map(e => `${e.nome} (${e.nota})`).join(', ')}.` : ''}</div>` : ''}`}
+      </div>
+
+      ${ach.ativos.length ? `<div class="painel">
+        <h2>O que o sistema encontrou em você</h2>
+        <div class="mini" style="margin-bottom:7px">Padrões que só existem no cruzamento de duas medidas. Cada um
+        traz a amostra que o sustenta — sem amostra, fica listado como suspeita e não dispara exercício.</div>
+        <div class="pilha" style="gap:7px">
+          ${ach.ativos.map(a => `<div class="aviso ${a.id === 'tradeoff' || a.id === 'decorado' ? 'bad' : ''}">
+            <b>${{ tradeoff: 'Troca velocidade × precisão', instavel: 'Acertos instáveis',
+                   dica: 'Dependência da dica visual', vies: 'Viés de decisão',
+                   perturbacao: 'Perturbação que derruba', decorado: 'Padrão decorado',
+                   troca: 'Custo de trocar de plano', confianca: 'Confiança descalibrada' }[a.id] || a.id}</b><br>
+            ${a.texto}
+            <div class="xs" style="margin-top:3px">${a.n} tentativas${a.alvo ? ` · vira o exercício <code>${a.alvo.drill}</code> com ajuste <code>${a.alvo.ajuste}</code>` : ''}</div>
+          </div>`).join('')}
+        </div>
+        ${(() => { const sp = ach.lista.find(x => x.id === 'perturbacao');
+          return sp && sp.poder ? `<div class="xs" style="margin-top:8px"><b>O que eu não consigo ver:</b> ${sp.poder}</div>` : ''; })()}
+      </div>` : `<div class="painel">
+        <h2>O que o sistema encontrou em você</h2>
+        <div class="mini">Nenhum padrão com amostra suficiente ainda.
+        ${ach.suspeitas.length ? `Faltam tentativas para: ${ach.suspeitas.map(x => `<b>${x.id}</b> (${x.falta})`).join(', ')}.` : ''}</div>
+        ${(() => { const sp = ach.lista.find(x => x.id === 'perturbacao');
+          return sp && sp.poder ? `<div class="xs" style="margin-top:8px"><b>E o que eu não consigo ver mesmo com dados:</b> ${sp.poder}</div>` : ''; })()}
+      </div>`}
+
+      <div class="painel">
+        <h2>Os dez eixos</h2>
+        <div class="mini" style="margin-bottom:8px">A nota 0-100 é uma <b>convenção de leitura</b>. O dado é o número
+        com unidade embaixo dela. Toda nota nova é puxada na direção da anterior com peso proporcional à amostra —
+        é isso que impede uma sessão excepcional de distorcer o nível.</div>
+        <div class="grade g2 medidas">
+          ${eixos.map(e => cartaoEixo(e)).join('')}
+        </div>
+      </div>
+
+      ${(() => {
+        const comN = hist.filter(x => x.nEixos != null);
+        if (comN.length < 4) return '';
+        const ini = comN[0].nEixos, fim = comN[comN.length - 1].nEixos;
+        if (fim === ini) return '';
+        return `<div class="painel"><div class="aviso"><b>Sobre comparar o índice com o do mês passado:</b>
+          no começo do histórico ele saía de <b>${ini}</b> eixos e hoje sai de <b>${fim}</b>. Eixo novo entrando
+          na conta mexe no número por um motivo que não é o seu desempenho. Para saber o que mudou em você,
+          o lugar certo é o eixo, um por um, logo abaixo — cada um é comparado só consigo mesmo.</div></div>`;
+      })()}
+
+      ${hist.length >= 3 ? `<div class="painel">
+        <h2>Mapa de evolução</h2>
+        <div class="mini" style="margin-bottom:6px">Cada coluna é um ponto do histórico; cada linha, um eixo.
+        A cor é o <b>estado</b>, e nunca sai de uma comparação entre duas sessões: a mudança precisa passar do erro
+        típico da medida, ter tamanho útil, e a soma cumulativa precisa confirmar que é persistente. Toque numa
+        célula para ver o ponto.</div>
+        <canvas class="graf" id="g-matriz"></canvas>
+        <div class="leg" style="margin-top:7px">
+          <span><i style="background:${G.COR_ESTADO.evolucao}"></i>evolução</span>
+          <span><i style="background:${G.COR_ESTADO.estavel}"></i>estabilidade</span>
+          <span><i style="background:${G.COR_ESTADO.suspeita}"></i>queda suspeita</span>
+          <span><i style="background:${G.COR_ESTADO.queda}"></i>queda consistente</span>
+          <span><i style="background:${G.COR_ESTADO.semDados}"></i>sem dados</span>
+        </div>
+      </div>` : `<div class="painel"><h2>Mapa de evolução</h2>
+        <div class="mini">Aparece a partir de 3 sessões registradas (tenho ${hist.length}). Antes disso qualquer
+        linha seria ruído desenhado com capricho.</div></div>`}
+
+      <div class="painel">
+        <h2>Seu limite de performance</h2>
+        <div class="mini" style="margin-bottom:6px">Onde você é consistente, onde começa a oscilar e onde quebra —
+        estimado ajustando acerto contra dificuldade. O ajuste inclui uma <b>taxa de lapso</b>: sem ela, um punhado
+        de falhas sem relação com a dificuldade envieza os três números.</div>
+        ${lim.ok ? `
+          <canvas class="graf" id="g-psico" data-h="185"></canvas>
+          <div class="grade g3" style="margin-top:8px">
+            <div class="kpi"><div class="v" style="color:var(--ok)">${lim.consistente != null ? lim.consistente.toFixed(1) : '—'}</div><div class="k">consistente</div></div>
+            <div class="kpi"><div class="v" style="color:var(--warn)">${lim.oscila != null ? lim.oscila.toFixed(1) : '—'}</div><div class="k">começa a oscilar</div></div>
+            <div class="kpi"><div class="v" style="color:var(--bad)">${lim.quebra != null ? lim.quebra.toFixed(1) : '—'}</div><div class="k">quebra</div></div>
+          </div>
+          ${lim.msConsistente ? `<div class="mini" style="margin-top:7px">Em tempo de rota: você sustenta
+            <b>${lim.msConsistente} ms</b>, começa a oscilar em <b>${lim.msOscila} ms</b> e quebra em
+            <b>${lim.msQuebra} ms</b>.</div>` : ''}
+          <div class="aviso" style="margin-top:8px">${lim.lapsoTexto}<br>${lim.inclinacaoTexto}</div>
+          <div class="xs" style="margin-top:5px">Ajustado com ${lim.n} tentativas em ${lim.niveis} níveis de dificuldade.</div>
+        ` : `<div class="aviso">${lim.motivo}. O limite só aparece quando o exercício Rota tiver passado por
+          faixas de dificuldade suficientes — o que acontece sozinho conforme o controlador sobe e desce.</div>`}
+      </div>
+    </div>`;
+  }
+
+  function cartaoEixo(e) {
+    const IX = U.IX;
+    const rel = e.nota != null ? IX.relatorioEixo(e.id) : null;
+    const dir = rel && rel.direcao;
+    const v7 = rel && rel.v7;
+    const semDado = e.nota == null || e.nivel === 'insuficiente';
+    const fmt = (v) => e.unidade === '' ? (v != null ? v.toFixed(2) : '—') : (v != null ? Math.round(v) : '—');
+    return `<div class="medida ${semDado ? 'vazia' : ''}" data-eixo="${e.id}">
+      <div class="flex" style="gap:6px;align-items:baseline">
+        <div class="mt">${e.nome}</div><div class="espaco"></div>
+        <span class="tag ${NIVEL_CLASSE[e.nivel] || ''}">${S.rotuloNivel(e.nivel)}</span>
+      </div>
+      ${semDado
+        ? `<div class="mv vazio">—</div><div class="mini">${e.n ? `${e.n} amostras, ainda insuficiente.` : 'Sem amostra.'}</div>`
+        : `<div class="flex" style="align-items:baseline;gap:7px">
+             <div class="mv">${e.nota}</div>
+             ${dir && dir.estado !== 'semDados' ? `<span class="tag ${dir.estado === 'evolucao' ? 'ok' : dir.estado === 'queda' ? 'bad' : dir.estado === 'suspeita' ? 'warn' : ''}">${dir.cor} ${dir.nome}</span>` : ''}
+           </div>
+           <div class="mini"><b>${fmt(e.bruto)}${e.unidade}</b> — ${e.fonte || ''}</div>
+           ${v7 ? `<div class="mini">7 dias: <b>${v7.delta > 0 ? '+' : ''}${Math.round(v7.delta)}</b>
+             ${v7.real ? '<span style="color:var(--ok)">(real)</span>' : `<span class="xs">(${v7.motivo})</span>`}</div>` : ''}
+           ${e.nef ? `<div class="xs">confiabilidade ${Math.round((e.peso || 0) * 100)}% — ${e.nef} ${e.nef === e.n ? 'amostras' : `estimativas independentes (de ${e.n} tentativas)`}</div>` : ''}
+           ${e.encolhido ? `<div class="xs">nota puxada ${e.puxou > 0 ? '+' : ''}${e.puxou} na direção do histórico — amostra ainda pequena</div>` : ''}`}
+      <div class="xs" style="margin-top:4px">${e.pergunta}</div>
+    </div>`;
+  }
+
+  function depoisEstado() {
+    const IX = U.IX;
+    const hist = U.DB.load().indiceHist || [];
+    if ($('#g-matriz') && hist.length >= 3) {
+      const rotulos = hist.map(x => U.dateShort(x.t));
+      const linhas = IX.EIXOS.map(E => {
+        /* o mapa é de TENDÊNCIA, então usa a série crua quando ela existe —
+           a encolhida sobe sozinha enquanto o estimador converge */
+        const temCru = hist.filter(x => x.crus && x.crus[E.id] != null).length >= 5;
+        const valores = hist.map(x => (temCru ? (x.crus && x.crus[E.id]) : x.eixos[E.id]) ?? null);
+        const estados = valores.map((v, i) => {
+          if (v == null) return 'semDados';
+          const ate = valores.slice(0, i + 1).filter(y => y != null);
+          return IX.direcao(ate).estado;
+        });
+        return { id: E.id, nome: E.nome, valores, estados };
+      });
+      G.matriz($('#g-matriz'), linhas, rotulos);
+      $('#g-matriz').addEventListener('pointerdown', (ev) => {
+        const cv = ev.currentTarget, r = cv.getBoundingClientRect();
+        const x = ev.clientX - r.left;
+        const ml = 96, mr = 38, cw = Math.max(4, (cv.clientWidth - ml - mr) / Math.max(1, rotulos.length));
+        const i = Math.floor((x - ml) / cw);
+        if (i < 0 || i >= hist.length) return;
+        abrirPonto(hist[i]);
+      });
+    }
+    if ($('#g-psico')) G.psicometrica($('#g-psico'), IX.limite({}));
+    $$('#tela-estado [data-eixo]').forEach(el2 => el2.addEventListener('click', () => abrirEixo(el2.dataset.eixo)));
+  }
+
+  function abrirPonto(reg) {
+    const d = U.DB.load();
+    const s = d.sessoes.find(x => x.id === reg.sessao);
+    const eixos = Object.entries(reg.eixos).sort((a, b) => a[1] - b[1]);
+    modal(`
+      <h2 style="margin:0 0 4px">${U.dateTime(reg.t)}</h2>
+      <div class="mini">Índice global: <b>${reg.global ?? '—'}</b>${s ? ` · ${s.blocos.length} blocos nesta sessão` : ''}</div>
+      ${s ? `<div class="mini" style="margin-top:6px">${s.blocos.map(b => `${b.drill}${b.mo !== 'treino' ? ` (${b.mo})` : ''}`).join(' · ')}</div>` : ''}
+      <div class="sep"></div>
+      <div class="mini"><b>Eixos neste ponto</b> (do mais fraco ao mais forte)</div>
+      <div class="pilha" style="gap:3px;margin-top:5px">
+        ${eixos.map(([id, v]) => {
+          const E = U.IX.porId(id);
+          const bruto = reg.brutos && reg.brutos[id];
+          return `<div class="mini">${v} — <b>${E ? E.nome : id}</b>${bruto != null ? ` <span class="xs">(${bruto}${E ? E.unidade : ''})</span>` : ''}</div>`;
+        }).join('')}
+      </div>
+      <button class="btn full sm" style="margin-top:12px" data-fecha>Fechar</button>`);
+  }
+
+  function abrirEixo(id) {
+    const rel = U.IX.relatorioEixo(id);
+    const E = rel.eixo, a = rel.atual, d = rel.direcao;
+    modal(`
+      <h2 style="margin:0 0 4px">${E.nome}</h2>
+      <div class="mini">${E.pergunta}</div>
+      ${a && a.nota != null ? `
+        <div class="flex" style="gap:12px;align-items:baseline;margin-top:8px">
+          <div class="numero" style="font-size:1.8rem">${a.nota}<span class="de">/100</span></div>
+          <div class="mini" style="flex:1">${a.bruto != null ? `<b>${E.unidade === '' ? a.bruto.toFixed(2) : Math.round(a.bruto)}${E.unidade}</b> medidos · ` : ''}${a.n} amostras · ${S.rotuloNivel(a.nivel)}</div>
+        </div>
+        ${rel.serie.length >= 3 ? `<canvas class="graf" id="m-eixo" data-h="130" style="margin-top:8px"></canvas>` : ''}
+        <div class="sep"></div>
+        ${(() => {
+          const janela = (v, rot) => v
+            ? `<div class="mini">${rot}: <b>${v.delta > 0 ? '+' : ''}${Math.round(v.delta)}</b>
+                 ${v.real ? '<span style="color:var(--ok)">real</span>'
+                          : `<span class="xs">(${v.motivo})</span>`}
+                 <span class="xs"><br>média de ${v.nAntes} pontos antes contra ${v.nDepois} depois</span></div>`
+            : `<div class="mini">${rot}: <b>—</b> <span class="xs">(preciso de pelo menos 2 pontos dos dois lados)</span></div>`;
+          return `<div class="grade g2">
+          ${janela(rel.v7, '7 dias')}
+          ${janela(rel.v30, '30 dias')}
+          <div class="mini">Melhor / pior: <b>${rel.melhor ?? '—'}</b> / <b>${rel.pior ?? '—'}</b></div>
+          <div class="mini">Desde a sessão anterior: <b>${rel.ultimo != null ? (rel.ultimo > 0 ? '+' : '') + rel.ultimo : '—'}</b>
+            <span class="xs"><br>dois pontos soltos: isto é ruído até prova em contrário, e nunca entra em nenhuma conclusão</span></div>
+        </div>`; })()}
+        <div class="aviso ${d.estado === 'queda' ? 'bad' : d.estado === 'evolucao' ? 'ok' : ''}" style="margin-top:8px">
+          <b>${d.cor} ${d.nome}</b> — ${d.o_que}.
+          ${d.et != null ? `<br>Erro típico de uma medida deste eixo: ±${d.et.toFixed(1)}. Comparando as duas metades
+          da série (${d.n} pontos), a mudança precisa passar de <b>${d.ruido != null ? d.ruido.toFixed(1) : '—'}</b>
+          para não ser ruído, e de ${d.swc.toFixed(1)} para ter tamanho que importe. A sua foi
+          ${d.delta > 0 ? '+' : ''}${d.delta.toFixed(1)}.` : ''}
+        </div>
+        ${d.estado === 'queda' || d.estado === 'suspeita' ? causaProvavel(id) : ''}
+      ` : `<div class="aviso" style="margin-top:8px">Sem amostra suficiente para este eixo.</div>`}
+      <div class="xs" style="margin-top:8px"><b>Régua:</b> ${E.ancoraNota}</div>
+      <button class="btn full sm" style="margin-top:12px" data-fecha>Fechar</button>`,
+      (cx) => {
+        const cv = cx.querySelector('#m-eixo');
+        if (cv) setTimeout(() => G.linhaIC(cv, rel.serie.map((v, i) => ({ rot: String(i + 1), v })),
+                                           { max: 100, nome: E.nome }), 40);
+      });
+  }
+
+  /** Quando um eixo cai, tenta dizer por quê — com as evidências que existem. */
+  function causaProvavel(id) {
+    const GM = U.GM;
+    const d = U.DB.load();
+    const causas = [];
+    const fad = d.sessoes.slice(-3).filter(s => s.fadiga && s.fadiga.estado === 'alta').length;
+    if (fad >= 2) causas.push(`<b>Fadiga:</b> ${fad} das últimas 3 sessões terminaram com sinais de cansaço.`);
+    const ret = MD.retencao();
+    if (ret.nivel !== 'insuficiente' && ret.lo < 60)
+      causas.push(`<b>Perda de retenção:</b> só ${ret.v}% volta no dia seguinte (piso ${ret.lo}%).`);
+    const ach = GM.achados({});
+    for (const a of ach.ativos.slice(0, 2)) causas.push(`<b>Padrão detectado:</b> ${a.texto}`);
+    const erros = MD.perfilErros({ dias: 14 });
+    if (erros.itens.length && erros.itens[0].p > 0.4)
+      causas.push(`<b>Erro concentrado:</b> ${Math.round(erros.itens[0].p * 100)}% dos erros recentes são do tipo ${erros.itens[0].nome}.`);
+    const difs = d.sets.slice(-6).filter(x => x.mo === 'treino').map(x => x.dif);
+    if (difs.length >= 4 && difs[difs.length - 1] - difs[0] > 1.2)
+      causas.push(`<b>Dificuldade:</b> ela subiu ${(difs[difs.length - 1] - difs[0]).toFixed(1)} pontos nos últimos sets — parte da queda pode ser só isso.`);
+    return `<div class="aviso" style="margin-top:7px"><b>Causas possíveis, com o que dá para checar:</b>
+      ${causas.length ? '<br>' + causas.join('<br>') : ' nenhuma evidência clara nos dados. Pode ser variação normal.'}</div>`;
+  }
+
+  /* ============================================================
      TELA — MÉTODO
      ============================================================ */
   function telaMetodo() {
@@ -866,6 +1134,7 @@
   /* ============================================================ */
   const TELAS = {
     agora: [telaAgora, depoisAgora],
+    estado: [telaEstado, depoisEstado],
     progresso: [telaProgresso, depoisProgresso],
     hud: [telaHud, depoisHud],
     metodo: [telaMetodo, () => {}],
@@ -875,6 +1144,7 @@
   function render(nome = telaAtual) {
     const [tpl, depois] = TELAS[nome] || TELAS.agora;
     if (nome !== 'hud' && mapaSurf) { mapaSurf.destroy(); mapaSurf = null; }
+    U.G.esconderDica();
     const alvo = $('#tela-' + nome);
     if (!alvo) return;
     alvo.innerHTML = tpl();
@@ -882,6 +1152,7 @@
   }
 
   U.UI = { ir, render, toast, modal, fecharModal, verPrincipio, cartoesMedidas, desenharMedidores,
+           abrirEixo, abrirPonto,
            get telaAtual() { return telaAtual; } };
 
 })(window.U);

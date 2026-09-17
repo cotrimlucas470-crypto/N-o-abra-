@@ -66,6 +66,7 @@
     if (!s.blocos.length) { U.DB.save(); return null; }
     s.fim = Date.now();
     s.fadiga = MD.fadiga(s.id);
+    try { U.IX.registrar(); } catch (e) { /* índice é derivado: nunca impede fechar a sessão */ }
     d.sessoes.push(s);
     if (d.sessoes.length > 200) d.sessoes = d.sessoes.slice(-200);
     const hoje = new Date().setHours(0, 0, 0, 0);
@@ -108,13 +109,14 @@
      BLOCO — a unidade de execução
      ============================================================ */
   function montarCfg(drill, dif, opts = {}) {
-    const d = U.DB.load();
     const ctx = { rotas: rotasAtivas(drill) };
     const base = drill.cfg ? drill.cfg(dif, ctx) : {};
-    return Object.assign({}, base, {
+    const cfg = Object.assign({}, base, {
       drillId: drill.id, dif: +dif.toFixed(2), mo: opts.mo || 'treino',
       pisoIki: pisoIki(),
     }, opts.cfg || {});
+    if (opts.ajuste) D.aplicarAjuste(cfg, opts.ajuste);
+    return cfg;
   }
 
   function rotasAtivas(drill) {
@@ -139,10 +141,13 @@
 
     const modo = St.cfg.mo;
     const esq = U.CI.ESQUEMAS[St.cfg.esquema];
+    const aj = St.cfg.__ajuste ? D.AJUSTES[St.cfg.__ajuste] : null;
     const chips = [
       modo === 'prova' ? '<span class="chip aviso">PROVA · sem retorno</span>'
       : modo === 'retencao' ? '<span class="chip aviso">RETENÇÃO · sem ajuda</span>'
+      : modo === 'cego' ? '<span class="chip aviso">CEGO · inédito</span>'
       : `<span class="chip">dif ${dif.toFixed(1)}</span>`,
+      aj ? `<span class="chip">${aj.nome}</span>` : '',
       esq && modo === 'treino' ? `<span class="chip">${esq.nome}</span>` : '',
     ].join('');
     faixa(drill.nome, chips);
@@ -160,6 +165,9 @@
          acima disso a dificuldade sobe, abaixo ela desce` : ' · nada se adapta aqui'}</div>
        ${drill.mede ? `<div class="mini" style="margin-top:4px">Alimenta a medida
          <b>${(MD.MEDIDAS[drill.mede] || MD.DERIVADAS[drill.mede] || {}).nome || drill.mede}</b>.</div>` : ''}
+       ${aj ? `<div class="aviso" style="margin-top:8px"><b>Este bloco foi montado contra uma fraqueza detectada:</b>
+         ${aj.o_que}. Só essa variável mudou — o resto do exercício é igual, senão não daria para saber o que
+         causou a diferença.</div>` : ''}
        ${drill.porque ? `<div class="aviso" style="margin-top:8px"><b>Por que este exercício:</b> ${drill.porque}</div>` : ''}`,
       () => rodar());
   }
@@ -243,7 +251,11 @@
     for (const t of lista) {
       if (!t.id || t.dx == null) continue;
       const a = d.toques[t.id] || (d.toques[t.id] = []);
-      a.push({ dx: +t.dx.toFixed(3), dy: +t.dy.toFixed(3) });
+      /* a data entra aqui para que a precisão possa ter uma série de pontos
+         independentes (uma média por dia) em vez de só um acumulado. Toques
+         antigos não têm; o eixo detecta isso e se recusa a falar de
+         tendência em vez de inventar uma. */
+      a.push({ dx: +t.dx.toFixed(3), dy: +t.dy.toFixed(3), t: Date.now() });
       if (a.length > 120) d.toques[t.id] = a.slice(-120);
     }
   }
@@ -296,6 +308,7 @@
         </div>` : ''}
 
       ${eh === 'retencao' ? retencaoTexto() : ''}
+      ${eh === 'cego' ? cegoTexto(r) : ''}
 
       ${ab ? `<div class="sep"></div>
         <div class="aviso ${ab.valido ? (ab.antecedencia <= 220 ? 'ok' : '') : 'bad'}">
@@ -322,6 +335,31 @@
         <div class="aviso"><b>Próximo: ${prox.titulo}</b><br>${prox.porque}
         <div class="xs" style="margin-top:4px">regra <code>${prox.regra}</code> · confiança: ${S.rotuloNivel(prox.confianca)}</div></div>` : ''}
     `, botoesFim(prox));
+  }
+
+  /**
+   * O bloco cego é o que mais convida a conclusão errada: oito situações
+   * inéditas, sem retorno, e um número no fim. Se o painel não disser o que
+   * ele é, esse número vira "o meu nível real" na cabeça de quem leu.
+   */
+  function cegoTexto(r) {
+    const a = U.IX.calcularEixos().find(e => e.id === 'adaptacao');
+    const w = r.ic;
+    return `<div class="sep"></div>
+      <div class="aviso">
+        <b>Este bloco não vale mais que os outros.</b> Oito tentativas dão um intervalo de
+        ${Math.round(w.lo * 100)} a ${Math.round(w.hi * 100)} pontos — largo demais para ser conclusão
+        sobre qualquer coisa. Ele não mexe na dificuldade, não entra na medida de execução e não pesa
+        mais na sua nota.<br><br>
+        O que ele faz: alimenta o eixo de <b>Adaptação</b>, que responde quanto do seu desempenho
+        sobra quando a situação muda de cara mas mantém a regra. É a diferença entre
+        <b>estar melhorando</b> e <b>estar ficando bom neste exercício</b>.
+        ${a && a.bruto != null
+          ? `<br><br>Adaptação acumulada: <b>${Math.round(a.bruto)}% do normal</b>
+             <span class="xs">(${a.n} variantes, ${S.rotuloNivel(a.nivel)})</span>.`
+          : `<br><br>Ainda não há variantes suficientes para o eixo de Adaptação existir. Uma
+             "última tentativa" sozinha não cria a medida — ela junta amostra ao longo das semanas.`}
+      </div>`;
   }
 
   function retencaoTexto() {
@@ -405,7 +443,8 @@
     if (b.acao.tipo === 'hud') { fecharPalco(); return U.UI.ir('hud'); }
     if (b.acao.tipo === 'prova') return iniciarProva();
     if (b.acao.tipo === 'retencao') return iniciarRetencao();
-    abrirBloco(D.porId(b.acao.drill), b.acao.dif);
+    if (b.acao.tipo === 'cego') return iniciarCego();
+    abrirBloco(D.porId(b.acao.drill), b.acao.dif, { ajuste: b.acao.ajuste });
   }
   function avancarPlano() {
     $('#res').classList.remove('on');
@@ -510,6 +549,28 @@
     St.prova = null;
     U.Sfx.level();
     mostrarPainelMedidas(true);
+  }
+
+  /* ============================================================
+     ÚLTIMA TENTATIVA — bloco cego
+     ============================================================ */
+  function iniciarCego() {
+    abrirPalco();
+    const drill = { id: 'cego', nome: 'Última tentativa', motor: D.FINAL_CEGO.motor,
+                    objetivo: 'Situações inéditas, sem retorno. Mede adaptação, não treino.', mede: 'adaptacao' };
+    St.drill = drill;
+    St.cfg = Object.assign({}, D.FINAL_CEGO.cfg, { drillId: 'cego', mo: 'cego', pisoIki: pisoIki() });
+    faixa('Última tentativa', '<span class="chip aviso">inédito · sem retorno</span>');
+    brief('Última tentativa', '8 situações · sem retorno · pista enganosa',
+      [
+        'Situações que você não treinou, com a pista mais visível apontando para o lado errado da conta.',
+        'Nenhum retorno entre elas. Você vai saber como foi só no fim.',
+        'Não é para ir bem. É para descobrir o que sobra quando o exercício não avisa nada.',
+      ],
+      `<div class="sep"></div>
+       <div class="aviso">Este bloco <b>não vale mais</b> que os outros. Oito tentativas não sustentam uma
+       conclusão sozinhas — ele entra como amostra do eixo de Adaptação e nada além disso.</div>`,
+      () => rodar(), 'Começar');
   }
 
   /* ============================================================
@@ -624,7 +685,7 @@
   });
   $('#brief-volta').addEventListener('click', () => { St.prova = null; St.plano = null; fecharPalco(); });
 
-  U.T = { abrirBloco, sessaoGuiada, iniciarProva, iniciarRetencao, mostrarPainelMedidas,
-          mostrarRelatorio, fecharPalco, _St: St };
+  U.T = { abrirBloco, sessaoGuiada, iniciarProva, iniciarRetencao, iniciarCego,
+          mostrarPainelMedidas, mostrarRelatorio, fecharPalco, _St: St };
 
 })(window.U);

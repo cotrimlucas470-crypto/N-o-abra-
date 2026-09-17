@@ -1,5 +1,5 @@
 ================================================================
-ESPELHO v2 — Recuperação e desenvolvimento de Jing
+ESPELHO v3 — Laboratório de evolução da Jing
 Honor of Kings · Poco X7 Pro · HTML/CSS/JS, sem dependências
 ================================================================
 
@@ -13,71 +13,413 @@ Na primeira abertura o sistema manda conferir o HUD. Faça isso antes de tudo:
 todo número daqui sai de toques sobre a réplica. Se ela não bate com o seu
 jogo, tudo o que vier depois mede a coisa errada.
 
+Seus dados da v1 e da v2 continuam lá. Nada é apagado.
 
-O QUE ESTA VERSÃO CORRIGIU DA ANTERIOR
---------------------------------------
-A v1 afirmava muito mais do que os dados dela sustentavam. Três mudanças
-grandes vieram de procurar evidência CONTRA o que já estava construído.
 
-1. OS 8 EIXOS 0-100 SAÍRAM.
-   Eram médias móveis sobre sets de 10-20 tentativas, sem unidade e sem
-   incerteza. Uma proporção com n=12 tem intervalo de ±20 pontos: largo
-   demais para distinguir 75% de 95%, que pedem ações opostas.
-   Agora são 5 medidas, cada uma com unidade, direção e intervalo:
-     RETENÇÃO      % da rota que volta no dia seguinte, sem ajuda
-     EXECUÇÃO      ms de rota que você sustenta com o acerto no alvo
-     ESTABILIDADE  % de variação do seu ritmo entre repetições
-     LEITURA       % de acerto com 300 ms de informação
-     ABORTO        ms de antecedência para conseguir cancelar
+================================================================
+PARTE 1 — O QUE A V3 MUDOU, E POR QUÊ
+================================================================
 
-2. O NÚMERO DE FREIO FOI REBAIXADO.
-   A v1 chamava aquilo de SSRT. O modelo que sustenta o SSRT assume
-   independência de contexto, premissa violada com frequência e gravidade —
-   e a tarefa aqui é sequencial com taxa alta de sinais, o que induz ficar
-   mais lento de propósito. O exercício ficou; a afirmação mudou para uma
-   medida descritiva e verificável. E o sistema agora vigia a lentidão
-   proativa: se você foi ficando mais lento durante o set, ele marca a
-   medida como não interpretável em vez de virar número.
+A v2 media cinco coisas e media bem. O problema dela era outro: ela nunca
+RELACIONAVA nada. Sabia que a sua velocidade tinha subido. Sabia que o seu
+acerto tinha caído. Não sabia que as duas coisas eram a mesma coisa.
 
-3. O FEEDBACK DESVANECIDO FOI REMOVIDO.
-   A meta-análise de 2022 sobre frequência reduzida de retorno não sustenta
-   a hipótese. No lugar ficou uma separação mais simples: TREINO tem retorno
-   em toda tentativa, PROVA não tem nenhum.
+A v3 tem três partes novas, e cada uma existe por um motivo específico.
 
-Também saíram: classificação de ferrugem em 6 estados (rotulava uma rota a
-partir de 3 tentativas), 11 dos 19 exercícios (eram a mesma tarefa com um
-parâmetro trocado, e espalhavam a amostra), os 7 níveis com portas de
-pontuação inventadas, 4 dos 10 tipos de gráfico, e os 8 cenários escritos à
-mão — que viravam gabarito decorado em duas sessões.
 
+1) O GÊMEO — um modelo do seu jeito de jogar
+   ------------------------------------------
+   Oito achados, e cada um só existe no CRUZAMENTO de duas medidas:
+
+     troca velocidade × precisão   acelerou pagando em erro?
+     acerto instável               acertos que passaram raspando
+     dependência da dica           a rota está na posição ou na luz?
+     viés de decisão               você erra sempre para o mesmo lado?
+     sensibilidade                 QUAL perturbação te derruba
+     padrão decorado               habilidade ou superfície memorizada?
+     custo de trocar de plano      quanto custa mudar no meio
+     calibração da confiança       a sua certeza acompanha o seu acerto?
+
+   Regra que vale para os oito: um achado sem amostra NÃO é achado. Fica
+   listado como suspeita, com o que falta, e não pode disparar exercício.
+
+   Detalhe metodológico que mudou a implementação: existem medidas que
+   juntam velocidade e acerto num número só (escore de eficiência inversa,
+   taxa de acerto por segundo). Elas são MENOS eficientes para recuperar
+   exatamente o efeito que você pediu, porque COMPENSAM mudanças opostas —
+   velocidade subindo e acerto caindo se anulam e o número fica parado.
+   Usá-las teria escondido justamente o que você quer enxergar. Por isso as
+   duas ficam separadas e o achado é o padrão conjunto das duas tendências.
+
+
+2) O TREINADOR ADVERSARIAL — o exercício ataca o achado
+   -----------------------------------------------------
+   Cada achado carrega um alvo: um exercício e um AJUSTE. O ajuste muda um
+   parâmetro e mais nada. Exemplos:
+
+     achou dependência da dica   → Rota com "sem destaque"
+     achou troca vel × precisão  → Rota com "tempo folgado" e bloco
+     achou perturbação "ordem"   → Rota com essa perturbação em metade
+     achou viés em ENTRAR        → Lutar com mais situações onde ENTRAR erra
+     achou excesso de confiança  → Ler cobrando o seu grau de certeza
+
+   Caos controlado quer dizer UMA variável por vez. As sete perturbações
+   (ritmo, alvo, ordem, estímulo falso, janela, ameaça, informação
+   incompleta) entram em METADE das tentativas do set, misturadas com a
+   outra metade normal. Isso é de propósito: a comparação fica dentro do
+   mesmo set, no mesmo dia, com o mesmo cansaço. Comparar um set perturbado
+   de hoje com um set normal de terça compara também terça.
+
+
+3) O ESTADO JING — dez eixos e um índice
+   --------------------------------------
+   A v2 tinha TIRADO os 8 eixos 0-100, porque eram números sem unidade, sem
+   incerteza, capazes de se mexer com 12 tentativas. A v3 traz dez eixos de
+   volta — mas só porque agora existem três coisas que não existiam antes.
+
+   a) Cada eixo é a tradução de uma QUANTIDADE MEDIDA, com unidade.
+      A nota 0-100 é convenção de leitura. O dado é o número com unidade
+      logo abaixo dela, e a régua (o que vale 0, o que vale 100) está
+      escrita em cada eixo, declarada como convenção minha.
+
+   b) Toda nota passa por ENCOLHIMENTO. A estimativa nova é puxada na
+      direção da anterior com peso n/(n+k). Com amostra pequena a nota quase
+      não se mexe; com amostra grande ela manda. É isso que atende o seu
+      pedido de que uma sessão excepcional não distorça o seu nível real.
+      Uma sessão fora da curva move pouco. Doze sessões fora da curva
+      seguidas movem tudo — e devem mover, porque aí já não é sorte.
+
+   c) Nada vira "evolução" ou "queda" por comparar duas sessões. Ver a
+      PARTE 2.
+
+   Os dez eixos: mecânica, precisão, velocidade, consistência, reflexo,
+   percepção, decisão, controle sob pressão, retenção, adaptação.
+
+
+================================================================
+PARTE 2 — COMO O SISTEMA CALCULA A SUA EVOLUÇÃO
+================================================================
+
+Esta é a parte que mais mudou, então vale em detalhe.
+
+PASSO 1 — MEDIR COM UNIDADE
+   Cada eixo pergunta uma coisa e responde com um número que tem unidade.
+   Mecânica responde em ms. Decisão responde em %. Percepção responde na
+   janela de oclusão onde o seu acerto cai a 60%.
+
+PASSO 2 — CONTAR O QUE É INDEPENDENTE, NÃO O QUE É GRANDE
+   Um limiar de mecânica sai de um set de ~12 tentativas. Três limiares NÃO
+   são 36 observações independentes: são três. Consistência é a média dos
+   seus CVs POR SESSÃO: o que a sustenta é o número de sessões, não o de
+   tentativas dentro delas.
+   Esse número — as estimativas independentes — é o que decide tanto o
+   quanto a nota pode se mexer quanto o peso dela no índice.
+   (Isto foi um bug encontrado nos testes: contando tentativas, a nota de
+   mecânica pulava 41 pontos num único dia.)
+
+PASSO 3 — ENCOLHER
+   nota = anterior + w·(observado − anterior), com w = n/(n+k).
+   O k de cada eixo é maior quanto mais ruidosa é a medida.
+
+PASSO 4 — JUNTAR, E NÃO É A MÉDIA
+   O índice global é uma MÉDIA HARMÔNICA PONDERADA.
+   Numa luta o seu desempenho é limitado pelo elo mais fraco: dedo rápido
+   não compensa leitura lenta. A média harmônica pune o componente fraco
+   muito mais do que premia o forte.
+       {90, 90, 90, 30} → média aritmética 75 · harmônica 60
+   O peso de cada eixo é a CONFIABILIDADE dele — n/(n+k) — e não um juízo
+   meu sobre importância. Eixo mal medido quase não entra. Assim o índice
+   não sobe porque um eixo com pouca amostra teve sorte, e eu não preciso
+   inventar pesos.
+   A tela mostra os dois números lado a lado e diz de quanto é a diferença,
+   para a decisão ficar à mostra em vez de embutida.
+
+PASSO 5 — ESCOLHER A SÉRIE CERTA PARA OLHAR
+   Antes de decidir se mudou, é preciso decidir O QUE olhar, e isso não é
+   óbvio. A nota que aparece na tela NÃO serve para tendência, por dois
+   motivos que só apareceram simulando 45 dias:
+     · ela é encolhida, então sobe sozinha enquanto converge;
+     · ela sai de janelas que ainda estão enchendo, então fica mais precisa
+       com o tempo — e uma estimativa que melhora desenha uma trajetória
+       que parece progresso.
+   A série que vale é, em ordem de preferência:
+     1. série VIVA — um ponto por dia de teste, calculado de amostras
+        disjuntas (retenção, decisão, velocidade têm isso);
+     2. nota CRUA do histórico, sem encolhimento, só depois que o eixo já é
+        comparável consigo mesmo, e sem pontos repetidos;
+     3. nada — e o eixo diz que dá nível, não tendência.
+
+PASSO 6 — DECIDIR SE MUDOU
+   Uma variação só é declarada real quando passa por QUATRO filtros:
+
+     · erro típico       o maior entre o desvio das diferenças dividido por
+                         raiz de 2 e o desvio em torno da tendência — o
+                         segundo existe porque o primeiro é enganado por
+                         pontos que se sobrepõem
+     · tamanho útil      0,2 desvio-padrão, E pelo menos 3 pontos da régua
+                         em valor absoluto: um ponto de nota não é notícia
+     · soma cumulativa   a mudança persiste ou foi um solavanco?
+     · e isso vale IGUAL para os dois lados — "queda consistente" precisa
+       passar exatamente pelos mesmos testes que "evolução"
+
+   Os dois lados da comparação são MÉDIAS, nunca pontos soltos, e o número
+   de pontos de cada lado é corrigido por AUTOCORRELAÇÃO: vinte pontos que
+   se sobrepõem podem valer três observações independentes, e contá-los
+   como vinte era o que transformava perambulada do estimador em veredicto.
+
+   O resultado é um de cinco estados:
+     🟢 evolução           subida confirmada pela soma cumulativa
+     🟡 estabilidade       variação dentro do ruído da própria medida
+     🟠 queda suspeita     caiu mais que o ruído, ainda não é persistente
+     🔴 queda consistente  queda persistente confirmada
+     ⚪ sem dados          série curta demais para separar sinal de ruído
+
+   Numa queda, o sistema tenta atribuir causa: fadiga na sessão, perda de
+   retenção, um achado do gêmeo, erro concentrado num tipo, ou subida de
+   dificuldade. Quando não consegue, diz que não consegue.
+
+PASSO 7 — O SEU LIMITE
+   Ajustando acerto contra dificuldade sai uma curva com três marcas: onde
+   você é consistente (90%), onde começa a oscilar (70%), onde quebra (50%).
+   O ajuste inclui TAXA DE LAPSO: o quanto você erra na dificuldade baixa
+   por motivo que não é a dificuldade. Sem ela, um punhado de falhas por
+   distração envieza as três marcas e o sistema te diz que o seu limite é
+   mais baixo do que é.
+
+
+================================================================
+PARTE 3 — AS TAXAS DE ERRO DOS DETECTORES
+================================================================
+
+Um detector sem esses dois números é uma opinião. Estes foram MEDIDOS por
+simulação — 50 jogadores de 45 dias cada, metade sem mudar nada e metade
+melhorando de verdade — e as simulações rodam como teste a cada mudança.
+
+O SISTEMA INTEIRO, PELO CAMINHO QUE VOCÊ VÊ NA TELA
+
+                                      jogador     jogador
+                                      PARADO      MELHORANDO
+   eixos com veredicto firme            3%          55%
+   janelas de 7 dias marcadas "real"    5%          77%
+   mecânica lida como evolução          0%         100%
+   variação do índice (mediana)       +2,6        +15,0
+
+   por eixo, veredicto firme:        parado    melhorando
+     mecânica                          0%         100%
+     reflexo                           0%         100%
+     velocidade                        4%         100%
+     precisão                          8%          12%
+     decisão                           2%          48%
+     retenção                          4%          18%
+     consistência                      6%           6%
+
+   Como ler isso: mecânica, reflexo e velocidade são os eixos em que o
+   sistema enxerga bem — nunca inventaram evolução num jogador parado e
+   acharam 100% das evoluções reais. Retenção e decisão têm poder baixo:
+   elas medem proporções, e uma proporção por dia tem ruído demais para
+   virar tendência confiável em seis semanas. O NÚMERO delas (com o
+   intervalo) continua sendo a medida boa; a SETA delas é fraca, e o
+   sistema não finge o contrário.
+
+PERTURBAÇÃO (qual delas te derruba)
+   Nada acontecendo, sete fatores    acusa em 3-4% das vezes
+   Queda real de 35 pontos, n=30     encontra em 85%
+   Queda real de 20 pontos, n=45     encontra em 48%
+
+   Eu comparo sete perturbações e anuncio a PIOR. Escolher o maior de sete
+   comparações e reportá-lo com intervalo de 95% produz falso positivo em
+   cerca de 30% das vezes — e isso apareceu acontecendo num teste, com uma
+   perturbação de 6 pontos de queda real sendo eleita a pior com 22. O
+   intervalo do vencedor agora é o de sete comparações. O preço é ficar
+   cego para quedas médias, e isso está escrito na tela.
+
+
+================================================================
+PARTE 4 — AS AVALIAÇÕES FALSAS QUE OS TESTES ENCONTRARAM
+================================================================
+
+Você pediu para eu procurar situações que produzissem avaliação falsa.
+Foram doze, todas com o código já escrito e parecendo funcionar. As seis
+primeiras saíram de testes de unidade; as seis últimas só apareceram quando
+simulei jogadores durante 45 dias — e essas eram as piores, porque durariam
+semanas antes de alguém desconfiar.
+
+ENCONTRADAS EM TESTE DE UNIDADE
+
+1. O CORTE DE ACERTO INSTÁVEL SE ANULAVA.
+   "Instável" era acima do 3º quartil do próprio jogador. Por construção
+   isso nunca podia passar de 25% dos acertos — e quanto PIOR ficava o seu
+   ritmo, mais o corte subia junto. A medida escondia exatamente o que
+   devia detectar.
+
+2. O VIÉS DE DECISÃO USAVA O ACASO ERRADO.
+   Comparava com 1/3. Mas quando você erra, a resposta certa está fora e
+   sobram DUAS opções: quem não tem viés nenhum divide 50/50, e o teste
+   acusava viés em quase todo mundo. Virou taxa condicional contra 50%.
+
+3. A CONFIABILIDADE ERA CONTADA EM TENTATIVAS, NÃO EM ESTIMATIVAS.
+   Três limiares viravam "36 observações", e a nota de mecânica pulava 41
+   pontos num dia.
+
+4. SEM HISTÓRICO, TUDO TINHA PESO TOTAL.
+   O peso do encolhimento servia também de peso no índice. Na primeira
+   medida ele é 1 (correto: não há para onde puxar), e com isso uma medida
+   de uma sessão só entrava no índice com peso máximo.
+
+5. UM PONTO SOLTO DECIDIA A DIREÇÃO.
+   A classificação comparava o ÚLTIMO PONTO com a média do início, e séries
+   planas viravam "queda suspeita" sozinhas.
+
+6. "MAIOR QUE O ERRO TÍPICO" NÃO É VEREDICTO.
+   É triagem: deixa passar um terço das comparações de puro ruído. Numa
+   tela com dez eixos, isso é várias mentiras por visita.
+
+SÓ APARECERAM NA SIMULAÇÃO DE 45 DIAS
+
+7. A MÉDIA HARMÔNICA COLAPSAVA COM UM EIXO NO CHÃO.
+   Ela usa o inverso das notas, e o zero da régua não é "capacidade zero" —
+   é o pior desempenho plausível. Um jogador competente com a régua de
+   velocidade mal posta marcava 5 de 100 no índice. Piso de 20 na conta
+   (a punição continua: {90,90,90,30} ainda dá 60) e régua de velocidade
+   alargada de [520,170] para [700,200].
+
+8. "QUEDA CONSISTENTE" TINHA A BARRA MAIS BAIXA DA TELA.
+   O veredicto mais pesado saía da soma cumulativa sozinha, sem o teste de
+   ruído que a subida precisava passar. Num jogador que não mudou nada,
+   quatro dos cinco eixos vinham marcados como queda.
+
+9. CONVERGÊNCIA DO ESTIMADOR PARECIA PROGRESSO DO JOGADOR.
+   O encolhimento puxa a nota nova na direção da anterior enquanto a
+   amostra é pequena — então num jogador com habilidade FIXA a sequência de
+   notas sobe sozinha, convergindo devagar para o valor verdadeiro. Três
+   eixos declarados "evolução" sem nenhuma evolução. Agora a nota encolhida
+   fica na tela e a nota CRUA é a que entra em tendência, e só depois que o
+   eixo já é comparável consigo mesmo.
+
+10. PONTOS QUE SE SOBREPÕEM ERAM CONTADOS UM POR UM.
+   O eixo de mecânica é a média dos últimos oito limiares: dois pontos
+   seguidos compartilham sete deles. Vinte e três pontos assim não são
+   vinte e três observações — são umas três. Tratados como independentes,
+   qualquer perambulada lenta do estimador virava "queda consistente".
+   Entrou uma correção por autocorrelação dos resíduos.
+
+11. NEM TODO EIXO SE ATUALIZA TODA SESSÃO.
+   A retenção só mede a cada dois dias, então metade dos pontos do
+   histórico dela era o MESMO número carimbado de novo. Diferenças iguais a
+   zero derrubam a estimativa de ruído a quase nada. Ponto repetido saiu da
+   série de tendência.
+
+12. PROPORÇÃO ACUMULADA NÃO TEM TENDÊNCIA, TEM CONVERGÊNCIA.
+   Retenção e decisão acumulam numa janela de 45-60 dias; a sequência desse
+   acumulado converge em vez de oscilar, e dava veredicto falso em 38% e
+   23% dos jogadores parados. Mas as duas têm, por baixo, uma série
+   genuinamente independente: a proporção de CADA DIA de teste. É essa que
+   vai para a tendência — amostras disjuntas, nada compartilhado. Caiu para
+   5% e 0%. O mesmo foi feito com velocidade (28% → 4%).
+
+E MAIS TRÊS COISAS QUE O SISTEMA AGORA SE RECUSA A FAZER
+   · Mudança menor que 3 pontos da régua nunca é evolução nem queda. O
+     teste relativo encolhia junto com a série, e uma sequência
+     62-63-63-64-64 passava como evolução por UM ponto de nota.
+   · Quando 30% ou mais das medidas de um eixo encostam no fim da régua,
+     ele não dá direção: naquela faixa a régua não distingue mais nada.
+   · Quando um eixo não consegue montar série de pontos independentes (é o
+     caso da precisão com toques gravados antes desta versão, que não têm
+     data), ele diz isso e dá nível em vez de tendência.
+
+Também corrigido: a frase sobre taxa de lapso dizia "X% das suas falhas não
+têm relação com a dificuldade". Falso — λ é o teto que você não alcança nem
+na dificuldade mais baixa, não uma fração dos seus erros.
+
+E uma coisa que o sistema passou a AVISAR em vez de corrigir: o índice
+global muda também quando um eixo novo entra na conta. Quando o número de
+eixos do começo do histórico é diferente do de hoje, a tela diz isso e
+manda você olhar eixo por eixo, que é onde a comparação é limpa.
+
+
+================================================================
+PARTE 5 — O QUE CONTINUA DA V2 (e por que continua)
+================================================================
 
 A DESCOBERTA QUE MUDOU O DESENHO
---------------------------------
-Se a dificuldade se adapta para manter o acerto perto de 85%, então o acerto
-vira constante por construção e deixa de medir qualquer coisa. O que varia —
-e portanto o que mede — é o NÍVEL sustentado nesse acerto.
+   Se a dificuldade se adapta para manter o acerto perto de 85%, o acerto
+   vira constante por construção e deixa de medir qualquer coisa. O que
+   varia — e portanto o que mede — é o NÍVEL sustentado nesse acerto. Por
+   isso a medida de execução é um tempo em ms, e só é registrada em sets
+   onde a dificuldade parou de se mexer.
 
-Por isso a medida de execução é um tempo em milissegundos e não uma
-porcentagem, e por isso ela só é registrada em sets onde a dificuldade parou
-de se mexer. Um limiar tirado de um set instável não significa nada.
+TREINO, PROVA, RETENÇÃO E A ÚLTIMA TENTATIVA
+   TREINO     retorno em toda tentativa, dificuldade adaptativa.
+   PROVA      condição fixa para sempre, nenhum retorno, nada se adapta.
+   RETENÇÃO   é uma CONDIÇÃO, não uma tela: rota de referência, sem ajuda,
+              pelo menos 20h depois do último treino de rota. A Prova feita
+              no dia seguinte satisfaz isso tanto quanto o teste dedicado.
+   ÚLTIMA TENTATIVA (nova na v3)
+              8 situações inéditas com a pista saliente apontando para o
+              lado errado, sem retorno nenhum. Separa "aprendi a regra" de
+              "fiquei bom neste exercício". Ela NÃO vale mais que os outros
+              blocos: vale como amostra do eixo de Adaptação, e só. E não
+              entra em toda sessão — um teste cego que vira rotina deixa de
+              ser cego.
+
+O NÚMERO DE FREIO CONTINUA REBAIXADO
+   O modelo que sustenta o SSRT assume independência de contexto, premissa
+   violada com frequência, e a tarefa aqui induz ficar mais lento de
+   propósito. O exercício ficou; a afirmação é descritiva. O sistema vigia a
+   lentidão proativa e marca a medida como não interpretável quando ela
+   aparece.
+
+O QUE CONTINUA FORA, DE PROPÓSITO
+   · feedback desvanecido (a meta-análise de 2022 não sustenta)
+   · sensibilidade metacognitiva / meta-d' (confiabilidade teste-reteste
+     ruim; só a calibração de confiança entrou, que é a parte confiável)
+   · escores que juntam velocidade e acerto (escondem a troca)
+   · ganhos micro-offline (contestados)
+
+FADIGA
+   Três sinais independentes entre o primeiro e o último terço da sessão:
+   irregularidade, lentidão, queda de acerto. Dois juntos = parar. Um só =
+   o sistema diz que não sabe separar cansaço de dificuldade alta.
+
+TRANSFERÊNCIA — O QUE ESTE SISTEMA NÃO PROMETE
+   Nenhum sistema como este consegue provar que melhora o seu jogo. A
+   revisão de escopo sobre esports e cognição não sustenta ganho amplo, e um
+   ensaio controlado de 8 semanas melhorou coordenação sem demonstrar
+   transferência para partida. Continua lacuna aberta.
+   O que dá para fazer: tudo acontece sobre o SEU HUD, com as SUAS rotas e
+   decisões deste jogo. Especificidade é o único mecanismo confiável. O
+   registro de partidas compara períodos e avisa quando a diferença ainda
+   não é maior que a variação normal entre partidas. É a sua impressão, não
+   um experimento, e está escrito assim na tela.
+
+SEU HUD
+   · A borda do item do elmo encosta na linha Habilidade 1 → Ataque, o
+     trajeto mais percorrido (32,7 mm). Único ajuste recomendado: 4 mm.
+   · Habilidade 1 → Ultimate são 31,8 mm, a maior distância do layout. Não
+     mexa: isso é treino, não configuração.
+   · O alcance do polegar sozinho não conclui nada — vira conclusão só
+     quando coincide com dispersão alta nos seus toques e tempo acima da sua
+     reta de Fitts.
+
+SEUS DADOS
+   Tudo no aparelho. O histórico da v1 foi PRESERVADO e não é apagado, mas
+   não entra nas medidas novas: foi colhido com outro instrumento e sem
+   condição de referência fixa, e juntar séries de instrumentos diferentes é
+   a forma mais comum de inventar uma tendência que não existe.
+   Config → Exportar backup. Limpar os dados do site no Chrome apaga tudo.
+
+LUNA
+   Abre quando a Jing sustentar retenção com limite inferior acima de 70% e
+   variação abaixo de 22%. Antes disso as duas competem pelo mesmo mapa de
+   polegar e treinar Luna atrasa a Jing.
 
 
-TREINO E PROVA SÃO COISAS DIFERENTES
-------------------------------------
-TREINO   retorno em toda tentativa, dificuldade adaptativa, trilha completa.
-PROVA    condição fixa para sempre, nenhum retorno, trilha mínima, nada se
-         adapta. ~66 tentativas, 4 blocos, 10 minutos.
-RETENÇÃO igual à Prova, 15 tentativas, pelo menos 20h depois do treino.
+================================================================
+PARTE 6 — COMO O SISTEMA DECIDE O SEU PRÓXIMO TREINO
+================================================================
 
-A amostra ACUMULA entre provas. É por isso que as medidas saem de
-"provisório" com o tempo, e é por isso que uma prova sozinha nunca é
-apresentada como conclusão.
-
-
-COMO O SISTEMA DECIDE O SEU PRÓXIMO TREINO
-------------------------------------------
-Uma lista de 14 regras avaliada em ordem. A primeira que dispara decide.
-Sem pesos ocultos: cada recomendação mostra a regra e o número que a fez
+Uma lista de regras avaliada em ordem. A primeira que dispara decide. Sem
+pesos ocultos: cada recomendação mostra a regra e o número que a fez
 disparar, para você poder discordar com argumento.
 
    1 conferir o HUD          antes de qualquer medida
@@ -87,73 +429,24 @@ disparar, para você poder discordar com argumento.
    5 prova inicial           sem linha de base não há comparação
    6 retenção devida         20h desde o último treino de rota
    7 prova vencida           medida em condição fixa envelhece
-   8 pressa dominante        segura o tempo antes de acelerar
-   9 sem dados de execução   coleta, e diz que está coletando
-  10 estabilidade            ritmo antes de velocidade
-  11 retenção baixa          treinar sem ajuda
-  12 leitura fraca           oclusão temporal
-  13 aborto fraco            freio
-  14 integrar / rodízio      mecânica e decisão juntas
+   8 ACHADO DO GÊMEO         o exercício que ataca o seu padrão (novo)
+   9 pressa dominante        segura o tempo antes de acelerar
+  10 sem dados de execução   coleta, e diz que está coletando
+  11 estabilidade            ritmo antes de velocidade
+  12 retenção baixa          treinar sem ajuda
+  13 leitura fraca           oclusão temporal
+  14 aborto fraco            freio
+  15 integrar / rodízio      mecânica e decisão juntas
+   + última tentativa        fecha a sessão quando houve treino de verdade
+                             e o eixo de adaptação ainda tem pouca amostra
 
 Se nenhuma medida tem amostra suficiente, o sistema diz que está coletando
 em vez de fingir uma recomendação informada.
 
 
+================================================================
 QUANTO DA SUA JING VOLTOU
--------------------------
+================================================================
 Uma resposta, com intervalo: a proporção da rota de referência que volta no
 dia seguinte, sem ajuda. A fase de recuperação termina quando o LIMITE
 INFERIOR desse intervalo passa de 70% — não depois de N dias.
-
-
-FADIGA
-------
-A variabilidade do seu tempo cresce com o tempo de tarefa e é marcador mais
-sensível que a média ou a taxa de erro. O sistema compara o primeiro e o
-último terço da sessão em três sinais (irregularidade, lentidão, queda de
-acerto). Dois sinais juntos = recomendação de parar. Um sinal só = pode ser
-cansaço ou dificuldade alta demais, e o sistema diz que não sabe separar.
-Isto é estimativa de qualidade de treino, não diagnóstico de nada.
-
-
-TRANSFERÊNCIA — O QUE ESTE SISTEMA NÃO PROMETE
-----------------------------------------------
-Nenhum sistema como este consegue provar que melhora o seu jogo. A revisão
-de escopo sobre esports e cognição não sustenta ganho amplo vindo de jogar,
-e um ensaio controlado de 8 semanas melhorou coordenação sem demonstrar
-transferência para partida. Isso continua sendo lacuna aberta.
-
-O que dá para fazer: tudo acontece sobre o SEU HUD, com as SUAS rotas e
-decisões deste jogo — especificidade é o único mecanismo confiável. E existe
-um registro de partidas onde você anota o que aconteceu de verdade; o
-sistema compara os períodos e avisa quando a diferença ainda não é maior que
-a variação normal entre partidas. É a sua impressão, não um experimento, e
-está escrito assim na tela.
-
-
-SEU HUD (detalhes na aba HUD)
------------------------------
-· A borda do item do elmo encosta na linha Habilidade 1 → Ataque, o trajeto
-  mais percorrido do jogo (32,7 mm). Único ajuste recomendado agora: 4 mm.
-· Habilidade 1 → Ultimate são 31,8 mm, a maior distância do layout. Não
-  mexa: isso é treino, não configuração.
-· A aba HUD também estima alcance do polegar. Isso sozinho não conclui nada —
-  vira conclusão só quando coincide com dispersão alta nos seus próprios
-  toques e tempo acima da sua reta de Fitts.
-
-
-SEUS DADOS
-----------
-Tudo no aparelho. O histórico da v1 foi PRESERVADO e não é apagado, mas não
-entra nas medidas novas: foi colhido com outro instrumento e sem condição de
-referência fixa, e juntar séries de instrumentos diferentes é a forma mais
-comum de inventar uma tendência que não existe. Está no backup exportável.
-
-Config → Exportar backup. Limpar os dados do site no Chrome apaga tudo.
-
-
-LUNA
-----
-Abre quando a Jing sustentar retenção com limite inferior acima de 70% e
-variação abaixo de 22%. Antes disso as duas competem pelo mesmo mapa de
-polegar e treinar Luna atrasa a Jing.

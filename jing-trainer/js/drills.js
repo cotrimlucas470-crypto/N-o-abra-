@@ -95,8 +95,11 @@
           rotas, esquema: d < 3 ? 'bloco' : d < 5 ? 'serial' : 'aleatorio',
           alvoMs: Math.round(porPasso * passos),
           deadline: Math.round(porPasso * passos * 1.7 + 500),
-          ruido: d >= 8 ? Math.round(escala(d, 0, 3)) : 0,
           tempoLeitura: Math.round(escala(d, 950, 450)),
+          /* variante e perturbação entram sozinhas na parte alta da escala:
+             sem elas não dá para separar habilidade de padrão decorado */
+          variante: d >= 5, varianteProb: 0.35,
+          perturbacao: d >= 6 ? 'janela' : null, pertProb: 0.35,
         };
       },
     },
@@ -158,6 +161,9 @@
         janelaRef: 300,
         limite: Math.round(escala(d, 2200, 1100)),
         isiMin: 650, isiMax: Math.round(escala(d, 1800, 2600)),
+        /* confiança só a partir do meio da escala: nos primeiros níveis
+           a pergunta atrapalha mais do que informa */
+        confianca: d >= 3, tempoConfianca: 2200,
       }),
     },
     /* ---------------------------------------------------------- */
@@ -201,6 +207,7 @@
         tempoDecisao: Math.round(escala(d, 3600, 1500)),
         janelaFreio: Math.round(escala(d, 1000, 650)),
         explicaNaHora: d < 6,
+        confianca: d >= 4, tempoConfianca: 2000,
       }),
     },
     /* ---------------------------------------------------------- */
@@ -237,6 +244,90 @@
     },
   ];
 
+  /* ============================================================
+     AJUSTES ADVERSARIAIS
+     O treinador não escolhe só QUAL exercício: escolhe COMO ele vai
+     ser montado, para atacar o achado do gêmeo motor. Cada ajuste
+     muda um parâmetro e nada mais — assim continua sendo possível
+     dizer qual variável causou a mudança de desempenho.
+     ============================================================ */
+  const AJUSTES = {
+    segurar_tempo: {
+      nome: 'tempo folgado', o_que: 'o limite volta 20% e a rota repete em bloco',
+      aplicar: (c) => { c.alvoMs = Math.round((c.alvoMs || 1100) * 1.2);
+                        c.deadline = Math.round((c.deadline || 2000) * 1.2);
+                        c.esquema = 'bloco'; c.perturbacao = null; c.variante = false; },
+    },
+    janela_estreita: {
+      nome: 'janela apertada', o_que: 'a tolerância do compasso fecha',
+      aplicar: (c) => { c.janela = Math.round((c.janela || 140) * 0.7); },
+    },
+    sem_dica: {
+      nome: 'sem destaque', o_que: 'o botão não acende em nenhuma tentativa',
+      aplicar: (c) => { c.mostrarRota = 'nunca'; },
+    },
+    so_variantes: {
+      nome: 'só armadilhas', o_que: 'a pista saliente aponta para o lado errado',
+      aplicar: (c) => { c.soArmadilhas = true; },
+    },
+    mais_trocas: {
+      nome: 'troca de plano', o_que: 'a rota muda no meio em metade das tentativas',
+      aplicar: (c) => { c.troca = 0.5; },
+    },
+    punir_chute: {
+      nome: 'confiança cobrada', o_que: 'toda resposta pede o seu grau de certeza',
+      aplicar: (c) => { c.confianca = true; },
+    },
+    premiar_decisao: {
+      nome: 'confiança cobrada', o_que: 'toda resposta pede o seu grau de certeza',
+      aplicar: (c) => { c.confianca = true; },
+    },
+  };
+  for (const p of ['ritmo', 'alvo', 'ordem', 'falso', 'janela', 'ameaca', 'incompleta']) {
+    const P = (U.GM && U.GM.PERTURBACOES[p]) || {};
+    AJUSTES['perturbar_' + p] = {
+      nome: 'perturbação: ' + (P.nome || p),
+      /* nomear a variável não é enfeite: sem isso o briefing dizia "metade
+         das tentativas com essa variável alterada" sem nunca dizer qual, e
+         você entrava num exercício modificado sem saber o que mudou. */
+      o_que: `${P.nome || p} — ${P.o_que || 'uma variável alterada'}. Isso acontece em metade das ` +
+             `tentativas; a outra metade vem normal, no mesmo set, e é ela a linha de base da comparação`,
+      aplicar: (c) => { c.perturbacao = p; c.pertProb = 0.5; },
+    };
+  }
+  for (const v of ['entrar', 'esperar', 'recuar']) {
+    AJUSTES['viesar_' + v] = {
+      nome: 'insistir no seu viés',
+      o_que: `mais situações em que ${v.toUpperCase()} é a resposta errada`,
+      aplicar: (c) => { c.viesar = v; c.soArmadilhas = true; },
+    };
+  }
+
+  function aplicarAjuste(cfg, ajuste) {
+    const A = AJUSTES[ajuste];
+    if (!A) return cfg;
+    A.aplicar(cfg);
+    cfg.__ajuste = ajuste;
+    return cfg;
+  }
+
+  /* ============================================================
+     ÚLTIMA TENTATIVA — bloco cego
+     Situação inédita, perturbação que não apareceu na sessão,
+     retorno mínimo. Alimenta o eixo de Adaptação.
+     Peso: NÃO é maior que os outros blocos. Pesar mais uma medida
+     de 8 tentativas seria dar autoridade a um número que não a tem;
+     ela entra como amostra do eixo de adaptação e nada além disso.
+     ============================================================ */
+  const FINAL_CEGO = {
+    nome: 'Última tentativa', motor: 'decisao',
+    cfg: {
+      tentativas: 8, dif: 6, leitura: 1500, tempoDecisao: 2200, janelaFreio: 800,
+      explicaNaHora: false, semRetorno: true, soArmadilhas: true, confianca: true,
+      tempoConfianca: 1800,
+    },
+  };
+
   const porId = (id) => DRILLS.find(x => x.id === id);
   const deJing = () => DRILLS.filter(x => !x.heroi);
   const deLuna = () => DRILLS.filter(x => x.heroi === 'luna');
@@ -266,6 +357,7 @@
       cfg: {
         tentativas: 18, sinais: CO.SINAIS, janelas: [300], janelaRef: 300,
         limite: 1700, isiMin: 650, isiMax: 2000, semRetorno: true, ref: true,
+        confianca: true, tempoConfianca: 1800,
       },
     },
     {
@@ -285,6 +377,7 @@
       cfg: {
         tentativas: 10, dif: 5, leitura: 1800, tempoDecisao: 2400, janelaFreio: 800,
         explicaNaHora: false, semRetorno: true, ref: true, rotaFixa: ['s1', 'aa', 's2'],
+        confianca: true, tempoConfianca: 1800,
       },
     },
   ];
@@ -299,6 +392,6 @@
     },
   };
 
-  U.D = { DRILLS, porId, deJing, deLuna, PROVA, RETENCAO, escala, ajudaPor };
+  U.D = { DRILLS, porId, deJing, deLuna, PROVA, RETENCAO, FINAL_CEGO, AJUSTES, aplicarAjuste, escala, ajudaPor };
 
 })(window.U);

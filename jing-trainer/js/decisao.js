@@ -15,7 +15,7 @@
 'use strict';
 (function (U) {
 
-  const S = U.S, MD = U.MD, CT = U.CT;
+  const S = U.S, MD = U.MD, CT = U.CT, GM = U.GM;
 
   /* Pisos de decisão. Cada um existe por um motivo, não por estética. */
   const PISO = {
@@ -37,8 +37,10 @@
     const hoje = new Date().setHours(0, 0, 0, 0);
     const rotaRecente = MD.filtrar({ k: 'rota', mo: 'treino', dias: 5 });
     const ultimaRota = rotaRecente.length ? rotaRecente[rotaRecente.length - 1].t : 0;
+    let ach = { ativos: [], lista: [], suspeitas: [], principal: null };
+    try { ach = GM.achados({}); } catch (e) { /* sem dados ainda */ }
     return {
-      d, p, fase: CT.fase(), faseInfo: CT.FASES[CT.fase()],
+      d, p, ach, fase: CT.fase(), faseInfo: CT.FASES[CT.fase()],
       erros: MD.perfilErros({ dias: 14 }),
       fadiga: MD.fadiga(),
       sessoesHoje: d.sessoes.filter(s => new Date(s.t).setHours(0, 0, 0, 0) === hoje).length,
@@ -118,6 +120,32 @@
         ? `A última Prova foi há ${Math.round(c.diasUltProva)} dias. As medidas em condição fixa envelhecem — e comparar treino de hoje com prova de duas semanas atrás produz conclusão errada.`
         : 'Falta amostra em condição fixa para a medida de leitura. A Prova coleta isso de um jeito comparável.',
       confianca: () => 'certa',
+    },
+    {
+      /* ------------------------------------------------------------
+         TREINADOR ADVERSARIAL
+         Quando o gêmeo motor encontra um padrão com amostra suficiente,
+         ele passa na frente das regras genéricas de déficit: atacar a
+         fraqueza identificada rende mais do que treinar o eixo que está
+         numericamente mais baixo, porque o eixo baixo às vezes é
+         consequência do padrão e não causa.
+         ------------------------------------------------------------ */
+      id: 'adversarial',
+      titulo: 'Exercício montado contra a sua fraqueza',
+      quando: (c) => !!(c.ach.principal && c.ach.principal.alvo),
+      acao: (c) => {
+        const a = c.ach.principal.alvo;
+        return { tipo: 'treino', drill: a.drill, ajuste: a.ajuste };
+      },
+      porque: (c) => {
+        const a = c.ach.principal;
+        const A = U.D.AJUSTES[a.alvo.ajuste];
+        return `${a.texto} ${A ? `Este bloco é montado para atacar isso: ${A.o_que}.` : ''}`;
+      },
+      confianca: (c) => {
+        const n = c.ach.principal.n || 0;
+        return n >= 40 ? 'razoavel' : n >= 20 ? 'provisoria' : 'coletando';
+      },
     },
     {
       id: 'pressa',
@@ -247,6 +275,19 @@
       if (dec.acao.tipo === 'prova') { c.temProva = true; c.diasUltProva = 0; }
       if (dec.acao.tipo === 'retencao') c.fezRetencaoHoje = true;
       if (dec.acao.tipo === 'treino') c.__feitos = (c.__feitos || []).concat(dec.acao.drill);
+    }
+    /* Última tentativa: só quando houve treino de verdade antes E o eixo
+       de adaptação ainda tem pouca amostra. Não entra em toda sessão —
+       um teste cego que vira rotina deixa de ser cego. */
+    const treinos = out.filter(x => x.acao.tipo === 'treino').length;
+    const adapt = MD.filtrar({ dias: 60 }).filter(x => x.x && x.x.vr && x.x.vr !== 'base').length;
+    if (treinos >= 2 && adapt < 60 && !out.some(x => x.acao.tipo === 'cego')) {
+      out.push({
+        regra: 'final_cego', titulo: 'Última tentativa',
+        acao: { tipo: 'cego' },
+        porque: 'Oito situações inéditas, com a pista saliente apontando para o lado errado, sem retorno nenhum. É o bloco que separa "aprendi a regra" de "fiquei bom neste exercício". Ele não vale mais que os outros: vale como amostra do eixo de Adaptação, e só.',
+        confianca: 'certa',
+      });
     }
     return out;
   }
