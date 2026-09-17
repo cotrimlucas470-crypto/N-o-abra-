@@ -1,5 +1,5 @@
 ================================================================
-ESPELHO v4 — Laboratório de evolução da Jing
+ESPELHO v5 — Laboratório de evolução + central de heróis
 Honor of Kings · Poco X7 Pro · HTML/CSS/JS, sem dependências
 ================================================================
 
@@ -14,6 +14,100 @@ todo número daqui sai de toques sobre a réplica. Se ela não bate com o seu
 jogo, tudo o que vier depois mede a coisa errada.
 
 Seus dados da v1 e da v2 continuam lá. Nada é apagado.
+
+
+================================================================
+PARTE -1 — A ABA HERÓIS, E O QUE ELA HONESTAMENTE TEM
+================================================================
+
+O QUE ACONTECEU COM A FONTE QUE VOCÊ PEDIU
+
+Você definiu pvp.mcxssg.net como fonte prioritária. Eu NÃO consegui
+baixar nada de lá: o proxy de saída da sessão onde este app foi montado
+recusa esse domínio (403), tanto por download direto quanto por leitor
+de página. Isso não é contornável de dentro do app.
+
+Então tudo o que existe da fonte no app veio das SUAS CAPTURAS DE TELA,
+transcritas. Transcrição não é coleta, e a tela diz isso em todo lugar.
+
+DUAS CORREÇÕES QUE AS SUAS CAPTURAS ME OBRIGARAM A FAZER
+
+1. EU TINHA MODELADO O SITE ERRADO. Supus que fosse um guia — build
+   recomendada, combo escrito, dica de estratégia. Não é. É o
+   天元之弈数据站, uma ESTAÇÃO DE ESTATÍSTICA: taxa de vitória, de
+   escolha, de banimento, counters com variação e tamanho de amostra,
+   item por slot com percentual de uso, tier list.
+
+   Isso é melhor do que eu esperava para auditar — "68,4% compram este
+   item no primeiro slot" é contagem, não opinião — e pior para quem
+   queria combo pronto. O site NÃO PUBLICA: combo, arcana, descrição de
+   habilidade, texto de estratégia. Isso está dito na tela de cada
+   herói, e é diferente de "faltou coletar": capturar de novo não vai
+   trazer esses campos.
+
+2. EU INVENTEI 42 MAPEAMENTOS DE NOME, E O TESTE PEGOU. O site publica
+   em chinês. Ao montar o mapa chinês→id, mapeei 少司缘 para
+   'shaosiyuan', 马超 para 'ma-chao' e mais 40 — ids que não existem na
+   lista que você me deu. Eu tinha inventado o id junto com o
+   mapeamento. Um mapa assim é pior que mapa curto: joga o dado da
+   fonte num herói fantasma e some sem avisar.
+   Os 42 saíram. Ficou uma trava que confere o mapa a cada carga e
+   devolve as sobras, e um painel que lista os 47 heróis que existem na
+   fonte e não na sua lista — em chinês, sem id inventado.
+
+O QUE A ABA TEM HOJE, COM A ORIGEM DE CADA COISA
+
+   117 heróis no banco            lista que você forneceu
+   100 com função (rota)          pvp.mcxssg.net, seletor de herói
+    53 com taxa de vitória,
+       escolha, banimento, BP,
+       participação e dano        pvp.mcxssg.net, tabela 数据, 2026-09-16
+    59 com tier e pontuação       pvp.mcxssg.net, 英雄梯度榜, 2026-09-17
+    54 itens com nome e preço     HoK Stats (o outro site), em inglês
+    47 nomes da fonte sem
+       correspondência            listados em chinês, não adivinhados
+
+   TUDO marcado conferido: false. É transcrição de imagem, e ler número
+   pequeno de captura erra. As posições 63 a 66 da tabela ficaram entre
+   duas capturas: estão ausentes, não estimadas.
+
+O QUE AINDA NÃO EXISTE, E POR QUÊ
+
+   · BUILD DA JING. A página individual dela (hero/584) não estava entre
+     as capturas. Sem ela não há item por slot, nem counter com amostra.
+     As seis peças que aparecem no app HOK PRO são ícones sem nome
+     legível, e identificar item por ícone seria inventar a build.
+   · PASSIVAS E HABILIDADES DE QUALQUER HERÓI. Nenhuma das capturas
+     mostra isso, e a fonte prioritária não publica. O catálogo do HoK
+     Stats traz nome, ícone e preço dos itens — passiva também não.
+   · A CORRESPONDÊNCIA item chinês ↔ item inglês. Nenhuma captura mostra
+     os dois nomes juntos, e casar 末世 com "Doomsday" por soar
+     plausível seria invenção. O campo existe, vazio, esperando.
+
+O CAMINHO PARA PREENCHER
+
+   1. ATALHO QUE VOCÊ TEM: a tabela 数据 do site tem um botão
+      导出表格 ("exportar tabela") no canto inferior direito. Aquele
+      arquivo substitui a transcrição inteira por dado de primeira mão.
+   2. Para as páginas individuais: a aba Heróis → Importar dados traz um
+      script escrito em cima dos cabeçalhos REAIS do site (胜率, 克制的
+      英雄, 各格子热门单件, 第N件装备…). Rode no console com a página do
+      herói aberta; ele baixa um .json.
+   3. Colar JSON direto também funciona. O app CONFERE antes de aceitar:
+      registro sem id, sem name, ou com conteúdo sem source declarado é
+      recusado com o motivo. Build sem origem não entra — testado.
+
+A SEPARAÇÃO QUE VOCÊ PEDIU
+
+   DADOS DO HERÓI  → d.herois        conhecimento, vem de fora
+   SEU TREINO      → d.treinoHerois  quais heróis você pratica
+   SEU DESEMPENHO  → d.tentativas    seus toques, tempos e erros
+   SUA MAESTRIA    → d.indiceHist    suas medidas e seu índice
+
+   Armazenamentos diferentes. Uma build importada nunca entra numa
+   medida sua; um tempo seu nunca vira dado do herói. O botão "adicionar
+   ao treino" só cria uma referência por id — e avisa quando o herói não
+   tem rota definida, porque sem rota o sistema não tem o que medir.
 
 
 ================================================================

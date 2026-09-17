@@ -83,6 +83,12 @@ function trimmed(a, frac = 0.1) {
 const pct  = (v, d = 0) => `${(v * 100).toFixed(d)}%`;
 const ms   = (v) => `${Math.round(v)}ms`;
 const num  = (v, d = 0) => Number(v).toFixed(d);
+/** Escapa texto que vai para dentro de HTML. Vale para tudo que vem de
+    fora — nome de herói importado de outro site é conteúdo de terceiro. */
+const esc = (s) => String(s == null ? '' : s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+const debounce = (fn, ms = 250) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
 function dateShort(ts) {
   const d = new Date(ts);
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -359,6 +365,6 @@ const Screen = {
 /* ---------- Exportado ---------- */
 window.U = {
   $, $$, el, clamp, lerp, inv, rnd, ri, pick, now, shuffle, dealer,
-  mean, median, sd, cv, trimmed, pct, ms, num, dateShort, dateTime, dur, daysSince, DAY,
+  mean, median, sd, cv, trimmed, pct, ms, num, esc, debounce, dateShort, dateTime, dur, daysSince, DAY,
   DB, Sfx, Haptic, Ticker, Timers, Screen,
 };
