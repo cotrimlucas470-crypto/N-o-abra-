@@ -1,5 +1,5 @@
 ================================================================
-ESPELHO v3 — Laboratório de evolução da Jing
+ESPELHO v4 — Laboratório de evolução da Jing
 Honor of Kings · Poco X7 Pro · HTML/CSS/JS, sem dependências
 ================================================================
 
@@ -14,6 +14,129 @@ todo número daqui sai de toques sobre a réplica. Se ela não bate com o seu
 jogo, tudo o que vier depois mede a coisa errada.
 
 Seus dados da v1 e da v2 continuam lá. Nada é apagado.
+
+
+================================================================
+PARTE 0 — O QUE A V4 TROUXE
+================================================================
+
+Três frentes. Cada uma existe porque faltava um dado, não porque
+faltava uma tela.
+
+
+A) O TOQUE PASSOU A SER MEDIDO EM MILÍMETRO
+   -----------------------------------------
+   A V3 guardava dois números por toque: o deslocamento dentro do botão,
+   em fração do raio. Isso serve para um gráfico de dispersão e para mais
+   nada — em fração do raio, o mesmo dedo no mesmo lugar muda de número
+   quando o botão muda de tamanho, então a série nem com ela mesma era
+   comparável.
+
+   Agora cada toque guarda: posição absoluta na tela, deslocamento em
+   MILÍMETRO, raio do contato do dedo, pressão, de qual botão o dedo veio,
+   quanto tempo levou e que distância percorreu. Disso saem coisas que
+   antes não existiam:
+
+   · MAPA DE CALOR da tela inteira (densidade por núcleo gaussiano). Não é
+     contagem por botão: é a tela toda. É assim que aparece que você bate
+     sistematicamente 3 mm ao lado de um botão — o que nenhuma contagem
+     por botão mostra, porque ela conta o toque como acerto.
+
+   · NUVEM DE CADA BOTÃO, com elipse de 95% e teste de viés. Duas coisas
+     diferentes, e confundir as duas é o erro comum: VIÉS é o centro da
+     nuvem estar fora do centro do botão, e se conserta MOVENDO O BOTÃO;
+     DISPERSÃO é o tamanho da nuvem, e se conserta treinando ou com botão
+     maior. A seta do viés só aparece quando ele passa no teste conjunto
+     (T² de Hotelling) — sem isso, dois vieses pequenos em direções
+     diferentes ou passavam batido ou viravam conclusão sozinhos.
+
+   · TAMANHO DO SEU DEDO, medido. O contato vem do próprio evento de
+     toque. É a régua que decide se dois botões estão longe o bastante um
+     do outro — e o HUD real tem par de botões a 2,1 mm de folga.
+
+   · PIVÔ DO POLEGAR, estimado em vez de escrito no código. A V3 tinha um
+     ponto fixo inventado. Mas o pivô dá para medir: o viés de cada botão
+     aponta ao longo da linha que liga o botão ao ponto em torno do qual o
+     dedo gira, e o pivô é o ponto que melhor explica todos os vieses ao
+     mesmo tempo. Vem com incerteza, e quando ela é grande demais o sistema
+     não usa o número.
+
+   · SUA RETA DE TEMPO POR DISTÂNCIA (lei de Fitts ajustada em você). O
+     coeficiente dela é quanto você paga, em ms, cada vez que o alvo fica
+     duas vezes mais longe ou duas vezes menor.
+
+
+B) O OTIMIZADOR DE HUD
+   --------------------
+   Com a nuvem, o contato, a reta e os trajetos que você realmente faz, o
+   sistema procura um arranjo de botões que minimize:
+
+       tempo de percurso  +  erro de toque × o que um erro custa
+
+   Busca por recozimento simulado com polimento local, alguns milhares de
+   arranjos. Restrições DURAS (custo infinito, não multa):
+   · nenhum par de botões fica mais apertado do que já está;
+   · onde a folga já respeita o tamanho do seu dedo, continua respeitando;
+   · nada sai da tela; nada anda mais que 9 mm do lugar atual.
+
+   O que ele NÃO faz, de propósito:
+   · não promete que você vai jogar melhor. Minimiza um custo modelado;
+   · não move nada sozinho — propõe, mostra a conta, e você decide;
+   · não fala quando os dados não sustentam. Sem a sua reta e sem nuvem
+     medida em pelo menos cinco botões, a resposta é "ainda não sei";
+   · depois que você aplica, o sistema COMPARA o seu tempo de rota antes e
+     depois e te diz se valeu. Essa é a única resposta honesta, e ela só
+     existe depois de treinar com o layout novo.
+
+
+C) A EVOLUÇÃO VIROU UM MODELO, NÃO TRÊS REMENDOS
+   ----------------------------------------------
+   A V3 media mudança com três aproximações do mesmo problema:
+   encolhimento para a nota não pular, correção de autocorrelação para não
+   contar ponto repetido, piso absoluto para um ponto não virar notícia.
+   Cada uma consertava um sintoma verdadeiro.
+
+   O problema por baixo dos três é que o valor que interessa — o seu nível
+   — nunca é observado, só medido com ruído. A V4 modela isso direto:
+
+       nivel[t] = nivel[t-1] + deriva[t-1] + ruído de processo
+       medida[t] = nivel[t] + ruído de medida
+
+   Um filtro estima os dois estados e, mais importante, a INCERTEZA de
+   cada um. A razão entre os ruídos sai dos seus próprios dados por
+   verossimilhança penalizada — não é arbitrada, e a penalidade existe
+   porque sem ela, com vinte pontos, a busca escolhia perseguir o ruído.
+
+   Daí saem três coisas que antes eram remendo:
+   · o nível de hoje já vem suavizado na medida certa;
+   · a deriva tem intervalo, então "está subindo" é afirmação com
+     incerteza em vez de rótulo;
+   · a previsão de amanhã tem faixa.
+
+   Mais duas análises novas em cima disso:
+   · PONTOS DE MUDANÇA (segmentação binária penalizada): responde "no dia
+     14 alguma coisa aconteceu", que é diferente de "está subindo" — um é
+     evento, o outro é processo, e o sistema precisava dos dois;
+   · CURVA DE APRENDIZAGEM (exponencial rumo a uma assíntota): dá o platô
+     deste ciclo e quantas sessões faltam para um alvo. Quando uma reta
+     descreve a série igual de bem, o sistema diz que não dá para falar em
+     platô, em vez de inventar um.
+
+
+D) TREINO MAIS EFICAZ, COM DUAS COISAS QUE ANTES ERAM PALPITE
+   -----------------------------------------------------------
+   · TRAJETO CARO (exercício novo). Um combo não falha por inteiro: falha
+     num trajeto. Com a sua reta de tempo por distância dá para separar
+     "lento porque é longe" de "lento sem motivo de distância" — e só o
+     segundo responde a repetição. O exercício treina exatamente os pares
+     de botões que destoam da sua própria reta, e nada mais.
+   · JANELA DE REVISÃO. Espaçar rende mais que amontoar, mas "duas vezes
+     por semana" é palpite. O sistema mede a SUA curva de esquecimento
+     (acerto na rota de referência contra horas desde o último treino) e
+     abre a janela onde a recuperação prevista está entre 90% e 80% — a
+     faixa em que lembrar ainda custa esforço sem já ter virado
+     reaprender. Essa regra passa na frente do treinador adversarial,
+     porque a janela fecha e o achado do gêmeo continua lá amanhã.
 
 
 ================================================================
@@ -238,7 +361,74 @@ PERTURBAÇÃO (qual delas te derruba)
 PARTE 4 — AS AVALIAÇÕES FALSAS QUE OS TESTES ENCONTRARAM
 ================================================================
 
-Você pediu para eu procurar situações que produzissem avaliação falsa.
+AS DA V4 (sistema de toque e otimizador)
+
+A. O OTIMIZADOR COMPRAVA SOBREPOSIÇÃO COM MILISSEGUNDO.
+   A folga entre botões era uma multa, e a busca simplesmente pagou: num
+   teste ela comprou 60 ms de tempo de percurso deixando a menor folga do
+   HUD ir de 2,1 mm para -0,2 mm — ou seja, sobrepondo botões. Você
+   aplicaria e passaria a errar toque o tempo todo. Virou restrição dura:
+   layout que viola não é caro, é impossível.
+
+B. O NÚMERO EM "ms" NÃO ERA ms DE COISA NENHUMA.
+   A manchete somava tempo, erro e penalidade ergonômica e dividia tudo
+   pelo número de trajetos. Ergonomia estava em unidade arbitrária. Num HUD
+   que eu nem tinha estragado, o sistema prometia 77 ms de ganho. Agora a
+   manchete sai só das duas parcelas que estão mesmo em milissegundo, e a
+   folga aparece do lado, em milímetro, que é a unidade dela.
+
+C. A RETA DE FITTS ERA EXTRAPOLADA.
+   Uma reta ajustada continua existindo fora da faixa dos dados, e é assim
+   que o otimizador "provava" que colar os botões economiza tempo sem
+   limite. Agora a previsão congela nas bordas da faixa que você de fato
+   executou.
+
+D. O PIVÔ E O "ARCO CONFORTÁVEL" ERAM CONSTANTES INVENTADAS.
+   Escritas na V1 para gerar texto de conselho. Enquanto eram texto, eram
+   opinião declarada; virando objetivo de otimização, empurravam o layout
+   inteiro para fora para satisfazer uma régua que ninguém calibrou. Saíram
+   do objetivo. O que o alcance tem de real já está na nuvem daquele botão,
+   e a nuvem já entra na conta de erro — somar a penalidade era contar duas
+   vezes, sendo que uma delas era chute.
+
+E. A DISPERSÃO DO TREINO NÃO É A DA LUTA.
+   A nuvem é medida parado, sem ninguém te matando. Usá-la direto fazia o
+   otimizador concluir que podia espremer tudo, porque no modelo o dedo
+   nunca erra. Entrou um piso de 2 mm, que é suposição declarada e está
+   escrita na tela.
+
+F. O EIXO DE TEMPO DA CURVA DE ESQUECIMENTO ERA ESPAÇADO POR ÍNDICE.
+   10h, 22h, 40h, 67h e 122h desenhados igualmente distantes achatam a
+   queda rápida do começo e esticam a cauda — mentira sobre a forma da
+   curva justamente onde a decisão é tomada.
+
+G. A JANELA DE REVISÃO EXTRAPOLAVA PARA BAIXO.
+   Dizia "revise em 4 h" a partir de dados que começavam em 11 h. Mesmo
+   erro do item C, em outro lugar. Agora, quando a janela cai abaixo do
+   menor intervalo já medido, o sistema diz que ela começa antes do que ele
+   consegue enxergar.
+
+H. UMA MÉTRICA FOI REMOVIDA POR NÃO SE SUSTENTAR.
+   O filtro de estado tentava dizer "quanto do que você vê é você e quanto
+   é o dia". Em três versões diferentes ela não separou os dois casos: com
+   20 pontos pulava de 3% para 40% na mesma série, e com 60 pontos uma
+   caminhada aleatória e um ruído branco davam os dois 19%. Número que não
+   distingue dois casos opostos não é medida, é enfeite com casa decimal.
+   No lugar entrou "quantas sessões até uma melhora de 1 ponto por sessão
+   se separar do ruído" — que responde a pergunta útil e sai direto do erro
+   da deriva.
+
+I. "QUEDA SUSPEITA" VIROU ENXURRADA COM O FILTRO NOVO.
+   A regra disparava sempre que a deriva estimada vezes o número de sessões
+   passasse do piso, sem exigir evidência nenhuma de que a deriva não fosse
+   zero — e multiplicar um número minúsculo por 38 dá um número grande.
+   Mais da metade dos eixos de um jogador que não mudou nada aparecia com
+   bandeira laranja. Agora "suspeita" exige evidência fraca porém real, e
+   só vale para piora.
+
+
+AS DA V3 (índice e detecção de mudança)
+
 Foram doze, todas com o código já escrito e parecendo funcionar. As seis
 primeiras saíram de testes de unidade; as seis últimas só apareceram quando
 simulei jogadores durante 45 dias — e essas eram as piores, porque durariam

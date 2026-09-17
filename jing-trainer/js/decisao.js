@@ -39,8 +39,10 @@
     const ultimaRota = rotaRecente.length ? rotaRecente[rotaRecente.length - 1].t : 0;
     let ach = { ativos: [], lista: [], suspeitas: [], principal: null };
     try { ach = GM.achados({}); } catch (e) { /* sem dados ainda */ }
+    let pr = null;
+    try { pr = U.PR ? U.PR.recomendacao() : null; } catch (e) { pr = null; }
     return {
-      d, p, ach, fase: CT.fase(), faseInfo: CT.FASES[CT.fase()],
+      d, p, ach, pr, fase: CT.fase(), faseInfo: CT.FASES[CT.fase()],
       erros: MD.perfilErros({ dias: 14 }),
       fadiga: MD.fadiga(),
       sessoesHoje: d.sessoes.filter(s => new Date(s.t).setHours(0, 0, 0, 0) === hoje).length,
@@ -120,6 +122,44 @@
         ? `A última Prova foi há ${Math.round(c.diasUltProva)} dias. As medidas em condição fixa envelhecem — e comparar treino de hoje com prova de duas semanas atrás produz conclusão errada.`
         : 'Falta amostra em condição fixa para a medida de leitura. A Prova coleta isso de um jeito comparável.',
       confianca: () => 'certa',
+    },
+    {
+      /* ------------------------------------------------------------
+         JANELA DE REVISÃO
+         Passa na frente do adversarial porque a janela FECHA. O achado
+         do gêmeo continua lá amanhã; a faixa de 80-90% de recuperação,
+         não. E espaçar a prática é o efeito mais bem sustentado de toda
+         a literatura de treino — com a diferença de que aqui o intervalo
+         não é tabelado, é a curva de esquecimento medida em você.
+         ------------------------------------------------------------ */
+      id: 'janela_revisao',
+      titulo: 'A janela de revisão está aberta',
+      quando: (c) => !!(c.pr && c.pr.esquecimento.ok && c.pr.esquecimento.estado === 'agora'),
+      acao: () => ({ tipo: 'treino', drill: 'rota' }),
+      porque: (c) => {
+        const e = c.pr.esquecimento;
+        return `Faz ${Math.round(e.horasDesde)} h desde o último treino de rota, e pela SUA curva de esquecimento você está agora entre 80% e 90% de recuperação. É a faixa em que lembrar ainda custa esforço — e o esforço na hora de lembrar é o que fixa. Mais cedo rende menos porque é fácil demais; mais tarde vira reaprender. ${e.texto}`;
+      },
+      confianca: (c) => c.pr.esquecimento.n >= 80 ? 'razoavel' : 'provisoria',
+    },
+    {
+      /* ------------------------------------------------------------
+         TRAJETO CARO
+         Um combo não falha por inteiro: falha num trajeto. Com a reta de
+         tempo por distância ajustada no jogador dá para separar "lento
+         porque é longe" de "lento sem motivo de distância" — e só o
+         segundo responde a repetição.
+         ------------------------------------------------------------ */
+      id: 'trajeto_caro',
+      titulo: 'Um trajeto seu está mais lento do que a distância explica',
+      quando: (c) => !!(c.pr && c.pr.trajetos.ok && c.pr.trajetos.reais.length > 0)
+                     && !(c.__feitos || []).includes('trajeto'),
+      acao: () => ({ tipo: 'treino', drill: 'trajeto' }),
+      porque: (c) => c.pr.trajetos.texto,
+      confianca: (c) => {
+        const n = c.pr.trajetos.reais[0] ? c.pr.trajetos.reais[0].n : 0;
+        return n >= 25 ? 'razoavel' : n >= 12 ? 'provisoria' : 'coletando';
+      },
     },
     {
       /* ------------------------------------------------------------

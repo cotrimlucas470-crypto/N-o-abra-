@@ -26,6 +26,7 @@
 (function (U) {
 
   const S = U.S, MD = U.MD, GM = U.GM;
+  const EV = () => U.EV;      // carregado depois; resolvido na hora do uso
 
   /** Converte uma quantidade medida em nota 0-100 numa faixa declarada. */
   function escalar(v, pior, melhor) {
@@ -114,10 +115,14 @@
       ancoraNota: '45% de variação vale 0, 8% vale 100.',
       medir() {
         const e = MD.estabilidade();
-        /* a estimativa é a média dos CVs POR SESSÃO: o que a sustenta é o
-           número de sessões, não o de tentativas dentro delas. */
-        return e.v == null ? null
-          : { v: e.v, n: e.n, nef: e.sessoes || 1, ic: [e.lo, e.hi], fonte: 'variação do tempo de rota' };
+        if (e.v == null) return null;
+        /* Nível: a média dos CVs por sessão dos 21 dias. Tendência: os CVs
+           por sessão, um por um. Sem essa separação a consistência dava
+           veredicto falso em 20% dos jogadores simulados que não mudaram e
+           encontrava só 15% dos que mudaram — ou seja, não distinguia os
+           dois casos, que é a definição de medida inútil para tendência. */
+        return { v: e.v, n: e.n, nef: e.sessoes || 1, ic: [e.lo, e.hi],
+                 viva: e.porSessao || null, fonte: 'variação do tempo de rota' };
       },
     },
     {
@@ -413,7 +418,7 @@
   const ESTADOS = {
     evolucao:   { cor: '🟢', nome: 'evolução',          o_que: 'subida confirmada pela soma cumulativa' },
     estavel:    { cor: '🟡', nome: 'estabilidade',      o_que: 'variação dentro do ruído da própria medida' },
-    suspeita:   { cor: '🟠', nome: 'queda suspeita',    o_que: 'caiu mais que o ruído, mas ainda não é persistente' },
+    suspeita:   { cor: '🟠', nome: 'queda suspeita',    o_que: 'a deriva está negativa e do tamanho que importaria, mas a evidência é de cerca de um erro-padrão — metade do que eu exijo para confirmar. É aviso, não veredicto' },
     queda:      { cor: '🔴', nome: 'queda consistente', o_que: 'queda persistente confirmada pela soma cumulativa' },
     semDados:   { cor: '⚪', nome: 'sem dados',          o_que: 'série curta demais para separar sinal de ruído' },
   };
@@ -483,12 +488,39 @@
       return { estado: 'semDados', n: serie.length, ...ESTADOS.semDados,
                o_que: `${Math.round(100 * encostados / serie.length)}% das medidas encostam no fim da régua (${serie[0] >= 100 ? '100' : '0'}). Nessa faixa a régua não distingue mais nada, então aqui ela dá nível e não tendência`,
                saturado: true };
+    /* ============================================================
+       O MODELO DE ESTADO SUBSTITUI TRÊS REMENDOS.
+       Até aqui a direção saía de: metade contra metade, mais erro típico
+       corrigido por autocorrelação, mais soma cumulativa. Os três
+       consertavam sintomas do mesmo problema — o nível verdadeiro nunca é
+       observado. O filtro em evolucao.js modela isso direto e devolve a
+       DERIVA com intervalo, que é a pergunta ("está subindo?") respondida
+       com incerteza em vez de rótulo.
+       O caminho antigo continua aqui como reserva, para o caso de a série
+       ser curta demais para o filtro: nesse caso ele não roda e a resposta
+       é a de antes, mais conservadora.
+       ============================================================ */
+    const ev = EV();
+    if (ev && serie.length >= ev.MIN_PONTOS) {
+      const an = ev.analisar(serie, { melhorE: 'maior', piso: PISO_NOTA });
+      if (an.ok) {
+        const est = an.estado;
+        return {
+          estado: est, ...ESTADOS[est], n: serie.length, piso: PISO_NOTA,
+          delta: an.derivaTotal, deltaSE: an.derivaTotalSE,
+          derivaPorSessao: an.derivaPorSessao,
+          nivel: an.nivel, nivelLo: an.nivelLo, nivelHi: an.nivelHi,
+          suave: an.est.suave, banda: an.est.banda,
+          mudancas: an.cp, curva: an.cur,
+          sessoesPara1: an.sessoesPara1,
+          leituraRuido: an.leituraRuido,
+          modelo: 'estado',
+          pequenaDemais: an.significante && !an.grande,
+          prever: an.est.prever,
+        };
+      }
+    }
     const cs = S.cusum(serie);
-    /* A primeira versão comparava o ÚLTIMO PONTO com a média do início.
-       Um ponto solto carrega o ruído inteiro de uma medida, e uma série
-       plana virava "queda suspeita" sozinha — o oposto do que foi pedido.
-       Agora os dois lados são médias, e o teste de ruído sabe de quantos
-       pontos cada média saiu. */
     const corte = Math.floor(serie.length / 2);
     const ini = serie.slice(0, corte), fim = serie.slice(corte);
     const delta = U.mean(fim) - U.mean(ini);
@@ -505,7 +537,7 @@
     else if (delta < 0 && mr.real && grande) estado = 'suspeita';
     else estado = 'estavel';
     return { estado, ...ESTADOS[estado], delta, cusum: cs, n: serie.length, piso: PISO_NOTA,
-             pequenaDemais: mr.real && !grande,
+             modelo: 'metades', pequenaDemais: mr.real && !grande,
              et: mr.et, swc: mr.swc, ruido: mr.ruido, ro: mr.ro,
              nEfetivo: mr.e1 + mr.e2, motivo: mr.motivo, mudanca: mr };
   }

@@ -26,6 +26,7 @@
     St.aberto = true;
     if (!St.surf) {
       St.surf = new H.HudSurface($('#hudcv'), {
+        get drillId() { return St.cfg ? St.cfg.drillId : null; },
         onPress: (e) => St.motor && St.motor.press(e),
         onJoy: (e) => St.motor && St.motor.joy(e),
         onJoyStart: (e) => St.motor && St.motor.joy(e),

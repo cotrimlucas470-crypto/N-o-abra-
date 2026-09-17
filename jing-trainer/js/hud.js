@@ -271,6 +271,13 @@
       } else {
         this.caco(p.x, p.y, '#6b7a91', 5);
       }
+      /* Registro de alta precisão. Fica aqui, no momento do toque, e
+         não no fim do set: tamanho do contato e pressão só existem
+         dentro do evento, e de onde o dedo veio só é conhecido aqui. */
+      if (U.TQ && !this.opts.semRegistro) {
+        U.TQ.gravar({ x: p.x, y: p.y, box: this.box, id: hit.id, perto: hit.perto,
+                      tipo: hit.tipo, t, ev, drill: this.opts.drillId || null });
+      }
       this.opts.onPress?.({
         id: hit.id, tipo: hit.tipo, rel: hit.rel, perto: hit.perto,
         dx: hit.dx, dy: hit.dy,

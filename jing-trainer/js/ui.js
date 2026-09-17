@@ -113,7 +113,7 @@
       <h1>◈ ESPELHO</h1>
       <span class="tag vio">${fase.nome}</span>
       <div class="espaco"></div>
-      <span class="sub">${d.legado ? 'v2 · dados da v1 preservados' : 'v2'}</span>
+      <span class="sub">${d.legado ? 'v4 · dados anteriores preservados' : 'v4'}</span>
     </div>
     <div class="rolagem pilha">
 
@@ -548,7 +548,127 @@
         deslocado é erro sistemático de mira — corrige-se mirando o lado oposto, não treinando mais.</div>
         <canvas class="graf" id="g-toq" data-h="170"></canvas>
       </div>` : ''}
+
+      ${laboratorio()}
     </div>`;
+  }
+
+  /* ============================================================
+     LABORATÓRIO DO POLEGAR
+     Tudo o que sai da medição em milímetros: o mapa da tela, a
+     nuvem de cada botão, o pivô estimado, os trajetos caros e o
+     layout que a conta propõe.
+     ============================================================ */
+  function laboratorio() {
+    const TQ = U.TQ, OT = U.OT, PR = U.PR;
+    if (!TQ) return '';
+    const hud = H.getHud();
+    const res = TQ.resumo({});
+    const mapa = TQ.mapaCalor({});
+    const lim = TQ.MIN;
+    const ef = OT ? OT.efeitoDaMudanca() : { ok: false };
+    const tc = PR ? PR.trajetosCaros({}) : { ok: false, itens: [] };
+    const esq = PR ? PR.curvaEsquecimento({}) : { ok: false };
+
+    return `
+      <div class="painel hero">
+        <div class="mini" style="color:var(--gold);font-weight:800;letter-spacing:.08em;text-transform:uppercase">Laboratório do polegar</div>
+        <h2 class="heroT" style="margin-top:2px">${res.n} toques medidos em milímetro</h2>
+        <div class="mini" style="margin-top:4px">A versão anterior guardava o toque como fração do raio do
+        botão, o que muda de significado quando o botão muda de tamanho. Agora cada toque guarda posição
+        absoluta na tela, deslocamento em <b>mm</b>, tamanho do contato do dedo, de onde o dedo veio e quanto
+        tempo levou. É isso que permite responder "onde eu de fato toco" em vez de só "quanto errei do centro".
+        ${res.dedoMM ? `<br><br>O seu contato mede cerca de <b>${(res.dedoMM).toFixed(1)} mm</b> de raio médio —
+        medido, não suposto. É a régua que decide se dois botões estão longe o bastante um do outro.` : ''}</div>
+      </div>
+
+      <div class="painel">
+        <h2>Onde você mais toca — a tela inteira</h2>
+        <div class="mini" style="margin-bottom:6px">Densidade dos seus toques sobre a réplica. Não é contagem
+        por botão: é a tela toda, e é assim que aparece quando você bate sistematicamente ao lado de um botão
+        em vez de dentro dele.</div>
+        ${mapa.ok
+          ? `<canvas class="graf" id="g-calor" data-h="250"></canvas>`
+          : `<div class="aviso">Faltam <b>${mapa.falta}</b> toques para o mapa sair. Um set de Ancoragem resolve.</div>`}
+      </div>
+
+      ${res.retratos.length ? `<div class="painel">
+        <h2>A nuvem de cada botão</h2>
+        <div class="mini" style="margin-bottom:6px">A elipse contém 95% dos seus toques naquele botão. A seta
+        só aparece quando o deslocamento do centro é <b>real</b> — testado, não olhado. Nuvem grande se
+        conserta treinando ou com botão maior; centro deslocado se conserta <b>movendo o botão</b>. São
+        problemas diferentes e é por isso que são dois desenhos.</div>
+        <canvas class="graf" id="g-nuvem" data-h="250"></canvas>
+        ${res.comVies.length ? `<div class="aviso" style="margin-top:8px">
+          <b>Deslocamento sistemático detectado:</b>
+          ${res.comVies.slice(0, 3).map(r => `${r.nome} <b>${r.vies.mm.toFixed(1)} mm</b> para ${r.vies.x > 0 ? 'a direita' : 'a esquerda'}${Math.abs(r.vies.y) > 0.5 ? ` e ${r.vies.y > 0 ? 'para baixo' : 'para cima'}` : ''}`).join(' · ')}.
+          Isto não é falta de treino: é o botão não estar onde o seu dedo acha que ele está.</div>` : ''}
+        ${res.piorRisco ? `<div class="aviso bad" style="margin-top:7px">
+          <b>Risco de tocar o vizinho:</b> em <b>${res.piorRisco.nome}</b>, ${Math.round(res.piorRisco.p * 100)}% dos
+          seus toques cairiam mais perto de outro botão${res.piorRisco.pior ? ` (normalmente <b>${H.NOMES[res.piorRisco.pior.id] || res.piorRisco.pior.id}</b>)` : ''}.
+          </div>` : ''}
+      </div>` : ''}
+
+      ${res.pivo.ok ? `<div class="painel">
+        <h2>Onde o seu polegar gira</h2>
+        <div class="mini">O pivô do polegar não está mais escrito no código: sai dos seus dados. O
+        deslocamento de cada botão aponta ao longo da linha que liga o botão ao ponto em torno do qual o dedo
+        gira, e o pivô é o ponto que melhor explica todos eles ao mesmo tempo.
+        <br><br>Estimado a partir de <b>${res.pivo.botoes} botões</b> e ${res.pivo.n} toques, com incerteza de
+        <b>±${res.pivo.incertezaMM.toFixed(0)} mm</b>. Fica <b>${res.pivo.desvioDoPadrao.toFixed(0)} mm</b> do
+        ponto que a versão anterior supunha.
+        ${!res.pivo.confiavel ? '<br><b>Ainda não é confiável o bastante</b> para eu usar em conta nenhuma — precisa de mais botões com deslocamento mensurável.' : ''}</div>
+      </div>` : ''}
+
+      ${tc.ok && tc.itens.length ? `<div class="painel">
+        <h2>Trajetos que custam mais do que deviam</h2>
+        <div class="mini" style="margin-bottom:6px">O traço vertical é o tempo que a distância entre os dois
+        botões pede, pela sua própria reta. A barra é o que você leva. Quando a barra passa do traço com
+        folga, aquele pedaço não é limite físico — é pedaço mal aprendido, e repetição rende nele.</div>
+        <canvas class="graf" id="g-traj" data-h="${Math.min(170, 26 + tc.itens.length * 20)}"></canvas>
+        <div class="aviso" style="margin-top:8px">${tc.texto}</div>
+      </div>` : tc.motivo ? `<div class="painel">
+        <h2>Trajetos que custam mais do que deviam</h2>
+        <div class="mini">${tc.motivo}.</div>
+      </div>` : ''}
+
+      ${esq.ok ? `<div class="painel">
+        <h2>A sua curva de esquecimento</h2>
+        <div class="mini" style="margin-bottom:6px">Acerto na rota de referência contra as horas desde o
+        último treino. Não é uma curva de livro: é a sua, medida em ${esq.n} tentativas.</div>
+        <canvas class="graf" id="g-esq" data-h="150"></canvas>
+        <div class="aviso ${esq.estado === 'agora' ? 'ok' : esq.estado === 'tarde' ? '' : ''}" style="margin-top:8px">
+          ${esq.texto}
+          ${esq.horasDesde != null ? `<br><br>Agora faz <b>${Math.round(esq.horasDesde)} h</b> desde o último
+          treino de rota — ${esq.estado === 'cedo' ? 'ainda é cedo: revisar agora é fácil demais e rende menos'
+            : esq.estado === 'agora' ? '<b>a janela está aberta</b>'
+            : 'já passou da janela, então hoje vai ser mais reaprender que fixar'}.` : ''}
+        </div>
+      </div>` : ''}
+
+      <div class="painel">
+        <h2>O HUD que sai dos seus dados</h2>
+        <div id="otim-area">
+          <div class="mini">Com a sua nuvem de toque, o seu contato, a sua reta de tempo por distância e os
+          trajetos que você realmente faz, dá para procurar um arranjo de botões com menos tempo de percurso
+          e menos risco de tocar o vizinho.
+          <br><br><b>O que isto não é:</b> não é promessa de que você vai jogar melhor. É a minimização de um
+          custo modelado, e o modelo é meu. O que ele não sabe, ele não inventa — e depois que você aplicar,
+          o sistema mede o efeito de verdade no seu tempo de rota e te conta.</div>
+          <button class="btn full sm" id="btn-otim" style="margin-top:10px">Procurar um layout melhor</button>
+        </div>
+      </div>
+
+      ${ef.ok ? `<div class="painel">
+        <h2>A última mudança de HUD valeu?</h2>
+        <div class="aviso ${ef.real && ef.delta < 0 ? 'ok' : ef.real ? 'bad' : ''}">${ef.texto}</div>
+        <div class="xs" style="margin-top:5px">${ef.nAntes} sets antes (${Math.round(ef.antes)} ms) ·
+          ${ef.nDepois} sets depois (${Math.round(ef.depois)} ms) · mudança feita em ${U.dateShort(ef.desde)}</div>
+      </div>` : (U.DB.load().hudMudouEm ? `<div class="painel">
+        <h2>A última mudança de HUD valeu?</h2>
+        <div class="mini">${ef.motivo}. É a única resposta honesta sobre a mudança, e ela só existe depois de
+        treinar com o layout novo.</div>
+      </div>` : '')}`;
   }
 
   function fittsAjuste() {
@@ -579,7 +699,7 @@
     const cv = $('#mapacv');
     if (cv) {
       mapaSurf && mapaSurf.destroy();
-      mapaSurf = new H.HudSurface(cv, { onCalibrado: () => toast('HUD atualizado', 'ok') });
+      mapaSurf = new H.HudSurface(cv, { semRegistro: true, onCalibrado: () => toast('HUD atualizado', 'ok') });
       const orig = mapaSurf.draw.bind(mapaSurf);
       mapaSurf.draw = function () {
         orig();
@@ -614,6 +734,88 @@
     $('#resetHud')?.addEventListener('click', () => { H.resetHud(); toast('HUD restaurado'); render('hud'); });
     if ($('#g-fitts')) G.fitts($('#g-fitts'), fittsAjuste());
     if ($('#g-toq')) G.toques($('#g-toq'), dispersaoToques());
+    desenharLaboratorio();
+  }
+
+  function desenharLaboratorio() {
+    const TQ = U.TQ, PR = U.PR;
+    if (!TQ) return;
+    const hud = H.getHud();
+    if ($('#g-calor')) {
+      const mapa = TQ.mapaCalor({});
+      const contagem = {};
+      for (const t of TQ.toques({ dias: 90 })) if (t.b) contagem[t.b] = (contagem[t.b] || 0) + 1;
+      G.mapaToque($('#g-calor'), mapa, hud, { contagem });
+    }
+    if ($('#g-nuvem')) {
+      const res = TQ.resumo({});
+      G.dispersao($('#g-nuvem'), res.retratos, hud);
+    }
+    if ($('#g-traj') && PR) {
+      const tc = PR.trajetosCaros({});
+      if (tc.ok) G.trajetos($('#g-traj'), tc.itens);
+    }
+    if ($('#g-esq') && PR) {
+      const e = PR.curvaEsquecimento({});
+      if (e.ok) G.curvaIC($('#g-esq'), e.faixas.map(f => ({
+        janela: Math.round(f.h), p: f.p, lo: f.lo, hi: f.hi, n: f.n,
+      })), { rotX: 'horas desde o último treino de rota →', semAcaso: true,
+             /* a faixa só é desenhada quando a janela existe de verdade —
+                senão o desenho contradiz o texto logo abaixo dele */
+             faixa: !!e.janela, unidade: 'h', oQue: 'depois', xProporcional: true });
+    }
+    $('#btn-otim')?.addEventListener('click', rodarOtimizador);
+  }
+
+  function rodarOtimizador() {
+    const area = $('#otim-area');
+    if (!area) return;
+    area.innerHTML = '<div class="mini">Procurando… isso testa alguns milhares de arranjos.</div>';
+    /* fora da pintura, senão a tela trava durante a busca */
+    setTimeout(() => {
+      let r;
+      try { r = U.OT.otimizar({}); } catch (e) { r = { ok: false, motivo: 'erro no cálculo: ' + e.message }; }
+      if (!r.ok) {
+        area.innerHTML = `<div class="aviso"><b>Ainda não dá.</b> ${r.motivo}.
+          <br><br>O que falta se resolve treinando: <b>Ancoragem</b> alimenta a nuvem de cada botão e
+          <b>Rota</b> alimenta os trajetos. Nenhum atalho aqui seria honesto — sem esses dados eu estaria
+          propondo um layout por chute com casas decimais.</div>`;
+        return;
+      }
+      area.innerHTML = `
+        <canvas class="graf" id="g-layout" data-h="250"></canvas>
+        <div class="grade g3" style="margin-top:8px">
+          <div class="kpi"><div class="v">${r.ganhoMs > 0 ? '−' : '+'}${Math.abs(r.ganhoMs).toFixed(0)}<span class="de">ms</span></div><div class="k">por trajeto</div></div>
+          <div class="kpi"><div class="v">${r.mudancas.length}</div><div class="k">botões movidos</div></div>
+          <div class="kpi"><div class="v" style="color:${r.folga.depois >= r.folga.min ? 'var(--ok)' : 'var(--warn)'}">${r.folga.depois.toFixed(1)}<span class="de">mm</span></div><div class="k">menor folga (era ${r.folga.antes.toFixed(1)})</div></div>
+        </div>
+        <div class="aviso" style="margin-top:8px">${r.leitura}</div>
+        ${r.apertados.length ? `<div class="aviso ${r.folga.antes < r.folga.min ? 'bad' : ''}" style="margin-top:7px">
+          <b>Botões mais apertados que o seu dedo:</b>
+          ${r.apertados.slice(0, 3).map(a => `${a.nomeA} ↔ ${a.nomeB} <b>${a.folga.toFixed(1)}mm</b> → ${a.depois.toFixed(1)}mm`).join(' · ')}.
+          ${r.contatoMM ? `O seu contato tem ${r.contatoMM.toFixed(1)} mm de raio.` : ''}</div>` : ''}
+        ${r.mudancas.length ? `<div class="pilha" style="gap:5px;margin-top:8px">
+          ${r.mudancas.slice(0, 6).map(m => `<div class="mini"><b>${m.nome}</b>: ${m.mm.toFixed(1)} mm
+            ${Math.abs(m.dx) > 0.4 ? (m.dx > 0 ? 'para a direita' : 'para a esquerda') : ''}
+            ${Math.abs(m.dy) > 0.4 ? (m.dy > 0 ? 'para baixo' : 'para cima') : ''}</div>`).join('')}
+        </div>` : ''}
+        <div class="xs" style="margin-top:6px">Ajustado com ${r.nTrajetos} trajetos e ${r.retratos.length} nuvens de botão.
+          A conta de erro usa uma dispersão de pelo menos ${r.sdPiso} mm, porque a sua nuvem foi medida em
+          exercício e em luta ela é maior — suposição minha, declarada aqui.</div>
+        <div class="flex" style="gap:8px;margin-top:10px">
+          <button class="btn sm" id="otim-aplicar">Aplicar este layout</button>
+          <button class="btn sec sm" id="otim-fechar">Fechar</button>
+        </div>
+        <div class="xs" style="margin-top:6px">Aplicar aqui muda a réplica do treino. Você ainda precisa fazer
+          a mesma mudança dentro do jogo — e dá para desfazer.</div>`;
+      G.layoutComparado($('#g-layout'), r.base, r.hud, r.mudancas);
+      $('#otim-aplicar')?.addEventListener('click', () => {
+        U.OT.aplicar(r.hud);
+        toast('Layout aplicado — o sistema vai medir o efeito', 'ok');
+        render('hud');
+      });
+      $('#otim-fechar')?.addEventListener('click', () => render('hud'));
+    }, 30);
   }
 
   /* ============================================================
@@ -829,6 +1031,20 @@
           <div class="mini" style="flex:1">${a.bruto != null ? `<b>${E.unidade === '' ? a.bruto.toFixed(2) : Math.round(a.bruto)}${E.unidade}</b> medidos · ` : ''}${a.n} amostras · ${S.rotuloNivel(a.nivel)}</div>
         </div>
         ${rel.serie.length >= 3 ? `<canvas class="graf" id="m-eixo" data-h="130" style="margin-top:8px"></canvas>` : ''}
+        ${d.mudancas && d.mudancas.ok ? `
+          <div class="mt" style="margin-top:10px">Quando alguma coisa mudou</div>
+          <div class="xs" style="margin-bottom:4px">A linha fina é o medido; a grossa é o nível estimado
+          depois de tirar o ruído de leitura. Os tracinhos verticais são degraus — dias em que a série
+          mudou de patamar, e não só balançou.</div>
+          <canvas class="graf" id="m-mud" data-h="130"></canvas>` : ''}
+        ${d.curva && d.curva.ok ? `
+          <div class="mt" style="margin-top:10px">A sua curva neste eixo</div>
+          <div class="xs" style="margin-bottom:4px">${d.curva.leitura}</div>
+          <canvas class="graf" id="m-curva" data-h="140"></canvas>
+          ${d.curva.melhorQueReta ? `<div class="xs" style="margin-top:4px">Platô estimado deste ciclo:
+            <b>${Math.round(d.curva.plato)}</b> · você está a <b>${(d.curva.pctDoPlato * 100).toFixed(0)}%</b>
+            do caminho até ele.</div>` : ''}` : ''}
+        ${d.leituraRuido ? `<div class="xs" style="margin-top:8px">${d.leituraRuido}</div>` : ''}
         <div class="sep"></div>
         ${(() => {
           const janela = (v, rot) => v
@@ -859,6 +1075,10 @@
         const cv = cx.querySelector('#m-eixo');
         if (cv) setTimeout(() => G.linhaIC(cv, rel.serie.map((v, i) => ({ rot: String(i + 1), v })),
                                            { max: 100, nome: E.nome }), 40);
+        const cm = cx.querySelector('#m-mud');
+        if (cm && d.mudancas) setTimeout(() => G.linhaMudancas(cm, rel.serie, d.mudancas, d.suave), 60);
+        const cc = cx.querySelector('#m-curva');
+        if (cc && d.curva) setTimeout(() => G.curvaAprend(cc, rel.serie, d.curva), 80);
       });
   }
 
@@ -901,7 +1121,7 @@
       </div>
 
       <div class="painel">
-        <h2>O que mudou da v1 para a v2</h2>
+        <h2>O que mudou de versão para versão</h2>
         <div class="pilha" style="gap:7px">
           ${CI.AUDITORIA.map(a => `<div class="mini">
             <span class="tag ${a.veredito === 'removido' ? 'bad' : a.veredito === 'rebaixado' ? 'warn' : ''}">${a.veredito}</span>
@@ -915,7 +1135,7 @@
           <h3>${pr.titulo}</h3>
           <div class="flex wrap" style="gap:5px;margin-top:4px">
             <span class="tag ${pr.forca === 'forte' ? 'ok' : pr.forca === 'contra' ? 'bad' : 'warn'}">${CI.FORCA[pr.forca].nome}</span>
-            ${pr.novo ? '<span class="tag vio">novo na v2</span>' : ''}
+            ${pr.novo ? '<span class="tag vio">novo</span>' : ''}
             ${pr.removido ? '<span class="tag bad">recurso removido</span>' : ''}
             ${pr.rebaixa ? '<span class="tag warn">afirmação rebaixada</span>' : ''}
             ${pr.naoUsado ? '<span class="tag">deliberadamente não usado</span>' : ''}

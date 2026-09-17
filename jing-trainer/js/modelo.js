@@ -114,8 +114,13 @@
        jogava fora metade da amostra da medida mais importante do sistema. */
     const ehRetencao = t.k === 'rota' && t.ref && !t.aj &&
                        (t.mo === 'retencao' || (t.mo === 'prova' && horasDesdeTreinoDeRota() >= 20));
+    /* Horas desde o último treino de rota, gravadas NA TENTATIVA.
+       Sem isso não existe curva de esquecimento: depois do fato não dá
+       para reconstruir com que intervalo cada tentativa foi feita sem
+       refazer a conta inteira a cada leitura. */
+    const hDesde = (t.k === 'rota' && t.ref) ? +horasDesdeTreinoDeRota().toFixed(1) : null;
     d.tentativas.push({
-      ret: ehRetencao ? 1 : 0,
+      ret: ehRetencao ? 1 : 0, hDesde,
       t: Date.now(), s: d.sessaoAtual ? d.sessaoAtual.id : 0,
       d: t.d, mo: t.mo || 'treino', k: t.k, ok: t.ok ? 1 : 0,
       rt: t.rt != null ? Math.round(t.rt) : null,
@@ -188,6 +193,9 @@
     const ic = S.mediaIC(cvs);
     return {
       id: 'estabilidade', v: +(ic.v * 100).toFixed(1),
+      /* CVs por sessão: amostras disjuntas, uma por sessão. É a série que
+         serve para tendência — o acumulado dos 21 dias serve para nível. */
+      porSessao: cvs.map(c => c * 100),
       lo: +(Math.max(0, ic.lo) * 100).toFixed(1), hi: +(ic.hi * 100).toFixed(1),
       n: a.length, sessoes: cvs.length, nivel: S.nivelDado(a.length, 'tempo'),
       tendencia: S.inclinacao(cvs).direcao,

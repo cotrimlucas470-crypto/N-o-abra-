@@ -36,6 +36,30 @@
   const DRILLS = [
     /* ---------------------------------------------------------- */
     {
+      id: 'trajeto', nome: 'Trajeto caro', motor: 'sequencia', mede: null,
+      objetivo: 'Repetir só o pedaço do combo que custa mais do que devia.',
+      comoFunciona: [
+        'Duas teclas por tentativa: exatamente o trajeto que o sistema mediu como lento.',
+        'Não é o combo inteiro. É o pedaço dele que está atrasando o resto.',
+        'O alvo é o miolo do botão de chegada — trajeto lento quase sempre é trajeto impreciso.',
+        'O sistema compara o seu tempo neste par com o que a distância entre os dois botões pede.',
+      ],
+      porque: 'Um combo não falha por inteiro, falha num trajeto. A sua própria reta de tempo por distância diz quais pares demoram mais do que a distância explica — e só nesses a repetição rende, porque nos outros o tempo já é o que a física do polegar permite.',
+      cfg: (d, ctx) => {
+        const pr = U.PR && U.PR.trajetosCaros({});
+        const rotas = (pr && pr.ok && pr.rotas.length) ? pr.rotas
+                    : [['s1', 'aa'], ['aa', 's2'], ['s2', 's3']];
+        return {
+          tentativas: 18, modo: 'livre', mostrarRota: d < 5 ? 'sempre' : 'antes',
+          rotas, esquema: d < 4 ? 'bloco' : 'serial',
+          tempoLeitura: Math.round(escala(d, 900, 380)),
+          deadline: Math.round(escala(d, 1600, 700)),
+          alvoMs: Math.round(escala(d, 900, 380)),
+          isiMin: 320, isiMax: Math.round(escala(d, 800, 1300)),
+        };
+      },
+    },
+    {
       id: 'ancorar', nome: 'Ancoragem', motor: 'sequencia', mede: null,
       objetivo: 'Reencontrar cada botão e alimentar o mapa do seu polegar.',
       comoFunciona: [
