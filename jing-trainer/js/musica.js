@@ -122,11 +122,10 @@
       if (!drill) return this.tocar('espelho');
       const bpmAlvo = cfg && cfg.beat ? U.clamp(60000 / cfg.beat, 46, 168) : null;
       let clima = 'espelho';
-      if (drill.motor === 'prioridade' || drill.motor === 'cenario') clima = 'foco';
-      else if (drill.motor === 'escolha') clima = 'foco';
-      else if (cfg && (cfg.freio || cfg.ruido || cfg.mutante)) clima = 'tensao';
-      else if (cfg && (cfg.modo === 'compasso' || cfg.modo === 'janela')) clima = 'pulso';
-      else if (drill.fase >= 4) clima = 'pulso';
+      if (drill.motor === 'leitura' || drill.motor === 'decisao') clima = 'foco';
+      else if (cfg && (cfg.freio || cfg.ruido)) clima = 'tensao';
+      else if (cfg && cfg.modo === 'compasso') clima = 'pulso';
+      else if (cfg && cfg.dif >= 6) clima = 'pulso';
       this.tocar(clima, bpmAlvo || CLIMAS[clima].bpm);
     },
 

@@ -1,18 +1,21 @@
 /* ============================================================
-   ui.js — telas, navegação, relatórios
+   ui.js — telas (V2)
+   ------------------------------------------------------------
+   Cinco telas em vez de sete, organizadas na ordem em que a
+   cabeça precisa delas:
+     AGORA      o que fazer, por quê, e o que o sistema ainda não sabe
+     PROGRESSO  o que ficou (e o que é só desempenho do dia)
+     HUD        o que o seu aparelho impõe
+     MÉTODO     por que o sistema é assim, com as fontes
+     CONFIG     ajustes e dados
    ============================================================ */
 'use strict';
 (function (U) {
 
   const { $, $$, el } = U;
-  const M = U.M, C = U.C, D = U.D, H = U.HUD, G = U.G;
+  const MD = U.MD, CT = U.CT, DS = U.DS, D = U.D, H = U.HUD, G = U.G, S = U.S, CO = U.CO;
 
-  const CURTOS = { precisao: 'PREC', velocidade: 'VEL', consistencia: 'CONS', automatismo: 'AUTO',
-                   reflexo: 'REFL', decisao: 'DECI', freio: 'FREIO', movimento: 'MOV' };
-  const EIXOS_RADAR = M.EIXO_IDS.map(id => ({ id, nome: M.EIXOS[id].nome, curto: CURTOS[id] }));
-
-  /* ---------- utilidades de tela ---------- */
-  let telaAtual = 'inicio';
+  let telaAtual = 'agora';
   function ir(nome) {
     telaAtual = nome;
     $$('.tela').forEach(t => t.classList.toggle('on', t.id === 'tela-' + nome));
@@ -22,289 +25,439 @@
 
   let toastT = null;
   function toast(txt, tipo = '') {
-    const t = $('#toast');
-    t.textContent = txt; t.className = 'on ' + tipo;
-    clearTimeout(toastT);
-    toastT = setTimeout(() => { t.className = tipo; }, 2600);
+    const t = $('#toast'); t.textContent = txt; t.className = 'on ' + tipo;
+    clearTimeout(toastT); toastT = setTimeout(() => { t.className = tipo; }, 2600);
   }
-
   function modal(html, onOpen) {
-    $('#modal-cx').innerHTML = html;
-    $('#modal').classList.add('on');
+    $('#modal-cx').innerHTML = html; $('#modal').classList.add('on');
     onOpen && onOpen($('#modal-cx'));
   }
-  function fecharModal() { $('#modal').classList.remove('on'); }
+  const fecharModal = () => $('#modal').classList.remove('on');
 
-  /* ---------- peças reutilizáveis ---------- */
-  function barrasEixos(valores, mostrarAlvo = true) {
-    const n = C.nivelAtual();
-    return M.EIXO_IDS.map(k => {
-      const v = Math.round(valores[k]);
-      const alvo = C.alvoEixo(k, n);
-      const cor = v >= alvo ? 'linear-gradient(90deg,#2fae79,#3ddc97)'
-                : v >= alvo - 12 ? 'linear-gradient(90deg,#a78bfa,#4ee0ff)'
-                : 'linear-gradient(90deg,#c2364f,#ff8a5c)';
-      return `<div class="linha">
-        <div class="nome">${M.EIXOS[k].nome}</div>
-        <div class="barra"><i style="width:${v}%;background:${cor}"></i>
-          ${mostrarAlvo ? `<div class="alvo" style="left:${alvo}%"></div>` : ''}</div>
-        <div class="val">${v}</div>
-      </div>`;
-    }).join('');
+  /* ============================================================
+     Peças
+     ============================================================ */
+  const NIVEL_CLASSE = { insuficiente: 'bad', provisorio: 'warn', razoavel: '', firme: 'ok' };
+
+  function cartaoMedida(m, opts = {}) {
+    const semDado = m.v == null || m.nivel === 'insuficiente';
+    const piso = opts.piso;
+    return `<div class="medida ${semDado ? 'vazia' : ''}">
+      <div class="flex" style="gap:6px;align-items:baseline">
+        <div class="mt">${m.nome}</div>
+        <div class="espaco"></div>
+        <span class="tag ${NIVEL_CLASSE[m.nivel] || ''}">${S.rotuloNivel(m.nivel)}</span>
+      </div>
+      ${semDado
+        ? `<div class="mv vazio">—</div>
+           <div class="mini">${m.n ? `${m.n} tentativa${m.n > 1 ? 's' : ''} até agora.` : 'Ainda sem tentativas.'}
+           Faltam ${Math.max(0, (S.MIN[opts.tipo || 'proporcao'].explorar) - m.n)} para a primeira estimativa.</div>`
+        : `<div class="mv">${m.v}<span class="mu">${m.unidade || ''}</span></div>
+           <canvas class="graf" data-medidor="${m.id}"></canvas>
+           <div class="mini">intervalo <b>${m.lo}–${m.hi}</b> · ${m.n} tentativas
+             ${m.tendencia && m.tendencia !== 'indefinida' && m.tendencia !== 'estavel'
+               ? `· <span style="color:${(m.tendencia === 'sobe') === (m.melhor === 'maior') ? 'var(--ok)' : 'var(--bad)'}">${m.tendencia === 'sobe' ? 'subindo' : 'descendo'}</span>` : ''}
+           </div>`}
+      <div class="xs" style="margin-top:4px">${m.pergunta}</div>
+    </div>`;
   }
 
-  function kpi(v, k, cor) {
-    return `<div class="kpi"><div class="v" ${cor ? `style="color:${cor}"` : ''}>${v}</div><div class="k">${k}</div></div>`;
+  function cartoesMedidas(p, compacto) {
+    const ordem = ['retencao', 'execucao', 'estabilidade', 'leitura', 'aborto'];
+    const pisos = { retencao: 70, leitura: 55 };
+    return `<div class="grade g3 medidas">
+      ${ordem.map(k => cartaoMedida(p[k], { piso: pisos[k], tipo: (k === 'execucao' || k === 'estabilidade' || k === 'aborto') ? 'tempo' : 'proporcao' })).join('')}
+      ${p.custoDecisao.nivel !== 'insuficiente' ? cartaoMedida(p.custoDecisao, { tipo: 'diferenca' }) : ''}
+    </div>`;
   }
 
-  function chipEstado(estado) {
-    const e = M.ESTADOS[estado] || M.ESTADOS.lenta;
-    return `<span class="est" style="color:${e.cor};background:${e.cor}22;border:1px solid ${e.cor}55">${e.nome}</span>`;
+  function desenharMedidores(raiz) {
+    const p = MD.painel();
+    $$('canvas[data-medidor]', raiz || document).forEach(cv => {
+      const m = p[cv.dataset.medidor];
+      if (!m || m.v == null) return;
+      const cfgs = {
+        retencao: { min: 0, max: 100, piso: 70, cor: G.T.serie[0] },
+        leitura: { min: 0, max: 100, piso: 55, cor: G.T.serie[0] },
+        execucao: { min: 400, max: 2000, cor: G.T.serie[2] },
+        estabilidade: { min: 0, max: 45, cor: G.T.serie[2] },
+        aborto: { min: 0, max: 500, cor: G.T.serie[1] },
+        custoDecisao: { min: -20, max: 60, cor: G.T.serie[1] },
+      };
+      G.medidor(cv, m, cfgs[cv.dataset.medidor] || {});
+    });
   }
 
   /* ============================================================
-     TELA — BASE
+     TELA — AGORA
      ============================================================ */
-  function telaInicio() {
+  function telaAgora() {
     const d = U.DB.load();
-    const v = M.valores();
-    const n = C.nivelAtual();
-    const inf = C.nivelInfo(n);
-    const temDiag = !!d.diagnostico;
-    const prox = temDiag ? C.proximo() : null;
-    const falta = C.faltaParaSubir();
-    const ultima = d.sessoes[d.sessoes.length - 1];
-    const mec = Object.entries(d.mecanicas || {});
+    const sit = DS.situacao();
+    const dec = sit.proxima;
+    const rec = sit.recuperacao;
+    const fase = CT.FASES[sit.fase];
+    const p = MD.painel();
+    const esp = U.CI.sessoesHoje();
 
-    if (!temDiag) {
-      return `
-      <div class="topo"><h1>◈ ESPELHO</h1><span class="sub">recuperação de mecânica · Jing</span></div>
-      <div class="rolagem pilha">
-        <div class="painel frag">
-          <h2>Antes de treinar, medir</h2>
-          <p class="mini">Você ficou cerca de <b>${d.perfil.parado} dias</b> sem jogar. Isso quase nunca significa
-          que você esqueceu a Jing — significa que ela ficou <b>lenta e instável</b>, e que algumas coisas que
-          saíam sozinhas voltaram a exigir atenção.</p>
-          <p class="mini" style="margin-top:6px">O diagnóstico são <b>6 provas curtas (~9 minutos)</b>. Ele separa o que
-          você <b>não sabe mais fazer</b> do que você <b>sabe e está enferrujado</b> — e essas duas coisas
-          pedem treinos opostos. Sem essa medida, qualquer plano seria chute.</p>
-          <div class="sep"></div>
-          <div class="grade g3">
-            ${D.DIAGNOSTICO.slice(0,3).map(p=>`<div class="kpi" style="text-align:left"><div class="k" style="color:var(--vio)">${p.nome}</div><div class="mini xs" style="margin-top:3px">${p.mede}</div></div>`).join('')}
-          </div>
-          <div class="grade g3" style="margin-top:8px">
-            ${D.DIAGNOSTICO.slice(3).map(p=>`<div class="kpi" style="text-align:left"><div class="k" style="color:var(--vio)">${p.nome}</div><div class="mini xs" style="margin-top:3px">${p.mede}</div></div>`).join('')}
-          </div>
-          <button class="btn full gold" id="ir-diag" style="margin-top:10px">Começar diagnóstico</button>
-        </div>
-        <div class="painel">
-          <h2>Antes de começar</h2>
-          <div class="mini">Confira se a réplica do HUD bate com o seu jogo. Se os botões não estiverem no
-          lugar certo, todo o treino de precisão mede a coisa errada.</div>
-          <button class="btn sec full sm" id="ir-mapa2" style="margin-top:8px">Ver e calibrar o HUD</button>
-        </div>
-      </div>`;
-    }
+    const acao = dec ? dec.acao : null;
+    const rotulo = !acao ? '—'
+      : acao.tipo === 'prova' ? 'Fazer a Prova'
+      : acao.tipo === 'retencao' ? 'Fazer o teste de retenção'
+      : acao.tipo === 'hud' ? 'Abrir a aba HUD'
+      : acao.tipo === 'parar' ? 'Entendi'
+      : 'Começar';
 
     return `
     <div class="topo">
       <h1>◈ ESPELHO</h1>
-      <span class="tag vio">Nível ${n} · ${inf.nome}</span>
+      <span class="tag vio">${fase.nome}</span>
       <div class="espaco"></div>
-      <span class="sub">${inf.lema}</span>
+      <span class="sub">${d.legado ? 'v2 · dados da v1 preservados' : 'v2'}</span>
     </div>
     <div class="rolagem pilha">
 
-      <div class="painel frag">
-        <div class="flex" style="align-items:flex-start;gap:12px">
-          <div style="flex:1;min-width:0">
-            <h2 style="margin-bottom:3px">Próximo exercício</h2>
-            <div style="font-size:1.05rem;font-weight:900">${prox ? prox.drill.nome : '—'}</div>
-            <div class="mini" style="margin-top:3px">${prox ? prox.motivo : ''}</div>
-            <div class="mini xs" style="margin-top:4px">${prox ? prox.drill.objetivo : ''}</div>
-          </div>
-          <div style="flex:0 0 auto;text-align:center">
-            <div class="tag">dif ${prox ? prox.dif : 1}/10</div>
-          </div>
+      <div class="painel hero">
+        <div class="mini" style="color:var(--gold);font-weight:800;letter-spacing:.08em;text-transform:uppercase">O que fazer agora</div>
+        <h2 class="heroT">${dec ? dec.titulo : 'Nada pendente'}</h2>
+        <div class="mini" style="margin-top:4px">${dec ? dec.porque : ''}</div>
+        <div class="flex wrap" style="gap:6px;margin-top:8px">
+          <span class="tag">regra <code>${dec ? dec.regra : '—'}</code></span>
+          <span class="tag ${NIVEL_CLASSE[dec ? dec.confianca : ''] || ''}">confiança: ${dec ? S.rotuloNivel(dec.confianca) : '—'}</span>
+          ${acao && acao.drill ? `<span class="tag">dificuldade ${acao.dif.toFixed(1)}</span>` : ''}
         </div>
-        <div class="flex" style="margin-top:9px;gap:8px">
-          <button class="btn" style="flex:2" id="ir-agora" data-drill="${prox ? prox.drill.id : ''}">Treinar agora</button>
-          <button class="btn sec" style="flex:1" id="ir-sessao">Sessão guiada</button>
+        <div class="flex" style="margin-top:10px;gap:8px">
+          <button class="btn" style="flex:2" id="ir-agora">${rotulo}</button>
+          <button class="btn sec" style="flex:1" id="ir-sessao">Sessão inteira</button>
         </div>
+        <div class="xs" style="margin-top:6px">${fase.objetivo}</div>
       </div>
 
-      <div class="grade g4">
-        ${kpi(n, 'nível', 'var(--vio)')}
-        ${kpi(d.sets.length, 'sets')}
-        ${(() => { const r = C.serieRetencao(); return kpi(r.length ? r[r.length - 1].score : '—', 'retenção',
-          r.length ? (r[r.length - 1].score >= 70 ? 'var(--ok)' : 'var(--warn)') : null); })()}
-        ${kpi(d.streak.dias || 0, 'dias seguidos', 'var(--gold)')}
+      <div class="painel">
+        <h2>Quanto da sua Jing voltou</h2>
+        <div class="aviso ${rec.estado === 'recuperado' ? 'ok' : rec.estado === 'medindo' ? '' : ''}">${rec.texto}</div>
+        ${rec.pct != null ? `<div class="flex" style="gap:10px;margin-top:8px;align-items:center">
+          <div class="numero" style="font-size:1.6rem">${rec.pct}<span class="de">%</span></div>
+          <div class="mini" style="flex:1">da rota de referência volta no dia seguinte, sem ajuda.
+          Intervalo ${rec.lo}–${rec.hi}% em ${rec.n} tentativas.
+          ${rec.base != null && rec.base !== rec.pct ? `Primeira medição: ${rec.base}%.` : ''}</div>
+        </div>` : ''}
       </div>
 
-      ${(() => {
-        const e = U.CI.conselhoEspacamento();
-        if (!e.aviso) return '';
-        return `<div class="aviso ${e.ok ? '' : 'bad'}"><b>Espaçamento:</b> ${e.txt}
-          <div><button class="btn sec sm" style="margin-top:7px;min-height:34px" data-princ="espacamento">por quê</button></div></div>`;
-      })()}
+      ${sit.fadiga.estado === 'alta' || sit.fadiga.estado === 'moderada' ? `<div class="aviso ${sit.fadiga.estado === 'alta' ? 'bad' : ''}">
+        <b>Qualidade da sessão:</b> ${sit.fadiga.txt}
+        <div><button class="btn sec sm" style="margin-top:7px;min-height:34px" data-princ="fadiga">como isso é estimado</button></div>
+      </div>` : ''}
+
+      ${esp >= 2 ? `<div class="aviso ${esp >= 3 ? 'bad' : ''}">
+        <b>${esp}ª sessão hoje.</b> Com o mesmo tempo total, sessões espalhadas em dias diferentes retêm muito
+        mais que empilhadas num dia.
+        <div><button class="btn sec sm" style="margin-top:7px;min-height:34px" data-princ="espacamento">por quê</button></div>
+      </div>` : ''}
+
+      <div class="painel">
+        <h2>Suas medidas</h2>
+        ${cartoesMedidas(p)}
+      </div>
+
+      ${sit.coletando.length ? `<div class="painel">
+        <h2>O que o sistema ainda NÃO sabe</h2>
+        <div class="mini" style="margin-bottom:6px">Isto não é falha: é o estado honesto da amostra. Doze
+        tentativas não são uma medida, e o sistema é proibido de decidir com base nas linhas abaixo.</div>
+        <div class="pilha" style="gap:5px">
+          ${sit.coletando.map(m => `<div class="mini">• <b>${m.nome}</b> —
+            ${m.n} tentativa${m.n === 1 ? '' : 's'} (${S.rotuloNivel(m.nivel)}). ${m.pergunta}</div>`).join('')}
+        </div>
+        <button class="btn sec sm full" id="ir-prova" style="margin-top:9px">Fazer a Prova — é o que preenche isso</button>
+      </div>` : ''}
+    </div>`;
+  }
+
+  function depoisAgora() {
+    desenharMedidores($('#tela-agora'));
+    const sit = DS.situacao();
+    const dec = sit.proxima;
+    $('#ir-agora')?.addEventListener('click', () => {
+      if (!dec) return;
+      const a = dec.acao;
+      if (a.tipo === 'hud') return ir('hud');
+      if (a.tipo === 'parar') return toast('Recomendação registrada');
+      if (a.tipo === 'prova') return U.T.iniciarProva();
+      if (a.tipo === 'retencao') return U.T.iniciarRetencao();
+      const dr = D.porId(a.drill); if (dr) U.T.abrirBloco(dr, a.dif);
+    });
+    $('#ir-sessao')?.addEventListener('click', () => U.T.sessaoGuiada());
+    $('#ir-prova')?.addEventListener('click', () => U.T.iniciarProva());
+    $$('#tela-agora [data-princ]').forEach(b => b.addEventListener('click', () => verPrincipio(b.dataset.princ)));
+  }
+
+  /* ============================================================
+     TELA — PROGRESSO
+     ============================================================ */
+  function telaProgresso() {
+    const d = U.DB.load();
+    const ret = MD.retencao();
+    const exec = MD.execucao();
+    const curva = MD.curvaLeitura();
+    const erros = MD.perfilErros({ dias: 30 });
+    const temAlgo = d.tentativas.length > 0;
+
+    if (!temAlgo) {
+      return `<div class="topo"><h1>▤ Progresso</h1><div class="espaco"></div>
+        <span class="sub">nenhuma tentativa registrada</span></div>
+      <div class="rolagem pilha">
+        <div class="painel frag">
+          <h2>Ainda não há nada para mostrar — e isso é informação</h2>
+          <div class="mini">Esta tela separa o que você <b>aprendeu</b> do que apenas executou bem no dia.
+          As duas coisas se parecem durante o treino e divergem no dia seguinte, que é quando a primeira
+          aparece e a segunda some.</div>
+          <div class="sep"></div>
+          <div class="mini"><b>O que vai aparecer aqui</b></div>
+          <div class="pilha" style="gap:5px;margin-top:5px">
+            <div class="mini">• <b>Retenção</b> — quanto da rota volta sem ajuda, um dia depois. A medida que conta.</div>
+            <div class="mini">• <b>Limiar de execução</b> — o tempo de rota que você sustenta, em ms.</div>
+            <div class="mini">• <b>Leitura por janela</b> — a partir de quanta informação você ainda decide certo.</div>
+            <div class="mini">• <b>Onde os erros caem</b> — layout, sequência, pressa, leitura ou freio.</div>
+          </div>
+          <button class="btn full gold" id="ir-prova2" style="margin-top:10px">Fazer a Prova — é o que cria a linha de base</button>
+        </div>
+        ${blocoPartidas(d)}
+        ${d.legado ? blocoLegado(d) : ''}
+      </div>`;
+    }
+
+    return `
+    <div class="topo"><h1>▤ Progresso</h1><div class="espaco"></div>
+      <span class="sub">${d.tentativas.length} tentativas · ${d.provas.length} prova${d.provas.length === 1 ? '' : 's'}</span></div>
+    <div class="rolagem pilha">
+
+      <div class="painel">
+        <h2>Retenção — a medida que conta</h2>
+        <div class="mini" style="margin-bottom:7px">Proporção da rota de referência que volta no dia seguinte,
+        sem ajuda. A faixa clara é o intervalo de confiança: quando ela é larga, a amostra ainda é pequena e
+        a subida ou descida pode ser só ruído.</div>
+        <canvas class="graf" id="g-ret" data-h="150"></canvas>
+        <div class="mini" style="margin-top:6px">
+          ${ret.nivel === 'insuficiente'
+            ? `Ainda sem estimativa (${ret.n} tentativas). ${S.MIN.proporcao.explorar - ret.n > 0 ? `Faltam ${S.MIN.proporcao.explorar - ret.n}.` : ''}`
+            : `<b>${ret.v}%</b> (intervalo ${ret.lo}–${ret.hi}%, ${ret.n} tentativas, ${S.rotuloNivel(ret.nivel)}).
+               ${ret.tendencia === 'sobe' ? 'A série está subindo.'
+                 : ret.tendencia === 'desce' ? '<b>A série está descendo.</b>'
+                 : 'A série está estável — ou a amostra ainda não permite dizer.'}`}
+        </div>
+      </div>
 
       <div class="grade g2" style="align-items:start">
         <div class="painel">
-          <h2>Estado atual</h2>
-          ${barrasEixos(v)}
-          <div class="xs" style="margin-top:6px">A marca dourada é o alvo do nível ${n}.</div>
+          <h2>Limiar de execução</h2>
+          <div class="mini" style="margin-bottom:6px">O tempo de rota que você sustenta com o acerto no alvo.
+          Menor é melhor. Só entram sets em que a dificuldade parou de se mexer.</div>
+          <canvas class="graf" id="g-lim" data-h="140"></canvas>
+          <div class="mini" style="margin-top:5px">${exec.nivel === 'insuficiente'
+            ? 'Nenhum set estabilizou ainda. Isso leva alguns sets do exercício Rota.'
+            : `<b>${exec.v} ms</b> (intervalo ${exec.lo}–${exec.hi}, ${exec.n} sets estáveis).`}</div>
         </div>
         <div class="painel">
-          <h2>Perfil</h2>
-          <canvas class="graf" id="radar-inicio" data-h="178"></canvas>
-          <div class="xs flex wrap" style="gap:9px;margin-top:4px">
-            <span style="color:var(--vio)">━ agora</span>
-            <span style="color:#66748f">━ diagnóstico</span>
-            <span style="color:var(--gold)">┄ alvo</span>
-          </div>
+          <h2>Leitura por janela</h2>
+          <div class="mini" style="margin-bottom:6px">Acerto por quantidade de informação. O ponto dourado é a
+          janela fixa de 300 ms — a única comparável entre sessões.</div>
+          <canvas class="graf" id="g-oclu" data-h="155"></canvas>
         </div>
       </div>
 
-      ${falta.length ? `<div class="painel">
-        <h2>Para subir para o nível ${n + 1} — ${C.nivelInfo(n + 1).nome}</h2>
-        <div class="mini">${C.nivelInfo(n + 1).porque}</div>
-        <div class="flex wrap" style="margin-top:7px;gap:6px">
-          ${falta.map(f => `<span class="tag warn">${M.EIXOS[f.eixo]?.nome || 'Média geral'} ${f.atual} → ${f.alvo}</span>`).join('')}
-        </div>
-      </div>` : `<div class="painel"><h2>Nível máximo</h2><div class="mini">${inf.porque}</div></div>`}
+      <div class="painel">
+        <h2>Onde os erros caem</h2>
+        <div class="mini" style="margin-bottom:6px">Últimos 30 dias. A barra fina é o intervalo: com poucos erros
+        no total, a composição varia muito de sessão para sessão.</div>
+        <canvas class="graf" id="g-err"></canvas>
+        ${erros.total ? `<div class="mini" style="margin-top:6px">
+          <b>${erros.itens[0].nome}</b> é o mais frequente. ${erros.itens[0].acao}</div>` : ''}
+      </div>
 
-      ${mec.length ? `<div class="painel">
-        <h2>Suas rotas agora</h2>
-        <table class="tab"><thead><tr><th>Rota</th><th>Estado</th><th>Acerto</th><th>Leitura</th></tr></thead><tbody>
-        ${mec.sort((a,b)=>(a[1].acc||0)-(b[1].acc||0)).slice(0,6).map(([id, m]) => `<tr>
-          <td class="forte">${m.nome || id}</td>
-          <td>${chipEstado(m.estado)}</td>
-          <td>${Math.round((m.acc || 0) * 100)}%</td>
-          <td class="mini" style="font-size:.6rem">${M.ESTADOS[m.estado]?.texto || ''}</td>
-        </tr>`).join('')}
-        </tbody></table>
-      </div>` : ''}
+      ${blocoPartidas(d)}
 
-    </div>`;
-  }
-
-  function depoisInicio() {
-    const d = U.DB.load();
-    if (!d.diagnostico) {
-      $('#ir-diag')?.addEventListener('click', () => U.T.diagnostico());
-      $('#ir-mapa2')?.addEventListener('click', () => ir('mapa'));
-      return;
-    }
-    const cv = $('#radar-inicio');
-    if (cv) {
-      const alvos = {}; const n = C.nivelAtual();
-      M.EIXO_IDS.forEach(k => alvos[k] = C.alvoEixo(k, n));
-      const series = [];
-      if (d.diagnostico) series.push({ valores: d.diagnostico.eixos, cor: '#66748f', preenche: false, grossura: 1.5, pontos: false });
-      series.push({ valores: M.valores(), cor: '#a78bfa' });
-      G.radar(cv, EIXOS_RADAR, series, alvos);
-    }
-    $('#ir-agora')?.addEventListener('click', (e) => {
-      const id = e.currentTarget.dataset.drill;
-      const dr = D.porId(id); if (!dr) return;
-      U.T.abrir(dr, C.estadoDrill(id).dif);
-    });
-    $('#ir-sessao')?.addEventListener('click', () => U.T.sessaoGuiada());
-    $$('#tela-inicio [data-princ]').forEach(b => b.addEventListener('click', () => verPrincipio(b.dataset.princ)));
-  }
-
-  /* ============================================================
-     TELA — TREINO (catálogo)
-     ============================================================ */
-  function telaTreinar() {
-    const d = U.DB.load();
-    const n = C.nivelAtual();
-    const f = d.diagnostico ? C.fila(5) : [];
-    const porFase = {};
-    for (const dr of D.DRILLS) {
-      if (dr.heroi === 'luna') continue;
-      (porFase[dr.fase] || (porFase[dr.fase] = [])).push(dr);
-    }
-    return `
-    <div class="topo"><h1>⚔ Treino</h1><div class="espaco"></div>
-      <span class="sub">liberado até a fase ${n}</span></div>
-    <div class="rolagem pilha">
-      ${!d.diagnostico ? `<div class="aviso">Faça o diagnóstico primeiro. Sem ele o sistema não sabe o que priorizar e o treino vira lista genérica.</div>` : ''}
-
-      ${f.length ? `<div class="painel frag">
-        <h2>Sessão de hoje — escolhida pelo sistema</h2>
-        <div class="pilha" style="gap:6px">
-          ${f.map((x, i) => `<div class="item destaque" data-drill="${x.drill.id}">
-            <div class="ic">${i + 1}</div>
-            <div class="txt"><b>${x.drill.nome}</b><span>${x.drill.objetivo}</span></div>
-            <span class="tag">dif ${x.dif}</span>
+      <div class="painel">
+        <h2>Sessões</h2>
+        <div class="pilha" style="gap:5px">
+          ${d.sessoes.slice().reverse().slice(0, 10).map(s => `<div class="item">
+            <div class="ic">${s.blocos.some(b => b.mo === 'prova') ? '◎' : '◈'}</div>
+            <div class="txt"><b>${U.dateTime(s.t)}</b><span>${s.blocos.length} blocos
+              ${s.fadiga && s.fadiga.estado === 'alta' ? '· terminou com fadiga alta' : ''}</span></div>
+            <span class="tag">${U.dur((s.fim || s.t) - s.t)}</span>
           </div>`).join('')}
         </div>
-        <button class="btn full" id="ir-sessao2" style="margin-top:9px">Rodar a sessão inteira</button>
-      </div>` : ''}
+      </div>
 
-      ${C.NIVEIS.slice(0, 6).map(nv => {
-        const lista = porFase[nv.n] || [];
-        if (!lista.length) return '';
-        const bloq = nv.n > n;
-        return `<div class="painel">
-          <h2 style="color:${bloq ? 'var(--dim2)' : 'var(--vio)'}">Fase ${nv.n} · ${nv.nome} ${bloq ? '🔒' : ''}</h2>
-          <div class="mini" style="margin-bottom:7px">${nv.porque}</div>
-          <div class="pilha" style="gap:6px">
-            ${lista.map(dr => {
-              const e = C.estadoDrill(dr.id);
-              return `<div class="item ${bloq ? 'bloq' : ''}" data-drill="${bloq ? '' : dr.id}">
-                <div class="ic">${{sequencia:'⌁',escolha:'⚡',prioridade:'◎',cenario:'⛨'}[dr.motor] || '◆'}</div>
-                <div class="txt"><b>${dr.nome}</b><span>${dr.objetivo}</span></div>
-                <div style="text-align:right;flex:0 0 auto">
-                  <div class="tag">dif ${e.dif}</div>
-                  ${e.sets ? `<div class="xs" style="margin-top:2px">melhor ${Math.round(e.melhor)}</div>` : ''}
-                </div>
-              </div>`;
-            }).join('')}
-          </div>
-        </div>`;
-      }).join('')}
+      ${d.legado ? blocoLegado(d) : ''}
     </div>`;
   }
 
-  function depoisTreinar() {
-    $('#ir-sessao2')?.addEventListener('click', () => U.T.sessaoGuiada());
-    $$('#tela-treinar .item[data-drill]').forEach(it => {
-      const id = it.dataset.drill; if (!id) return;
-      it.addEventListener('click', () => {
-        const dr = D.porId(id); if (!dr) return;
-        U.T.abrir(dr, C.estadoDrill(id).dif);
+  function blocoLegado(d) {
+    const L = d.legado;
+    return `<div class="painel">
+      <h2>Histórico da versão 1</h2>
+      <div class="mini">Guardado e não apagado: ${L.sets.length} sets e ${L.sessoes.length} sessões da versão
+      anterior.<br><b>Não entra nos gráficos acima de propósito.</b> A V1 media com outro instrumento e sem
+      condição de referência fixa; juntar as duas séries produziria uma tendência falsa — que é justamente o
+      erro que esta versão existe para corrigir.</div>
+      <button class="btn sec sm full" id="ver-legado" style="margin-top:8px">Ver o que ficou guardado</button>
+    </div>`;
+  }
+
+  function blocoPartidas(d) {
+    const ps = d.partidas || [];
+    const cortes = ps.length >= 6 ? analisarPartidas(ps) : null;
+    return `<div class="painel">
+      <h2>Partidas de verdade</h2>
+      <div class="mini">Nenhum sistema como este consegue provar que melhora o seu jogo — a transferência de
+      treino auxiliar para partida é uma lacuna aberta na literatura. O que dá para fazer é você anotar o que
+      aconteceu e o próprio sistema comparar, avisando que é observação sua e não experimento.
+      <div><button class="btn sec sm" style="margin-top:7px;min-height:34px" data-princ="transferencia">o que a literatura diz</button></div></div>
+      <button class="btn sec sm full" id="add-partida" style="margin-top:9px">Registrar uma partida</button>
+      ${ps.length ? `<div class="sep"></div>
+        <div class="mini"><b>${ps.length} partidas registradas</b></div>
+        ${cortes ? `<div class="aviso ${cortes.distinguivel ? 'ok' : ''}" style="margin-top:6px">
+          Execução que você mesmo notou: <b>${cortes.antes.toFixed(1)}</b> antes → <b>${cortes.depois.toFixed(1)}</b> depois
+          (escala 1-5, ${cortes.nAntes} e ${cortes.nDepois} partidas).
+          ${cortes.distinguivel
+            ? 'A diferença é maior que a variação entre partidas — mas continua sendo a sua própria impressão, não uma medida cega.'
+            : 'A diferença ainda não é maior que a variação normal entre partidas. Não dá para chamar isso de melhora.'}
+        </div>` : '<div class="mini" style="margin-top:5px">A partir de 6 partidas o sistema compara os períodos.</div>'}
+        <div class="pilha" style="gap:4px;margin-top:7px">
+          ${ps.slice().reverse().slice(0, 5).map(x => `<div class="mini">
+            ${U.dateShort(x.t)} · ${x.res === 'v' ? '<span style="color:var(--ok)">vitória</span>' : '<span style="color:var(--bad)">derrota</span>'}
+            · execução ${x.exec}/5 · decisão ${x.dec}/5${x.obs ? ` · <span class="xs">${x.obs}</span>` : ''}</div>`).join('')}
+        </div>` : ''}
+    </div>`;
+  }
+
+  function analisarPartidas(ps) {
+    const meio = Math.floor(ps.length / 2);
+    const a = ps.slice(0, meio), b = ps.slice(meio);
+    const mA = U.mean(a.map(x => x.exec)), mB = U.mean(b.map(x => x.exec));
+    const icA = S.mediaIC(a.map(x => x.exec)), icB = S.mediaIC(b.map(x => x.exec));
+    const dist = icA.hi != null && icB.lo != null && (icB.lo > icA.hi || icA.lo > icB.hi);
+    return { antes: mA, depois: mB, nAntes: a.length, nDepois: b.length, distinguivel: dist };
+  }
+
+  function depoisProgresso() {
+    const d = U.DB.load();
+    if ($('#g-ret')) {
+      const ret = MD.retencao();
+      const pts = (ret.serie || []).map(x => {
+        const w = S.wilson(Math.round(x.p * x.n), x.n);
+        return { rot: U.dateShort(x.t), v: +(w.p * 100).toFixed(0),
+                 lo: +(w.lo * 100).toFixed(0), hi: +(w.hi * 100).toFixed(0), n: x.n };
       });
+      G.linhaIC($('#g-ret'), pts, { max: 100, piso: 70, pisoTxt: 'piso de 70%', nome: 'retenção',
+                                    fmt: v => Math.round(v) + '%', vazio: 'nenhum teste de retenção ainda' });
+    }
+    if ($('#g-lim')) {
+      const ex = MD.execucao();
+      const pts = (ex.porSet || []).map(x => ({ rot: U.dateShort(x.t), v: x.ms, n: x.n }));
+      G.linhaIC($('#g-lim'), pts, { nome: 'limiar', fmt: v => Math.round(v) + 'ms',
+                                    min: 0, vazio: 'nenhum set estabilizado ainda', cor: G.T.serie[2] });
+    }
+    if ($('#g-oclu')) G.curvaIC($('#g-oclu'), MD.curvaLeitura(), { ref: 300 });
+    if ($('#g-err')) {
+      const e = MD.perfilErros({ dias: 30 });
+      G.barrasIC($('#g-err'), e.itens.map(x => ({
+        nome: x.nome, p: x.p, lo: x.lo, hi: x.hi, n: x.n,
+        status: x.id === 'layout' ? 'critico' : null, acao: x.acao,
+      })));
+    }
+    $('#add-partida')?.addEventListener('click', formPartida);
+    $('#ir-prova2')?.addEventListener('click', () => U.T.iniciarProva());
+    $('#ver-legado')?.addEventListener('click', () => {
+      const L = U.DB.load().legado;
+      modal(`<h2 style="margin:0 0 8px">Histórico da v1</h2>
+        <div class="mini">${L.sessoes.length} sessões, ${L.sets.length} sets, nível ${L.nivel || '—'}.
+        ${L.diagnostico ? 'Diagnóstico inicial preservado.' : ''}
+        ${L.ssrt && L.ssrt.length ? `${L.ssrt.length} medições de freio pelo método antigo.` : ''}</div>
+        <div class="sep"></div>
+        <div class="mini">Está tudo no backup exportável em Config. Não entra nas medidas novas porque foi
+        colhido com outro instrumento — misturar séries de instrumentos diferentes é a forma mais comum de
+        inventar uma tendência que não existe.</div>
+        <button class="btn full sm" style="margin-top:12px" data-fecha>Fechar</button>`);
     });
+    $$('#tela-progresso [data-princ]').forEach(b => b.addEventListener('click', () => verPrincipio(b.dataset.princ)));
+  }
+
+  function formPartida() {
+    const nota = (id, lbl) => `<div class="mini" style="margin-top:8px"><b>${lbl}</b></div>
+      <div class="flex" style="gap:5px;margin-top:4px">
+        ${[1, 2, 3, 4, 5].map(v => `<button class="btn sec sm nota" data-g="${id}" data-v="${v}" style="flex:1">${v}</button>`).join('')}
+      </div>`;
+    modal(`
+      <h2 style="margin:0 0 4px">Registrar partida</h2>
+      <div class="mini">Anote logo depois de jogar, enquanto lembra. Impressão sua é dado fraco — mas é o único
+      dado de partida que existe aqui, e o sistema trata como tal.</div>
+      <div class="mini" style="margin-top:9px"><b>Resultado</b></div>
+      <div class="flex" style="gap:6px;margin-top:4px">
+        <button class="btn sec sm nota" data-g="res" data-v="v" style="flex:1">Vitória</button>
+        <button class="btn sec sm nota" data-g="res" data-v="d" style="flex:1">Derrota</button>
+      </div>
+      ${nota('exec', 'Execução: os combos saíram como você queria? (1 a 5)')}
+      ${nota('dec', 'Decisão: você entrou e saiu na hora certa? (1 a 5)')}
+      <div class="mini" style="margin-top:9px"><b>O que mais te atrapalhou</b> (opcional)</div>
+      <input id="p-obs" class="campo" maxlength="60" placeholder="ex: errei a ultimate duas vezes">
+      <div class="flex" style="margin-top:12px;gap:8px">
+        <button class="btn sec full sm" data-fecha>Cancelar</button>
+        <button class="btn full sm" id="salvar-partida">Salvar</button>
+      </div>`,
+      (cx) => {
+        const sel = { res: null, exec: null, dec: null };
+        cx.querySelectorAll('.nota').forEach(b => b.addEventListener('click', () => {
+          const g = b.dataset.g;
+          sel[g] = b.dataset.v;
+          cx.querySelectorAll(`.nota[data-g="${g}"]`).forEach(o => o.classList.toggle('sec', o !== b));
+        }));
+        cx.querySelector('#salvar-partida').addEventListener('click', () => {
+          if (!sel.res || !sel.exec || !sel.dec) return toast('Faltou preencher');
+          const d = U.DB.load();
+          d.partidas.push({ t: Date.now(), res: sel.res, exec: +sel.exec, dec: +sel.dec,
+                            obs: (cx.querySelector('#p-obs').value || '').slice(0, 60) });
+          if (d.partidas.length > 300) d.partidas = d.partidas.slice(-300);
+          U.DB.save(); fecharModal(); toast('Partida registrada', 'ok'); render('progresso');
+        });
+      });
   }
 
   /* ============================================================
-     TELA — HUD (análise ergonômica e calibração)
+     TELA — HUD
      ============================================================ */
-  function telaMapa() {
+  function telaHud() {
     const hud = H.getHud();
     const a = H.analisarHud(hud);
-    const culpa = C.culpaDoHud();
-    const pares = Object.entries(U.DB.load().pares || {})
-      .filter(([, e]) => e.n >= 3)
-      .sort((x, y) => y[1].med - x[1].med).slice(0, 8);
-
-    const riscosCriticos = a.riscos.filter(r => r.critico).slice(0, 5);
+    const al = H.analisarAlcance(hud);
+    const d = U.DB.load();
+    const fit = fittsAjuste();
+    const disp = dispersaoToques();
+    const erros = MD.perfilErros({ dias: 21 });
+    const layout = erros.itens.find(x => x.id === 'layout');
+    const riscos = a.riscos.filter(r => r.critico).slice(0, 4);
 
     return `
     <div class="topo"><h1>✥ Seu HUD</h1><div class="espaco"></div>
       <span class="sub">${a.telaMM.w.toFixed(0)} × ${a.telaMM.h.toFixed(0)} mm · Poco X7 Pro</span></div>
     <div class="rolagem pilha">
 
+      ${!d.hudConferido ? `<div class="aviso bad">
+        <b>Confirme que a réplica bate com o seu jogo.</b> Todos os números do sistema saem de toques sobre
+        ela. Se um botão estiver fora do lugar, tudo depois mede a coisa errada.
+        <div class="flex" style="gap:8px;margin-top:8px">
+          <button class="btn sm" id="confere-ok">Está igual ao meu jogo</button>
+          <button class="btn sec sm" id="confere-cal">Preciso ajustar</button>
+        </div>
+      </div>` : ''}
+
       <div class="painel">
-        <h2>Mapa medido a partir do seu print</h2>
+        <h2>Mapa medido do seu print</h2>
         <canvas id="mapacv"></canvas>
-        <div class="flex wrap xs" style="gap:10px;margin-top:5px">
-          <span style="color:var(--gold)">● habilidades</span>
-          <span style="color:#9fb6d4">● ataque</span>
-          <span style="color:var(--bad)">▬ corredor de risco</span>
-          <span style="color:var(--cy)">● movimento</span>
+        <div class="leg" style="justify-content:center">
+          <span><i style="background:#e8c46a"></i>habilidades</span>
+          <span><i style="background:#9fb6d4"></i>ataque</span>
+          <span><i style="background:#d03b3b"></i>corredor de risco</span>
         </div>
         <div class="flex" style="margin-top:8px;gap:8px">
           <button class="btn sec sm" id="calibrar">Calibrar arrastando</button>
@@ -313,130 +466,139 @@
       </div>
 
       <div class="painel frag">
-        <h2>O que eu encontrei no seu layout</h2>
-
+        <h2>O que o layout impõe</h2>
         <div class="aviso bad">
           <b>1. O corredor Hab.1 → Ataque está congestionado.</b><br>
-          Esse é o trajeto mais percorrido do jogo (${H.percurso(hud,'s1','aa').toFixed(1)} mm no seu aparelho) e
-          ${a.corredor.length ? `há ${a.corredor.length} botão(ões) dentro dele. O pior é o
-          <b>${H.NOMES[a.corredor[0].k]}</b>: a borda dele fica a
-          <b>${a.corredor[0].dist <= 0.2 ? 'zero mm — encostada na linha' : a.corredor[0].dist.toFixed(1) + ' mm da linha'}</b>.` : 'ele está limpo.'}
-          Um polegar adulto encosta num círculo de 9 a 13 mm. Qualquer coisa a menos de ~5 mm da linha vai ser
-          tocada por engano nos combos rápidos.<br>
-          <b>O que fazer:</b> afaste o item ~4 mm para baixo/direita. É um ajuste pequeno, não desmonta sua adaptação.
+          É o trajeto mais percorrido do jogo (${H.percurso(hud, 's1', 'aa').toFixed(1)} mm) e
+          ${a.corredor.length ? `a borda do <b>${H.NOMES[a.corredor[0].k]}</b> fica a
+          <b>${a.corredor[0].dist <= 0.2 ? 'zero mm — encostada na linha' : a.corredor[0].dist.toFixed(1) + ' mm'}</b>.`
+          : 'ele está limpo.'}
+          Um polegar cobre um círculo de 9 a 13 mm.<br>
+          <b>Ação:</b> afastar o item uns 4 mm. É o único ajuste que eu recomendo fazer agora.
         </div>
-
         <div class="aviso" style="margin-top:7px">
-          <b>2. A ultimate está longe.</b><br>
-          Hab.1 → Ultimate são <b>${a.arco.toFixed(1)} mm</b> de percurso de polegar. É a maior distância do seu HUD
-          e é exatamente a mecânica que mais enferruja depois de uma pausa — porque depende de um movimento
-          amplo, não de um toque.<br>
-          <b>O que fazer:</b> <u>não mexa agora</u>. Trate isso como treino, não como configuração: o exercício
-          <b>Pontes</b> existe para esse trajeto. Reavalie o arco só a partir do nível 4, quando sua precisão
-          estiver estável — mexer no meio da recuperação apaga a adaptação que você ainda tem.
+          <b>2. Hab.1 → Ultimate são ${a.arco.toFixed(1)} mm</b> — a maior distância do layout e a mecânica que
+          mais enferruja numa pausa, porque depende de movimento amplo e não de toque.<br>
+          <b>Ação:</b> não mexer. Isto é treino, não configuração.
         </div>
-
-        ${riscosCriticos.length ? `<div class="aviso ${riscosCriticos[0].folga < 3 ? 'bad' : ''}" style="margin-top:7px">
-          <b>3. Pares de botões com pouca folga entre as bordas:</b><br>
-          ${riscosCriticos.map(r => `${H.NOMES[r.a]} ↔ ${H.NOMES[r.b]}: <b>${r.folga.toFixed(1)} mm</b>`).join(' · ')}<br>
-          Abaixo de 2,5 mm o erro é praticamente inevitável em execução rápida. O sistema já separa esses
-          toques como <b>erro de HUD</b> e não conta contra a sua memória.
+        ${riscos.length ? `<div class="aviso" style="margin-top:7px">
+          <b>3. Folga pequena entre bordas:</b>
+          ${riscos.map(r => `${H.NOMES[r.a]} ↔ ${H.NOMES[r.b]} <b>${r.folga.toFixed(1)}mm</b>`).join(' · ')}.
+          O sistema já separa esses toques como erro de layout e não conta contra a sua memória.
         </div>` : ''}
-
-        <div class="aviso ${culpa.frac > 0.25 ? 'bad' : 'ok'}" style="margin-top:7px">
-          <b>4. Quanto dos seus erros é culpa do layout:</b>
-          ${culpa.total ? `${culpa.hud} de ${culpa.total} erros recentes (${Math.round(culpa.frac * 100)}%).
-          ${culpa.frac > 0.25 ? 'Isso é alto. Vale mexer no HUD antes de insistir no treino.'
-            : 'Dentro do normal. O problema atual não é o layout.'}`
-          : 'Ainda sem dados. Esta conta aparece depois dos primeiros exercícios.'}
-        </div>
-
-        <div class="aviso ok" style="margin-top:7px">
-          <b>5. O que está bom e não deve ser mexido:</b><br>
-          O analógico a ${(hud.joy.x*a.telaMM.w).toFixed(0)} mm da borda esquerda dá folga para o polegar sem
-          disputar espaço com a barra de navegação. Retornar e Recuperar estão longe da zona de combate —
-          é exatamente onde precisam ficar. O ataque no canto inferior direito é o ponto mais confortável do
-          aparelho e está sendo usado pela ação mais frequente.
+        <div class="aviso ${layout && layout.lo >= 0.35 ? 'bad' : 'ok'}" style="margin-top:7px">
+          <b>4. Quanto dos seus erros é layout:</b>
+          ${layout ? `${Math.round(layout.p * 100)}% (intervalo ${Math.round(layout.lo * 100)}–${Math.round(layout.hi * 100)}%, ${erros.total} erros).
+            ${layout.lo >= 0.35 ? 'Alto o bastante para o treinador mandar você mexer no HUD antes de treinar.'
+              : 'Dentro do normal — o problema atual não é o layout.'}`
+          : 'Sem erros registrados ainda.'}
         </div>
       </div>
-
-      ${(() => {
-        const aj = C.fitts();
-        if (!aj || !aj.valido) return `<div class="painel">
-          <h2>Layout ou habilidade? — ainda coletando</h2>
-          <div class="mini">Para separar o que é limite do HUD do que é limite seu, preciso de pelo menos
-          5 trajetos com uns 25 toques no total${aj ? ` (tenho ${aj.n} trajetos e ${aj.amostras} toques)` : ''}.
-          Um ou dois sets do exercício <b>Pontes</b> resolvem — ou o diagnóstico, que já mede 12 trajetos.</div>
-          ${pares.length ? `<div class="mini" style="margin-top:7px"><b>Por enquanto, os mais lentos:</b></div>
-          <canvas class="graf" id="graf-pares" style="margin-top:4px"></canvas>` : ''}
-        </div>`;
-        const acima = aj.pontos.filter(x => x.z > 0.9).sort((x, y) => y.resid - x.resid);
-        const naReta = aj.pontos.filter(x => x.z <= 0.9).sort((x, y) => y.mt - x.mt);
-        return `<div class="painel frag">
-          <h2>Layout ou habilidade? — a sua reta de Fitts</h2>
-          <div class="mini" style="margin-bottom:6px">O tempo de um toque apontado é previsível a partir da distância
-          e do tamanho do alvo. A linha tracejada é o que o SEU layout impõe. Quem está <b>em cima</b> dela já está
-          no limite do HUD — treinar não resolve, só mexer no layout. Quem está <b>acima</b> tem treino sobrando.</div>
-          <canvas class="graf" id="g-fitts" data-h="180"></canvas>
-          <div class="leg"><span><i style="background:${G.T.serie[0]}"></i>no limite do layout</span>
-          <span><i style="background:${G.T.serie[1]}"></i>com treino sobrando</span></div>
-          ${acima.length ? `<div class="aviso" style="margin-top:8px"><b>Treine estes trajetos</b> — estão
-            ${Math.round(acima[0].resid)}ms acima do previsto:
-            ${acima.slice(0, 3).map(x => `<b>${x.rotulo}</b>`).join(', ')}.
-            O exercício <b>Pontes</b> já os prioriza.</div>`
-          : `<div class="aviso ok" style="margin-top:8px">Nenhum trajeto seu está muito acima da reta. Os tempos que
-            sobram são do layout, não da sua mão — o que dá para ganhar aqui é mexendo no HUD.</div>`}
-          ${naReta.length ? `<div class="mini" style="margin-top:6px">Mais lentos, mas já no limite do layout:
-            ${naReta.slice(0, 3).map(x => `${x.rotulo} (${Math.round(x.mt)}ms)`).join(' · ')}.
-            Insistir neles rende pouco.</div>` : ''}
-          <div class="xs" style="margin-top:5px">Ajuste com ${aj.n} trajetos (${aj.amostras || 0} toques) ·
-          R² ${aj.r2.toFixed(2)} · base ${Math.round(aj.a)}ms + ${Math.round(aj.b)}ms por bit de dificuldade.
-          ${(aj.amostras || 0) < 30 ? ' <b>Poucos dados ainda</b> — o exercício Pontes preenche isso rápido.' : ''}</div>
-        </div>`;
-      })()}
-
-      ${M.dispersaoToques().length ? `<div class="painel">
-        <h2>Onde o seu dedo realmente cai</h2>
-        <div class="mini" style="margin-bottom:6px">Cada ponto é um toque seu, medido dentro do botão. O círculo
-        colorido é a média e a dispersão. Um centro deslocado quer dizer que você mira torto de forma
-        <b>sistemática</b> — e isso se corrige mirando o lado oposto, não treinando mais.</div>
-        <canvas class="graf" id="g-toques" data-h="170"></canvas>
-      </div>` : ''}
 
       <div class="painel">
-        <h2>Pergunta de configuração</h2>
-        <div class="mini">Se o seu analógico for <b>fixo</b>, considere testar o modo <b>"segue o dedo"</b> em partida
-        casual. Com combo longo, o analógico fixo força o polegar esquerdo a voltar ao centro entre uma direção e
-        outra — e é aí que nasce o "combo parado". Não mude nada no meio da recuperação: anote e teste depois do nível 3.</div>
+        <h2>Alcance do polegar</h2>
+        <div class="mini" style="margin-bottom:7px">Heurística, e declarada como tal: o polegar direito gira em
+        torno de um ponto perto do canto inferior direito. Longe demais exige trocar a pegada; perto demais
+        exige dobrar. <b>Isto sozinho não conclui nada</b> — vira conclusão só quando coincide com dispersão
+        alta nos seus próprios toques.</div>
+        <table class="tab"><thead><tr><th>Botão</th><th>Extensão</th><th>Zona</th><th>Seus toques</th></tr></thead><tbody>
+        ${al.itens.map(x => `<tr>
+          <td class="forte">${x.nome}</td>
+          <td>${x.mm.toFixed(0)} mm</td>
+          <td>${{ confortavel: '<span style="color:var(--ok)">confortável</span>',
+                  esticado: '<span style="color:var(--warn)">esticado</span>',
+                  troca_pegada: '<span style="color:var(--bad)">troca a pegada</span>',
+                  dobrado: '<span style="color:var(--warn)">muito dobrado</span>' }[x.zona]}</td>
+          <td>${x.dispersao != null ? `±${Math.round(x.dispersao * 100)}% <span class="xs">(${x.nToques})</span>`
+                                    : '<span class="xs">sem dados</span>'}</td>
+        </tr>`).join('')}
+        </tbody></table>
+        ${al.suspeitos.length ? `<div class="aviso" style="margin-top:8px">
+          <b>Limitado pelo alcance, não por treino:</b>
+          ${al.suspeitos.map(x => `<b>${x.nome}</b> (${x.mm.toFixed(0)}mm, dispersão ±${Math.round(x.dispersao * 100)}%)`).join(', ')}.
+          Treinar mais não conserta distância física — aproximar o botão sim.
+        </div>` : `<div class="mini" style="margin-top:7px">Nenhum botão junta extensão desconfortável
+          <b>e</b> dispersão alta. Sem essa coincidência, não dá para culpar o alcance.</div>`}
       </div>
+
+      ${fit && fit.valido ? `<div class="painel">
+        <h2>Layout ou habilidade?</h2>
+        <div class="mini" style="margin-bottom:6px">A linha tracejada é o que o seu layout impõe. Em cima dela =
+        limite do HUD. Acima dela = treino sobrando.</div>
+        <canvas class="graf" id="g-fitts" data-h="180"></canvas>
+        ${(() => {
+          const acima = fit.pontos.filter(x => x.z > 0.9).sort((a2, b2) => b2.resid - a2.resid);
+          return acima.length
+            ? `<div class="aviso" style="margin-top:8px"><b>Treine estes trajetos</b> —
+               ${acima.slice(0, 3).map(x => `<b>${x.rotulo}</b> (+${Math.round(x.resid)}ms)`).join(', ')}.</div>`
+            : `<div class="aviso ok" style="margin-top:8px">Nenhum trajeto muito acima da reta. O tempo que
+               sobra é do layout — o que dá para ganhar aqui é mexendo no HUD.</div>`;
+        })()}
+        <div class="xs" style="margin-top:5px">${fit.n} trajetos · ${fit.amostras} toques · R² ${fit.r2.toFixed(2)}</div>
+      </div>` : `<div class="painel">
+        <h2>Layout ou habilidade? — ainda coletando</h2>
+        <div class="mini">Para separar limite do HUD de limite seu preciso de 5 trajetos com 25 toques no total
+        e inclinação positiva${fit ? ` (tenho ${fit.n} trajetos e ${fit.amostras} toques)` : ''}.
+        Um ou dois sets de <b>Ancoragem</b> resolvem.</div>
+      </div>`}
+
+      ${disp.length ? `<div class="painel">
+        <h2>Onde o seu dedo cai</h2>
+        <div class="mini" style="margin-bottom:6px">Cada ponto é um toque seu, medido dentro do botão. Centro
+        deslocado é erro sistemático de mira — corrige-se mirando o lado oposto, não treinando mais.</div>
+        <canvas class="graf" id="g-toq" data-h="170"></canvas>
+      </div>` : ''}
     </div>`;
   }
 
+  function fittsAjuste() {
+    const hud = H.getHud(), pares = U.DB.load().pares || {};
+    const pts = [];
+    for (const k in pares) {
+      const e = pares[k];
+      if (e.n < 2) continue;
+      const [a, b] = k.split('>');
+      if (!hud[a] || !hud[b]) continue;
+      pts.push({ id: U.CI.indiceDificuldade(H.distMM(hud[a], hud[b]), 2 * hud[b].r * H.TELA_MM.w),
+                 mt: e.med, n: e.n, rotulo: `${hud[a].curto}→${hud[b].curto}` });
+    }
+    const aj = U.CI.ajusteFitts(pts);
+    if (!aj) return null;
+    aj.amostras = pts.reduce((s, x) => s + x.n, 0);
+    aj.valido = aj.n >= 5 && aj.amostras >= 25 && aj.b > 0 && aj.r2 >= 0.25;
+    return aj;
+  }
+  function dispersaoToques() {
+    const t = U.DB.load().toques || {};
+    return Object.entries(t).filter(([, v]) => v.length >= 5)
+      .map(([id, pontos]) => ({ id, nome: (H.getHud()[id] || {}).curto || id, pontos }));
+  }
+
   let mapaSurf = null;
-  function depoisMapa() {
+  function depoisHud() {
     const cv = $('#mapacv');
     if (cv) {
       mapaSurf && mapaSurf.destroy();
-      mapaSurf = new H.HudSurface(cv, {
-        onCalibrado: () => { toast('HUD atualizado', 'ok'); },
-      });
-      // desenha o corredor de risco por cima
+      mapaSurf = new H.HudSurface(cv, { onCalibrado: () => toast('HUD atualizado', 'ok') });
       const orig = mapaSurf.draw.bind(mapaSurf);
       mapaSurf.draw = function () {
         orig();
         const c = this.ctx, B = this.box, hud = this.hud;
-        const A = this.px(hud.s1), Z = this.px(hud.aa);
+        const A = this.px(hud.s1), Z = this.px(hud.aa), S3 = this.px(hud.s3);
         c.save();
-        c.strokeStyle = 'rgba(255,84,112,.55)'; c.lineWidth = Math.max(8, B.h * 0.045);
+        c.strokeStyle = 'rgba(208,59,59,.55)'; c.lineWidth = Math.max(8, B.h * 0.045);
         c.lineCap = 'round'; c.globalAlpha = .45;
         c.beginPath(); c.moveTo(A.x, A.y); c.lineTo(Z.x, Z.y); c.stroke();
-        const S = this.px(hud.s3);
         c.strokeStyle = 'rgba(232,196,106,.5)'; c.lineWidth = 3; c.setLineDash([6, 5]); c.globalAlpha = .8;
-        c.beginPath(); c.moveTo(A.x, A.y); c.lineTo(S.x, S.y); c.stroke();
+        c.beginPath(); c.moveTo(A.x, A.y); c.lineTo(S3.x, S3.y); c.stroke();
         c.restore();
       };
-      setTimeout(() => mapaSurf.resize(), 60);
+      setTimeout(() => mapaSurf && mapaSurf.resize(), 60);
     }
+    $('#confere-ok')?.addEventListener('click', () => {
+      U.DB.load().hudConferido = true; U.DB.save(); toast('HUD confirmado', 'ok'); render('hud');
+    });
+    $('#confere-cal')?.addEventListener('click', () => $('#calibrar').click());
     $('#calibrar')?.addEventListener('click', (e) => {
       if (!mapaSurf) return;
       mapaSurf.calibrando = !mapaSurf.calibrando;
@@ -444,574 +606,57 @@
       setTimeout(() => mapaSurf && mapaSurf.resize(), 60);
       e.currentTarget.textContent = mapaSurf.calibrando ? 'Concluir calibração' : 'Calibrar arrastando';
       e.currentTarget.classList.toggle('gold', mapaSurf.calibrando);
-      if (!mapaSurf.calibrando) { toast('Calibração salva', 'ok'); render('mapa'); }
+      if (!mapaSurf.calibrando) {
+        U.DB.load().hudConferido = true; U.DB.save();
+        toast('Calibração salva', 'ok'); render('hud');
+      }
     });
-    $('#resetHud')?.addEventListener('click', () => {
-      H.resetHud(); toast('HUD restaurado ao print original'); render('mapa');
-    });
-    const gp = $('#graf-pares');
-    if (gp) {
-      const pares = Object.entries(U.DB.load().pares || {}).filter(([, e]) => e.n >= 3)
-        .sort((x, y) => y[1].med - x[1].med).slice(0, 8);
-      G.barras(gp, pares.map(([k, e]) => ({
-        nome: k.split('>').map(x => H.getHud()[x]?.curto || x).join('→'),
-        valor: e.med, status: e.med > 500 ? 'critico' : null,
-      })), { fmt: v => Math.round(v) + 'ms', ml: 60 });
-    }
-    if ($('#g-fitts')) G.fitts($('#g-fitts'), C.fitts());
-    if ($('#g-toques')) G.toques($('#g-toques'), M.dispersaoToques());
+    $('#resetHud')?.addEventListener('click', () => { H.resetHud(); toast('HUD restaurado'); render('hud'); });
+    if ($('#g-fitts')) G.fitts($('#g-fitts'), fittsAjuste());
+    if ($('#g-toq')) G.toques($('#g-toq'), dispersaoToques());
   }
 
   /* ============================================================
-     TELA — DADOS
-     ============================================================ */
-  function catErros() {
-    const d = U.DB.load();
-    const tot = {};
-    for (const x of d.sets) for (const k in x.erros) tot[k] = (tot[k] || 0) + x.erros[k];
-    const ord = Object.entries(tot).sort((a, b) => b[1] - a[1]).map(e => e[0]);
-    const topo = ord.slice(0, 4);
-    const cats = topo.map((id, i) => ({ id, nome: M.ERROS[id]?.nome || id, cor: G.T.serie[i] }));
-    if (ord.length > 4) cats.push({ id: '__outros', nome: 'Outros', cor: G.T.tintaMuda });
-    return { cats, extras: ord.slice(4) };
-  }
-
-  function telaRel() {
-    const d = U.DB.load();
-    const sess = d.sessoes.slice(-14);
-    const diag = d.diagnostico;
-    const ret = C.serieRetencao();
-    const mec = Object.entries(d.mecanicas || {});
-    const ssrt = (d.ssrt || []).slice(-12);
-    const curva = C.curvaAntecipacao();
-    const aj = C.fitts();
-
-    if (!d.sets.length) {
-      return `<div class="topo"><h1>▤ Dados</h1></div>
-      <div class="rolagem"><div class="painel"><h2>Sem dados ainda</h2>
-      <div class="mini">Faça o diagnóstico e alguns exercícios. Esta tela separa o que você <b>aprendeu</b>
-      do que você apenas <b>executou bem no dia</b> — são coisas diferentes e só a primeira conta.</div></div></div>`;
-    }
-    const { cats } = catErros();
-
-    return `
-    <div class="topo"><h1>▤ Dados</h1><div class="espaco"></div>
-      <span class="sub">${d.sets.length} sets · ${d.sessoes.length} sessões · ${ret.length} testes de retenção</span></div>
-    <div class="rolagem pilha">
-
-      <div class="painel frag">
-        <h2>Aprendizado × desempenho</h2>
-        <div class="mini" style="margin-bottom:7px">A linha cheia é o que você fez <b>durante</b> o treino, com dica
-        na tela e retorno a cada tentativa. Os pontos são os <b>testes de retenção</b>: mesma dificuldade, no dia
-        seguinte, sem ajuda nenhuma. Só a segunda mede aprendizado — a primeira sobe fácil e cai sozinha.</div>
-        ${ret.length ? `<canvas class="graf" id="g-ret" data-h="150"></canvas>
-          <div class="leg"><span><i style="background:${G.T.serie[0]}"></i>treino (desempenho)</span>
-          <span><i style="background:${G.T.serie[1]}"></i>retenção (aprendizado)</span></div>
-          ${ret.length >= 2 ? (() => {
-            const a = ret[ret.length - 2].score, b = ret[ret.length - 1].score;
-            return `<div class="aviso ${b >= a ? 'ok' : 'bad'}" style="margin-top:7px">
-              Última retenção: <b>${b}</b> (antes ${a}). ${b >= a
-                ? 'O que você treinou ficou. É o sinal que vale.'
-                : 'Caiu. Normalmente significa que o treino está indo rápido demais para o que está sendo fixado — o sistema vai segurar a dificuldade.'}</div>`;
-          })() : ''}`
-        : `<div class="aviso">Ainda sem teste de retenção. Ele aparece automaticamente no começo da próxima
-           sessão, desde que tenham passado pelo menos 5 horas desde a última — o intervalo faz parte da medida.</div>`}
-      </div>
-
-      ${sess.length >= 2 ? `<div class="painel">
-        <h2>Evolução por sessão</h2>
-        <canvas class="graf" id="g-sess" data-h="140"></canvas>
-        <div class="leg"><span><i style="background:${G.T.serie[0]}"></i>pontuação média</span>
-        <span><i style="background:${G.T.serie[2]}"></i>acerto</span></div>
-      </div>` : ''}
-
-      <div class="grade g2" style="align-items:start">
-        <div class="painel">
-          <h2>Perfil agora × diagnóstico</h2>
-          <canvas class="graf" id="g-radar2" data-h="185"></canvas>
-          <div class="leg"><span><i style="background:${G.T.serie[0]}"></i>agora</span>
-          <span><i style="background:${G.T.tintaMuda}"></i>diagnóstico</span>
-          <span><i style="background:${G.T.atencao}"></i>alvo do nível</span></div>
-        </div>
-        <div class="painel">
-          <h2>Velocidade × precisão</h2>
-          <canvas class="graf" id="g-velacc" data-h="165"></canvas>
-          <div class="mini" style="margin-top:5px">Cada bolha é um set; as maiores são as recentes. Se elas
-          caminham para a esquerda <b>e</b> para baixo, você está comprando velocidade com erro — e o sistema
-          devolve o tempo sozinho quando isso acontece.</div>
-        </div>
-      </div>
-
-      ${curva.length ? `<div class="painel">
-        <h2>Curva de antecipação</h2>
-        <canvas class="graf" id="g-ant" data-h="150"></canvas>
-        <div class="mini" style="margin-top:5px">Acerto por quantidade de informação. Onde a linha desaba é a
-        janela mínima que você ainda consegue ler. Treinar oclusão temporal empurra esse ponto para a direita —
-        é a técnica de treino perceptivo com melhor evidência de transferência.</div>
-      </div>` : ''}
-
-      ${ssrt.length ? (() => {
-        const u = ssrt[ssrt.length - 1];
-        const pool = C.ssrtAtual();
-        return `<div class="painel">
-          <h2>Freio — tempo real de frenagem</h2>
-          <div class="flex" style="gap:12px;align-items:center;margin-bottom:7px">
-            <div style="font-size:1.6rem;font-weight:900;color:${!pool.confiavel ? 'var(--dim)' : pool.ssrt < 260 ? 'var(--ok)' : pool.ssrt < 340 ? 'var(--warn)' : 'var(--bad)'}">
-              ${pool.ssrt}<span style="font-size:.7rem;color:var(--dim)">ms</span>
-              <div class="xs" style="font-weight:600">média de ${pool.n} set${pool.n > 1 ? 's' : ''}</div></div>
-            <div class="mini" style="flex:1">SSRT: o tempo entre o sinal de perigo e a jogada realmente parar.
-            Faixa típica em adultos: 200-250 ms. Sua taxa de parada ficou em
-            <b>${Math.round((u.taxa || 0) * 100)}%</b> — perto de 50% é o que torna a medida válida.
-            ${u.confiavel === false ? '<br><b style="color:var(--warn)">Medida ainda aproximada:</b> a escada não achou o equilíbrio neste set.' : ''}</div>
-          </div>
-          <canvas class="graf" id="g-escada" data-h="140"></canvas>
-          <div class="mini" style="margin-top:5px">A escada sobe 50 ms quando você consegue parar e desce 50 ms
-          quando não consegue. Ela procura sozinha o atraso em que você falha metade das vezes.</div>
-        </div>`;
-      })() : ''}
-
-      <div class="grade g2" style="align-items:start">
-        <div class="painel">
-          <h2>Natureza dos erros ao longo das sessões</h2>
-          ${sess.length ? `<canvas class="graf" id="g-comp" data-h="140"></canvas>
-          <div class="leg">${cats.map(c => `<span><i style="background:${c.cor}"></i>${c.nome}</span>`).join('')}</div>
-          <div class="mini" style="margin-top:5px">Erro de HUD encolhendo significa que o layout parou de atrapalhar.
-          Erro de memória encolhendo e o de pressa crescendo significa que você está pronto para acelerar.</div>`
-          : '<div class="mini">Sem sessões registradas.</div>'}
-        </div>
-        <div class="painel">
-          <h2>Erros acumulados (últimos 40 sets)</h2>
-          <canvas class="graf" id="g-erros"></canvas>
-        </div>
-      </div>
-
-      ${mec.length ? `<div class="painel">
-        <h2>Estado de cada mecânica</h2>
-        <table class="tab"><thead><tr><th>Rota</th><th>Estado</th><th>Acerto</th><th>Ritmo</th><th>Sob carga</th></tr></thead><tbody>
-        ${mec.map(([id, m]) => `<tr>
-          <td class="forte">${m.nome || id}</td>
-          <td>${chipEstado(m.estado)}</td>
-          <td>${Math.round((m.acc || 0) * 100)}%</td>
-          <td>±${Math.round((m.cv || 0) * 100)}%</td>
-          <td>${m.quedaCarga != null
-            ? (m.quedaCarga > 0.26
-               ? `<span style="color:var(--bad)">-${Math.round(m.quedaCarga * 100)}%</span>`
-               : `<span style="color:var(--ok)">-${Math.round(Math.max(0, m.quedaCarga) * 100)}%</span>`)
-            : '—'}</td>
-        </tr>`).join('')}
-        </tbody></table>
-        <div class="xs" style="margin-top:6px">"Sob carga" é quanto a rota piora quando você precisa ler a tela ao
-        mesmo tempo. Acima de 26% ela ainda é consciente, não automática.</div>
-      </div>` : ''}
-
-      <div class="painel">
-        <h2>Histórico de sessões</h2>
-        <div class="pilha" style="gap:5px">
-          ${d.sessoes.slice().reverse().slice(0, 12).map((x, i) => {
-            const idx = d.sessoes.length - 1 - i;
-            const md = Math.round(U.mean(x.sets.map(y => y.score)));
-            return `<div class="item" data-sess="${idx}">
-              <div class="ic">${x.heroi === 'luna' ? '☾' : '◈'}</div>
-              <div class="txt"><b>${U.dateTime(x.t)}</b><span>${x.sets.length} exercícios · nível ${x.nivelDepois}</span></div>
-              <span class="tag ${md >= 78 ? 'ok' : md >= 60 ? '' : 'bad'}">${md}</span>
-            </div>`;
-          }).join('')}
-        </div>
-      </div>
-
-      ${diag ? `<div class="painel">
-        <h2>Diagnóstico inicial · ${U.dateTime(diag.t)}</h2>
-        <div class="mini">${diag.notas.automatismo || ''}</div>
-        <button class="btn sec sm full" id="ver-diag" style="margin-top:7px">Ver o diagnóstico completo</button>
-        <button class="btn sec sm full" id="refazer-diag" style="margin-top:6px">Refazer diagnóstico</button>
-      </div>` : ''}
-    </div>`;
-  }
-
-  function depoisRel() {
-    const d = U.DB.load();
-    const sess = d.sessoes.slice(-14);
-    const ret = C.serieRetencao();
-
-    if ($('#g-ret') && ret.length) {
-      const rot = ret.map(r => U.dateShort(r.t));
-      G.linha($('#g-ret'), [
-        { dados: ret.map(r => r.scoreTreino ?? null), cor: G.T.serie[0], nome: 'treino', area: true },
-        { dados: ret.map(r => r.score), cor: G.T.serie[1], nome: 'retenção' },
-      ], rot, { max: 100 });
-    }
-    if (sess.length >= 2 && $('#g-sess')) {
-      G.linha($('#g-sess'), [
-        { dados: sess.map(x => U.mean(x.sets.map(y => y.score))), cor: G.T.serie[0], nome: 'pontos', area: true },
-        { dados: sess.map(x => U.mean(x.sets.map(y => y.acc)) * 100), cor: G.T.serie[2], nome: 'acerto' },
-      ], sess.map(x => U.dateShort(x.t)), { max: 100 });
-    }
-    if ($('#g-radar2')) {
-      const series = [];
-      if (d.diagnostico) series.push({ valores: d.diagnostico.eixos, cor: G.T.tintaMuda, nome: 'diagnóstico', preenche: false, grossura: 1.4, pontos: false });
-      series.push({ valores: M.valores(), cor: G.T.serie[0], nome: 'agora' });
-      const alvos = {}; const n = C.nivelAtual();
-      M.EIXO_IDS.forEach(k => alvos[k] = C.alvoEixo(k, n));
-      G.radar($('#g-radar2'), EIXOS_RADAR, series, alvos);
-    }
-    if ($('#g-velacc')) G.velAcc($('#g-velacc'), C.pontosVelAcc());
-    if ($('#g-ant')) G.antecipacao($('#g-ant'), C.curvaAntecipacao());
-    if ($('#g-escada')) {
-      const u = (d.ssrt || []).slice(-1)[0];
-      if (u) G.escada($('#g-escada'), u.escada || [], u.ssd50);
-    }
-    if ($('#g-comp')) {
-      const { cats, extras } = catErros();
-      const dados = sess.map(x => {
-        const e = {};
-        for (const st of x.sets) for (const k in st.erros) {
-          const id = extras.includes(k) ? '__outros' : k;
-          e[id] = (e[id] || 0) + st.erros[k];
-        }
-        return { rotulo: U.dateShort(x.t), erros: e };
-      });
-      G.composicao($('#g-comp'), dados, cats);
-    }
-    if ($('#g-erros')) {
-      const erros = {};
-      for (const x of d.sets.slice(-40)) for (const k in x.erros) erros[k] = (erros[k] || 0) + x.erros[k];
-      const ord = Object.entries(erros).sort((a, b) => b[1] - a[1]);
-      G.barras($('#g-erros'), ord.map(([k, v]) => ({
-        nome: M.ERROS[k]?.nome || k, valor: v,
-        status: k === 'hud' ? 'critico' : null,
-        nota: M.ERROS[k]?.dica || '',
-      })), { ml: 74 });
-    }
-
-    $$('#tela-rel .item[data-sess]').forEach(it => it.addEventListener('click', () => {
-      const x = U.DB.load().sessoes[+it.dataset.sess];
-      if (x) U.T.mostrarRelatorio(C.relatorio(x), true);
-    }));
-    $('#ver-diag')?.addEventListener('click', () => U.T.mostrarDiagnostico(U.DB.load().diagnostico));
-    $('#refazer-diag')?.addEventListener('click', () => {
-      modal(`<h2 style="margin:0 0 8px">Refazer o diagnóstico?</h2>
-        <div class="mini">Isso substitui a medição atual. Seu histórico de sessões continua salvo.</div>
-        <div class="flex" style="margin-top:12px;gap:8px">
-          <button class="btn sec full sm" data-fecha>Cancelar</button>
-          <button class="btn full sm" id="cf-diag">Refazer</button></div>`,
-        (cx) => cx.querySelector('#cf-diag').addEventListener('click', () => { fecharModal(); U.T.diagnostico(); }));
-    });
-  }
-
-  /* ============================================================
-     TELA — LUNA
-     ============================================================ */
-  function telaLuna() {
-    const d = U.DB.load();
-    const v = M.valores();
-    const lib = d.lunaLiberada;
-    const drills = D.DRILLS.filter(x => x.heroi === 'luna');
-
-    if (!lib) {
-      return `
-      <div class="topo"><h1>☾ Luna</h1><div class="espaco"></div><span class="sub">ainda fechado</span></div>
-      <div class="rolagem pilha">
-        <div class="painel frag">
-          <h2>Por que a Luna ainda não abriu</h2>
-          <p class="mini">Você está enferrujado nas duas. Tentar recuperar as duas ao mesmo tempo é a forma mais
-          confiável de não recuperar nenhuma: as heroínas competem pela mesma coisa — o mapa de posições do seu
-          polegar direito. Enquanto esse mapa estiver instável, treinar Luna <b>atrasa</b> a Jing em vez de somar.</p>
-          <p class="mini" style="margin-top:6px">A Luna abre quando a Jing chegar ao <b>nível 4</b> com
-          <b>precisão ≥ 68</b> e <b>consistência ≥ 68</b>. Nesse ponto o mapa de botões já está fixo, e o que a
-          Luna exige a mais (cadeia longa, ritmo, escolha de alvo no salto) passa a somar em vez de competir.</p>
-          <div class="sep"></div>
-          <div class="grade g3">
-            ${kpi(C.nivelAtual() + '/4', 'nível', C.nivelAtual() >= 4 ? 'var(--ok)' : 'var(--warn)')}
-            ${kpi(Math.round(v.precisao) + '/68', 'precisão', v.precisao >= 68 ? 'var(--ok)' : 'var(--warn)')}
-            ${kpi(Math.round(v.consistencia) + '/68', 'consistência', v.consistencia >= 68 ? 'var(--ok)' : 'var(--warn)')}
-          </div>
-        </div>
-        <div class="painel">
-          <h2>O que vai te esperar aqui</h2>
-          <div class="pilha" style="gap:6px">
-            ${drills.map(dr => `<div class="item bloq"><div class="ic">☾</div>
-              <div class="txt"><b>${dr.nome}</b><span>${dr.objetivo}</span></div></div>`).join('')}
-          </div>
-        </div>
-      </div>`;
-    }
-
-    return `
-    <div class="topo"><h1>☾ Luna</h1><div class="espaco"></div>
-      <span class="tag ${d.focoLuna ? 'ok' : ''}">${d.focoLuna ? 'foco ativo' : 'foco na Jing'}</span></div>
-    <div class="rolagem pilha">
-      <div class="painel frag">
-        <h2>Área liberada</h2>
-        <div class="mini">A base da Jing está estável o suficiente. A Luna entra agora como <b>treino paralelo</b>,
-        não como substituição: o recomendado é 2 exercícios de Luna a cada 5 da Jing enquanto a Jing não chegar ao nível 6.</div>
-        <button class="btn full ${d.focoLuna ? 'sec' : 'gold'}" id="tog-luna" style="margin-top:9px">
-          ${d.focoLuna ? 'Voltar o foco para a Jing' : 'Colocar o foco na Luna'}</button>
-      </div>
-      <div class="painel">
-        <h2>Exercícios</h2>
-        <div class="pilha" style="gap:6px">
-          ${drills.map(dr => {
-            const e = C.estadoDrill(dr.id);
-            return `<div class="item" data-drill="${dr.id}"><div class="ic">☾</div>
-              <div class="txt"><b>${dr.nome}</b><span>${dr.objetivo}</span></div>
-              <span class="tag">dif ${e.dif}</span></div>`;
-          }).join('')}
-        </div>
-      </div>
-      <div class="painel">
-        <h2>A diferença entre as duas</h2>
-        <div class="mini">A Jing perdoa um erro no meio do combo — você reposiciona e continua. A Luna não: um
-        toque trocado quebra a cadeia e você fica parado no meio do time inimigo. Por isso o treino dela é de
-        <b>não-erro</b>, não de velocidade. A faixa de tempo aperta, mas o critério que manda é sempre a taxa de acerto.</div>
-      </div>
-    </div>`;
-  }
-
-  function depoisLuna() {
-    $('#tog-luna')?.addEventListener('click', () => {
-      const d = U.DB.load(); d.focoLuna = !d.focoLuna; U.DB.save();
-      toast(d.focoLuna ? 'Foco na Luna' : 'Foco na Jing', 'ok'); render('luna');
-    });
-    $$('#tela-luna .item[data-drill]').forEach(it => it.addEventListener('click', () => {
-      const dr = D.porId(it.dataset.drill); if (!dr) return;
-      U.T.abrir(dr, C.estadoDrill(dr.id).dif);
-    }));
-  }
-
-  /* ============================================================
-     TELA — CONFIG
-     ============================================================ */
-  function telaAjustes() {
-    const d = U.DB.load();
-    const o = d.opts;
-    const rotas = D.getRotas('jing');
-    return `
-    <div class="topo"><h1>⚙ Configurações</h1></div>
-    <div class="rolagem pilha">
-      <div class="painel">
-        <h2>Aparelho</h2>
-        <button class="btn sec full sm" id="fs">Tela cheia + travar em paisagem</button>
-        <div class="xs" style="margin-top:5px">Recomendado antes de treinar: evita que a barra de gestos entre no caminho do polegar.</div>
-      </div>
-      <div class="painel">
-        <h2>Trilha sonora</h2>
-        <div class="mini" style="margin-bottom:7px">A trilha é gerada na hora pelo próprio aparelho — não há arquivo
-        de áudio no pacote. O clima é escolhido pelo exercício: com batida nos de ritmo e velocidade (no
-        andamento-alvo do próprio exercício), quase muda nos de leitura e decisão. Música reduz divagação e
-        encurta o tempo de reação, mas aumenta distração externa — por isso ela não é a mesma o tempo todo.
-        </div><button class="btn sec sm" style="margin-top:8px;min-height:34px" data-princ="musica">ver a pesquisa</button>
-        <button class="btn ${o.musica !== false ? '' : 'sec'} full sm" id="o-musica">
-          Trilha ${o.musica !== false ? 'ligada' : 'desligada'}</button>
-        <div class="flex" style="margin-top:9px;gap:9px;align-items:center">
-          <span class="mini" style="flex:0 0 4.6rem">Volume trilha</span>
-          <input type="range" id="v-mus" min="0" max="100" value="${Math.round((o.volMusica ?? .5) * 100)}">
-          <span class="mini" id="v-mus-n" style="flex:0 0 2.2rem;text-align:right">${Math.round((o.volMusica ?? .5) * 100)}%</span>
-        </div>
-        <div class="flex" style="gap:9px;align-items:center">
-          <span class="mini" style="flex:0 0 4.6rem">Volume efeitos</span>
-          <input type="range" id="v-sfx" min="0" max="100" value="${Math.round((o.volSfx ?? .6) * 100)}">
-          <span class="mini" id="v-sfx-n" style="flex:0 0 2.2rem;text-align:right">${Math.round((o.volSfx ?? .6) * 100)}%</span>
-        </div>
-        <div class="mini" style="margin-top:8px"><b>Experimente os climas</b></div>
-        <div class="flex wrap" style="gap:6px;margin-top:5px">
-          ${Object.entries(U.Musica.CLIMAS).filter(([k]) => k !== 'silencio').map(([k, c]) =>
-            `<button class="btn sec sm" data-clima="${k}">${c.nome}</button>`).join('')}
-          <button class="btn sec sm" data-clima="parar">■ parar</button>
-        </div>
-        <div class="xs" id="clima-desc" style="margin-top:5px">&nbsp;</div>
-      </div>
-
-      <div class="grade g3">
-        <button class="btn ${o.som ? '' : 'sec'} sm" id="o-som">Efeitos ${o.som ? 'ligados' : 'desligados'}</button>
-        <button class="btn ${o.vibra ? '' : 'sec'} sm" id="o-vibra">Vibração ${o.vibra ? 'ligada' : 'desligada'}</button>
-        <button class="btn ${o.fx === 'alto' ? '' : 'sec'} sm" id="o-fx">Efeitos visuais ${o.fx === 'alto' ? 'completos' : 'reduzidos'}</button>
-      </div>
-
-      <div class="painel">
-        <h2>Feedback desvanecido</h2>
-        <div class="mini">A partir da dificuldade 5, o retorno por tentativa aparece em cerca de 2 de cada 3 —
-        a ideia é você construir o próprio detector de erro em vez de depender da tela. A evidência sobre isso
-        é <b>disputada</b>: um estudo aponta 67% como melhor que 100%, e a meta-análise de 2022 não sustenta o
-        efeito. Por isso dá para desligar.
-        </div><button class="btn sec sm" style="margin-top:8px;min-height:34px" data-princ="feedback">ver a pesquisa</button>
-        <button class="btn ${o.feedbackDesvanecido !== false ? '' : 'sec'} full sm" id="o-fb" style="margin-top:8px">
-          ${o.feedbackDesvanecido !== false ? 'Ativado (2 de cada 3)' : 'Desativado (retorno sempre)'}</button>
-      </div>
-
-      <div class="painel">
-        <h2>Rotas da Jing</h2>
-        <div class="mini" style="margin-bottom:7px">As rotas foram nomeadas pela função. Se a sua build ou o patch
-        mudarem a ordem, edite aqui — todo o treino passa a usar a sequência nova imediatamente.</div>
-        <div class="pilha" style="gap:6px">
-          ${rotas.map(r => `<div class="item" data-rota="${r.id}">
-            <div class="ic">${r.prio}</div>
-            <div class="txt"><b>${r.nome} — ${r.seq.map(k => H.getHud()[k]?.curto || k).join(' › ')}</b><span>${r.porque}</span></div>
-            <span class="tag">editar</span>
-          </div>`).join('')}
-        </div>
-      </div>
-
-      <div class="painel">
-        <h2>Seus dados</h2>
-        <div class="grade g2">
-          <button class="btn sec sm" id="exp">Exportar backup</button>
-          <button class="btn sec sm" id="imp">Importar backup</button>
-        </div>
-        <button class="btn bad sm full" id="zerar" style="margin-top:8px">Apagar tudo e recomeçar</button>
-        <div class="xs" style="margin-top:6px">Tudo fica salvo só no seu aparelho. Nada sai daqui.</div>
-      </div>
-
-      <div class="painel">
-        <h2>Como este sistema decide</h2>
-        <div class="mini">Cada exercício alimenta oito eixos. A cada set o sistema compara onde você está com o
-        alvo do seu nível, soma o tempo que cada eixo ficou sem treino e escolhe o exercício que cobre o maior
-        buraco — e não o próximo da lista. Se a sua velocidade estiver gerando erro, o tempo <b>volta</b>
-        automaticamente até a precisão estabilizar. Se uma mecânica já estiver automática, ela sai do rodízio.</div>
-      </div>
-    </div>`;
-  }
-
-  function depoisAjustes() {
-    const d = U.DB.load();
-    $('#fs')?.addEventListener('click', () => { U.Screen.fullscreen(); U.Sfx.unlock(); toast('Tela cheia'); });
-    const alt = (k, v) => { d.opts[k] = v; U.DB.save(); render('ajustes'); };
-    $('#o-som')?.addEventListener('click', () => { alt('som', !d.opts.som); U.Sfx.unlock(); U.Sfx.hit(); });
-    $('#o-musica')?.addEventListener('click', () => {
-      d.opts.musica = d.opts.musica === false; U.DB.save();
-      U.Sfx.unlock();
-      d.opts.musica ? U.Musica.tocar('espelho') : U.Musica.parar();
-      render('ajustes');
-    });
-    $('#o-fb')?.addEventListener('click', () => alt('feedbackDesvanecido', d.opts.feedbackDesvanecido === false));
-    const liga = (id, chave, aoMudar) => {
-      const el = $(id); if (!el) return;
-      el.addEventListener('input', () => {
-        d.opts[chave] = el.value / 100; U.DB.save();
-        const n = $(id + '-n'); if (n) n.textContent = el.value + '%';
-        aoMudar && aoMudar();
-      });
-    };
-    liga('#v-mus', 'volMusica', () => { U.Sfx.unlock(); U.Musica.atualizarVolume(); });
-    liga('#v-sfx', 'volSfx', () => { U.Sfx.unlock(); U.Sfx.atualizarVolume(); U.Sfx.hit(); });
-    $$('#tela-ajustes [data-clima]').forEach(b => b.addEventListener('click', () => {
-      U.Sfx.unlock();
-      const k = b.dataset.clima;
-      if (k === 'parar') { U.Musica.parar(); $('#clima-desc').textContent = 'trilha parada'; return; }
-      U.Musica.tocar(k);
-      $('#clima-desc').textContent = U.Musica.CLIMAS[k].desc;
-    }));
-    $$('#tela-ajustes [data-princ]').forEach(b => b.addEventListener('click', () => verPrincipio(b.dataset.princ)));
-    $('#o-vibra')?.addEventListener('click', () => { alt('vibra', !d.opts.vibra); U.Haptic.good(); });
-    $('#o-fx')?.addEventListener('click', () => alt('fx', d.opts.fx === 'alto' ? 'baixo' : 'alto'));
-
-    $$('#tela-ajustes .item[data-rota]').forEach(it => it.addEventListener('click', () => editarRota(it.dataset.rota)));
-
-    $('#exp')?.addEventListener('click', () => {
-      const blob = new Blob([U.DB.export()], { type: 'application/json' });
-      const a = el('a', { href: URL.createObjectURL(blob), download: `espelho-backup-${new Date().toISOString().slice(0,10)}.json` });
-      document.body.appendChild(a); a.click(); a.remove();
-      toast('Backup gerado', 'ok');
-    });
-    $('#imp')?.addEventListener('click', () => {
-      const inp = el('input', { type: 'file', accept: 'application/json' });
-      inp.addEventListener('change', () => {
-        const f = inp.files[0]; if (!f) return;
-        const fr = new FileReader();
-        fr.onload = () => {
-          try { U.DB.import(fr.result); toast('Backup restaurado', 'ok'); ir('inicio'); }
-          catch (e) { toast('Arquivo inválido'); }
-        };
-        fr.readAsText(f);
-      });
-      inp.click();
-    });
-    $('#zerar')?.addEventListener('click', () => {
-      modal(`<h2 style="margin:0 0 8px;color:var(--bad)">Apagar tudo?</h2>
-        <div class="mini">Diagnóstico, histórico, níveis e calibração do HUD serão perdidos. Não dá para desfazer.</div>
-        <div class="flex" style="margin-top:12px;gap:8px">
-          <button class="btn full sm" data-fecha>Cancelar</button>
-          <button class="btn bad full sm" id="cf-zerar">Apagar</button></div>`,
-        (cx) => cx.querySelector('#cf-zerar').addEventListener('click', () => {
-          U.DB.reset(); fecharModal(); toast('Tudo zerado'); ir('inicio');
-        }));
-    });
-  }
-
-  function editarRota(id) {
-    const rota = D.rotaPorId(id);
-    if (!rota) return;
-    let seq = rota.seq.slice();
-    const botoes = ['s1', 's2', 's3', 'aa', 'flash', 'it1', 'it2'];
-    const desenha = (cx) => {
-      cx.querySelector('#seq').innerHTML = seq.length
-        ? seq.map((k, i) => `<button class="btn sec sm" data-rm="${i}">${H.getHud()[k]?.curto || k} ✕</button>`).join('')
-        : '<span class="mini">sequência vazia</span>';
-      cx.querySelectorAll('[data-rm]').forEach(b => b.addEventListener('click', () => {
-        seq.splice(+b.dataset.rm, 1); desenha(cx);
-      }));
-    };
-    modal(`
-      <h2 style="margin:0 0 4px">${rota.nome}</h2>
-      <div class="mini" style="margin-bottom:9px">${rota.porque}</div>
-      <div class="mini"><b>Sequência</b></div>
-      <div class="flex wrap" id="seq" style="gap:6px;margin:6px 0 10px;min-height:44px"></div>
-      <div class="mini"><b>Adicionar</b></div>
-      <div class="flex wrap" style="gap:6px;margin-top:6px">
-        ${botoes.map(k => `<button class="btn sm" data-add="${k}">${H.getHud()[k]?.curto || k}</button>`).join('')}
-      </div>
-      <div class="flex" style="margin-top:12px;gap:8px">
-        <button class="btn sec full sm" data-fecha>Cancelar</button>
-        <button class="btn full sm" id="salvar-rota">Salvar</button>
-      </div>`,
-      (cx) => {
-        desenha(cx);
-        cx.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', () => {
-          if (seq.length >= 12) return;
-          seq.push(b.dataset.add); desenha(cx);
-        }));
-        cx.querySelector('#salvar-rota').addEventListener('click', () => {
-          if (seq.length < 1) return toast('A rota precisa de ao menos um toque');
-          rota.seq = seq; U.DB.save(); fecharModal(); toast('Rota salva', 'ok'); render('ajustes');
-        });
-      });
-  }
-
-  /* ============================================================
-     TELA — MÉTODO (por que cada coisa é do jeito que é)
+     TELA — MÉTODO
      ============================================================ */
   function telaMetodo() {
     const CI = U.CI;
     return `
     <div class="topo"><h1>✎ Método</h1><div class="espaco"></div>
-      <span class="sub">${CI.PRINCIPIOS.length} decisões, com a fonte de cada uma</span></div>
+      <span class="sub">${CI.PRINCIPIOS.length} decisões · ${CI.AUDITORIA.length} mudanças da v1</span></div>
     <div class="rolagem pilha">
       <div class="painel frag">
         <h2>A pergunta que este sistema tenta responder</h2>
-        <div class="mini">Qual é exatamente o seu maior problema agora, e qual exercício corrige isso mais rápido.
-        Tudo abaixo existe porque mudou alguma resposta a essa pergunta. Onde a evidência é fraca ou está em
-        disputa, está escrito — inclusive quando ela vai <b>contra</b> o que seria mais agradável de implementar.</div>
+        <div class="mini">Qual é o seu maior problema agora, e qual exercício corrige isso mais rápido — sem
+        afirmar mais do que os dados sustentam. Onde a evidência é fraca, está escrito. Onde ela foi <b>contra</b>
+        o que já estava construído, o recurso foi removido e isso também está escrito.</div>
+      </div>
+
+      <div class="painel">
+        <h2>O que mudou da v1 para a v2</h2>
+        <div class="pilha" style="gap:7px">
+          ${CI.AUDITORIA.map(a => `<div class="mini">
+            <span class="tag ${a.veredito === 'removido' ? 'bad' : a.veredito === 'rebaixado' ? 'warn' : ''}">${a.veredito}</span>
+            <b style="margin-left:5px">${a.alvo}</b><div class="xs" style="margin-top:2px">${a.porque}</div>
+          </div>`).join('')}
+        </div>
       </div>
 
       ${CI.PRINCIPIOS.map(pr => `
-        <div class="painel princ" data-princ="${pr.id}">
-          <div class="flex" style="gap:7px;align-items:flex-start">
-            <div style="flex:1;min-width:0">
-              <h3>${pr.titulo}</h3>
-              <span class="tag ${pr.forca === 'forte' ? 'ok' : pr.forca === 'contra' ? 'bad' : 'warn'}">${CI.FORCA[pr.forca].nome}</span>
-            </div>
+        <div class="painel princ">
+          <h3>${pr.titulo}</h3>
+          <div class="flex wrap" style="gap:5px;margin-top:4px">
+            <span class="tag ${pr.forca === 'forte' ? 'ok' : pr.forca === 'contra' ? 'bad' : 'warn'}">${CI.FORCA[pr.forca].nome}</span>
+            ${pr.novo ? '<span class="tag vio">novo na v2</span>' : ''}
+            ${pr.removido ? '<span class="tag bad">recurso removido</span>' : ''}
+            ${pr.rebaixa ? '<span class="tag warn">afirmação rebaixada</span>' : ''}
+            ${pr.naoUsado ? '<span class="tag">deliberadamente não usado</span>' : ''}
           </div>
-          <div class="mini" style="margin-top:6px">${pr.achado}</div>
+          <div class="mini" style="margin-top:7px">${pr.achado}</div>
           <div class="aviso ok" style="margin-top:7px"><b>O que isso mudou aqui:</b> ${pr.aplico}</div>
-          <div class="xs" style="margin-top:6px">${pr.fontes.map(f => `<a href="${f.u}" target="_blank" rel="noopener" style="color:var(--cy);display:block;margin-top:2px">↗ ${f.t}</a>`).join('')}</div>
+          <div class="xs" style="margin-top:6px">${pr.fontes.map(f =>
+            `<a href="${f.u}" target="_blank" rel="noopener" style="color:var(--cy);display:block;margin-top:2px">↗ ${f.t}</a>`).join('')}</div>
         </div>`).join('')}
-
-      <div class="painel">
-        <h2>O que este sistema NÃO promete</h2>
-        <div class="mini">Não vai te dar reflexo melhor "em geral". A revisão de escopo sobre esports e cognição
-        não sustenta ganho cognitivo amplo vindo de jogar ou de treinos genéricos. O que dá para construir é
-        <b>específico</b>: os seus botões, as suas distâncias, as suas rotas e as decisões deste jogo. É por isso
-        que aqui não existe "clique no quadrado que acender".</div>
-      </div>
     </div>`;
   }
 
@@ -1023,34 +668,220 @@
       <h2 style="margin:8px 0 6px;font-size:.95rem;color:var(--txt);text-transform:none;letter-spacing:0">${pr.titulo}</h2>
       <div class="mini">${pr.achado}</div>
       <div class="aviso ok" style="margin-top:8px"><b>O que isso mudou aqui:</b> ${pr.aplico}</div>
-      <div class="xs" style="margin-top:8px">${pr.fontes.map(f => `<a href="${f.u}" target="_blank" rel="noopener" style="color:var(--cy);display:block;margin-top:3px">↗ ${f.t}</a>`).join('')}</div>
+      <div class="xs" style="margin-top:8px">${pr.fontes.map(f =>
+        `<a href="${f.u}" target="_blank" rel="noopener" style="color:var(--cy);display:block;margin-top:3px">↗ ${f.t}</a>`).join('')}</div>
       <button class="btn full sm" style="margin-top:12px" data-fecha>Fechar</button>`);
   }
 
   /* ============================================================
-     Router
+     TELA — CONFIG
      ============================================================ */
+  function telaConfig() {
+    const d = U.DB.load();
+    const o = d.opts;
+    const rotas = CO.getRotas('jing');
+    const luna = d.luna || {};
+    const p = MD.painel();
+    const podeLuna = p.retencao.nivel !== 'insuficiente' && p.retencao.lo >= 70 && p.estabilidade.hi <= 22;
+    return `
+    <div class="topo"><h1>⚙ Config</h1></div>
+    <div class="rolagem pilha">
+      <div class="painel">
+        <h2>Aparelho</h2>
+        <button class="btn sec full sm" id="fs">Tela cheia + travar em paisagem</button>
+        <div class="xs" style="margin-top:5px">Antes de treinar: evita que a barra de gestos entre na faixa do ataque.</div>
+      </div>
+
+      <div class="painel">
+        <h2>Som</h2>
+        <div class="grade g2">
+          <button class="btn ${o.musica !== false ? '' : 'sec'} sm" id="o-musica">Trilha ${o.musica !== false ? 'ligada' : 'desligada'}</button>
+          <button class="btn ${o.som ? '' : 'sec'} sm" id="o-som">Efeitos ${o.som ? 'ligados' : 'desligados'}</button>
+        </div>
+        <div class="flex" style="margin-top:8px;gap:9px;align-items:center">
+          <span class="mini" style="flex:0 0 4.4rem">Trilha</span>
+          <input type="range" id="v-mus" min="0" max="100" value="${Math.round((o.volMusica ?? .5) * 100)}">
+          <span class="mini" id="v-mus-n" style="flex:0 0 2.2rem;text-align:right">${Math.round((o.volMusica ?? .5) * 100)}%</span>
+        </div>
+        <div class="flex" style="gap:9px;align-items:center">
+          <span class="mini" style="flex:0 0 4.4rem">Efeitos</span>
+          <input type="range" id="v-sfx" min="0" max="100" value="${Math.round((o.volSfx ?? .6) * 100)}">
+          <span class="mini" id="v-sfx-n" style="flex:0 0 2.2rem;text-align:right">${Math.round((o.volSfx ?? .6) * 100)}%</span>
+        </div>
+        <div class="grade g2" style="margin-top:8px">
+          <button class="btn ${o.vibra ? '' : 'sec'} sm" id="o-vibra">Vibração ${o.vibra ? 'ligada' : 'desligada'}</button>
+          <button class="btn ${o.fx === 'alto' ? '' : 'sec'} sm" id="o-fx">Efeitos visuais ${o.fx === 'alto' ? 'completos' : 'reduzidos'}</button>
+        </div>
+        <div class="xs" style="margin-top:6px">Na Prova a trilha fica mínima de propósito: medir com trilha cheia
+        acrescenta variação que não tem nada a ver com você.</div>
+      </div>
+
+      <div class="painel">
+        <h2>Luna</h2>
+        <div class="mini">${podeLuna
+          ? 'A Jing sustenta os pisos de retenção e estabilidade. A Luna pode entrar como módulo secundário — recomendado no máximo 1 bloco a cada 4 da Jing.'
+          : `Fechada por enquanto. As duas competem pelo mesmo mapa de polegar; enquanto a Jing não sustentar
+             retenção com limite inferior acima de 70% e variação abaixo de 22%, treinar Luna atrasa a Jing.
+             Agora: retenção ${p.retencao.v ?? '—'}${p.retencao.lo != null ? ` (piso ${p.retencao.lo})` : ''},
+             variação ${p.estabilidade.v ?? '—'}${p.estabilidade.hi != null ? ` (teto ${p.estabilidade.hi})` : ''}.`}</div>
+        ${podeLuna ? `<div class="grade g2" style="margin-top:8px">
+          ${D.deLuna().map(x => `<button class="btn sec sm" data-luna="${x.id}">${x.nome}</button>`).join('')}
+        </div>` : ''}
+      </div>
+
+      <div class="painel">
+        <h2>Rotas da Jing</h2>
+        <div class="mini" style="margin-bottom:7px">Nomeadas pela função para continuarem válidas se a build ou o
+        patch mudarem. A rota <b>Marca</b> é a de referência: mexer nela reinicia a comparação histórica.</div>
+        <div class="pilha" style="gap:6px">
+          ${rotas.map(r => `<div class="item" data-rota="${r.id}">
+            <div class="ic">${r.prio}</div>
+            <div class="txt"><b>${r.nome} — ${r.seq.map(k => (H.getHud()[k] || {}).curto || k).join(' › ')}</b><span>${r.porque}</span></div>
+            <span class="tag">${r.id === 'marca' ? 'referência' : 'editar'}</span>
+          </div>`).join('')}
+        </div>
+      </div>
+
+      <div class="painel">
+        <h2>Seus dados</h2>
+        <div class="mini">${d.tentativas.length} tentativas · ${d.sets.length} sets · ${d.sessoes.length} sessões
+        · ${d.provas.length} provas · ${U.DB.tamanho()} KB${d.legado ? ' · histórico da v1 preservado' : ''}.
+        ${U.DB.falhouAoSalvar() ? '<br><b style="color:var(--bad)">O último salvamento falhou</b> — exporte um backup agora.' : ''}</div>
+        <div class="grade g2" style="margin-top:8px">
+          <button class="btn sec sm" id="exp">Exportar backup</button>
+          <button class="btn sec sm" id="imp">Importar backup</button>
+        </div>
+        <button class="btn bad sm full" id="zerar" style="margin-top:8px">Apagar tudo</button>
+        <div class="xs" style="margin-top:6px">Fica tudo no seu aparelho. Limpar os dados do site no Chrome
+        apaga o histórico — exporte de vez em quando.</div>
+      </div>
+
+      <div class="painel">
+        <h2>Como o sistema decide</h2>
+        <div class="mini">Uma lista de regras avaliada em ordem; a primeira que dispara decide. Sem pesos
+        ocultos. Cada recomendação mostra a regra e o número que a fez disparar, para você poder discordar
+        com argumento.</div>
+        <div class="pilha" style="gap:3px;margin-top:7px">
+          ${DS.REGRAS.map((r, i) => `<div class="mini"><span class="xs" style="color:var(--dim2)">${i + 1}.</span>
+            <code>${r.id}</code> — ${r.titulo}</div>`).join('')}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function depoisConfig() {
+    const d = U.DB.load();
+    const alt = (k, v) => { d.opts[k] = v; U.DB.save(); render('config'); };
+    $('#fs')?.addEventListener('click', () => { U.Screen.fullscreen(); U.Sfx.unlock(); toast('Tela cheia'); });
+    $('#o-som')?.addEventListener('click', () => { alt('som', !d.opts.som); U.Sfx.unlock(); U.Sfx.hit(); });
+    $('#o-vibra')?.addEventListener('click', () => { alt('vibra', !d.opts.vibra); U.Haptic.good(); });
+    $('#o-fx')?.addEventListener('click', () => alt('fx', d.opts.fx === 'alto' ? 'baixo' : 'alto'));
+    $('#o-musica')?.addEventListener('click', () => {
+      d.opts.musica = d.opts.musica === false; U.DB.save(); U.Sfx.unlock();
+      d.opts.musica ? U.Musica.tocar('espelho') : U.Musica.parar();
+      render('config');
+    });
+    const liga = (id, chave, fn) => {
+      const e = $(id); if (!e) return;
+      e.addEventListener('input', () => {
+        d.opts[chave] = e.value / 100; U.DB.save();
+        const n = $(id + '-n'); if (n) n.textContent = e.value + '%';
+        fn && fn();
+      });
+    };
+    liga('#v-mus', 'volMusica', () => { U.Sfx.unlock(); U.Musica.atualizarVolume(); });
+    liga('#v-sfx', 'volSfx', () => { U.Sfx.unlock(); U.Sfx.atualizarVolume(); U.Sfx.hit(); });
+    $$('#tela-config [data-luna]').forEach(b => b.addEventListener('click', () => {
+      const dr = D.porId(b.dataset.luna); if (dr) U.T.abrirBloco(dr, CT.estado(dr.id).dif);
+    }));
+    $$('#tela-config .item[data-rota]').forEach(it => it.addEventListener('click', () => editarRota(it.dataset.rota)));
+    $('#exp')?.addEventListener('click', () => {
+      const blob = new Blob([U.DB.export()], { type: 'application/json' });
+      const a = el('a', { href: URL.createObjectURL(blob), download: `espelho-${new Date().toISOString().slice(0, 10)}.json` });
+      document.body.appendChild(a); a.click(); a.remove(); toast('Backup gerado', 'ok');
+    });
+    $('#imp')?.addEventListener('click', () => {
+      const inp = el('input', { type: 'file', accept: 'application/json' });
+      inp.addEventListener('change', () => {
+        const f = inp.files[0]; if (!f) return;
+        const fr = new FileReader();
+        fr.onload = () => { try { U.DB.import(fr.result); toast('Backup restaurado', 'ok'); ir('agora'); }
+                            catch (e) { toast('Arquivo inválido'); } };
+        fr.readAsText(f);
+      });
+      inp.click();
+    });
+    $('#zerar')?.addEventListener('click', () => {
+      modal(`<h2 style="margin:0 0 8px;color:var(--bad)">Apagar tudo?</h2>
+        <div class="mini">Tentativas, medidas, calibração e histórico da v1. Não dá para desfazer.
+        Exporte um backup antes se tiver qualquer dúvida.</div>
+        <div class="flex" style="margin-top:12px;gap:8px">
+          <button class="btn full sm" data-fecha>Cancelar</button>
+          <button class="btn bad full sm" id="cf-zerar">Apagar</button></div>`,
+        (cx) => cx.querySelector('#cf-zerar').addEventListener('click', () => {
+          U.DB.reset(); fecharModal(); toast('Tudo zerado'); ir('agora');
+        }));
+    });
+  }
+
+  function editarRota(id) {
+    const rota = CO.rotaPorId(id);
+    if (!rota) return;
+    let seq = rota.seq.slice();
+    const botoes = ['s1', 's2', 's3', 'aa', 'flash', 'it1', 'it2'];
+    const desenha = (cx) => {
+      cx.querySelector('#seq').innerHTML = seq.length
+        ? seq.map((k, i) => `<button class="btn sec sm" data-rm="${i}">${(H.getHud()[k] || {}).curto || k} ✕</button>`).join('')
+        : '<span class="mini">vazia</span>';
+      cx.querySelectorAll('[data-rm]').forEach(b => b.addEventListener('click', () => { seq.splice(+b.dataset.rm, 1); desenha(cx); }));
+    };
+    modal(`
+      <h2 style="margin:0 0 4px">${rota.nome}</h2>
+      <div class="mini" style="margin-bottom:8px">${rota.porque}</div>
+      ${id === 'marca' ? `<div class="aviso bad">Esta é a rota de referência das medidas. Mudar a sequência
+        torna as medidas antigas incomparáveis com as novas — o sistema vai avisar, mas a série anterior
+        perde o sentido.</div>` : ''}
+      <div class="mini" style="margin-top:8px"><b>Sequência</b></div>
+      <div class="flex wrap" id="seq" style="gap:6px;margin:6px 0 10px;min-height:44px"></div>
+      <div class="mini"><b>Adicionar</b></div>
+      <div class="flex wrap" style="gap:6px;margin-top:6px">
+        ${botoes.map(k => `<button class="btn sm" data-add="${k}">${(H.getHud()[k] || {}).curto || k}</button>`).join('')}
+      </div>
+      <div class="flex" style="margin-top:12px;gap:8px">
+        <button class="btn sec full sm" data-fecha>Cancelar</button>
+        <button class="btn full sm" id="salvar-rota">Salvar</button>
+      </div>`,
+      (cx) => {
+        desenha(cx);
+        cx.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', () => {
+          if (seq.length >= 12) return; seq.push(b.dataset.add); desenha(cx);
+        }));
+        cx.querySelector('#salvar-rota').addEventListener('click', () => {
+          if (!seq.length) return toast('Precisa de ao menos um toque');
+          rota.seq = seq; U.DB.save(); fecharModal(); toast('Rota salva', 'ok'); render('config');
+        });
+      });
+  }
+
+  /* ============================================================ */
   const TELAS = {
-    inicio: [telaInicio, depoisInicio],
-    treinar: [telaTreinar, depoisTreinar],
-    mapa: [telaMapa, depoisMapa],
-    rel: [telaRel, depoisRel],
-    luna: [telaLuna, depoisLuna],
-    metodo: [telaMetodo, depoisMetodo],
-    ajustes: [telaAjustes, depoisAjustes],
+    agora: [telaAgora, depoisAgora],
+    progresso: [telaProgresso, depoisProgresso],
+    hud: [telaHud, depoisHud],
+    metodo: [telaMetodo, () => {}],
+    config: [telaConfig, depoisConfig],
   };
 
   function render(nome = telaAtual) {
-    const [tpl, depois] = TELAS[nome] || TELAS.inicio;
-    if (nome !== 'mapa' && mapaSurf) { mapaSurf.destroy(); mapaSurf = null; }
+    const [tpl, depois] = TELAS[nome] || TELAS.agora;
+    if (nome !== 'hud' && mapaSurf) { mapaSurf.destroy(); mapaSurf = null; }
     const alvo = $('#tela-' + nome);
     if (!alvo) return;
     alvo.innerHTML = tpl();
     depois && depois();
   }
 
-  function depoisMetodo() {}
-
-  U.UI = { ir, render, toast, modal, fecharModal, barrasEixos, kpi, chipEstado, verPrincipio, EIXOS_RADAR, CURTOS, get telaAtual() { return telaAtual; } };
+  U.UI = { ir, render, toast, modal, fecharModal, verPrincipio, cartoesMedidas, desenharMedidores,
+           get telaAtual() { return telaAtual; } };
 
 })(window.U);

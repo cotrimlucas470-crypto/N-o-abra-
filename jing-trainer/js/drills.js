@@ -1,708 +1,304 @@
 /* ============================================================
-   drills.js — conteúdo: rotas, sinais, cenários, exercícios
-   As decisões de método estão aqui. Ordem, dificuldade e
-   critérios foram escolhidos para quem volta depois de 1 mês.
+   drills.js — catálogo V2
+   ------------------------------------------------------------
+   A V1 tinha 19 exercícios. Vários mediam a mesma coisa com nome
+   diferente (Pontes/Pontes Cegas/Corte de Tempo/Janela eram todos
+   "execute a rota" com um parâmetro trocado), e cada um carregava
+   sua própria curva de dificuldade — o que espalhava a amostra e
+   fazia com que nenhum acumulasse tentativas suficientes para
+   medir nada.
+
+   Aqui são 8 exercícios. Cada um alimenta UMA medida. O que antes
+   eram exercícios separados virou parâmetro do controlador:
+   com destaque / sem destaque, mais rápido / mais devagar, com
+   ruído / sem ruído são níveis de dificuldade da mesma tarefa, e
+   não tarefas diferentes. Assim a amostra se concentra e as
+   medidas saem do território do "provisório".
    ============================================================ */
 'use strict';
 (function (U) {
 
-  /* ============================================================
-     ROTAS DA JING
-     Nomeadas pela FUNÇÃO, não pelo nome da habilidade — assim
-     continuam válidas se a build/patch mudar. Editáveis na aba
-     "Rotas". A ordem abaixo é a ordem de recuperação que eu
-     escolhi: primeiro o que decide luta, depois o que enfeita.
-     ============================================================ */
-  const ROTAS_PADRAO = [
-    { id: 'entrada',  nome: 'Entrada',        seq: ['s1', 'aa'],
-      porque: 'O par mais usado do jogo. Se ele estiver lento, todo o resto herda o atraso.', prio: 1 },
-    { id: 'marca',    nome: 'Marca',          seq: ['s1', 'aa', 's2'],
-      porque: 'Entrada + continuação. É a rota que você mais repete numa partida inteira.', prio: 2 },
-    { id: 'recorte',  nome: 'Recorte',        seq: ['aa', 's1', 'aa'],
-      porque: 'Encaixar ataque entre habilidades. Aqui mora a diferença entre dano teórico e dano real.', prio: 3 },
-    { id: 'reflexo',  nome: 'Reflexo',        seq: ['s2', 's1', 'aa'],
-      porque: 'Posicionar antes de entrar. Rota de quem não quer entrar no lugar errado.', prio: 4 },
-    { id: 'saida',    nome: 'Saída',          seq: ['s3', 's1'],
-      porque: 'O percurso mais longo do polegar no seu HUD. É a primeira coisa que enferruja.', prio: 5 },
-    { id: 'execucao', nome: 'Execução',       seq: ['s1', 'aa', 's2', 'aa'],
-      porque: 'Sequência de abate. Só vale treinar depois que Entrada e Marca estiverem estáveis.', prio: 6 },
-    { id: 'completa', nome: 'Espelho Inteiro',seq: ['s2', 's1', 'aa', 's3', 'aa', 's1'],
-      porque: 'A rota inteira. Deixada por último de propósito: quase nunca é ela que perde a luta.', prio: 7 },
-  ];
+  const CO = U.CO;
+  const escala = (d, a, b) => a + (b - a) * ((U.clamp(d, 1, 10) - 1) / 9);
+  const seqs = CO.seqs;
 
-  const ROTAS_LUNA = [
-    { id: 'l-marca',  nome: 'Marcar',  seq: ['s1', 'aa'], porque: 'Marcar antes de tudo. Sem marca não existe cadeia.', prio: 1 },
-    { id: 'l-corte',  nome: 'Corte',   seq: ['s2', 'aa', 's1'], porque: 'Encaixe básico de dano da Luna.', prio: 2 },
-    { id: 'l-elo',    nome: 'Elo',     seq: ['s1', 'aa', 's3'], porque: 'A unidade da cadeia: marcar, bater, saltar.', prio: 3 },
-    { id: 'l-cadeia', nome: 'Cadeia',  seq: ['s1', 'aa', 's3', 's1', 'aa', 's3', 's1', 'aa', 's3'],
-      porque: 'Três elos sem erro. Um toque trocado quebra a cadeia — exatamente como na partida.', prio: 4 },
-  ];
-
-  function getRotas(quem = 'jing') {
-    const d = U.DB.load();
-    const k = quem === 'luna' ? 'rotasLuna' : 'rotasJing';
-    if (!d[k]) { d[k] = JSON.parse(JSON.stringify(quem === 'luna' ? ROTAS_LUNA : ROTAS_PADRAO)); U.DB.save(); }
-    return d[k];
+  /** Ajuda visual cai com a dificuldade: é parâmetro, não exercício. */
+  function ajudaPor(d) {
+    return d < 3.5 ? 'sempre' : d < 6.5 ? 'antes' : 'nunca';
   }
-  function rotaPorId(id, quem = 'jing') { return getRotas(quem).find(r => r.id === id); }
-  function seqs(ids, quem = 'jing') { return ids.map(i => (rotaPorId(i, quem) || { seq: ['s1'] }).seq); }
-
-  /* ============================================================
-     SINAIS DE AMEAÇA — motor Escolha
-     Respostas possíveis: ult | inv | recuar | seguir | nada
-     ============================================================ */
-  const SINAIS = [
-    { id: 'gancho',  icone: '🪝', cor: '#ff5470', texto: 'Gancho saindo da lateral, você está na linha', resposta: 'inv',
-      porque: 'Projétil já lançado não se resolve com dano. Só deslocamento instantâneo sai da linha a tempo.' },
-    { id: 'investida', icone: '🐂', cor: '#ffd479', texto: 'Tanque investindo de frente, controle em linha reta', resposta: 'recuar',
-      porque: 'Sair da linha custa meio passo. Comer o controle custa a luta inteira.' },
-    { id: 'area', icone: '🔥', cor: '#ff8a5c', texto: 'Área no chão acendeu exatamente sob você', resposta: 'recuar',
-      porque: 'Área de chão se resolve com passo. Gastar habilidade aqui é gastar duas vezes.' },
-    { id: 'assassino', icone: '🗡', cor: '#c4b5fd', texto: 'Assassino apareceu ATRÁS de você', resposta: 'ult',
-      porque: 'Você precisa de reposicionamento imediato, não de mais dano. Recuar andando não vence a velocidade dele.' },
-    { id: 'abate', icone: '💀', cor: '#6ee7a8', texto: 'Alvo com um fio de vida tentando fugir', resposta: 'seguir',
-      porque: 'Isso não é ameaça, é conta. Hesitar aqui é o erro mais caro do jogador enferrujado.' },
-    { id: 'canal', icone: '🧊', cor: '#7fd4ff', texto: 'Controle em área grande sendo canalizado à sua frente', resposta: 'recuar',
-      porque: 'Canalização tem aviso. Quem lê o aviso não precisa de invocador.' },
-    { id: 'sumidos', icone: '👻', cor: '#a78bfa', texto: 'Dois inimigos sumiram do mapa e você empurra sozinho', resposta: 'recuar',
-      porque: 'Informação faltando é informação ruim. Você não perde por estar errado, perde por não saber.' },
-    { id: 'escudo', icone: '🛡', cor: '#7fa8d0', texto: 'Suporte escudou o alvo e sua entrada já foi gasta', resposta: 'recuar',
-      porque: 'Sem recurso e com escudo na frente, ficar não é coragem, é doação.' },
-    { id: 'janela', icone: '⚡', cor: '#ffd479', texto: 'Seu invocador está pronto e o alvo já usou o dele', resposta: 'seguir',
-      porque: 'Vantagem de recurso é uma janela curta. Quem espera, devolve.' },
-    { id: 'cerco', icone: '🌀', cor: '#ff5470', texto: 'Você está no meio de três e a ultimate está pronta', resposta: 'ult',
-      porque: 'A ultimate aqui é rota de saída, não ferramenta de dano. Usar cedo é melhor que usar perfeito.' },
-    { id: 'torre', icone: '🕳', cor: '#ff8a5c', texto: 'Você pisou sob a torre inimiga com metade da vida', resposta: 'recuar',
-      porque: 'A torre não erra e não tem recarga. Nenhuma execução compensa a conta dela.' },
-    { id: 'ultErrou', icone: '🧨', cor: '#6ee7a8', texto: 'O inimigo gastou a ultimate dele e errou', resposta: 'seguir',
-      porque: 'Essa é a maior janela do jogo. Quem não entra agora, entra depois no pior momento.' },
-    { id: 'encurralado', icone: '🏹', cor: '#ff5470', texto: 'Atirador virou para você e não há cobertura por perto', resposta: 'ult',
-      porque: 'Sem cobertura, andar só prolonga o tempo que você fica sob tiro.' },
-    { id: 'iniciou', icone: '🟢', cor: '#6ee7a8', texto: 'Seu tanque iniciou e prendeu dois inimigos', resposta: 'seguir',
-      porque: 'A entrada dele é a sua. Atrasar dois segundos transforma vantagem em empate.' },
-    /* Provas de controle: NÃO responder também é resposta. */
-    { id: 'nada1', icone: '✅', cor: '#8fa3c4', texto: 'Aliado usou uma habilidade perto de você. Nada mudou', resposta: 'nada',
-      porque: 'Movimento na tela não é ameaça. Reagir a tudo é o mesmo que não ler nada.' },
-    { id: 'nada2', icone: '🌿', cor: '#8fa3c4', texto: 'Um minion morreu ao seu lado', resposta: 'nada',
-      porque: 'Se você apertou aqui, seu dedo está andando sozinho — e isso vira invocador jogado fora em partida.' },
-  ];
-
-  /* ============================================================
-     CENÁRIOS DE LUTA — motor Cenário
-     ============================================================ */
-  const CENARIOS = [
-    {
-      id: 'c1',
-      contexto: 'Meio de jogo. Você está na mata lateral. O atirador inimigo está empurrando sozinho.',
-      inicio: [
-        { icone: '🏹', nome: 'Atirador', hp: 0.62, nota: 'sozinho' },
-        { icone: '🛡', nome: 'Suporte', hp: 0.90, nota: 'longe, voltando' },
-      ],
-      pergunta: 'Entrar agora, esperar o suporte se afastar mais, ou recuar?',
-      opcoes: [
-        { texto: 'ENTRAR', icone: '⚔', certo: true, executa: true, rota: ['s1', 'aa', 's2', 'aa'],
-          porque: 'Alvo isolado, sem cobertura e com vida abaixo de 70%. Essa janela não melhora — ela fecha.' },
-        { texto: 'ESPERAR', icone: '⏳', certo: false,
-          porque: 'Esperar aqui é esperar o suporte chegar. Você trocou uma luta 1v1 por uma 1v2.' },
-        { texto: 'RECUAR', icone: '↩', certo: false,
-          porque: 'Recuar sem ameaça concreta ensina o adversário que a lateral é dele.' },
-      ],
-      fecho: 'Entrada limpa em alvo isolado. É assim que a Jing paga.',
-    },
-    {
-      id: 'c2',
-      contexto: 'Você entrou no atirador. A vida dele está caindo. Você está com 45% de vida.',
-      inicio: [
-        { icone: '🏹', nome: 'Atirador', hp: 0.22, nota: 'quase morto' },
-        { icone: '🗡', nome: 'Você', hp: 0.45, nota: 'sem invocador', aliado: true },
-      ],
-      pergunta: 'Você já gastou a entrada. Termina o abate ou sai?',
-      opcoes: [
-        { texto: 'TERMINAR', icone: '⚔', certo: true, executa: true, rota: ['aa', 's1', 'aa'],
-          porque: '22% de vida e sem escudo: são dois toques. Sair agora é pagar o preço sem levar o prêmio.' },
-        { texto: 'SAIR', icone: '↩', certo: false,
-          porque: 'Você já pagou o custo da entrada. Sair sem o abate é o pior dos dois mundos.' },
-      ],
-      reviravolta: {
-        parar: true,
-        texto: 'O JUNGLE INIMIGO SAIU DA MATA ÀS SUAS COSTAS',
-        novo: { icone: '🐉', nome: 'Jungle', hp: 1.0, nota: 'nas suas costas' },
-        porque: 'Sem invocador, com 45% de vida e um terceiro chegando: o abate deixou de valer o preço. Soltar a jogada no meio é uma habilidade, não uma desistência.',
-      },
-      fecho: 'Abate fechado.',
-    },
-    {
-      id: 'c3',
-      contexto: 'Luta 3v3 no objetivo. Seu tanque ainda não iniciou.',
-      inicio: [
-        { icone: '🪨', nome: 'Tanque', hp: 0.95, nota: 'ultimate pronta' },
-        { icone: '🔮', nome: 'Mago', hp: 0.80, nota: 'atrás do tanque' },
-        { icone: '🏹', nome: 'Atirador', hp: 0.85, nota: 'atrás do tanque' },
-      ],
-      pergunta: 'O tanque inimigo está de frente com a ultimate pronta. O que você faz?',
-      opcoes: [
-        { texto: 'ESPERAR', icone: '⏳', certo: true,
-          porque: 'Entrar de frente num tanque com ultimate pronta é entregar a sua entrada por nada. Você é a segunda onda, não a primeira.' },
-        { texto: 'ENTRAR', icone: '⚔', certo: false, executa: true, rota: ['s1', 'aa', 's2'],
-          porque: 'Você entrou no alvo mais duro, de frente, com o controle dele disponível. Mecânica perfeita, decisão ruim.' },
-        { texto: 'FLANCO', icone: '↗', certo: false,
-          porque: 'Flanquear é certo em princípio, mas sem o início do seu time você chega sozinho do outro lado.' },
-      ],
-      fecho: 'Segurou a entrada. Segundo a entrar, primeiro a sair vivo.',
-    },
-    {
-      id: 'c4',
-      contexto: 'Você está com 30% de vida. O mago inimigo está com 25% e recuando para a torre.',
-      inicio: [
-        { icone: '🔮', nome: 'Mago', hp: 0.25, nota: 'indo para a torre' },
-        { icone: '🗡', nome: 'Você', hp: 0.30, nota: 'invocador pronto', aliado: true },
-      ],
-      pergunta: 'Ele chega na torre em dois passos. Persegue?',
-      opcoes: [
-        { texto: 'PERSEGUIR', icone: '⚔', certo: false, executa: true, rota: ['s1', 'aa'],
-          porque: 'Você trocou 30% da sua vida por uma chance. A torre acerta sempre, e o mago tem uma habilidade sobrando.' },
-        { texto: 'DESISTIR', icone: '↩', certo: true,
-          porque: 'Com 30% de vida sob torre, o abate vale menos que a sua presença nos próximos 30 segundos.' },
-      ],
-      fecho: 'Recuo correto.',
-    },
-    {
-      id: 'c5',
-      contexto: 'Sua equipe iniciou bem. Dois inimigos estão presos no controle do seu tanque.',
-      inicio: [
-        { icone: '🪨', nome: 'Tanque', hp: 0.70, nota: 'controlado' },
-        { icone: '🏹', nome: 'Atirador', hp: 0.65, nota: 'controlado' },
-        { icone: '🛡', nome: 'Suporte', hp: 0.90, nota: 'livre, atrás' },
-      ],
-      pergunta: 'Dois presos. Em quem você entra?',
-      opcoes: [
-        { texto: 'ATIRADOR', icone: '🏹', certo: true, executa: true, rota: ['s1', 'aa', 's2', 'aa'],
-          porque: 'Preso, sem escudo e é quem mais dano causa se sobreviver. Alvo certo, momento certo.' },
-        { texto: 'TANQUE', icone: '🪨', certo: false,
-          porque: 'Ele está preso e não é ameaça. Você gastou a janela inteira em quem não decide a luta.' },
-        { texto: 'SUPORTE', icone: '🛡', certo: false,
-          porque: 'Está livre e vai fugir. Perseguir suporte no meio de uma luta é sair da luta.' },
-      ],
-      fecho: 'Alvo certo dentro da janela certa. É o combo que ganha partida.',
-    },
-    {
-      id: 'c6',
-      contexto: 'Início de luta. Tudo ainda está de pé. Você está na posição de flanco.',
-      inicio: [
-        { icone: '🪨', nome: 'Tanque', hp: 1.0, nota: '' },
-        { icone: '🔮', nome: 'Mago', hp: 1.0, nota: 'ultimate pronta' },
-        { icone: '🏹', nome: 'Atirador', hp: 1.0, nota: '' },
-      ],
-      pergunta: 'Ninguém iniciou. Você está de flanco, escondido. O que faz?',
-      opcoes: [
-        { texto: 'ESPERAR', icone: '⏳', certo: true, executa: true, rota: ['s2', 's1', 'aa', 's2'],
-          porque: 'Flanco sem início é só uma posição. Você esperou — e o mago gastou a ultimate no seu tanque. AGORA a janela é sua: execute.' },
-        { texto: 'ENTRAR', icone: '⚔', certo: false, executa: true, rota: ['s2', 's1', 'aa'],
-          porque: 'Você iniciou com o personagem mais frágil da sua composição, contra três habilidades disponíveis.' },
-      ],
-      reviravolta: {
-        parar: false,
-        texto: 'O MAGO GASTOU A ULTIMATE — A JANELA É SUA',
-        porque: 'Entrar depois da habilidade sair é entrar contra metade do time.',
-      },
-      fecho: 'Esperou a habilidade sair e depois entrou. Essa é a jogada.',
-    },
-    {
-      id: 'c7',
-      contexto: 'Você está executando um abate. A luta está 2v2 nas laterais.',
-      inicio: [
-        { icone: '🔮', nome: 'Mago', hp: 0.35, nota: 'em execução' },
-        { icone: '🗡', nome: 'Você', hp: 0.70, nota: '', aliado: true },
-      ],
-      pergunta: 'Execução em andamento. Continua?',
-      opcoes: [
-        { texto: 'CONTINUAR', icone: '⚔', certo: true, executa: true, rota: ['s1', 'aa', 's2', 'aa', 's1'],
-          porque: 'Alvo em 35%, sem cobertura. A execução está correta.' },
-      ],
-      reviravolta: {
-        parar: true,
-        texto: 'SEU ALIADO MORREU. AGORA SÃO 3 CONTRA VOCÊ',
-        novo: { icone: '🐉', nome: 'Jungle', hp: 0.9, nota: 'chegando' },
-        porque: 'A luta mudou de sinal no meio da sua execução. Continuar aqui não é persistência, é não ter percebido.',
-      },
-      fecho: 'Abate concluído.',
-    },
-    {
-      id: 'c8',
-      contexto: 'Você tem 85% de vida, invocador pronto, e o time inimigo está agrupado no objetivo.',
-      inicio: [
-        { icone: '🪨', nome: 'Tanque', hp: 0.60, nota: '' },
-        { icone: '🏹', nome: 'Atirador', hp: 0.40, nota: 'sem invocador' },
-        { icone: '🛡', nome: 'Suporte', hp: 0.75, nota: '' },
-        { icone: '🔮', nome: 'Mago', hp: 0.88, nota: 'ultimate pronta' },
-      ],
-      pergunta: 'Quatro agrupados. Seu time chega em dois segundos. O que faz?',
-      opcoes: [
-        { texto: 'ESPERAR', icone: '⏳', certo: true,
-          porque: 'Dois segundos é pouco tempo para eles e muito tempo para você sozinho. Entrar antes do time é morrer antes do time.' },
-        { texto: 'ENTRAR NO ATIRADOR', icone: '🏹', certo: false, executa: true, rota: ['s1', 'aa', 's2'],
-          porque: 'O alvo está certo. O momento não. Mecânica perfeita e decisão ruim continuam sendo decisão ruim.' },
-        { texto: 'INVOCADOR + ENTRAR', icone: '⚡', certo: false,
-          porque: 'Gastar o invocador para ENTRAR em quatro tira sua única rota de saída.' },
-      ],
-      fecho: 'Esperou o time. Entrada em segundo tempo.',
-    },
-  ];
-
-  /* ============================================================
-     EXERCÍCIOS
-     dif: 1..10. cfg(dif) devolve a configuração daquele nível.
-     ============================================================ */
-  const F = { RECONEXAO: 1, ESTABILIZACAO: 2, AUTOMATIZACAO: 3, VELOCIDADE: 4, PRESSAO: 5, INTEGRACAO: 6, DOMINIO: 7 };
-
-  const escala = (dif, a, b) => a + (b - a) * ((dif - 1) / 9);
+  /** Rotas ativas: no máximo 3 por sessão. Recuperar tudo ao mesmo
+      tempo é a forma mais confiável de não recuperar nada. */
+  function rotasDe(ctx, padrao) {
+    const ids = (ctx && ctx.rotas) || padrao;
+    return seqs(ids);
+  }
 
   const DRILLS = [
-    /* ---------- FASE 1 — RECONEXÃO ---------- */
+    /* ---------------------------------------------------------- */
     {
-      id: 'ancoragem', nome: 'Ancoragem', fase: F.RECONEXAO, motor: 'sequencia',
-      objetivo: 'Reencontrar cada botão sem tatear.',
-      explicacao: [
-        'Aparece o nome de um botão no centro por um instante. O nome some. Quando surgir VAI, acerte esse botão.',
-        'Mire o <b>miolo</b> do botão, não a borda. O alvo é o círculo, não o seu dedo — não fique acompanhando a mão, olhe para onde o toque tem que cair.',
-        'Não corra. O que decide a nota aqui é onde o toque aterrissa.',
-        'Cada toque é gravado com a posição exata dentro do botão. Isso vira o seu gráfico de dispersão na aba HUD.',
+      id: 'ancorar', nome: 'Ancoragem', motor: 'sequencia', mede: null,
+      objetivo: 'Reencontrar cada botão e alimentar o mapa do seu polegar.',
+      comoFunciona: [
+        'Aparece o nome de um botão. Some. Quando surgir VAI, acerte esse botão.',
+        'Mire o <b>miolo</b> do círculo. O alvo é o botão, não a sua mão — não fique acompanhando o dedo.',
+        'Cada toque é gravado com a posição exata dentro do botão.',
+        'É daqui que sai a dispersão do seu toque e a sua reta de tempo por trajeto, na aba HUD.',
       ],
-      pesquisa: { principio: 'foco', nota: 'As instruções apontam o alvo, não a mão: foco externo produz movimento mais automático que foco interno.' },
-      treina: { precisao: 0.50, velocidade: 0.25, consistencia: 0.25 },
+      porque: 'Instruções que apontam o alvo (foco externo) produzem movimento mais automático do que instruções que apontam o próprio corpo. E os toques daqui são o único jeito de separar limite de layout de limite de treino.',
       cfg: (d, ctx) => ({
-        tentativas: 16, modo: 'livre', mostrarRota: 'antes',
-        tempoLeitura: Math.round(escala(d, 1100, 450)),
-        rotas: [['s1'], ['s2'], ['s3'], ['aa'], ['flash']],
-        esquema: ctx.esquema || 'aleatorio',
-        deadline: Math.round(escala(d, 1800, 900)),
+        tentativas: 20, modo: 'livre', mostrarRota: 'antes',
+        tempoLeitura: Math.round(escala(d, 1100, 420)),
+        rotas: [['s1'], ['s2'], ['s3'], ['aa'], ['flash'],
+                ['s1', 'aa'], ['aa', 's1'], ['s1', 's3'], ['s3', 'aa'], ['s2', 's3'], ['aa', 'flash']],
+        esquema: 'aleatorio',
+        deadline: Math.round(escala(d, 2200, 1000)),
         isiMin: 350, isiMax: Math.round(escala(d, 900, 1600)),
-        foco: 'precisao',
       }),
     },
+    /* ---------------------------------------------------------- */
     {
-      id: 'pontes', nome: 'Pontes', fase: F.RECONEXAO, motor: 'sequencia',
-      objetivo: 'Recuperar o trajeto entre dois botões.',
-      explicacao: [
-        'Dois botões, na ordem mostrada. O que está sendo medido é o <b>trajeto</b> entre eles.',
-        'Pense na linha entre um botão e o outro, não no movimento do polegar. Deixe o toque cair no centro dos dois.',
-        'Errar o segundo toque quase sempre é distância, não memória.',
-        'Os tempos de cada par alimentam a sua reta de Fitts, que separa o que é limite do HUD do que é limite seu.',
-      ],
-      pesquisa: { principio: 'fitts', nota: 'Os tempos daqui viram o gráfico que mostra quais trajetos ainda têm treino sobrando e quais já estão no limite do layout.' },
-      treina: { precisao: 0.35, velocidade: 0.35, consistencia: 0.30 },
-      cfg: (d, ctx) => ({
-        tentativas: 18, modo: 'livre', mostrarRota: 'antes',
-        tempoLeitura: Math.round(escala(d, 1000, 420)),
-        rotas: [['s1','aa'],['aa','s1'],['s1','s2'],['s2','s3'],['s1','s3'],['s3','aa'],['aa','flash'],['s2','aa'],['s3','s1'],['aa','s2']],
-        esquema: ctx.esquema || 'aleatorio',
-        deadline: Math.round(escala(d, 2400, 1100)),
-        alvoMs: Math.round(escala(d, 700, 320)),
-        foco: 'precisao',
-      }),
-    },
-    {
-      id: 'compasso', nome: 'Rota em Compasso', fase: F.RECONEXAO, motor: 'sequencia',
-      objetivo: 'Gravar o ritmo da rota antes da velocidade.',
-      explicacao: [
-        'Um metrônomo marca a batida. Um toque por batida. Encaixe o toque <b>na batida</b>, não antes.',
+      id: 'ritmo', nome: 'Ritmo', motor: 'sequencia', mede: 'estabilidade',
+      objetivo: 'Tirar a variação do combo. Regularidade antes de velocidade.',
+      comoFunciona: [
+        'Um metrônomo marca a batida. Um toque por batida — <b>na</b> batida, não antes.',
         'Adiantar conta como erro. A meta não é ser rápido: é ser previsível.',
-        'A trilha entra no mesmo andamento do exercício — use a música como referência, não como fundo.',
-        'Quando você acertar 80% no compasso atual, o compasso fecha sozinho.',
+        'A trilha entra no mesmo andamento: use a música como referência, não como fundo.',
+        'O compasso fecha sozinho quando você firma no atual.',
       ],
-      pesquisa: { principio: 'ci', nota: 'Nos primeiros níveis a mesma rota se repete em bloco: reencontrar o padrão vem antes de embaralhar.' },
-      treina: { consistencia: 0.40, precisao: 0.30, velocidade: 0.30 },
+      porque: 'Combo que sai diferente toda vez é combo que falha justo sob pressão. Esta é a única tarefa do sistema cujo critério é a regularidade e não o tempo.',
       cfg: (d, ctx) => ({
-        tentativas: 12, modo: 'compasso', mostrarRota: 'sempre',
-        beat: Math.round(escala(d, 640, 300)),
-        janela: Math.round(escala(d, 170, 95)),
-        rotas: seqs(ctx.rotasAtivas || ['entrada', 'marca']),
-        esquema: ctx.esquema || 'bloco',
+        tentativas: 14, modo: 'compasso', mostrarRota: d < 6 ? 'sempre' : 'antes',
+        beat: Math.round(escala(d, 660, 300)),
+        janela: Math.round(escala(d, 180, 95)),
+        rotas: rotasDe(ctx, ['entrada', 'marca']),
+        esquema: d < 4 ? 'bloco' : 'serial',
         tempoLeitura: 900,
       }),
     },
-
-    /* ---------- FASE 2 — ESTABILIZAÇÃO ---------- */
+    /* ---------------------------------------------------------- */
     {
-      id: 'janela', nome: 'Janela Constante', fase: F.ESTABILIZACAO, motor: 'sequencia',
-      objetivo: 'A mesma rota no mesmo tempo. Regularidade, não recorde.',
-      explicacao: [
-        'Existe uma faixa de tempo alvo. Terminar rápido demais é erro igual a terminar devagar.',
-        'Isso é de propósito: quem volta de uma pausa oscila muito, e oscilação é o que faz o combo falhar sob pressão.',
-        'Mire a faixa, não o menor tempo possível.',
-        'A faixa aperta conforme você acerta.',
+      id: 'rota', nome: 'Rota', motor: 'sequencia', mede: 'execucao',
+      objetivo: 'Encontrar o tempo de rota que você sustenta — e empurrá-lo.',
+      comoFunciona: [
+        'Execute a rota mostrada dentro do tempo limite.',
+        'O limite não é um recorde: é o tempo que você precisa <b>repetir</b> sem quebrar.',
+        'Conforme você acerta, ele fecha. Se a taxa de erro sobe, ele volta sozinho.',
+        'Acima da dificuldade 6 o botão para de acender e a rota some antes do VAI.',
       ],
-      pesquisa: { principio: 'retencao', nota: 'Ficar rápido hoje não é aprender. Por isso o critério aqui é acertar a mesma janela repetidas vezes, e não bater recorde.' },
-      treina: { consistencia: 0.55, precisao: 0.25, velocidade: 0.20 },
+      porque: 'É a tarefa de referência do sistema. O número que ela produz — o tempo sustentado a 85% de acerto — é a medida de execução, e é ele que aparece no painel. O acerto em si não mede nada aqui: ele é mantido constante pelo controlador de propósito.',
       cfg: (d, ctx) => {
-        const alvo = Math.round(escala(d, 1350, 700));
-        const tol = Math.round(escala(d, 300, 110));
+        const rotas = rotasDe(ctx, ['marca', 'recorte']);
+        const passos = U.mean(rotas.map(r => r.length)) || 3;
+        const porPasso = escala(d, 520, 190);
         return {
-          tentativas: 12, modo: 'janela', mostrarRota: 'sempre',
-          faixa: [alvo - tol, alvo + tol], alvoMs: alvo,
-          rotas: seqs(ctx.rotasAtivas || ['marca', 'recorte']),
-          esquema: ctx.esquema || 'serial',
-          deadline: alvo + tol + 900, foco: 'consistencia', tempoLeitura: 750,
+          tentativas: 16, modo: 'livre', mostrarRota: ajudaPor(d),
+          rotas, esquema: d < 3 ? 'bloco' : d < 5 ? 'serial' : 'aleatorio',
+          alvoMs: Math.round(porPasso * passos),
+          deadline: Math.round(porPasso * passos * 1.7 + 500),
+          ruido: d >= 8 ? Math.round(escala(d, 0, 3)) : 0,
+          tempoLeitura: Math.round(escala(d, 950, 450)),
         };
       },
     },
+    /* ---------------------------------------------------------- */
     {
-      id: 'pontes-cegas', nome: 'Pontes Cegas', fase: F.ESTABILIZACAO, motor: 'sequencia',
-      objetivo: 'Executar sem o botão aceso.',
-      explicacao: [
-        'A rota aparece uma vez e some. Nenhum botão fica destacado.',
-        'É assim que acontece em partida: você não tem uma luz avisando onde apertar.',
-        'Errar aqui e acertar com destaque significa uma coisa só: você sabe a rota, não sabe o HUD.',
-      ],
-      pesquisa: { principio: 'feedback', nota: 'Retirar a dica visual obriga você a usar a própria referência espacial em vez da muleta da tela.' },
-      treina: { precisao: 0.30, velocidade: 0.30, consistencia: 0.40 },
-      cfg: (d, ctx) => ({
-        tentativas: 12, modo: 'livre', mostrarRota: 'antes',
-        tempoLeitura: Math.round(escala(d, 950, 380)),
-        rotas: seqs(ctx.rotasAtivas || ['marca', 'reflexo', 'saida']),
-        esquema: ctx.esquema || 'serial',
-        alvoMs: Math.round(escala(d, 1300, 650)),
-        deadline: Math.round(escala(d, 3200, 1700)), foco: 'consistencia',
-      }),
-    },
-    {
-      id: 'andando', nome: 'Combo Andando', fase: F.ESTABILIZACAO, motor: 'sequencia',
+      id: 'movimento', nome: 'Andando', motor: 'sequencia', mede: 'execucao',
       objetivo: 'Executar sem parar de andar. Combo parado é combo morto.',
-      explicacao: [
-        'A seta dourada mostra a direção que o personagem precisa manter. Mantenha o <b>traço apontando para a seta</b> durante toda a execução.',
-        'Soltar a direção no meio conta como erro de posicionamento, mesmo com os toques certos.',
-        'Nos níveis altos a seta muda no meio da rota — e a mão esquerda tem que acompanhar sem a direita parar.',
+      comoFunciona: [
+        'A seta dourada mostra a direção que o personagem precisa manter.',
+        'Mantenha o traço <b>apontando para a seta</b> durante toda a execução.',
+        'Soltar a direção no meio é erro, mesmo com todos os toques certos.',
+        'Na parte alta da escala a seta muda no meio da rota.',
       ],
-      pesquisa: { principio: 'foco', nota: 'A instrução mira a seta na tela, não o polegar esquerdo. É a diferença entre foco externo e interno.' },
-      treina: { movimento: 0.50, precisao: 0.25, consistencia: 0.25 },
+      porque: 'Separar mão direita de mão esquerda é artificial: numa partida elas nunca param ao mesmo tempo. Isto testa se a rota sobrevive quando a mão esquerda tem trabalho próprio.',
       cfg: (d, ctx) => ({
-        tentativas: 12, modo: 'livre', mostrarRota: 'sempre',
+        tentativas: 14, modo: 'livre', mostrarRota: ajudaPor(d),
         mover: d >= 6 ? 'mudando' : 'fixo',
-        tolDir: d >= 8 ? 0 : 1, movMin: escala(d, 0.45, 0.75),
-        rotas: seqs(ctx.rotasAtivas || ['marca', 'execucao']),
-        esquema: ctx.esquema || 'serial',
-        alvoMs: Math.round(escala(d, 1500, 850)),
-        deadline: Math.round(escala(d, 3600, 2000)), tempoLeitura: 800,
+        tolDir: d >= 8 ? 0 : 1, movMin: escala(d, 0.45, 0.78),
+        rotas: rotasDe(ctx, ['marca', 'execucao']),
+        esquema: 'serial',
+        alvoMs: Math.round(escala(d, 1700, 900)),
+        deadline: Math.round(escala(d, 3800, 2000)), tempoLeitura: 800,
       }),
     },
-
-    /* ---------- FASE 3 — AUTOMATIZAÇÃO ---------- */
+    /* ---------------------------------------------------------- */
     {
-      id: 'dupla', nome: 'Dupla Tarefa', fase: F.AUTOMATIZACAO, motor: 'sequencia',
-      objetivo: 'Descobrir se a rota sai sozinha ou come a sua atenção.',
-      explicacao: [
-        'A metade esquerda vira quatro quadrantes. Durante a execução, <b>um</b> deles pisca em vermelho.',
+      id: 'carga', nome: 'Carga', motor: 'sequencia', mede: 'custoDecisao',
+      objetivo: 'Descobrir se a rota sai sozinha ou se ela come a sua atenção.',
+      comoFunciona: [
+        'A metade esquerda vira quatro quadrantes. Durante a execução, <b>um</b> pisca.',
         'Com o polegar esquerdo, toque o quadrante que piscou — sem a direita parar.',
-        'Errar o quadrante invalida a tentativa mesmo com a rota perfeita. Esse é o ponto: a rota tem que sobrar atenção.',
-        'Se a rota desaba aqui e estava boa sozinha, ela é consciente e não automática.',
+        'Errar o quadrante invalida a tentativa mesmo com a rota perfeita. É o ponto.',
+        'Se a rota desaba aqui e estava boa sozinha, ela ainda é consciente.',
       ],
-      pesquisa: { principio: 'transferencia', nota: 'A leitura lateral existe porque em luta a atenção é dividida. Treinar a rota isolada não prepara para isso.' },
-      treina: { automatismo: 0.55, reflexo: 0.25, consistencia: 0.20 },
+      porque: 'Em luta a atenção é dividida por definição. Uma rota que só funciona com atenção total funciona em treino e falha em partida. Atenção: a diferença entre "com carga" e "sem carga" é um escore de diferença, e escores de diferença somam o ruído das duas medidas — por isso ela só aparece no painel depois de bastante amostra.',
       cfg: (d, ctx) => ({
-        tentativas: 12, modo: 'livre', mostrarRota: d <= 4 ? 'sempre' : 'antes',
-        dupla: true, duplaVisivel: Math.round(escala(d, 520, 240)),
-        rotas: seqs(ctx.rotasAtivas || ['marca', 'execucao']),
-        esquema: ctx.esquema || 'aleatorio',
-        alvoMs: Math.round(escala(d, 1600, 900)),
+        tentativas: 14, modo: 'livre', mostrarRota: d < 5 ? 'sempre' : 'antes',
+        dupla: true, duplaVisivel: Math.round(escala(d, 540, 240)),
+        rotas: rotasDe(ctx, ['marca', 'execucao']),
+        esquema: 'serial',
+        alvoMs: Math.round(escala(d, 1700, 950)),
         deadline: Math.round(escala(d, 3800, 2200)), tempoLeitura: 800,
       }),
     },
+    /* ---------------------------------------------------------- */
     {
-      id: 'mutante', nome: 'Rota Mutante', fase: F.AUTOMATIZACAO, motor: 'sequencia',
-      objetivo: 'Trocar de plano no meio da execução sem travar.',
-      explicacao: [
-        'Você começa uma rota. Às vezes, no meio, ela MUDA.',
-        'Quando aparecer TROCA, o restante da sequência é outro. Leia e siga.',
-        'Travar meio segundo aqui é exatamente o que acontece quando a luta muda em partida.',
-      ],
-      pesquisa: { principio: 'ci', nota: 'Variar a rota no meio é interferência contextual levada ao extremo: piora a nota do dia e melhora a retenção.' },
-      treina: { automatismo: 0.35, reflexo: 0.35, velocidade: 0.30 },
-      cfg: (d, ctx) => ({
-        tentativas: 12, modo: 'livre', mostrarRota: 'sempre',
-        mutante: escala(d, 0.30, 0.65),
-        rotas: seqs(ctx.rotasAtivas || ['marca', 'execucao', 'reflexo']),
-        esquema: ctx.esquema || 'aleatorio',
-        alvoMs: Math.round(escala(d, 1700, 950)),
-        deadline: Math.round(escala(d, 4000, 2300)), tempoLeitura: 750,
-      }),
-    },
-
-    /* ---------- FASE 4 — VELOCIDADE ---------- */
-    {
-      id: 'corte', nome: 'Corte de Tempo', fase: F.VELOCIDADE, motor: 'sequencia',
-      objetivo: 'Empurrar o teto de velocidade sem soltar a precisão.',
-      explicacao: [
-        'Existe um tempo limite por tentativa, e ele diminui a cada nível.',
-        'Se a sua taxa de erro subir junto com a velocidade, o sistema <b>volta</b> o tempo sozinho.',
-        'Velocidade que gera erro não é progresso, é ruído.',
-      ],
-      pesquisa: { principio: 'fitts', nota: 'Parte do tempo entre dois botões é imposta pela geometria e nenhum treino remove. O teto útil é o que sobra acima da reta de Fitts.' },
-      treina: { velocidade: 0.55, consistencia: 0.25, precisao: 0.20 },
-      cfg: (d, ctx) => ({
-        tentativas: 14, modo: 'livre', mostrarRota: 'sempre',
-        rotas: seqs(ctx.rotasAtivas || ['marca', 'execucao']),
-        esquema: ctx.esquema || 'aleatorio',
-        alvoMs: Math.round(escala(d, 1200, 520)),
-        deadline: Math.round(escala(d, 2000, 950)), tempoLeitura: 600, foco: 'velocidade',
-      }),
-    },
-    {
-      id: 'antecipacao', nome: 'Antecipação', fase: F.VELOCIDADE, motor: 'escolha',
+      id: 'ler', nome: 'Leitura', motor: 'leitura', mede: 'leitura',
       objetivo: 'Decidir com informação incompleta — que é o normal em luta.',
-      explicacao: [
-        'A situação aparece por um instante e some atrás de uma máscara. Você responde com o que deu para ver.',
-        'As janelas variam: umas dão 600 ms, outras 140 ms. É de propósito — o sistema precisa saber a partir de quanta informação você ainda acerta.',
-        'Responder no escuro conta como erro. Não chute: se não viu, você vai descobrir isso no gráfico.',
-        'O resultado vira a sua <b>curva de antecipação</b> na aba Dados.',
+      comoFunciona: [
+        'A situação aparece por um instante e some atrás de uma máscara.',
+        'Quatro respostas: <b>ULTIMATE</b> (3) · <b>INVOCADOR</b> · <b>RECUAR</b> (analógico para trás) · <b>SEGUIR</b> (ataque).',
+        'Algumas situações não pedem resposta nenhuma. Apertar nelas é erro.',
+        'As janelas variam de propósito: o sistema precisa saber a partir de quanta informação você ainda acerta.',
       ],
-      pesquisa: { principio: 'oclusao', nota: 'Oclusão temporal é a técnica de treino perceptivo com melhor evidência de transferência: efeito grande e que aparece também fora da tela.' },
-      treina: { reflexo: 0.45, decisao: 0.40, velocidade: 0.15 },
+      porque: 'Oclusão temporal — cortar a cena antes do desfecho — é a técnica de treino perceptivo com melhor evidência de transferência, com efeito grande e ganho que aparece também fora da tela. Uma das janelas é sempre 300 ms, porque é preciso um ponto fixo para comparar com a semana passada.',
       cfg: (d) => ({
-        tentativas: 15, sinais: SINAIS,
-        janelas: d <= 3 ? [600, 420, 300] : d <= 7 ? [420, 300, 200] : [300, 200, 140],
-        limite: Math.round(escala(d, 2200, 1300)),
-        isiMin: 700, isiMax: 2100, rtBom: 500, rtRuim: 1400,
+        tentativas: 18, sinais: CO.SINAIS,
+        janelas: d < 4 ? [600, 420, 300] : d < 7 ? [420, 300, 200] : [300, 200, 140],
+        janelaRef: 300,
+        limite: Math.round(escala(d, 2200, 1100)),
+        isiMin: 650, isiMax: Math.round(escala(d, 1800, 2600)),
       }),
     },
-
-    /* ---------- FASE 5 — PRESSÃO ---------- */
+    /* ---------------------------------------------------------- */
     {
-      id: 'gatilho', nome: 'Gatilho de Ameaça', fase: F.PRESSAO, motor: 'escolha',
-      objetivo: 'Perceber, classificar e responder — não apertar rápido.',
-      explicacao: [
-        'Aparece uma situação. Quatro respostas possíveis:',
-        '<b>ULTIMATE</b> (botão 3) · <b>INVOCADOR</b> · <b>RECUAR</b> (analógico para trás) · <b>SEGUIR</b> (ataque).',
-        'Algumas situações não pedem resposta nenhuma. Apertar nelas é erro — e é o erro que mais custa invocador em partida.',
-        'Leia a explicação depois de cada uma. Ela é metade do exercício.',
-      ],
-      pesquisa: { principio: 'transferencia', nota: 'As situações são de Honor of Kings, não formas coloridas: treino de reflexo genérico não transfere para o jogo.' },
-      treina: { reflexo: 0.55, decisao: 0.30, velocidade: 0.15 },
-      cfg: (d) => ({
-        tentativas: 14, sinais: SINAIS,
-        limite: Math.round(escala(d, 2000, 900)),
-        janelas: d >= 6 ? [420, 300] : null,
-        isiMin: 600, isiMax: Math.round(escala(d, 1800, 2600)),
-        rtBom: 420, rtRuim: 1200,
-      }),
-    },
-    {
-      id: 'freio', nome: 'Freio de Mão', fase: F.PRESSAO, motor: 'sequencia',
-      objetivo: 'Medir e treinar a velocidade real de abortar uma jogada.',
-      explicacao: [
-        'Você executa a rota normalmente. Em algumas tentativas aparece <b>PARAR</b> no meio.',
+      id: 'frear', nome: 'Freio', motor: 'sequencia', mede: 'aborto',
+      objetivo: 'Descobrir com quanta antecedência você consegue cancelar uma jogada.',
+      comoFunciona: [
+        'Execute a rota normalmente. Em algumas tentativas aparece <b>PARAR</b> no meio.',
         'A partir do PARAR, qualquer toque é erro. Parar é segurar o dedo e puxar o analógico para trás.',
-        'O sinal vai chegando <b>cada vez mais tarde</b> até você falhar em metade das vezes. Isso é proposital: é a única forma de medir a sua velocidade de frenagem em milissegundos.',
-        'Nunca executar também é errado. Ir devagar de propósito para acertar todos os PARAR falsifica a medida — e o sistema percebe.',
+        'O sinal chega cada vez mais tarde até você falhar metade das vezes. É proposital.',
+        'Ir devagar de propósito para acertar todos os PARAR falsifica a medida — e o sistema percebe e avisa.',
       ],
-      pesquisa: { principio: 'ssrt', nota: 'Escada adaptativa de ±50 ms, taxa de parada travada em ~50%. O resultado é o seu SSRT, comparável com valores da literatura (~200-250 ms).' },
-      treina: { freio: 0.60, automatismo: 0.20, reflexo: 0.20 },
+      porque: 'A V1 chamava o resultado disto de SSRT e devolvia milissegundos como medida psicométrica. O modelo de corrida que sustenta o SSRT assume independência de contexto, e essa premissa é violada com frequência e gravidade — ainda mais numa tarefa sequencial com alta taxa de sinais, que induz lentidão proativa. O número aqui é descritivo e verificável: quanto tempo antes do toque o perigo precisa aparecer para você parar metade das vezes.',
       cfg: (d, ctx) => ({
         tentativas: 24, modo: 'livre', mostrarRota: 'sempre',
-        freio: 0.42, ssdPasso: 50,
-        janelaFreio: Math.round(escala(d, 900, 600)),
-        rotas: seqs(ctx.rotasAtivas || ['execucao', 'completa']),
-        esquema: ctx.esquema || 'serial',
-        motivosFreio: ['3 inimigos pela lateral', 'seu aliado morreu', 'o jungle saiu da mata atrás de você',
+        freio: 0.30, ssdPasso: 50,
+        janelaFreio: Math.round(escala(d, 900, 620)),
+        rotas: rotasDe(ctx, ['execucao', 'marca']),
+        esquema: 'serial',
+        motivosFreio: ['3 inimigos pela lateral', 'seu aliado morreu', 'o jungle saiu da mata atrás',
                        'o suporte chegou e escudou', 'você entrou no alcance da torre'],
         alvoMs: Math.round(escala(d, 1800, 1000)),
         deadline: Math.round(escala(d, 4200, 2600)), tempoLeitura: 700,
       }),
     },
+    /* ---------------------------------------------------------- */
     {
-      id: 'ruido', nome: 'Ruído', fase: F.PRESSAO, motor: 'sequencia',
-      objetivo: 'Manter a execução com a tela suja, que é como ela sempre está.',
-      explicacao: [
-        'Formas coloridas piscam pela tela durante a execução. Nada disso é sinal.',
-        'É exatamente o tipo de informação inútil que uma luta de time despeja em cima de você.',
-        'A partir do nível 6 entra também a leitura de quadrante com a mão esquerda.',
-      ],
-      pesquisa: { principio: 'transferencia', nota: 'Especificidade: o ambiente do treino precisa parecer com o ambiente da partida, senão o ganho fica no treino.' },
-      treina: { consistencia: 0.30, automatismo: 0.30, reflexo: 0.40 },
-      cfg: (d, ctx) => ({
-        tentativas: 12, modo: 'livre', mostrarRota: d <= 5 ? 'sempre' : 'antes',
-        ruido: Math.max(1, Math.round(escala(d, 1, 4))),
-        dupla: d >= 6, duplaVisivel: 380,
-        rotas: seqs(ctx.rotasAtivas || ['marca', 'execucao', 'completa']),
-        esquema: ctx.esquema || 'aleatorio',
-        alvoMs: Math.round(escala(d, 1700, 950)),
-        deadline: Math.round(escala(d, 4000, 2300)), tempoLeitura: 700,
-      }),
-    },
-
-    /* ---------- FASE 6 — INTEGRAÇÃO ---------- */
-    {
-      id: 'alvos', nome: 'Prioridade de Alvo', fase: F.INTEGRACAO, motor: 'prioridade',
-      objetivo: 'Escolher o alvo certo antes de tocar em qualquer botão.',
-      explicacao: [
-        'Aparecem inimigos com função, vida, distância e estado.',
-        'A pergunta muda: quem abater, quem respeitar, em quem não encostar.',
-        'Toque na carta. Depois leia a explicação — ela é o treino, o toque é só a resposta.',
-      ],
-      pesquisa: { principio: 'transferencia', nota: 'Decisão tática é o que menos decai numa pausa e o que mais decide partida. Vale treinar como conteúdo, não como reflexo.' },
-      treina: { decisao: 0.70, reflexo: 0.30 },
-      cfg: (d) => ({
-        tentativas: 12,
-        cartas: d >= 7 ? 5 : d >= 4 ? 4 : 3,
-        limite: Math.round(escala(d, 4500, 1800)),
-        semEstado: d <= 2,
-        rtBom: 1200, rtRuim: 4000,
-      }),
-    },
-    {
-      id: 'luta', nome: 'Simulador de Luta', fase: F.INTEGRACAO, motor: 'cenario',
-      objetivo: 'Ler, decidir, executar e — quando preciso — abortar.',
-      explicacao: [
-        'Você recebe um contexto de luta e alguns segundos para ler.',
-        'Escolhe uma ação. Se a ação certa envolver execução, você executa no HUD.',
+      id: 'lutar', nome: 'Luta', motor: 'decisao', mede: 'custoDecisao',
+      objetivo: 'Perceber, interpretar, decidir, executar e reavaliar — numa coisa só.',
+      comoFunciona: [
+        'A situação aparece por um instante. Leia o que der.',
+        'Escolha a ação. Se ela implicar entrar, você executa a rota no HUD.',
         'No meio da execução a situação pode mudar. Aí a decisão volta a ser sua.',
-        'A pontuação pesa mais a decisão que a mecânica. É de propósito: execução perfeita da jogada errada continua sendo derrota.',
+        'Nas dificuldades altas alguns inimigos aparecem com estado <b>oculto</b>: decidir sem saber tudo é o conteúdo, não um defeito.',
       ],
-      pesquisa: { principio: 'transferencia', nota: 'Junta mecânica, leitura e freio num só contexto — a forma mais próxima da partida que dá para treinar fora dela.' },
-      treina: { decisao: 0.45, freio: 0.25, reflexo: 0.15, automatismo: 0.15 },
+      porque: 'Dividir o treino em "mecânica" e "raciocínio" para sempre treina duas coisas que nunca acontecem separadas. As situações são geradas por regra, e não tiradas de uma lista: uma lista fixa vira gabarito decorado em duas sessões e o exercício para de medir leitura.',
       cfg: (d) => ({
-        tentativas: 6, cenarios: CENARIOS,
-        leitura: Math.round(escala(d, 3000, 1300)),
-        tempoDecisao: Math.round(escala(d, 3600, 1600)),
+        tentativas: 10,
+        dif: d,
+        leitura: Math.round(escala(d, 2600, 900)),
+        tempoDecisao: Math.round(escala(d, 3600, 1500)),
         janelaFreio: Math.round(escala(d, 1000, 650)),
+        explicaNaHora: d < 6,
       }),
     },
-
-    /* ---------- LUNA ---------- */
+    /* ---------------------------------------------------------- */
     {
-      id: 'luna-elo', nome: 'Luna · Elo', fase: F.ESTABILIZACAO, heroi: 'luna', motor: 'sequencia',
-      objetivo: 'Reconstruir a unidade básica da cadeia.',
-      explicacao: [
-        'Marcar, bater, saltar. Um elo por vez, encaixado na batida.',
+      id: 'luna-elo', nome: 'Luna · Elo', motor: 'sequencia', heroi: 'luna', mede: null,
+      objetivo: 'O elo básico da cadeia, um por vez.',
+      comoFunciona: [
+        'Marcar, bater, saltar. Encaixado na batida.',
         'A Luna não é um combo: é um elo repetido sem falha.',
         'Antes de encadear, o elo precisa sair igual todas as vezes.',
       ],
-      pesquisa: { principio: 'ci', nota: 'Bloco primeiro: a cadeia só vira aleatória depois que o elo isolado estiver estável.' },
-      treina: { consistencia: 0.45, precisao: 0.30, velocidade: 0.25 },
-      cfg: (d, ctx) => ({
+      porque: 'A Luna entra como módulo secundário e não dilui a Jing: o que ela acrescenta é ritmo de cadeia, que é uma exigência diferente.',
+      cfg: (d) => ({
         tentativas: 12, modo: 'compasso', mostrarRota: 'sempre',
-        beat: Math.round(escala(d, 620, 330)), janela: Math.round(escala(d, 170, 100)),
-        rotas: seqs(['l-marca', 'l-corte', 'l-elo'], 'luna'),
-        esquema: ctx.esquema || 'bloco', tempoLeitura: 850,
+        beat: Math.round(escala(d, 620, 330)), janela: Math.round(escala(d, 175, 100)),
+        rotas: seqs(['l-elo'], 'luna'), esquema: 'bloco', tempoLeitura: 850,
       }),
     },
     {
-      id: 'luna-cadeia', nome: 'Luna · Cadeia', fase: F.VELOCIDADE, heroi: 'luna', motor: 'sequencia',
+      id: 'luna-cadeia', nome: 'Luna · Cadeia', motor: 'sequencia', heroi: 'luna', mede: null,
       objetivo: 'Três elos seguidos. Um erro derruba tudo — como na partida.',
-      explicacao: [
+      comoFunciona: [
         'Nove toques sem falha. Qualquer botão errado encerra a tentativa na hora.',
         'Não existe recuperação no meio da cadeia. Existe não errar.',
-        'A faixa de tempo aperta a cada nível: a cadeia é ritmo, não corrida.',
+        'O tempo limite fecha a cada nível: a cadeia é ritmo, não corrida.',
       ],
-      pesquisa: { principio: 'retencao', nota: 'Cadeia longa é o caso em que desempenho do dia engana mais: acertar uma vez não é ter aprendido. O teste de retenção cobra isso na sessão seguinte.' },
-      treina: { consistencia: 0.40, velocidade: 0.30, automatismo: 0.30 },
-      cfg: (d) => {
-        const alvo = Math.round(escala(d, 4200, 2300));
-        const tol = Math.round(escala(d, 700, 280));
-        return {
-          tentativas: 10, modo: 'janela', mostrarRota: 'sempre',
-          faixa: [alvo - tol, alvo + tol], alvoMs: alvo,
-          rotas: seqs(['l-cadeia'], 'luna'), esquema: 'bloco',
-          deadline: alvo + tol + 1500, tempoLeitura: 900,
-        };
+      porque: 'É o caso em que o desempenho do dia mais engana: acertar uma vez não é ter aprendido. O teste de retenção cobra isso depois.',
+      cfg: (d) => ({
+        tentativas: 10, modo: 'livre', mostrarRota: d < 6 ? 'sempre' : 'antes',
+        rotas: seqs(['l-cadeia'], 'luna'), esquema: 'bloco',
+        alvoMs: Math.round(escala(d, 4400, 2400)),
+        deadline: Math.round(escala(d, 8000, 4800)), tempoLeitura: 900,
+      }),
+    },
+  ];
+
+  const porId = (id) => DRILLS.find(x => x.id === id);
+  const deJing = () => DRILLS.filter(x => !x.heroi);
+  const deLuna = () => DRILLS.filter(x => x.heroi === 'luna');
+
+  /* ============================================================
+     PROVA — o instrumento de medida
+     ------------------------------------------------------------
+     Condição FIXA para sempre. Sem retorno por tentativa, sem botão
+     aceso, mesma rota, mesma janela de oclusão. É o que permite
+     comparar hoje com daqui a um mês: o treino adapta, a prova não.
+     ~65 tentativas, 9-11 minutos. A amostra ACUMULA entre provas,
+     e é por isso que as medidas saem de "provisório" com o tempo.
+     ============================================================ */
+  const PROVA = [
+    {
+      id: 'p1', nome: 'Rota sem ajuda', motor: 'sequencia', alimenta: 'execução e estabilidade',
+      explica: 'A rota de referência (1 › AA › 2) no tempo de referência, sem destaque e sem retorno. 20 tentativas.',
+      cfg: {
+        tentativas: 20, modo: 'livre', mostrarRota: 'antes', tempoLeitura: 800,
+        rotas: [['s1', 'aa', 's2']], esquema: 'bloco',
+        alvoMs: 1100, deadline: 2600, semRetorno: true, ref: true,
       },
     },
     {
-      id: 'luna-alvo', nome: 'Luna · Alvo da Cadeia', fase: F.INTEGRACAO, heroi: 'luna', motor: 'prioridade',
-      objetivo: 'Para onde o próximo salto leva você.',
-      explicacao: [
-        'A pergunta da Luna é sempre a mesma: o próximo elo te joga onde?',
-        'Saltar para o alvo mais fácil costuma ser saltar para dentro do time inteiro.',
-      ],
-      pesquisa: { principio: 'transferencia', nota: 'O erro caro da Luna não é mecânico, é de destino do salto.' },
-      treina: { decisao: 0.70, reflexo: 0.30 },
-      cfg: (d) => ({
-        tentativas: 10, cartas: d >= 5 ? 4 : 3,
-        limite: Math.round(escala(d, 4000, 1900)),
-        perguntas: ['abate', 'evitar'], rtBom: 1200, rtRuim: 3800,
-      }),
+      id: 'p2', nome: 'Leitura a 300 ms', motor: 'leitura', alimenta: 'leitura',
+      explica: 'A janela de oclusão fixa em 300 ms, sempre. 18 tentativas, sem explicação entre elas.',
+      cfg: {
+        tentativas: 18, sinais: CO.SINAIS, janelas: [300], janelaRef: 300,
+        limite: 1700, isiMin: 650, isiMax: 2000, semRetorno: true, ref: true,
+      },
     },
     {
-      id: 'luna-pressao', nome: 'Luna · Cadeia sob Ruído', fase: F.PRESSAO, heroi: 'luna', motor: 'sequencia',
-      objetivo: 'Manter a cadeia com a tela cheia de informação.',
-      explicacao: [
-        'A cadeia inteira, com ruído visual e leitura de quadrante.',
-        'Se ela sobrevive aqui, ela sobrevive numa luta de time.',
-      ],
-      pesquisa: { principio: 'transferencia', nota: 'Especificidade de contexto: a cadeia precisa aguentar o ambiente, não só o laboratório.' },
-      treina: { automatismo: 0.40, consistencia: 0.30, reflexo: 0.30 },
-      cfg: (d) => ({
-        tentativas: 8, modo: 'livre', mostrarRota: 'sempre',
-        ruido: Math.max(1, Math.round(escala(d, 1, 4))), dupla: d >= 4,
-        rotas: seqs(['l-cadeia'], 'luna'), esquema: 'bloco',
-        alvoMs: Math.round(escala(d, 4200, 2600)),
-        deadline: Math.round(escala(d, 8000, 5000)), tempoLeitura: 900,
-      }),
+      id: 'p3', nome: 'Freio', motor: 'sequencia', alimenta: 'janela de aborto',
+      explica: 'Escada adaptativa até a taxa de parada chegar perto de 50%. 18 tentativas.',
+      cfg: {
+        tentativas: 18, modo: 'livre', mostrarRota: 'sempre', tempoLeitura: 700,
+        freio: 0.34, ssdPasso: 50, janelaFreio: 800,
+        rotas: [['s1', 'aa', 's2', 'aa']], esquema: 'bloco',
+        alvoMs: 1500, deadline: 3800, semRetorno: true, ref: true,
+        motivosFreio: ['3 inimigos pela lateral', 'seu aliado morreu', 'o jungle apareceu atrás'],
+      },
+    },
+    {
+      id: 'p4', nome: 'Executando sob decisão', motor: 'decisao', alimenta: 'custo da decisão',
+      explica: 'A mesma rota, agora precedida de uma leitura e uma escolha. 10 tentativas.',
+      cfg: {
+        tentativas: 10, dif: 5, leitura: 1800, tempoDecisao: 2400, janelaFreio: 800,
+        explicaNaHora: false, semRetorno: true, ref: true, rotaFixa: ['s1', 'aa', 's2'],
+      },
     },
   ];
 
-  const porId = (id) => DRILLS.find(d => d.id === id);
-
-  /* ============================================================
-     PROTOCOLO DE DIAGNÓSTICO
-     Seis provas curtas. P3 e P4 usam a MESMA rota de propósito:
-     a diferença entre elas é a medida de automatismo.
-     ============================================================ */
-  const ROTA_DIAG = ['s1', 'aa', 's2'];
-
-  const DIAGNOSTICO = [
-    {
-      id: 'd1', nome: 'Toque', drill: 'ancoragem', dif: 4,
-      mede: 'Precisão e tempo de localização de cada botão',
-      explica: 'Onde o seu dedo realmente encosta, botão por botão.',
-      cfg: { tentativas: 16, modo: 'livre', mostrarRota: 'antes', tempoLeitura: 800,
-             rotas: [['s1'],['s2'],['s3'],['aa'],['flash']], esquema: 'serial',
-             deadline: 1600, isiMin: 400, isiMax: 1200, foco: 'precisao' },
+  /* Teste de retenção: mesma condição da prova p1, menos tentativas. */
+  const RETENCAO = {
+    nome: 'Teste de retenção', motor: 'sequencia',
+    cfg: {
+      tentativas: 15, modo: 'livre', mostrarRota: 'antes', tempoLeitura: 800,
+      rotas: [['s1', 'aa', 's2']], esquema: 'bloco',
+      alvoMs: 1100, deadline: 2600, semRetorno: true, ref: true, modo_: 'retencao',
     },
-    {
-      id: 'd2', nome: 'Pontes', drill: 'pontes', dif: 4,
-      mede: 'Tempo de percurso entre botões',
-      explica: 'Quais trajetos do SEU HUD estão travando o polegar.',
-      cfg: { tentativas: 18, modo: 'livre', mostrarRota: 'antes', tempoLeitura: 750,
-             rotas: [['s1','aa'],['aa','s1'],['s1','s2'],['s2','s3'],['s1','s3'],['s3','aa'],
-                     ['aa','flash'],['s2','aa'],['s3','s1'],['aa','s2'],['s3','flash'],['s2','s1']],
-             esquema: 'serial', deadline: 2200, alvoMs: 520 },
-    },
-    {
-      id: 'd3', nome: 'Rota solo', drill: 'compasso', dif: 4,
-      mede: 'Retenção da sequência, ritmo e regularidade',
-      explica: 'Quanto da rota base ainda está gravada.',
-      cfg: { tentativas: 10, modo: 'livre', mostrarRota: 'antes', tempoLeitura: 900,
-             rotas: [ROTA_DIAG], alvoMs: 1100, deadline: 3200 },
-    },
-    {
-      id: 'd4', nome: 'Rota sob carga', drill: 'dupla', dif: 4,
-      mede: 'Automatismo (queda de desempenho sob atenção dividida)',
-      explica: 'A MESMA rota da prova anterior, agora com leitura simultânea. A diferença entre as duas é a medida mais importante do diagnóstico.',
-      cfg: { tentativas: 10, modo: 'livre', mostrarRota: 'antes', tempoLeitura: 900,
-             rotas: [ROTA_DIAG], dupla: true, duplaVisivel: 450, alvoMs: 1100, deadline: 3600 },
-    },
-    {
-      id: 'd5', nome: 'Reflexo com escolha', drill: 'gatilho', dif: 3,
-      mede: 'Reação com decisão, disciplina de não reagir e antecipação com informação parcial',
-      explica: 'Perceber, classificar e responder certo — inclusive não responder. As janelas de visão variam de propósito: é isso que monta a sua curva de antecipação.',
-      cfg: { tentativas: 15, sinais: SINAIS, limite: 1900,
-             janelas: [600, 420, 300],
-             isiMin: 700, isiMax: 2000, rtBom: 460, rtRuim: 1300 },
-    },
-    {
-      id: 'd6', nome: 'Freio', drill: 'freio', dif: 3,
-      mede: 'SSRT — quantos milissegundos leva para abortar uma execução',
-      explica: 'O sinal de PARAR vai chegando cada vez mais tarde até você falhar em metade das vezes. É proposital: é o único jeito de transformar "consigo parar" num número comparável.',
-      cfg: { tentativas: 20, modo: 'livre', mostrarRota: 'sempre', freio: 0.45, janelaFreio: 850,
-             ssdInicial: 0, ssdPasso: 50, esquema: 'bloco',
-             rotas: [['s1','aa','s2','aa']], alvoMs: 1500, deadline: 4000, tempoLeitura: 700,
-             motivosFreio: ['3 inimigos pela lateral', 'seu aliado morreu', 'o jungle apareceu atrás'] },
-    },
-  ];
-
-  U.D = {
-    ROTAS_PADRAO, ROTAS_LUNA, getRotas, rotaPorId, seqs,
-    SINAIS, CENARIOS, DRILLS, porId, DIAGNOSTICO, ROTA_DIAG, F, escala,
   };
+
+  U.D = { DRILLS, porId, deJing, deLuna, PROVA, RETENCAO, escala, ajudaPor };
 
 })(window.U);

@@ -100,64 +100,144 @@ const daysSince = (ts) => (Date.now() - ts) / DAY;
 
 /* ---------- Storage ---------- */
 const DB = {
-  KEY: 'espelho.jing.v1',
+  KEY: 'espelho.jing.v1',       // mesma chave: a migração acontece na leitura
+  VERSAO: 2,
   _cache: null,
+
   load() {
     if (this._cache) return this._cache;
     let raw = null;
     try { raw = localStorage.getItem(this.KEY); } catch (e) { /* modo privado */ }
-    if (raw) {
-      try { this._cache = JSON.parse(raw); } catch (e) { this._cache = null; }
-    }
+    if (raw) { try { this._cache = JSON.parse(raw); } catch (e) { this._cache = null; } }
     if (!this._cache) this._cache = this.fresh();
-    this.migrate(this._cache);
+    this.migrar(this._cache);
     return this._cache;
   },
+
   fresh() {
     return {
-      v: 1,
+      v: 2,
       criado: Date.now(),
       perfil: { nome: 'Jogador', parado: 30 },
-      hud: null,               // sobrescrito pela calibração
-      opts: { som: true, vibra: true, fx: 'alto', musica: true, volMusica: 0.5, volSfx: 0.6, feedbackDesvanecido: true },
-      skills: null,            // vetor de habilidade (criado no diagnóstico)
-      nivel: 1,
-      diagnostico: null,
-      mecanicas: {},           // classificação de ferrugem por rota
-      sessoes: [],             // histórico
-      sets: [],                // todo set executado (histórico fino)
-      drills: {},              // estado por exercício: dificuldade, últimos scores
-      lunaLiberada: false,
-      lunaSkills: null,
-      pares: {},               // tempos de transição botão->botão
-      toques: {},              // dispersão do dedo dentro de cada botão
-      retencao: [],            // testes de retenção (aprendizado, não desempenho)
-      ssrt: [],                // histórico de tempo de frenagem
-      antecipacao: [],         // curva de oclusão temporal
+      hud: null,
+      hudConferido: false,
+      opts: { som: true, vibra: true, fx: 'alto', musica: true, volMusica: 0.5, volSfx: 0.6 },
+
+      /* dados crus — a única fonte de verdade */
+      tentativas: [],
+
+      /* resumos derivados, guardados para leitura rápida */
+      sets: [],
+      sessoes: [],
+      provas: [],
+
+      /* estado dos mecanismos */
+      dif: {},              // controlador de dificuldade por exercício
+      limiar: [],           // limiares estáveis (medida "Execução")
+      aborto: [],           // medidas de janela de aborto
+      fase: 'reconexao',
+      faseHist: [],
+      baseRecuperacao: null,
+
+      /* personalização e contexto */
+      toques: {},           // dispersão do dedo por botão
+      pares: {},            // tempo por trajeto entre botões
+      partidas: [],         // registro de partidas reais (checagem de transferência)
+      rotasJing: null, rotasLuna: null,
+      luna: { liberada: false, foco: false },
+
+      sessaoAtual: null,
       streak: { dias: 0, ultimo: 0 },
+      legado: null,
     };
   },
-  migrate(d) {
+
+  /**
+   * Migração v1 → v2.
+   * Regra: nada é apagado. Mas nada da V1 entra nas medidas novas.
+   * As medidas mudaram de instrumento e de condição (a V2 tem uma
+   * condição de referência fixa que a V1 não tinha), e misturar
+   * séries de instrumentos diferentes produz tendência falsa —
+   * que é exatamente o erro que esta versão existe para corrigir.
+   * O histórico antigo fica guardado em `legado` e visível na
+   * aba de progresso, marcado como outra régua.
+   */
+  migrar(d) {
     const f = this.fresh();
+    if (!d.v || d.v < 2) {
+      const antigo = {
+        v: d.v || 1, migradoEm: Date.now(),
+        skills: d.skills || null, diagnostico: d.diagnostico || null,
+        mecanicas: d.mecanicas || null, retencao: d.retencao || [],
+        ssrt: d.ssrt || [], antecipacao: d.antecipacao || [],
+        sets: (d.sets || []).slice(-200), sessoes: (d.sessoes || []).slice(-80),
+        nivel: d.nivel || 1, drills: d.drills || {},
+      };
+      const temAlgo = (antigo.sets.length || antigo.sessoes.length || antigo.diagnostico);
+      d.legado = temAlgo ? antigo : null;
+
+      /* o que sobrevive porque não depende do instrumento */
+      const preservar = {
+        hud: d.hud, opts: Object.assign({}, f.opts, d.opts || {}),
+        toques: d.toques || {}, pares: d.pares || {},
+        rotasJing: d.rotasJing || null, rotasLuna: d.rotasLuna || null,
+        perfil: d.perfil || f.perfil, criado: d.criado || Date.now(),
+        streak: d.streak || f.streak,
+        luna: { liberada: !!d.lunaLiberada, foco: !!d.focoLuna },
+        legado: d.legado,
+      };
+      for (const k of Object.keys(d)) delete d[k];
+      Object.assign(d, f, preservar);
+      d.v = 2;
+      try { localStorage.setItem(this.KEY, JSON.stringify(d)); } catch (e) {}
+      return;
+    }
+    /* completa chaves novas sem tocar nas existentes */
     for (const k in f) if (!(k in d)) d[k] = f[k];
     if (!d.opts) d.opts = f.opts;
     for (const k in f.opts) if (!(k in d.opts)) d.opts[k] = f.opts[k];
+    for (const k of ['tentativas', 'sets', 'sessoes', 'provas', 'limiar', 'aborto', 'faseHist', 'partidas'])
+      if (!Array.isArray(d[k])) d[k] = [];
+    for (const k of ['dif', 'toques', 'pares']) if (!d[k] || typeof d[k] !== 'object') d[k] = {};
+    if (!d.luna) d.luna = { liberada: false, foco: false };
   },
+
+  /** Salva com poda automática: localStorage estoura por volta de 5 MB. */
   save() {
-    try { localStorage.setItem(this.KEY, JSON.stringify(this._cache)); }
-    catch (e) { console.warn('Sem espaço para salvar', e); }
+    const d = this._cache;
+    if (!d) return;
+    try {
+      localStorage.setItem(this.KEY, JSON.stringify(d));
+      this._falhou = false;
+    } catch (e) {
+      /* poda do mais volumoso e menos insubstituível, em ordem */
+      const antes = d.tentativas.length;
+      d.tentativas = d.tentativas.slice(-2000);
+      d.sets = d.sets.slice(-150);
+      for (const k in d.toques) d.toques[k] = d.toques[k].slice(-60);
+      try {
+        localStorage.setItem(this.KEY, JSON.stringify(d));
+        console.warn('Armazenamento cheio: podadas', antes - d.tentativas.length, 'tentativas antigas.');
+        this._falhou = false;
+      } catch (e2) {
+        this._falhou = true;
+        console.warn('Não foi possível salvar', e2);
+      }
+    }
   },
-  reset() {
-    this._cache = this.fresh();
-    this.save();
-  },
-  export() {
-    return JSON.stringify(this.load(), null, 2);
-  },
+  falhouAoSalvar() { return !!this._falhou; },
+
+  reset() { this._cache = this.fresh(); this.save(); },
+  export() { return JSON.stringify(this.load(), null, 2); },
   import(json) {
     const d = JSON.parse(json);
     if (!d || typeof d !== 'object') throw new Error('Arquivo inválido');
-    this._cache = d; this.migrate(d); this.save();
+    this._cache = d; this.migrar(d); this.save();
+  },
+
+  /** Tamanho aproximado em KB — usado no painel de dados. */
+  tamanho() {
+    try { return Math.round(JSON.stringify(this._cache).length / 1024); } catch (e) { return 0; }
   },
 };
 

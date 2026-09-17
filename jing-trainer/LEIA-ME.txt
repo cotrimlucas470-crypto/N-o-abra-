@@ -1,126 +1,159 @@
 ================================================================
-ESPELHO v2 — Sistema de Recuperação e Evolução (Jing / Luna)
-Honor of Kings · feito sob medida para o seu HUD e o Poco X7 Pro
+ESPELHO v2 — Recuperação e desenvolvimento de Jing
+Honor of Kings · Poco X7 Pro · HTML/CSS/JS, sem dependências
 ================================================================
 
 COMO COLOCAR NO AR
 ------------------
-Netlify Drop (recomendado):
-  1. https://app.netlify.com/drop
-  2. Arraste a PASTA "jing-trainer" (ou o .zip) para a área indicada.
-  3. Abra o link no celular. Chrome → menu → "Adicionar à tela inicial".
-     Abre em tela cheia, em paisagem, e funciona offline depois da 1ª vez.
+Netlify Drop: https://app.netlify.com/drop — arraste a pasta ou o .zip.
+Abra o link no celular, deitado. Chrome → menu → "Adicionar à tela inicial".
+Sem internet: descompacte e abra index.html (só o modo offline precisa de http).
 
-Sem internet: descompacte e abra o index.html. Funciona igual; só o modo
-offline (service worker) precisa de http/https.
+Na primeira abertura o sistema manda conferir o HUD. Faça isso antes de tudo:
+todo número daqui sai de toques sobre a réplica. Se ela não bate com o seu
+jogo, tudo o que vier depois mede a coisa errada.
 
-ANTES DO PRIMEIRO TREINO
-------------------------
-1. Celular na horizontal.
-2. Config → "Tela cheia + travar em paisagem". Sem isso a barra de gestos do
-   Android come a faixa de baixo — onde ficam o ataque e a habilidade 1.
-3. Aba HUD → confira se a réplica bate com o seu jogo. Se não, "Calibrar
-   arrastando". HUD errado = todo o treino de precisão mede a coisa errada.
-4. Config → ajuste o volume da trilha e dos efeitos.
-5. Faça o DIAGNÓSTICO inteiro, sem pausar (~10 min).
 
-O QUE MUDOU NESTA VERSÃO
-------------------------
-· TRILHA SONORA generativa, feita pelo próprio aparelho (zero arquivo de áudio
-  no pacote). Quatro climas, escolhidos pelo tipo de exercício: com batida nos
-  de ritmo e velocidade — no andamento-alvo do próprio exercício — e quase muda
-  nos de leitura e decisão. O volume abaixa sozinho quando um sinal importante
-  toca. Música reduz divagação mental e encurta o tempo de reação, mas aumenta
-  distração externa: por isso ela não é a mesma o tempo todo.
-
-· TESTE DE RETENÇÃO. Toda sessão começa medindo o que ficou da anterior:
-  5 tentativas do exercício mais difícil, mesma dificuldade, sem retorno e sem
-  botão aceso, pelo menos 5h depois. É a única medida que mostra APRENDIZADO —
-  o resto é desempenho do dia, que sobe fácil e cai sozinho. Vira um gráfico
-  próprio em Dados, sobreposto à curva de treino.
-
-· ESQUEMA DE PRÁTICA que escalona: BLOCO (níveis 1-2) → SÉRIE (3) → ALEATÓRIO
-  (4+). Prática aleatória piora a sua nota hoje e melhora a retenção depois.
-  O esquema aparece na faixa de cada exercício.
-
-· FREIO DE MÃO virou um teste de sinal de parada de verdade, com escada
-  adaptativa de ±50 ms e atraso que pode ser NEGATIVO. Devolve o seu SSRT em
-  milissegundos (faixa típica em adultos: 200-250 ms), com o gráfico da escada
-  e um aviso quando a medida ainda não é confiável. A escada continua de onde
-  parou entre sets.
-
-· ANTECIPAÇÃO (exercício novo): a situação aparece por janelas de 600 a 140 ms
-  e é mascarada. Você decide com o que viu. Monta a sua CURVA DE ANTECIPAÇÃO:
-  onde ela desaba é a informação mínima de que você ainda precisa.
-
-· LEI DE FITTS sobre os seus próprios tempos. O gráfico separa os trajetos que
-  já estão no limite do layout (não adianta treinar — mexa no HUD) dos que têm
-  treino sobrando. Só aparece quando há dados suficientes para ser honesto.
-
-· DISPERSÃO DO TOQUE: cada toque é gravado com a posição exata dentro do botão.
-  O gráfico mostra onde o seu dedo realmente cai. Centro deslocado significa
-  erro sistemático de mira — corrige-se mirando o lado oposto, não treinando mais.
-
-· FEEDBACK DESVANECIDO a partir da dificuldade 5 (retorno em ~2 de cada 3
-  tentativas). A evidência disso é disputada e está marcada como tal — dá para
-  desligar em Config.
-
-· ESPAÇAMENTO: o sistema conta suas sessões por dia e avisa quando empilhar
-  deixou de comprar aprendizado.
-
-· INSTRUÇÕES REESCRITAS com foco externo (apontam o alvo, não a sua mão).
-
-· ABA MÉTODO: as 12 decisões do sistema, o que cada uma mudou aqui, e o link
-  para a fonte. Inclui as que vão CONTRA o que seria mais agradável de fazer.
-
-· GRÁFICOS refeitos com paleta validada para tela escura (banda de
-  luminosidade, piso de croma, separação para daltonismo e contraste checados
-  por script). Toque em qualquer ponto para ver o valor exato.
-
-O QUE O SISTEMA NÃO PROMETE
----------------------------
-Reflexo melhor "em geral". A revisão de escopo sobre esports e cognição não
-sustenta ganho cognitivo amplo vindo de jogar nem de treinos genéricos. O que
-dá para construir é específico: os seus botões, as suas distâncias, as suas
-rotas, as decisões deste jogo. É por isso que aqui não existe "clique no
-quadrado que acender" — e é por isso que tudo acontece sobre a réplica do seu HUD.
-
-OS SETE NÍVEIS
---------------
-1 RECONEXÃO     reencontrar o HUD
-2 ESTABILIZAÇÃO repetir igual (regularidade antes de velocidade)
-3 AUTOMATIZAÇÃO executar sem gastar atenção (dupla tarefa)
-4 VELOCIDADE    acelerar sem quebrar — com freio automático
-5 PRESSÃO       ruído, mudança repentina, sinal de perigo
-6 INTEGRAÇÃO    decisão pesa mais que mecânica
-7 DOMÍNIO       manutenção e teto
-
-O diagnóstico define onde você começa. O sistema promove sozinho.
-Se a pressa gerar erro, ele VOLTA a dificuldade e trava novas acelerações.
-
-LUNA
-----
-Abre no nível 4 com precisão ≥ 68 e consistência ≥ 68. Antes disso as duas
-competem pelo mesmo mapa de polegar e treinar Luna ATRASA a Jing.
-
-SEU HUD — resumo (detalhes na aba HUD)
+O QUE ESTA VERSÃO CORRIGIU DA ANTERIOR
 --------------------------------------
-· O item do elmo está com a borda encostada na linha Habilidade 1 → Ataque, o
-  trajeto mais percorrido do jogo (32,7 mm). Único ajuste recomendado AGORA:
-  uns 4 mm para longe.
-· Habilidade 1 → Ultimate são 31,8 mm, a maior distância do layout. NÃO mexa
-  agora — é treino (exercício Pontes). Reavalie a partir do nível 4.
-· Invocador a 13,3 mm da Habilidade 1, com o caminho cruzando o item.
-· Analógico, Retornar e Recuperar estão bem posicionados. Não mexa.
+A v1 afirmava muito mais do que os dados dela sustentavam. Três mudanças
+grandes vieram de procurar evidência CONTRA o que já estava construído.
+
+1. OS 8 EIXOS 0-100 SAÍRAM.
+   Eram médias móveis sobre sets de 10-20 tentativas, sem unidade e sem
+   incerteza. Uma proporção com n=12 tem intervalo de ±20 pontos: largo
+   demais para distinguir 75% de 95%, que pedem ações opostas.
+   Agora são 5 medidas, cada uma com unidade, direção e intervalo:
+     RETENÇÃO      % da rota que volta no dia seguinte, sem ajuda
+     EXECUÇÃO      ms de rota que você sustenta com o acerto no alvo
+     ESTABILIDADE  % de variação do seu ritmo entre repetições
+     LEITURA       % de acerto com 300 ms de informação
+     ABORTO        ms de antecedência para conseguir cancelar
+
+2. O NÚMERO DE FREIO FOI REBAIXADO.
+   A v1 chamava aquilo de SSRT. O modelo que sustenta o SSRT assume
+   independência de contexto, premissa violada com frequência e gravidade —
+   e a tarefa aqui é sequencial com taxa alta de sinais, o que induz ficar
+   mais lento de propósito. O exercício ficou; a afirmação mudou para uma
+   medida descritiva e verificável. E o sistema agora vigia a lentidão
+   proativa: se você foi ficando mais lento durante o set, ele marca a
+   medida como não interpretável em vez de virar número.
+
+3. O FEEDBACK DESVANECIDO FOI REMOVIDO.
+   A meta-análise de 2022 sobre frequência reduzida de retorno não sustenta
+   a hipótese. No lugar ficou uma separação mais simples: TREINO tem retorno
+   em toda tentativa, PROVA não tem nenhum.
+
+Também saíram: classificação de ferrugem em 6 estados (rotulava uma rota a
+partir de 3 tentativas), 11 dos 19 exercícios (eram a mesma tarefa com um
+parâmetro trocado, e espalhavam a amostra), os 7 níveis com portas de
+pontuação inventadas, 4 dos 10 tipos de gráfico, e os 8 cenários escritos à
+mão — que viravam gabarito decorado em duas sessões.
+
+
+A DESCOBERTA QUE MUDOU O DESENHO
+--------------------------------
+Se a dificuldade se adapta para manter o acerto perto de 85%, então o acerto
+vira constante por construção e deixa de medir qualquer coisa. O que varia —
+e portanto o que mede — é o NÍVEL sustentado nesse acerto.
+
+Por isso a medida de execução é um tempo em milissegundos e não uma
+porcentagem, e por isso ela só é registrada em sets onde a dificuldade parou
+de se mexer. Um limiar tirado de um set instável não significa nada.
+
+
+TREINO E PROVA SÃO COISAS DIFERENTES
+------------------------------------
+TREINO   retorno em toda tentativa, dificuldade adaptativa, trilha completa.
+PROVA    condição fixa para sempre, nenhum retorno, trilha mínima, nada se
+         adapta. ~66 tentativas, 4 blocos, 10 minutos.
+RETENÇÃO igual à Prova, 15 tentativas, pelo menos 20h depois do treino.
+
+A amostra ACUMULA entre provas. É por isso que as medidas saem de
+"provisório" com o tempo, e é por isso que uma prova sozinha nunca é
+apresentada como conclusão.
+
+
+COMO O SISTEMA DECIDE O SEU PRÓXIMO TREINO
+------------------------------------------
+Uma lista de 14 regras avaliada em ordem. A primeira que dispara decide.
+Sem pesos ocultos: cada recomendação mostra a regra e o número que a fez
+disparar, para você poder discordar com argumento.
+
+   1 conferir o HUD          antes de qualquer medida
+   2 fadiga alta             passa na frente de tudo
+   3 3ª sessão no dia        parar rende mais que continuar
+   4 layout dominante        manda para a aba HUD, não para o treino
+   5 prova inicial           sem linha de base não há comparação
+   6 retenção devida         20h desde o último treino de rota
+   7 prova vencida           medida em condição fixa envelhece
+   8 pressa dominante        segura o tempo antes de acelerar
+   9 sem dados de execução   coleta, e diz que está coletando
+  10 estabilidade            ritmo antes de velocidade
+  11 retenção baixa          treinar sem ajuda
+  12 leitura fraca           oclusão temporal
+  13 aborto fraco            freio
+  14 integrar / rodízio      mecânica e decisão juntas
+
+Se nenhuma medida tem amostra suficiente, o sistema diz que está coletando
+em vez de fingir uma recomendação informada.
+
+
+QUANTO DA SUA JING VOLTOU
+-------------------------
+Uma resposta, com intervalo: a proporção da rota de referência que volta no
+dia seguinte, sem ajuda. A fase de recuperação termina quando o LIMITE
+INFERIOR desse intervalo passa de 70% — não depois de N dias.
+
+
+FADIGA
+------
+A variabilidade do seu tempo cresce com o tempo de tarefa e é marcador mais
+sensível que a média ou a taxa de erro. O sistema compara o primeiro e o
+último terço da sessão em três sinais (irregularidade, lentidão, queda de
+acerto). Dois sinais juntos = recomendação de parar. Um sinal só = pode ser
+cansaço ou dificuldade alta demais, e o sistema diz que não sabe separar.
+Isto é estimativa de qualidade de treino, não diagnóstico de nada.
+
+
+TRANSFERÊNCIA — O QUE ESTE SISTEMA NÃO PROMETE
+----------------------------------------------
+Nenhum sistema como este consegue provar que melhora o seu jogo. A revisão
+de escopo sobre esports e cognição não sustenta ganho amplo vindo de jogar,
+e um ensaio controlado de 8 semanas melhorou coordenação sem demonstrar
+transferência para partida. Isso continua sendo lacuna aberta.
+
+O que dá para fazer: tudo acontece sobre o SEU HUD, com as SUAS rotas e
+decisões deste jogo — especificidade é o único mecanismo confiável. E existe
+um registro de partidas onde você anota o que aconteceu de verdade; o
+sistema compara os períodos e avisa quando a diferença ainda não é maior que
+a variação normal entre partidas. É a sua impressão, não um experimento, e
+está escrito assim na tela.
+
+
+SEU HUD (detalhes na aba HUD)
+-----------------------------
+· A borda do item do elmo encosta na linha Habilidade 1 → Ataque, o trajeto
+  mais percorrido do jogo (32,7 mm). Único ajuste recomendado agora: 4 mm.
+· Habilidade 1 → Ultimate são 31,8 mm, a maior distância do layout. Não
+  mexa: isso é treino, não configuração.
+· A aba HUD também estima alcance do polegar. Isso sozinho não conclui nada —
+  vira conclusão só quando coincide com dispersão alta nos seus próprios
+  toques e tempo acima da sua reta de Fitts.
+
 
 SEUS DADOS
 ----------
-Tudo fica no seu aparelho (localStorage). Nada é enviado para lugar nenhum.
-Config → "Exportar backup" gera um .json. Limpar os dados do site no Chrome
-apaga o histórico — faça backup de vez em quando.
+Tudo no aparelho. O histórico da v1 foi PRESERVADO e não é apagado, mas não
+entra nas medidas novas: foi colhido com outro instrumento e sem condição de
+referência fixa, e juntar séries de instrumentos diferentes é a forma mais
+comum de inventar uma tendência que não existe. Está no backup exportável.
 
-ROTAS
------
-Nomeadas pela FUNÇÃO (Entrada, Marca, Recorte, Reflexo, Saída, Execução,
-Espelho Inteiro) para continuarem válidas se a build ou o patch mudarem.
-Config → Rotas da Jing edita qualquer uma; o treino usa a nova na hora.
+Config → Exportar backup. Limpar os dados do site no Chrome apaga tudo.
+
+
+LUNA
+----
+Abre quando a Jing sustentar retenção com limite inferior acima de 70% e
+variação abaixo de 22%. Antes disso as duas competem pelo mesmo mapa de
+polegar e treinar Luna atrasa a Jing.

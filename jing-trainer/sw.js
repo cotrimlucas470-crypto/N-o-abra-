@@ -1,9 +1,9 @@
-const CACHE = 'espelho-v2';
+const CACHE = 'espelho-v3';
 const ARQS = [
   './', './index.html', './css/app.css', './manifest.json', './icone.svg',
-  './js/util.js', './js/ciencia.js', './js/musica.js', './js/hud.js',
-  './js/metrics.js', './js/engines.js',
-  './js/drills.js', './js/coach.js', './js/graf.js', './js/ui.js',
+  './js/util.js', './js/estat.js', './js/ciencia.js', './js/musica.js', './js/hud.js',
+  './js/conteudo.js', './js/modelo.js', './js/controlador.js', './js/engines.js',
+  './js/drills.js', './js/decisao.js', './js/graf.js', './js/ui.js',
   './js/treino.js', './js/app.js',
 ];
 self.addEventListener('install', (e) => {
@@ -15,11 +15,9 @@ self.addEventListener('activate', (e) => {
 });
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
-  e.respondWith(
-    caches.match(e.request).then(r => r || fetch(e.request).then(resp => {
-      const cp = resp.clone();
-      caches.open(CACHE).then(c => c.put(e.request, cp)).catch(() => {});
-      return resp;
-    }).catch(() => caches.match('./index.html')))
-  );
+  e.respondWith(caches.match(e.request).then(r => r || fetch(e.request).then(resp => {
+    const cp = resp.clone();
+    caches.open(CACHE).then(c => c.put(e.request, cp)).catch(() => {});
+    return resp;
+  }).catch(() => caches.match('./index.html'))));
 });

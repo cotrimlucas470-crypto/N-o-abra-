@@ -648,6 +648,71 @@
     }
   }
 
-  U.HUD = { HUD_PADRAO, ACIONAVEIS, ARMADILHAS, NOMES, TELA_MM, getHud, resetHud, analisarHud, HudSurface, folgaMM, distMM, percurso };
+  /* ============================================================
+     ALCANCE DO POLEGAR
+     ------------------------------------------------------------
+     Heurística, e declarada como tal: o polegar direito gira em
+     torno de um ponto perto do canto inferior direito do aparelho.
+     Botões muito perto do pivô exigem dobrar demais; muito longe
+     exigem trocar a pegada. Nenhum dos dois é habilidade.
+
+     Isto sozinho não prova nada. O que produz conclusão é o
+     cruzamento com os SEUS dados: um botão longe do arco confortável
+     E com dispersão de toque alta E com tempo acima da reta de Fitts
+     é limitado pelo alcance, não por treino. Se os três não
+     coincidem, o sistema não conclui.
+     ============================================================ */
+  const PIVO = { x: 0.965, y: 1.06 };     // fração da tela, fora da borda inferior
+  const ARCO_BOM = [42, 78];              // mm: faixa confortável de extensão
+  const ARCO_LIMITE = 92;                 // mm: acima disso a pegada muda
+
+  function alcanceDe(b, pivo = PIVO) {
+    const dx = (b.x - pivo.x) * TELA_MM.w;
+    const dy = (b.y - pivo.y) * TELA_MM.h;
+    return Math.hypot(dx, dy);
+  }
+
+  function analisarAlcance(hud = getHud()) {
+    const d = U.DB.load();
+    const toques = d.toques || {};
+    const pares = d.pares || {};
+    const out = [];
+    for (const id of ACIONAVEIS) {
+      const b = hud[id];
+      if (!b) continue;
+      const mm = alcanceDe(b);
+      let zona = 'confortavel';
+      if (mm < ARCO_BOM[0]) zona = 'dobrado';
+      else if (mm > ARCO_LIMITE) zona = 'troca_pegada';
+      else if (mm > ARCO_BOM[1]) zona = 'esticado';
+
+      const pts = toques[id] || [];
+      let disp = null, desl = null;
+      if (pts.length >= 8) {
+        const mx = U.mean(pts.map(p => p.dx)), my = U.mean(pts.map(p => p.dy));
+        disp = Math.max(U.sd(pts.map(p => p.dx)) || 0, U.sd(pts.map(p => p.dy)) || 0);
+        desl = Math.hypot(mx, my);
+      }
+      const chegando = Object.entries(pares).filter(([k, e]) => k.endsWith('>' + id) && e.n >= 2);
+      const tempo = chegando.length ? U.mean(chegando.map(([, e]) => e.med)) : null;
+
+      out.push({
+        id, nome: NOMES[id] || id, mm, zona,
+        dispersao: disp, deslocamento: desl, nToques: pts.length,
+        tempoChegada: tempo, nTrajetos: chegando.reduce((a, [, e]) => a + e.n, 0),
+      });
+    }
+    out.sort((a, b2) => b2.mm - a.mm);
+
+    /* Conclusão só quando os três sinais coincidem. */
+    const suspeitos = out.filter(x =>
+      (x.zona === 'esticado' || x.zona === 'troca_pegada' || x.zona === 'dobrado') &&
+      x.dispersao != null && x.nToques >= 12 && (x.dispersao > 0.34 || x.deslocamento > 0.28));
+    return { itens: out, suspeitos, pivo: PIVO, arcoBom: ARCO_BOM, arcoLimite: ARCO_LIMITE };
+  }
+
+  U.HUD = { HUD_PADRAO, ACIONAVEIS, ARMADILHAS, NOMES, TELA_MM, getHud, resetHud, analisarHud,
+            analisarAlcance, alcanceDe, PIVO, ARCO_BOM, ARCO_LIMITE,
+            HudSurface, folgaMM, distMM, percurso };
 
 })(window.U);

@@ -1,105 +1,114 @@
 /* ============================================================
-   engines.js — motores de exercício
-   Sequencia | Escolha | Prioridade | Cenario
-   Todos falam a mesma língua: Gravador -> pontuar() -> Coach
+   engines.js — motores de exercício (V2)
+   Sequencia · Leitura · Decisao
+   ------------------------------------------------------------
+   Mudanças de fundo em relação à V1:
+
+   · Feedback desvanecido REMOVIDO. A meta-análise de 2022 sobre
+     frequência reduzida de retorno não sustenta a hipótese da
+     orientação. Manter um mecanismo que confunde a leitura do
+     jogador sem evidência a favor é custo sem benefício.
+
+   · O retorno virou binário e explícito: TREINO tem retorno,
+     PROVA não tem. Isso é o que separa ensinar de medir.
+
+   · Os dois motores de decisão da V1 (Prioridade e Cenário) eram
+     a mesma tarefa com telas diferentes. Viraram um só.
+
+   · Toda tentativa é gravada crua. As medidas são calculadas
+     depois, o que permite recalcular tudo quando o método muda.
    ============================================================ */
 'use strict';
 (function (U) {
 
-  const H = U.HUD, M = U.M;
+  const H = U.HUD, MD = U.MD, CO = U.CO, S = U.S;
 
   class MotorBase {
     constructor(hud, cfg, api) {
-      this.hud = hud;
-      this.cfg = cfg;
-      this.api = api;                   // {fim, info, mensagem, dica}
+      this.hud = hud; this.cfg = cfg; this.api = api;
       this.T = new U.Timers();
-      this.g = new M.Gravador(cfg.drillId, cfg);
-      this.ativo = false;
-      this.i = 0;
+      this.ativo = false; this.i = 0;
       this.n = cfg.tentativas || 10;
+      this.mo = cfg.mo || 'treino';
+      this.ref = !!cfg.ref;
+      this.retorno = !cfg.semRetorno;
+      this.toques = [];
+      this.reg = [];                 // resumo das tentativas deste set
     }
-    iniciar() {
-      this.ativo = true;
-      this.hud.limparMarcas();
-      this.hud.travado = false;
-      this.proxima();
-    }
+    iniciar() { this.ativo = true; this.hud.limparMarcas(); this.hud.travado = false; this.proxima(); }
     parar() {
-      this.ativo = false;
-      this.T.clear();
-      this.hud.limparMarcas();
-      this.hud.setOverlay(null);
-      this.hud.setAlvo(null);
-      this.hud.quadrantes = false;
-      this.hud.quadAceso = -1;
-      this.hud.campo = [];
-      this.hud.trilhas = [];
+      this.ativo = false; this.T.clear();
+      this.hud.limparMarcas(); this.hud.setOverlay(null); this.hud.setAlvo(null);
+      this.hud.quadrantes = false; this.hud.quadAceso = -1;
+      this.hud.campo = []; this.hud.trilhas = [];
     }
-    concluir() { this.parar(); this.api.fim(this.g); }
-    placar() {
-      this.api.info({ i: this.i, n: this.n, ok: this.g.acertos, acc: this.g.acuracia });
+    concluir() { this.parar(); this.api.fim(this.resumo()); }
+    placar() { this.api.info({ i: this.i, n: this.n, ok: this.acertos, total: this.reg.length }); }
+    get acertos() { return this.reg.filter(x => x.ok).length; }
+    /** Grava a tentativa crua e guarda o resumo do set. */
+    anota(t) {
+      const linha = { ok: !!t.ok, err: t.err || null, rt: t.rt ?? null, tot: t.tot ?? null, x: t.x || null };
+      this.reg.push(linha);
+      MD.gravar({
+        d: this.cfg.drillId, mo: this.mo, k: t.k, ok: t.ok,
+        rt: t.rt, tot: t.tot, err: t.err, dif: this.cfg.dif,
+        aj: this.cfg.mostrarRota === 'sempre', ref: this.ref, x: t.x,
+      });
     }
-    /** Resultados extras do set (sobrescrito por quem tiver). */
+    /** Retorno por tentativa — só existe em treino. */
+    diz(txt, tipo, dica) {
+      if (!this.retorno) { this.api.mensagem('', 'mudo'); return; }
+      this.api.mensagem(txt, tipo, dica);
+    }
+    resumo() {
+      const okN = this.acertos, n = this.reg.length;
+      const erros = {};
+      for (const r of this.reg) if (!r.ok && r.err) erros[r.err] = (erros[r.err] || 0) + 1;
+      const tempos = this.reg.filter(r => r.ok && r.tot).map(r => r.tot);
+      return {
+        drill: this.cfg.drillId, mo: this.mo, ref: this.ref, dif: this.cfg.dif,
+        n, ok: okN, acc: n ? okN / n : 0, erros,
+        ic: S.wilson(okN, n), tempos,
+        cv: S.cv(tempos), medTempo: tempos.length ? U.median(tempos) : null,
+        alvoMs: this.cfg.alvoMs || null,
+        toques: this.toques,
+        extras: this.extras(),
+        linhas: this.reg,
+      };
+    }
     extras() { return {}; }
-    /* eventos vindos da HudSurface */
-    press() {}
-    joy() {}
-    campo() {}
+    press() {} joy() {} campo() {}
   }
 
   /* ============================================================
-     1) MOTOR SEQUÊNCIA
-     Cobre: toque único, pontes de transição, rotas, compasso,
-     janela de consistência, movimento, dupla tarefa, ruído,
-     rota mutante e freio.
+     1) SEQUÊNCIA — rota, ritmo, movimento, carga, freio
      ============================================================ */
   class MotorSequencia extends MotorBase {
     constructor(hud, cfg, api) {
       super(hud, cfg, api);
       this.estado = 'ocioso';
-      this.pisoIki = cfg.pisoIki || 105;
-      this.rotas = cfg.rotas && cfg.rotas.length ? cfg.rotas : [cfg.rota || ['s1']];
-      /* Interferência contextual: a ORDEM das rotas no set é decidida aqui,
-         não sorteada na hora. Bloco para reencontrar o padrão, aleatório para
-         reter. Ver ciencia.js § "ci". */
+      this.pisoIki = cfg.pisoIki || 110;
+      this.rotas = (cfg.rotas && cfg.rotas.length) ? cfg.rotas : [['s1']];
       this.esquema = cfg.esquema || 'aleatorio';
       this.ordem = U.CI.ordenarRotas(this.rotas, this.n, this.esquema);
-      /* Sinal de parada com escada adaptativa (só nos exercícios de freio). */
       this.escada = cfg.freio ? new U.CI.Escada(cfg.ssdInicial ?? 0, cfg.ssdPasso ?? 50) : null;
-      this.goRTs = [];
-      this.toques = [];
-      this.amostrasMov = [];
-    }
-
-    /** Feedback desvanecido: a partir de certa dificuldade, nem toda tentativa
-        recebe retorno imediato — o resumo do fim do set continua completo. */
-    mostraFeedback() {
-      const f = this.cfg.feedback;
-      if (f == null || f >= 1) return true;
-      return Math.random() < f;
+      this.ikisIr = [];         // intervalos em tentativas SEM sinal de parada
+      this.ikisSet = [];
+      this.ordemIkis = [];      // para detectar lentidão proativa
+      this.trajetos = [];       // {rota, ikis} — alimenta a reta de Fitts
     }
 
     proxima() {
       if (!this.ativo) return;
       if (this.i >= this.n) return this.concluir();
-      this.i++;
-      this.placar();
+      this.i++; this.placar();
 
       this.rota = (this.ordem[this.i - 1] || this.rotas[0]).slice();
-      this.passo = 0;
-      this.marcas = [];
-      this.erroTrial = null;
-      this.deveParar = false;
-      this.tParada = 0;
-      this.stopFalhou = false;
-      this.semSinal = false;
-      this.sinalSaiu = false;
-      this.timerStop = null;
+      this.passo = 0; this.marcas = []; this.ikis = []; this.desvios = null;
+      this.deveParar = false; this.tParada = 0; this.paradaReg = false;
+      this.semSinal = false; this.sinalSaiu = false; this.timerStop = null;
       this.secOk = null; this.secRt = null; this.secEsperado = -1; this.secT = 0;
       this.amostrasMov = [];
-      this.trocou = false;
-      this.desvios = null;
 
       this.hud.limparMarcas();
       this.hud.quadrantes = !!this.cfg.dupla;
@@ -109,44 +118,39 @@
       const mostra = c.mostrarRota !== 'nunca';
       if (mostra) {
         this.hud.setOverlay({
-          texto: this.rota.map(k => H.getHud()[k] ? H.getHud()[k].curto : k).join(' › '),
+          texto: this.rota.map(k => (H.getHud()[k] || {}).curto || k).join(' › '),
           sub: c.mostrarRota === 'antes' ? 'memorize — vai sumir' : 'execute nesta ordem',
           tam: 0.15, cor: '#c4b5fd',
         });
+      } else if (this.i === 1) {
+        this.hud.setOverlay({ texto: 'DE MEMÓRIA', sub: 'a rota não vai mais aparecer', tam: 0.12, cor: '#ffd479' });
       }
-      const espera = mostra ? (c.tempoLeitura || 1200) : 350;
       this.estado = 'preparo';
-      this.T.after(espera, () => this.armar());
+      this.T.after(mostra ? (c.tempoLeitura || 1000) : (this.i === 1 ? 1600 : 350), () => this.armar());
     }
 
     armar() {
       if (!this.ativo) return;
       this.hud.setOverlay(null);
-      if (this.cfg.mostrarRota === 'sempre') this.destacarProximo();
+      if (this.cfg.mostrarRota === 'sempre') this.destacar();
       this.estado = 'esperando';
-      const isi = U.rnd(this.cfg.isiMin ?? 400, this.cfg.isiMax ?? 1150);
-      this.T.after(isi, () => this.ir());
+      this.T.after(U.rnd(this.cfg.isiMin ?? 400, this.cfg.isiMax ?? 1100), () => this.ir());
     }
 
     ir() {
       if (!this.ativo) return;
       this.estado = 'executando';
-      this.t0 = U.now();
-      this.tUltimo = this.t0;
-      this.tCue = this.t0;
-      this.ikis = [];
+      this.t0 = U.now(); this.tUltimo = this.t0;
       U.Sfx.cue();
-      this.hud.setOverlay({ texto: 'VAI', tam: 0.14, cor: '#6ee7a8', fundo: 'rgba(5,8,14,.25)' });
-      this.T.after(220, () => { if (this.estado === 'executando') this.hud.setOverlay(null); });
-      this.destacarProximo();
-
+      this.hud.setOverlay({ texto: 'VAI', tam: 0.14, cor: '#6ee7a8', fundo: 'rgba(5,8,14,.22)' });
+      this.T.after(200, () => { if (this.estado === 'executando') this.hud.setOverlay(null); });
+      this.destacar();
       const c = this.cfg;
 
       if (c.modo === 'compasso') {
         this.beats = [];
         for (let k = 0; k < this.rota.length; k++) {
-          const tb = this.t0 + (k + 1) * c.beat;
-          this.beats.push(tb);
+          this.beats.push(this.t0 + (k + 1) * c.beat);
           this.T.after((k + 1) * c.beat, () => {
             if (this.estado !== 'executando') return;
             k === 0 ? U.Sfx.beatStrong() : U.Sfx.beat();
@@ -162,8 +166,8 @@
           const j = this.hud.joyInfo();
           let dentro = 0;
           if (j.mag > 0.35 && j.dir != null) {
-            const d = Math.min(Math.abs(j.dir - this.dirAlvo), 8 - Math.abs(j.dir - this.dirAlvo));
-            dentro = d <= (c.tolDir ?? 1) ? 1 : 0;
+            const dd = Math.min(Math.abs(j.dir - this.dirAlvo), 8 - Math.abs(j.dir - this.dirAlvo));
+            dentro = dd <= (c.tolDir ?? 1) ? 1 : 0;
           }
           this.amostrasMov.push(dentro);
         });
@@ -178,69 +182,51 @@
       }
 
       if (c.dupla) {
-        const quando = U.rnd(180, Math.max(400, (c.alvoMs || 1200) * 0.7));
-        this.T.after(quando, () => {
+        this.T.after(U.rnd(180, Math.max(400, (c.alvoMs || 1200) * 0.7)), () => {
           if (this.estado !== 'executando') return;
-          this.secEsperado = U.ri(0, 3);
-          this.secT = U.now();
-          this.hud.quadAceso = this.secEsperado;
-          U.Sfx.tick();
+          this.secEsperado = U.ri(0, 3); this.secT = U.now();
+          this.hud.quadAceso = this.secEsperado; U.Sfx.tick();
           this.T.after(c.duplaVisivel ?? 420, () => { this.hud.quadAceso = -1; });
         });
       }
 
       if (c.ruido) {
-        this.T.every(Math.max(120, 420 - c.ruido * 90), () => {
+        this.T.every(Math.max(140, 420 - c.ruido * 90), () => {
           if (this.estado === 'executando') this.hud.ruido(c.ruido);
         });
       }
 
-      if (c.mutante && Math.random() < c.mutante) {
-        this.T.after(U.rnd(250, 900), () => {
-          if (this.estado !== 'executando' || this.passo >= this.rota.length - 1) return;
-          const resto = this.rota.slice(this.passo);
-          const novo = U.shuffle(['s1', 's2', 's3', 'aa']).filter(k => k !== resto[0]).slice(0, resto.length);
-          this.rota = this.rota.slice(0, this.passo).concat(novo);
-          this.trocou = true;
-          U.Sfx.alert();
-          this.hud.setOverlay({ texto: 'TROCA', sub: novo.map(k => H.getHud()[k].curto).join(' › '),
-                                tam: 0.11, cor: '#ffd479', fundo: 'rgba(5,8,14,.30)' });
-          this.T.after(620, () => { if (this.estado === 'executando') this.hud.setOverlay(null); });
-          this.destacarProximo();
-        });
-      }
-
-      /* ---- sinal de parada ----
-         Adaptação do paradigma clássico para uma sequência: cada passo é um
-         ensaio de "ir". Num ensaio de "parar", o sinal aparece SSD ms depois
-         do passo ser pedido, e o SSD sobe/desce numa escada para travar a
-         taxa de parada em ~50% — é isso que torna o SSRT interpretável. */
+      /* Sinal de parada: agendado a partir do início, no momento em
+         que o passo-alvo deveria ser pedido, mais/menos o atraso da
+         escada. O atraso pode ser negativo — sem essa metade, quem
+         freia mais devagar que um intervalo entre toques nunca para
+         e a medida trava em zero. */
       this.ensaioParada = !!(c.freio && Math.random() < c.freio);
       this.stopStep = this.ensaioParada ? U.ri(1, Math.max(1, this.rota.length - 1)) : -1;
       this.ssdAtual = this.escada ? this.escada.ssd : 0;
-      this.sinalSaiu = false;
       if (this.ensaioParada) {
-        /* O sinal é agendado a partir do início: chega no momento em que o
-           passo-alvo DEVERIA ser pedido, mais (ou menos) o atraso da escada. */
-        const ikiEst = this.ikiEstimado();
-        const atraso = Math.max(0, this.stopStep * ikiEst + this.ssdAtual);
+        const atraso = Math.max(0, this.stopStep * this.ikiEstimado() + this.ssdAtual);
         this.timerStop = this.T.after(atraso, () => {
           if (this.estado !== 'executando' || this.deveParar) return;
-          this.sinalSaiu = true;
-          this.dispararFreio();
+          this.sinalSaiu = true; this.dispararFreio();
         });
       }
 
       const lim = c.deadline || (c.modo === 'compasso'
-        ? (this.rota.length + 1.6) * c.beat
-        : 900 + this.rota.length * 900);
+        ? (this.rota.length + 1.6) * c.beat : 900 + this.rota.length * 900);
       this.T.after(lim, () => {
         if (this.estado !== 'executando') return;
         this.encerrar(false, this.deveParar ? null : 'lento');
       });
     }
 
-    destacarProximo() {
+    ikiEstimado() {
+      if (this.ikisSet.length >= 4) return U.median(this.ikisSet);
+      if (this.cfg.alvoMs && this.rota) return this.cfg.alvoMs / Math.max(1, this.rota.length);
+      return 320;
+    }
+
+    destacar() {
       if (this.cfg.mostrarRota !== 'sempre') return;
       this.hud.limparMarcas();
       if (this.cfg.mover && this.dirAlvo != null) this.hud.marcar('joy', { destaque: true, dirAlvo: this.dirAlvo });
@@ -248,36 +234,25 @@
       if (k) this.hud.marcar(k, { destaque: true, cor: '#ffd479' });
     }
 
-    /** Intervalo típico entre dois toques deste jogador, para ancorar o sinal. */
-    ikiEstimado() {
-      if (this.ikisSet && this.ikisSet.length >= 4) return U.median(this.ikisSet);
-      if (this.cfg.alvoMs && this.rota) return this.cfg.alvoMs / Math.max(1, this.rota.length);
-      return 320;
-    }
-
     dispararFreio() {
-      this.deveParar = true;
-      this.tParada = U.now();
+      this.deveParar = true; this.tParada = U.now();
       U.Sfx.stop(); U.Haptic.stop();
       this.hud.limparMarcas();
       this.hud.setOverlay({
-        texto: 'PARAR',
-        sub: U.pick(this.cfg.motivosFreio || ['3 inimigos pela lateral', 'sua ultimate não sai a tempo', 'o suporte está em cima de você']),
+        texto: 'PARAR', sub: U.pick(this.cfg.motivosFreio || ['perigo']),
         tam: 0.20, cor: '#ff5470', fundo: 'rgba(40,4,12,.55)',
       });
       this.T.after(this.cfg.janelaFreio ?? 750, () => {
         if (this.estado !== 'executando' || !this.deveParar) return;
-        this.registrarParada(true);
+        this.regParada(true);
         this.hud.setOverlay(null);
-        this.encerrar(true, null, { tipo: 'parar', latencia: this.cfg.janelaFreio ?? 750 });
+        this.encerrar(true, null, { tipo: 'parar' });
       });
-      this.T.after(60, () => { this.hud.marcar('joy', { destaque: true, dirAlvo: 4 }); });
+      this.T.after(60, () => this.hud.marcar('joy', { destaque: true, dirAlvo: 4 }));
     }
-
-    registrarParada(parou) {
-      if (!this.escada || this.paradaRegistrada) return;
-      this.paradaRegistrada = true;
-      this.escada.registrar(parou);
+    regParada(parou) {
+      if (!this.escada || this.paradaReg) return;
+      this.paradaReg = true; this.escada.registrar(parou);
     }
 
     press(e) {
@@ -285,7 +260,7 @@
       if (this.estado === 'esperando' || this.estado === 'preparo') {
         if (e.id && e.id.startsWith('q')) return;
         U.Sfx.miss(); this.hud.erro(e.id);
-        return this.encerrar(false, 'antecipado');
+        return this.encerrar(false, 'pressa');
       }
       if (this.estado !== 'executando') return;
 
@@ -293,239 +268,192 @@
         if (this.secEsperado < 0) { this.secOk = false; return; }
         if (this.secOk == null) {
           this.secOk = (Number(e.id.slice(1)) === this.secEsperado);
-          this.secRt = U.now() - this.secT;
-          U.Sfx.tick();
+          this.secRt = U.now() - this.secT; U.Sfx.tick();
         }
         return;
       }
 
       const t = U.now();
-
-      /* já veio o sinal: qualquer habilidade é falha de inibição */
       if (this.deveParar) {
-        this.registrarParada(false);
+        this.regParada(false);
         this.hud.erro(e.id); U.Sfx.miss();
-        return this.encerrar(false, 'freio', { tipo: 'parar', latencia: t - this.tParada });
+        return this.encerrar(false, 'freio', { tipo: 'parar', atraso: t - this.tParada });
       }
 
       const esperado = this.rota[this.passo];
       const iki = t - this.tUltimo;
+      if (e.dx != null) this.toques.push({ id: e.id, dx: e.dx, dy: e.dy });
 
       if (e.id !== esperado) {
-        if (e.dx != null) this.toques.push({ id: e.id, dx: e.dx, dy: e.dy });
         this.hud.erro(e.id); U.Sfx.miss(); U.Haptic.bad();
-        return this.encerrar(false, this.classificarErro(e, esperado, iki));
+        return this.encerrar(false, this.classificar(e, esperado, iki));
       }
 
-      this.marcas.push({ id: e.id, t, precisao: e.precisao, iki, rel: e.rel });
-      if (e.dx != null) this.toques.push({ id: e.id, dx: e.dx, dy: e.dy });
+      this.marcas.push({ id: e.id, t, precisao: e.precisao, iki });
       if (this.passo > 0) {
-        this.ikis.push(iki);
-        (this.ikisSet || (this.ikisSet = [])).push(iki);
-        /* tempo de resposta do "ir": é ele que, menos o atraso de equilíbrio, dá o SSRT */
-        if (!this.ensaioParada) this.goRTs.push(iki);
+        this.ikis.push(iki); this.ikisSet.push(iki);
+        if (!this.ensaioParada) { this.ikisIr.push(iki); this.ordemIkis.push({ i: this.i, v: iki }); }
       }
       this.tUltimo = t;
 
-      let desvio = null;
       if (this.cfg.modo === 'compasso') {
-        desvio = t - this.beats[this.passo];
+        const desvio = t - this.beats[this.passo];
         const j = this.cfg.janela || 140;
         if (Math.abs(desvio) > j * 1.9) {
           this.hud.erro(e.id); U.Sfx.miss();
-          return this.encerrar(false, desvio < 0 ? 'antecipado' : 'lento', { desvio });
+          return this.encerrar(false, desvio < 0 ? 'pressa' : 'lento', { desvio });
         }
-        this.desvios = this.desvios || [];
-        this.desvios.push(desvio);
+        (this.desvios || (this.desvios = [])).push(desvio);
         Math.abs(desvio) <= j * 0.45 ? U.Sfx.perfect() : U.Sfx.hit();
-      } else {
-        U.Sfx.hit();
-      }
+      } else U.Sfx.hit();
+
       this.hud.acerto(e.id); U.Haptic.good();
       this.passo++;
-      this.tCue = t;
 
       if (this.passo >= this.rota.length) {
-        /* terminou a rota e o sinal nunca saiu: o atraso estava longo demais.
-           Não é culpa dele — a escada desce e a tentativa vira um "ir" normal. */
         if (this.ensaioParada && !this.sinalSaiu) {
           if (this.timerStop != null) { this.T.cancel(this.timerStop); this.timerStop = null; }
-          this.registrarParada(false);
-          this.semSinal = true;
+          this.regParada(false); this.semSinal = true;
         }
-        if (this.cfg.modo === 'janela') {
-          const total = t - this.t0;
-          const [lo, hi] = this.cfg.faixa || [700, 1100];
-          const dentro = total >= lo && total <= hi;
-          return this.encerrar(dentro, dentro ? null : (total < lo ? 'velocidade' : 'lento'), { total });
-        }
-        return this.encerrar(true, null);
+        const total = t - this.t0;
+        if (this.cfg.alvoMs && total > this.cfg.alvoMs) return this.encerrar(false, 'lento', { total });
+        return this.encerrar(true, null, { total });
       }
-      this.destacarProximo();
+      this.destacar();
     }
 
-    classificarErro(e, esperado, iki) {
-      if (!e.id) return (e.perto && e.rel < 2.4) ? 'hud' : 'mira';
+    classificar(e, esperado, iki) {
+      if (!e.id) return (e.perto && e.rel < 2.4) ? 'layout' : 'sequencia';
       const hud = H.getHud();
       const a = hud[esperado], b = hud[e.id];
       if (a && b) {
-        const folga = H.folgaMM(a, b);
-        if (folga < 5.2) return 'hud';
-        if (H.ARMADILHAS.includes(e.id) && e.rel > 0.55) return 'hud';
+        if (H.folgaMM(a, b) < 5.2) return 'layout';
+        if (H.ARMADILHAS.includes(e.id) && e.rel > 0.55) return 'layout';
       }
-      if (iki < this.pisoIki) return 'velocidade';
+      if (iki < this.pisoIki) return 'pressa';
       if (this.cfg.mover) {
         const j = this.hud.joyInfo();
-        if (!j.ativo || j.mag < 0.3) return 'posicionamento';
+        if (!j.ativo || j.mag < 0.3) return 'movimento';
       }
-      return 'memoria';
+      return 'sequencia';
     }
 
-    encerrar(ok, erro, extra = {}) {
+    encerrar(ok, err, extra = {}) {
       if (this.estado === 'fim' || this.estado === 'ocioso') return;
-      this.estado = 'fim';
-      this.T.clear();
-      this.timerStop = null;
-      this.paradaRegistrada = false;
-      this.hud.limparMarcas();
-      this.hud.setOverlay(null);
-      this.hud.quadAceso = -1;
+      this.estado = 'fim'; this.T.clear();
+      this.timerStop = null; this.paradaReg = false;
+      this.hud.limparMarcas(); this.hud.setOverlay(null); this.hud.quadAceso = -1;
 
       const total = extra.total ?? (this.t0 ? U.now() - this.t0 : null);
-      const movDentro = this.amostrasMov.length ? U.mean(this.amostrasMov) : null;
-      const precisao = this.marcas.length ? U.mean(this.marcas.map(m => m.precisao)) : null;
+      const mov = this.amostrasMov.length ? U.mean(this.amostrasMov) : null;
+      let okF = ok, e2 = err;
+      if (this.cfg.dupla && okF && this.secEsperado >= 0 && this.secOk !== true) { okF = false; e2 = 'leitura'; }
+      if (this.cfg.mover && okF && mov != null && mov < (this.cfg.movMin ?? 0.55)) { okF = false; e2 = 'movimento'; }
 
-      let okFinal = ok;
-      if (this.cfg.dupla && ok && this.secEsperado >= 0 && this.secOk !== true) {
-        okFinal = false; erro = erro || 'decisao';
-      }
-      if (this.cfg.mover && okFinal && movDentro != null && movDentro < (this.cfg.movMin ?? 0.55)) {
-        okFinal = false; erro = 'posicionamento';
-      }
-
-      this.g.add({
-        ok: okFinal, erro,
-        total: okFinal ? total : null,
-        iki: this.ikis && this.ikis.length ? this.ikis : null,
-        rt: extra.latencia != null ? extra.latencia : (this.ikis && this.ikis.length ? this.ikis[0] : total),
-        precisao,
-        alvo: this.rota.join('>'),
-        carga: this.cfg.dupla ? 1 : 0,
-        extra: {
-          ...extra,
-          tipo: extra.tipo || (this.ensaioParada && !this.semSinal ? 'parar' : 'seguir'),
-          semSinal: !!this.semSinal,
-          desvio: this.desvios && this.desvios.length ? U.mean(this.desvios.map(Math.abs)) : (extra.desvio ?? null),
-          dentro: movDentro,
-          secOk: this.secOk, secRt: this.secRt,
-          trocou: this.trocou,
-          passos: this.passo,
-          ssd: this.ensaioParada ? this.ssdAtual : null,
-          esquema: this.esquema,
+      const tipoParada = this.ensaioParada && !this.semSinal;
+      if (okF && this.ikis.length) this.trajetos.push({ rota: this.rota.slice(), ikis: this.ikis.slice() });
+      this.anota({
+        k: this.cfg.integra ? 'integra' : 'rota', ok: okF, err: e2,
+        tot: okF ? total : null,
+        rt: this.ikis.length ? this.ikis[0] : total,
+        x: {
+          parada: tipoParada || undefined, ssd: tipoParada ? this.ssdAtual : undefined,
+          mov: mov != null ? +mov.toFixed(2) : undefined,
+          sec: this.secOk == null ? undefined : (this.secOk ? 1 : 0),
+          desvio: this.desvios ? Math.round(U.mean(this.desvios.map(Math.abs))) : undefined,
         },
       });
-      this.desvios = null;
 
-      if (this.mostraFeedback()) {
-        const msg = okFinal
-          ? (this.cfg.modo === 'compasso' ? 'no compasso' : total ? `${Math.round(total)}ms` : 'certo')
-          : (M.ERROS[erro]?.nome || 'erro');
-        this.api.mensagem(msg, okFinal ? 'ok' : 'erro', erro ? M.ERROS[erro]?.dica : null);
-      } else {
-        this.api.mensagem('·', 'mudo', null);
-      }
+      const msg = okF
+        ? (this.cfg.modo === 'compasso' ? 'no compasso' : total ? `${Math.round(total)}ms` : 'certo')
+        : (MD.ERROS[e2] ? MD.ERROS[e2].nome : 'erro');
+      this.diz(msg, okF ? 'ok' : 'erro', e2 && MD.ERROS[e2] ? MD.ERROS[e2].o_que : null);
+      if (okF && this.retorno) U.Sfx.perfect();
 
       this.placar();
-      this.T.after(okFinal ? 520 : 900, () => this.proxima());
+      this.T.after(okF ? 480 : 820, () => this.proxima());
     }
 
-    /** Resultados extras que o treinador usa depois do set. */
     extras() {
-      const o = { toques: this.toques };
+      const o = { trajetos: this.trajetos };
       if (this.escada && this.escada.historico.length) {
-        o.escada = this.escada.historico.slice();
-        o.ssd50 = this.escada.ssd50();
-        o.ssrt = this.escada.ssrt(this.goRTs);
-        o.taxaParada = this.escada.taxaParada();
-        o.confiavel = this.escada.confiavel();
-        o.goRT = this.goRTs.length ? U.median(this.goRTs) : null;
+        const ssd50 = this.escada.ssd50();
+        const iki = this.ikisIr.length ? U.median(this.ikisIr) : null;
+        /* Lentidão proativa: se o jogador vai ficando mais lento ao
+           longo do set, a medida deixa de ser interpretável. */
+        let proativa = 0;
+        if (this.ordemIkis.length >= 10) {
+          const k = Math.floor(this.ordemIkis.length / 3);
+          const a = U.median(this.ordemIkis.slice(0, k).map(x => x.v));
+          const b = U.median(this.ordemIkis.slice(-k).map(x => x.v));
+          proativa = a > 0 ? (b - a) / a : 0;
+        }
+        const taxa = this.escada.taxaParada();
+        const nP = this.escada.historico.length;
+        o.aborto = {
+          antecedencia: iki != null ? Math.round(iki - ssd50) : null,
+          ssd50: Math.round(ssd50), ikiIr: iki != null ? Math.round(iki) : null,
+          taxa, nParada: nP, escada: this.escada.historico.slice(-40),
+          proativa: +proativa.toFixed(2),
+          valido: nP >= 6 && taxa >= 0.25 && taxa <= 0.75 && Math.abs(proativa) < 0.25,
+          porqueInvalido: nP < 6 ? 'poucas tentativas de parada'
+            : (taxa < 0.25 || taxa > 0.75) ? 'a escada não achou o ponto de equilíbrio'
+            : Math.abs(proativa) >= 0.25 ? 'você foi ficando mais lento durante o set — isso falsifica a medida'
+            : null,
+        };
       }
+      if (this.desviosSet) o.compasso = U.mean(this.desviosSet);
       return o;
     }
   }
 
   /* ============================================================
-     2) MOTOR ESCOLHA — reflexo com decisão, não cliques rápidos
+     2) LEITURA — oclusão temporal
      ============================================================ */
-  const RESPOSTAS = {
-    ult:     { id: 's3',    rotulo: 'ULT',      texto: 'Ultimate' },
-    inv:     { id: 'flash', rotulo: 'INV',      texto: 'Invocador' },
-    recuar:  { id: 'joy',   rotulo: 'RECUAR',   texto: 'Analógico para trás' },
-    seguir:  { id: 'aa',    rotulo: 'SEGUIR',   texto: 'Continuar a pressão' },
-    nada:    { id: null,    rotulo: 'NADA',     texto: 'Não responder' },
-  };
-
-  class MotorEscolha extends MotorBase {
+  class MotorLeitura extends MotorBase {
     constructor(hud, cfg, api) {
       super(hud, cfg, api);
       this.estado = 'ocioso';
       this.sorteio = U.dealer(cfg.sinais);
-      this.toques = [];
-      /* Oclusão temporal: a cena aparece por uma janela curta e é mascarada.
-         Rodar TODAS as janelas do conjunto (e não só a mais difícil) é o que
-         permite desenhar a curva de antecipação. Ver ciencia.js § "oclusao". */
-      this.janelas = cfg.janelas || null;
-      if (this.janelas) {
-        const lista = [];
-        for (let i = 0; i < this.n; i++) lista.push(this.janelas[i % this.janelas.length]);
-        this.ordemJanela = U.shuffle(lista);
-      }
+      const js = cfg.janelas || [300];
+      const lista = [];
+      for (let i = 0; i < this.n; i++) lista.push(js[i % js.length]);
+      this.ordemJanela = U.shuffle(lista);
     }
     proxima() {
       if (!this.ativo) return;
       if (this.i >= this.n) return this.concluir();
       this.i++; this.placar();
-      this.hud.limparMarcas();
-      this.hud.setOverlay(null);
-      this.respondido = false;
-
-      /* botões válidos ficam visíveis — o exercício é escolher, não caçar */
-      for (const k of ['s3', 'flash', 'aa']) this.hud.marcar(k, { destaque: false });
+      this.hud.limparMarcas(); this.hud.setOverlay(null);
       this.sinal = this.sorteio();
-      this.janela = this.ordemJanela ? this.ordemJanela[this.i - 1] : (this.cfg.mascara || null);
+      this.janela = this.ordemJanela[this.i - 1];
       this.estado = 'esperando';
-      this.T.after(U.rnd(this.cfg.isiMin ?? 700, this.cfg.isiMax ?? 2100), () => this.mostrar());
+      this.T.after(U.rnd(this.cfg.isiMin ?? 650, this.cfg.isiMax ?? 2000), () => this.mostrar());
     }
     mostrar() {
       if (!this.ativo) return;
-      this.estado = 'ativo';
-      this.tSinal = U.now();
+      this.estado = 'ativo'; this.tSinal = U.now();
       U.Sfx.alert();
-      this.hud.setOverlay({
-        texto: this.sinal.icone, sub: this.sinal.texto,
-        tam: 0.30, cor: this.sinal.cor || '#ff5470', fundo: 'rgba(6,9,16,.45)',
+      this.hud.setOverlay({ texto: this.sinal.icone, sub: this.sinal.texto,
+                            tam: 0.28, cor: '#ff8fa3', fundo: 'rgba(6,9,16,.45)' });
+      this.T.after(this.janela, () => {
+        if (this.estado !== 'ativo') return;
+        this.hud.setOverlay({ texto: '▚▚▚', sub: 'decida com o que viu', tam: 0.16,
+                              cor: '#8fa3c4', fundo: 'rgba(6,9,16,.58)' });
       });
-      if (this.janela) {
-        this.T.after(this.janela, () => {
-          if (this.estado !== 'ativo') return;
-          this.hud.setOverlay({ texto: '▚▚▚', sub: 'decida com o que viu', tam: 0.18, cor: '#8fa3c4', fundo: 'rgba(6,9,16,.55)' });
-        });
-      }
-      const lim = this.cfg.limite ?? 1500;
+      const lim = this.cfg.limite ?? 1700;
       this.T.after(lim, () => {
         if (this.estado !== 'ativo') return;
-        const esperava = this.sinal.resposta === 'nada';
+        const esperava = this.sinal.r === 'nada';
         this.resolver(esperava, esperava ? null : 'lento', lim);
       });
     }
     responder(tipo) {
-      if (this.estado !== 'ativo') {
-        if (this.estado === 'esperando') { this.resolver(false, 'antecipado', 0); }
-        return;
-      }
+      if (this.estado === 'esperando') return this.resolver(false, 'pressa', 0);
+      if (this.estado !== 'ativo') return;
       const rt = U.now() - this.tSinal;
-      const ok = tipo === this.sinal.resposta;
-      this.resolver(ok, ok ? null : (this.sinal.resposta === 'nada' ? 'antecipado' : 'decisao'), rt, tipo);
+      const ok = tipo === this.sinal.r;
+      this.resolver(ok, ok ? null : (this.sinal.r === 'nada' ? 'pressa' : 'leitura'), rt, tipo);
     }
     press(e) {
       if (!this.ativo || !e.id) return;
@@ -536,208 +464,104 @@
     }
     joy(j) {
       if (!this.ativo) return;
-      if (j.mag > 0.55 && j.dir != null && (j.dir === 3 || j.dir === 4 || j.dir === 5)) this.responder('recuar');
+      if (j.mag > 0.55 && j.dir != null && j.dir >= 3 && j.dir <= 5) this.responder('recuar');
     }
-    resolver(ok, erro, rt, dado) {
+    resolver(ok, err, rt, dado) {
       if (this.estado === 'fim') return;
-      this.estado = 'fim';
-      this.T.clear();
-      this.g.add({
-        ok, erro, rt: ok ? rt : (erro === 'antecipado' ? null : rt),
-        alvo: this.sinal.id, feito: dado || null,
-        extra: { esperado: this.sinal.resposta, janela: this.janela || null,
-                 tipo: this.sinal.resposta === 'nada' ? 'parar' : 'seguir' },
-      });
+      this.estado = 'fim'; this.T.clear();
+      this.anota({ k: 'leitura', ok, err, rt: ok ? rt : null,
+                   x: { j: this.janela, s: this.sinal.id, r: dado || null } });
       ok ? (U.Sfx.perfect(), U.Haptic.good()) : (U.Sfx.miss(), U.Haptic.bad());
-      this.hud.setOverlay({
-        texto: ok ? `${Math.round(rt)}ms` : RESPOSTAS[this.sinal.resposta].rotulo,
-        sub: ok ? this.sinal.porque : `Certo era: ${RESPOSTAS[this.sinal.resposta].texto}. ${this.sinal.porque}`,
-        tam: 0.13, cor: ok ? '#6ee7a8' : '#ff8fa3', fundo: 'rgba(6,9,16,.60)',
-      });
+      if (this.retorno) {
+        this.hud.setOverlay({
+          texto: ok ? `${Math.round(rt)}ms` : CO.RESPOSTAS[this.sinal.r].rotulo,
+          sub: ok ? this.sinal.porque : `Certo era ${CO.RESPOSTAS[this.sinal.r].rotulo}. ${this.sinal.porque}`,
+          tam: 0.12, cor: ok ? '#6ee7a8' : '#ff8fa3', fundo: 'rgba(6,9,16,.62)',
+        });
+      } else {
+        this.hud.setOverlay({ texto: '·', tam: 0.10, cor: '#66748f', fundo: 'rgba(6,9,16,.35)' });
+      }
+      this.diz(ok ? 'leitura certa' : 'leitura errada', ok ? 'ok' : 'erro',
+               this.retorno ? this.sinal.porque : null);
       this.placar();
-      this.api.mensagem(ok ? 'leitura certa' : 'leitura errada', ok ? 'ok' : 'erro', this.sinal.porque);
-      this.T.after(ok ? 900 : 1700, () => this.proxima());
+      this.T.after(this.retorno ? (ok ? 850 : 1700) : 500, () => this.proxima());
     }
     extras() {
-      const o = { toques: this.toques };
-      if (this.ordemJanela) {
-        const porJanela = {};
-        for (const t of this.g.tentativas) {
-          const j = t.extra && t.extra.janela;
-          if (!j) continue;
-          (porJanela[j] || (porJanela[j] = [])).push(t.ok);
-        }
-        o.antecipacao = Object.entries(porJanela)
-          .map(([j, v]) => ({ janela: +j, acc: v.filter(Boolean).length / v.length, n: v.length }))
-          .sort((a, b) => b.janela - a.janela);
+      const por = {};
+      for (const r of this.reg) {
+        const j = r.x && r.x.j; if (!j) continue;
+        const e = por[j] || (por[j] = { k: 0, n: 0 });
+        e.k += r.ok ? 1 : 0; e.n++;
       }
-      return o;
+      return { curva: Object.entries(por).map(([j, e]) => ({ janela: +j, acc: e.k / e.n, n: e.n }))
+                        .sort((a, b) => b.janela - a.janela) };
     }
   }
 
   /* ============================================================
-     3) MOTOR PRIORIDADE — quem morre primeiro, quem se respeita
+     3) DECISÃO — perceber · interpretar · decidir · executar · reavaliar
      ============================================================ */
-  const PAPEIS = {
-    atirador: { icone: '🏹', abate: 1.00, ameaca: 0.85, nome: 'Atirador' },
-    mago:     { icone: '🔮', abate: 0.95, ameaca: 0.90, nome: 'Mago' },
-    assassino:{ icone: '🗡', abate: 0.72, ameaca: 1.00, nome: 'Assassino' },
-    suporte:  { icone: '🛡', abate: 0.45, ameaca: 0.55, nome: 'Suporte' },
-    tanque:   { icone: '🪨', abate: 0.18, ameaca: 0.72, nome: 'Tanque' },
-  };
-  const ESTADOS_ALVO = [
-    { id: 'semInv',   nota: 'sem invocador', abate: 1.35, ameaca: 0.85, perigo: 0.7 },
-    { id: 'ultPronta',nota: 'ultimate pronta', abate: 0.85, ameaca: 1.70, perigo: 1.8 },
-    { id: 'escudado', nota: 'escudado',      abate: 0.50, ameaca: 1.00, perigo: 1.1 },
-    { id: 'controlado',nota:'controlado',    abate: 1.45, ameaca: 0.35, perigo: 0.3 },
-    { id: 'recuando', nota: 'recuando',      abate: 0.80, ameaca: 0.60, perigo: 0.6 },
-    { id: 'naTorre',  nota: 'sob a torre',   abate: 0.55, ameaca: 1.05, perigo: 2.0 },
-    { id: 'limpo',    nota: '',              abate: 1.00, ameaca: 1.00, perigo: 1.0 },
-  ];
-  const DISTS = [
-    { id: 'perto', nota: 'perto',  abate: 1.25, ameaca: 1.35 },
-    { id: 'media', nota: 'média',  abate: 1.00, ameaca: 1.00 },
-    { id: 'longe', nota: 'longe',  abate: 0.55, ameaca: 0.60 },
-  ];
-  const PERGUNTAS = [
-    { id: 'abate',   texto: 'Quem você abate primeiro?',        chave: 'abate'  },
-    { id: 'respeito',texto: 'Quem você precisa respeitar AGORA?',chave: 'ameaca' },
-    { id: 'evitar',  texto: 'Em quem você NÃO pode encostar?',   chave: 'perigo' },
-  ];
-
-  class MotorPrioridade extends MotorBase {
-    proxima() {
-      if (!this.ativo) return;
-      if (this.i >= this.n) return this.concluir();
-      this.i++; this.placar();
-      this.hud.setOverlay(null);
-      this.gerar();
-      this.estado = 'ativo';
-      this.tSinal = U.now();
-      const lim = this.cfg.limite ?? 3500;
-      this.T.after(lim, () => { if (this.estado === 'ativo') this.resolver(null, lim); });
-    }
-
-    gerar() {
-      const nc = this.cfg.cartas ?? 3;
-      const papeis = U.shuffle(Object.keys(PAPEIS)).slice(0, nc);
-      this.pergunta = U.pick(this.cfg.perguntas
-        ? PERGUNTAS.filter(p => this.cfg.perguntas.includes(p.id)) : PERGUNTAS);
-      const cartas = papeis.map((p, k) => {
-        const est = U.pick(this.cfg.semEstado ? [ESTADOS_ALVO[6]] : ESTADOS_ALVO);
-        const dist = U.pick(DISTS);
-        const hp = U.rnd(0.12, 0.98);
-        return {
-          id: 'c' + k, papel: p, estado: est, dist, hp,
-          icone: PAPEIS[p].icone,
-          titulo: PAPEIS[p].nome,
-          nota: [dist.nota, est.nota].filter(Boolean).join(' · '),
-          notaCor: est.id === 'ultPronta' ? '#ffd479' : est.id === 'controlado' ? '#6ee7a8' : '#8fa3c4',
-        };
-      });
-      for (const c of cartas) {
-        const P = PAPEIS[c.papel];
-        c.pAbate  = P.abate * (1.45 - c.hp) * c.dist.abate * c.estado.abate;
-        c.pAmeaca = P.ameaca * (0.55 + c.hp * 0.65) * c.dist.ameaca * c.estado.ameaca;
-        c.pPerigo = (P.ameaca * 0.6 + 0.4) * (0.5 + c.hp) * c.dist.ameaca * c.estado.perigo;
-      }
-      const chave = { abate: 'pAbate', respeito: 'pAmeaca', evitar: 'pPerigo' }[this.pergunta.id];
-      this.chave = chave;
-      let melhor = cartas[0];
-      for (const c of cartas) if (c[chave] > melhor[chave]) melhor = c;
-      this.certo = melhor.id;
-
-      /* posiciona as cartas na metade esquerda/central do campo */
-      const larg = 0.135, alt = 0.46, gap = 0.028;
-      const total = cartas.length * larg + (cartas.length - 1) * gap;
-      const x0 = 0.05 + (0.62 - total) / 2;
-      cartas.forEach((c, k) => { c.x = x0 + k * (larg + gap); c.y = 0.28; c.w = larg; c.h = alt; });
-      this.hud.campo = cartas;
-      this.hud.setOverlay({ texto: '', sub: this.pergunta.texto, cx: 0.36, cy: 0.13, tam: 0.01, fundo: false, subCor: '#ffd479' });
-    }
-
-    campo(e) {
-      if (this.estado !== 'ativo') return;
-      this.resolver(e.id, U.now() - this.tSinal);
-    }
-
-    resolver(escolha, rt) {
-      this.estado = 'fim';
-      this.T.clear();
-      const ok = escolha === this.certo;
-      const alvo = this.hud.campo.find(c => c.id === this.certo);
-      for (const c of this.hud.campo) {
-        c.marca = c.id === this.certo ? '#3ddc97' : (c.id === escolha ? '#ff5470' : null);
-        c.selecionado = c.id === escolha;
-      }
-      this.g.add({ ok, erro: ok ? null : (escolha ? 'decisao' : 'lento'), rt, alvo: this.certo, feito: escolha,
-                   extra: { pergunta: this.pergunta.id } });
-      ok ? U.Sfx.perfect() : U.Sfx.miss();
-      const P = PAPEIS[alvo.papel];
-      const porque = this.pergunta.id === 'abate'
-        ? `${P.nome} ${alvo.nota ? '(' + alvo.nota + ')' : ''} com ${Math.round(alvo.hp * 100)}% de vida é o melhor retorno por segundo de execução.`
-        : this.pergunta.id === 'respeito'
-        ? `${P.nome} ${alvo.nota ? '(' + alvo.nota + ')' : ''} é quem pode te punir primeiro se você entrar agora.`
-        : `${P.nome} ${alvo.nota ? '(' + alvo.nota + ')' : ''}: encostar nele é dar o tempo que o time dele precisa.`;
-      this.hud.setOverlay({ texto: ok ? '✔' : '✘', sub: porque, tam: 0.16,
-                            cor: ok ? '#6ee7a8' : '#ff8fa3', fundo: 'rgba(6,9,16,.55)', cx: 0.36, cy: 0.80 });
-      this.api.mensagem(ok ? 'prioridade certa' : 'prioridade errada', ok ? 'ok' : 'erro', porque);
-      this.placar();
-      this.T.after(ok ? 1400 : 2400, () => { this.hud.campo = []; this.proxima(); });
-    }
-  }
-
-  /* ============================================================
-     4) MOTOR CENÁRIO — luta inteira: ler, decidir, executar, frear
-     ============================================================ */
-  class MotorCenario extends MotorBase {
+  class MotorDecisao extends MotorBase {
     constructor(hud, cfg, api) {
       super(hud, cfg, api);
-      this.sorteio = U.dealer(cfg.cenarios);
-      this.n = cfg.tentativas || cfg.cenarios.length;
+      this.dif = cfg.dif || 5;
+      this.estado = 'ocioso';
+      this.decisoes = [];
     }
+
     proxima() {
       if (!this.ativo) return;
       if (this.i >= this.n) return this.concluir();
       this.i++; this.placar();
-      this.cen = this.sorteio();
-      this.faseLeitura();
+      this.sit = CO.gerarSituacao(this.dif);
+      if (this.cfg.rotaFixa) this.sit.rota = this.cfg.rotaFixa.slice();
+      this.hud.limparMarcas(); this.hud.campo = [];
+      this.fasePercepcao();
     }
 
-    faseLeitura() {
-      this.hud.limparMarcas();
-      this.hud.campo = [];
-      this.montarTabuleiro(this.cen.inicio);
-      this.hud.setOverlay({ texto: '', sub: this.cen.contexto, cx: 0.36, cy: 0.10, tam: 0.01, fundo: false, subCor: '#c4b5fd' });
-      this.estado = 'leitura';
-      this.T.after(this.cfg.leitura ?? 2200, () => this.faseDecisao());
+    /* 1 — percepção com oclusão */
+    fasePercepcao() {
+      this.estado = 'percepcao';
+      this.montarTabuleiro(this.sit.unid, false);
+      this.hud.setOverlay({ texto: '', sub: this.sit.contexto, cx: 0.36, cy: 0.09,
+                            tam: 0.01, fundo: false, subCor: '#c4b5fd' });
+      this.T.after(this.cfg.leitura ?? 2000, () => {
+        if (this.estado !== 'percepcao') return;
+        /* a cena some: a decisão é com o que ficou na cabeça */
+        for (const c of this.hud.campo) { c.mascarado = true; c.nota = '···'; }
+        this.faseDecisao();
+      });
     }
 
-    montarTabuleiro(lista) {
-      const larg = 0.115, alt = 0.34, gap = 0.022;
+    montarTabuleiro(lista, mascarado) {
+      const larg = 0.115, alt = 0.32, gap = 0.022;
       const total = lista.length * larg + (lista.length - 1) * gap;
       const x0 = 0.05 + (0.60 - total) / 2;
       this.hud.campo = lista.map((u, k) => ({
-        id: u.id || ('u' + k), icone: u.icone, titulo: u.nome, hp: u.hp,
-        nota: u.nota || '', notaCor: u.aliado ? '#7fd4ff' : '#ff8fa3',
-        x: x0 + k * (larg + gap), y: 0.22, w: larg, h: alt,
-        marca: u.aliado ? '#2f6f9f' : null, dados: u,
+        id: u.id, icone: u.oculto ? '❔' : u.icone,
+        titulo: u.oculto ? '???' : u.nome,
+        hp: u.oculto ? null : u.hp,
+        nota: mascarado ? '···' : (u.oculto ? 'estado desconhecido' : u.nota),
+        notaCor: u.oculto ? '#8fa3c4' : (u.est.id === 'ultPronta' ? '#ffd479' : '#ff8fa3'),
+        x: x0 + k * (larg + gap), y: 0.20, w: larg, h: alt,
+        marca: u.oculto ? '#5b708f' : null, dados: u,
       }));
     }
 
+    /* 2 — decisão */
     faseDecisao() {
       this.estado = 'decisao';
       this.tDec = U.now();
-      const ops = this.cen.opcoes;
-      const larg = 0.16, gap = 0.03;
+      const ops = this.sit.opcoes;
+      const larg = 0.155, gap = 0.028;
       const total = ops.length * larg + (ops.length - 1) * gap;
       const x0 = 0.05 + (0.60 - total) / 2;
       this.hud.campo = this.hud.campo.concat(ops.map((o, k) => ({
-        id: 'op' + k, icone: o.icone || '›', titulo: o.texto, opcao: o,
-        x: x0 + k * (larg + gap), y: 0.63, w: larg, h: 0.26,
-        marca: '#e8c46a',
+        id: 'op' + k, icone: o.icone, titulo: o.texto, opcao: o,
+        x: x0 + k * (larg + gap), y: 0.60, w: larg, h: 0.26, marca: '#e8c46a',
       })));
-      this.hud.setOverlay({ texto: '', sub: this.cen.pergunta, cx: 0.36, cy: 0.10, tam: 0.01, fundo: false, subCor: '#ffd479' });
+      this.hud.setOverlay({ texto: '', sub: 'entrar, esperar ou recuar?', cx: 0.36, cy: 0.09,
+                            tam: 0.01, fundo: false, subCor: '#ffd479' });
       this.T.after(this.cfg.tempoDecisao ?? 2600, () => {
         if (this.estado === 'decisao') this.escolher(null);
       });
@@ -745,142 +569,152 @@
 
     campo(e) {
       if (this.estado === 'decisao' && e.carta.opcao) return this.escolher(e.carta);
-      if (this.estado === 'alvo' && e.carta.dados && !e.carta.dados.aliado) return this.escolherAlvo(e.carta);
     }
 
     escolher(carta) {
-      this.estado = 'resolvendo';
-      this.T.clear();
+      if (this.estado !== 'decisao') return;
+      this.estado = 'resolvendo'; this.T.clear();
       const rt = U.now() - this.tDec;
-      const ok = !!carta && carta.opcao.certo;
-      this.g.add({ ok, erro: ok ? null : (carta ? 'decisao' : 'lento'), rt,
-                   alvo: 'decisao', feito: carta ? carta.opcao.texto : null, extra: { fase: 'decisao' } });
-      ok ? U.Sfx.perfect() : U.Sfx.miss();
+      const escolha = carta ? carta.opcao.id : null;
+      const decOk = escolha === this.sit.certa;
+      this.decOk = decOk; this.decRt = rt; this.escolha = escolha;
+      this.decisoes.push({ ok: decOk, rt, certa: this.sit.certa, feita: escolha });
+      MD.gravar({ d: this.cfg.drillId, mo: this.mo, k: 'decisao', ok: decOk, rt,
+                  err: decOk ? null : 'leitura', dif: this.dif, ref: this.ref,
+                  x: { certa: this.sit.certa, feita: escolha, ocultos: this.sit.ocultos } });
+
+      decOk ? U.Sfx.perfect() : U.Sfx.miss();
       this.hud.campo = this.hud.campo.filter(c => !c.opcao || c === carta);
-      this.hud.setOverlay({
-        texto: ok ? '✔' : '✘',
-        sub: (carta ? carta.opcao.porque : 'Demorou demais. Em luta, não decidir já é decidir errado.'),
-        tam: 0.14, cor: ok ? '#6ee7a8' : '#ff8fa3', fundo: 'rgba(6,9,16,.55)', cx: 0.36, cy: 0.80,
-      });
-      this.placar();
-      const executa = ok && carta && carta.opcao.executa;
-      this.T.after(1700, () => {
-        this.hud.setOverlay(null);
-        if (executa) this.faseExecucao(carta.opcao);
-        else this.T.after(200, () => { this.hud.campo = []; this.proxima(); });
-      });
+
+      /* Só executa quando ele escolheu ENTRAR e isso era certo:
+         medir a execução depois de uma decisão errada mistura as
+         duas coisas e estraga o custo da decisão. */
+      const vaiExecutar = decOk && this.sit.certa === 'entrar';
+
+      if (this.cfg.explicaNaHora !== false && this.retorno) {
+        this.hud.setOverlay({
+          texto: decOk ? '✔' : '✘',
+          sub: carta ? this.sit.porque : 'Não decidir também é decidir — e tarde demais.',
+          tam: 0.13, cor: decOk ? '#6ee7a8' : '#ff8fa3', fundo: 'rgba(6,9,16,.58)', cx: 0.36, cy: 0.78,
+        });
+      }
+      if (!vaiExecutar) {
+        this.anota({ k: 'integra', ok: decOk, err: decOk ? null : 'leitura', rt,
+                     x: { fase: 'so_decisao', decOk: decOk ? 1 : 0 } });
+        this.placar();
+        return this.T.after(this.retorno ? 1600 : 700, () => { this.hud.campo = []; this.proxima(); });
+      }
+      this.T.after(this.retorno ? 1300 : 600, () => { this.hud.setOverlay(null); this.faseExecucao(); });
     }
 
-    faseExecucao(op) {
+    /* 3 — execução */
+    faseExecucao() {
       this.estado = 'execucao';
       this.hud.campo = this.hud.campo.filter(c => !c.opcao);
-      this.rota = op.rota || this.cen.rota || ['s1', 'aa', 's2'];
-      this.passo = 0;
-      this.t0 = U.now();
-      this.deveParar = false;
-      this.revFeita = false;
-      // dispara no meio da rota: assim uma execução rápida não escapa do evento
+      this.rota = this.sit.rota.slice();
+      this.passo = 0; this.t0 = U.now();
+      this.deveParar = false; this.revFeita = false;
       this.gatilhoRev = Math.max(1, Math.floor(this.rota.length / 2));
       this.hud.limparMarcas();
       this.hud.marcar(this.rota[0], { destaque: true, cor: '#ffd479' });
-      this.hud.setOverlay({ texto: 'EXECUTE', sub: this.rota.map(k => H.getHud()[k].curto).join(' › '),
-                            tam: 0.11, cor: '#c4b5fd', fundo: 'rgba(5,8,14,.28)' });
-      this.T.after(500, () => { if (this.estado === 'execucao') this.hud.setOverlay(null); });
-
-      if (this.cen.reviravolta) {
-        // rede de segurança: se ele congelar e não tocar em nada, o evento vem assim mesmo
-        this.T.after(U.rnd(1600, 2400), () => {
-          if (this.estado !== 'execucao' || this.revFeita) return;
-          this.reviravolta();
+      this.hud.setOverlay({ texto: 'EXECUTE', sub: this.rota.map(k => (H.getHud()[k] || {}).curto || k).join(' › '),
+                            tam: 0.11, cor: '#c4b5fd', fundo: 'rgba(5,8,14,.26)' });
+      this.T.after(480, () => { if (this.estado === 'execucao') this.hud.setOverlay(null); });
+      if (this.sit.reviravolta) {
+        this.T.after(U.rnd(1500, 2300), () => {
+          if (this.estado === 'execucao' && !this.revFeita) this.reviravolta();
         });
       }
       this.T.after(1200 + this.rota.length * 1100, () => {
-        if (this.estado === 'execucao') this.fimExecucao(false, 'lento');
+        if (this.estado === 'execucao') this.fimExec(false, 'lento');
       });
     }
 
+    /* 4 — reavaliação */
     reviravolta() {
       if (this.revFeita) return;
       this.revFeita = true;
-      const r = this.cen.reviravolta;
-      this.deveParar = r.parar;
-      this.tParada = U.now();
+      const r = this.sit.reviravolta;
+      this.deveParar = r.parar; this.tParada = U.now();
       U.Sfx.alert(); U.Haptic.stop();
-      if (r.novo) {
-        this.hud.campo.push({ id: 'novo', icone: r.novo.icone, titulo: r.novo.nome, hp: r.novo.hp,
-                              nota: r.novo.nota, notaCor: '#ff5470', x: 0.52, y: 0.22, w: 0.115, h: 0.34, marca: '#ff5470' });
-      }
-      this.hud.setOverlay({ texto: r.parar ? 'PARAR' : 'SEGUE', sub: r.texto,
-                            tam: 0.17, cor: r.parar ? '#ff5470' : '#6ee7a8',
-                            fundo: r.parar ? 'rgba(40,4,12,.50)' : 'rgba(4,28,18,.40)' });
+      this.hud.setOverlay({ texto: r.parar ? 'PARAR' : 'SEGUE', sub: r.texto, tam: 0.16,
+                            cor: r.parar ? '#ff5470' : '#6ee7a8',
+                            fundo: r.parar ? 'rgba(40,4,12,.52)' : 'rgba(4,28,18,.42)' });
       if (r.parar) {
         this.hud.limparMarcas();
         this.hud.marcar('joy', { destaque: true, dirAlvo: 4 });
         this.T.after(this.cfg.janelaFreio ?? 800, () => {
           if (this.estado !== 'execucao' || !this.deveParar) return;
-          this.g.add({ ok: true, rt: this.cfg.janelaFreio ?? 800, alvo: 'freio',
-                       extra: { fase: 'freio', tipo: 'parar' } });
+          this.estado = 'fim'; this.T.clear();
+          this.anota({ k: 'integra', ok: true, rt: this.cfg.janelaFreio ?? 800,
+                       x: { fase: 'freio', decOk: 1 } });
           U.Sfx.perfect();
-          this.hud.setOverlay({ texto: '✔ PAROU', sub: r.porque, tam: 0.13, cor: '#6ee7a8', fundo: 'rgba(6,9,16,.55)' });
-          this.api.mensagem('freio certo', 'ok', r.porque);
+          if (this.retorno) this.hud.setOverlay({ texto: '✔ PAROU', sub: r.porque, tam: 0.12,
+                                                  cor: '#6ee7a8', fundo: 'rgba(6,9,16,.58)' });
+          this.diz('freio certo', 'ok', r.porque);
           this.placar();
-          this.estado = 'fim';
-          this.T.after(1800, () => { this.hud.campo = []; this.proxima(); });
+          this.T.after(this.retorno ? 1700 : 700, () => { this.hud.campo = []; this.proxima(); });
         });
       } else {
         this.T.after(700, () => {
           if (this.estado !== 'execucao') return;
           this.hud.setOverlay(null);
           if (this.passo < this.rota.length) this.hud.marcar(this.rota[this.passo], { destaque: true, cor: '#ffd479' });
-          else this.fimExecucao(true, null);
+          else this.fimExec(true, null);
         });
       }
     }
 
     press(e) {
       if (this.estado !== 'execucao' || !e.id || e.id.startsWith('q')) return;
-      if (e.dx != null) (this.toques || (this.toques = [])).push({ id: e.id, dx: e.dx, dy: e.dy });
+      if (e.dx != null) this.toques.push({ id: e.id, dx: e.dx, dy: e.dy });
       if (this.deveParar) {
+        const r = this.sit.reviravolta;
         this.hud.erro(e.id); U.Sfx.miss(); U.Haptic.bad();
-        const r = this.cen.reviravolta;
-        this.g.add({ ok: false, erro: 'freio', rt: U.now() - this.tParada, alvo: 'freio',
-                     extra: { fase: 'freio', tipo: 'parar' } });
-        this.api.mensagem('continuou depois do sinal', 'erro', r.porque);
-        this.estado = 'fim'; this.T.clear(); this.placar();
-        this.hud.setOverlay({ texto: '✘', sub: r.porque, tam: 0.14, cor: '#ff8fa3', fundo: 'rgba(6,9,16,.55)' });
-        this.T.after(2200, () => { this.hud.campo = []; this.proxima(); });
-        return;
+        this.estado = 'fim'; this.T.clear();
+        this.anota({ k: 'integra', ok: false, err: 'freio', rt: U.now() - this.tParada,
+                     x: { fase: 'freio', decOk: 1 } });
+        this.diz('continuou após o sinal', 'erro', r.porque);
+        if (this.retorno) this.hud.setOverlay({ texto: '✘', sub: r.porque, tam: 0.13,
+                                                cor: '#ff8fa3', fundo: 'rgba(6,9,16,.58)' });
+        this.placar();
+        return this.T.after(this.retorno ? 2000 : 800, () => { this.hud.campo = []; this.proxima(); });
       }
       const esperado = this.rota[this.passo];
-      if (e.id !== esperado) {
-        this.hud.erro(e.id); U.Sfx.miss();
-        return this.fimExecucao(false, 'memoria');
-      }
+      if (e.id !== esperado) { this.hud.erro(e.id); U.Sfx.miss(); return this.fimExec(false, 'sequencia'); }
       this.hud.acerto(e.id); U.Sfx.hit();
       this.passo++;
       this.hud.limparMarcas();
-      if (this.cen.reviravolta && !this.revFeita && this.passo >= this.gatilhoRev) return this.reviravolta();
+      if (this.sit.reviravolta && !this.revFeita && this.passo >= this.gatilhoRev) return this.reviravolta();
       if (this.passo < this.rota.length) this.hud.marcar(this.rota[this.passo], { destaque: true, cor: '#ffd479' });
-      else this.fimExecucao(true, null);
+      else this.fimExec(true, null);
     }
 
-    fimExecucao(ok, erro) {
+    fimExec(ok, err) {
       if (this.estado !== 'execucao') return;
-      this.estado = 'fim';
-      this.T.clear();
+      this.estado = 'fim'; this.T.clear();
       const total = U.now() - this.t0;
-      this.g.add({ ok, erro, total: ok ? total : null, rt: total, alvo: this.rota.join('>'), extra: { fase: 'execucao' } });
+      this.anota({ k: 'integra', ok, err, tot: ok ? total : null, rt: total,
+                   x: { fase: 'execucao', decOk: 1 } });
       ok ? U.Sfx.perfect() : U.Sfx.miss();
-      this.hud.setOverlay({ texto: ok ? `✔ ${Math.round(total)}ms` : '✘ execução falhou',
-                            sub: ok ? (this.cen.fecho || 'Entrada limpa.') : 'A decisão estava certa; a mão não acompanhou.',
-                            tam: 0.12, cor: ok ? '#6ee7a8' : '#ff8fa3', fundo: 'rgba(6,9,16,.55)' });
-      this.api.mensagem(ok ? 'execução limpa' : 'execução falhou', ok ? 'ok' : 'erro');
+      if (this.retorno) {
+        this.hud.setOverlay({ texto: ok ? `✔ ${Math.round(total)}ms` : '✘ execução falhou',
+                              sub: ok ? 'Decisão certa e execução limpa.' : 'A decisão estava certa; a mão não acompanhou.',
+                              tam: 0.12, cor: ok ? '#6ee7a8' : '#ff8fa3', fundo: 'rgba(6,9,16,.55)' });
+      }
+      this.diz(ok ? 'execução limpa' : 'execução falhou', ok ? 'ok' : 'erro');
       this.placar();
-      this.T.after(1700, () => { this.hud.campo = []; this.proxima(); });
+      this.T.after(this.retorno ? 1500 : 650, () => { this.hud.campo = []; this.proxima(); });
     }
-    extras() { return { toques: this.toques || [] }; }
+
+    extras() {
+      const n = this.decisoes.length;
+      if (!n) return {};
+      const k = this.decisoes.filter(x => x.ok).length;
+      return { decisao: { ...S.wilson(k, n), rt: U.median(this.decisoes.filter(x => x.ok).map(x => x.rt)) } };
+    }
   }
 
-  U.E = { MotorBase, MotorSequencia, MotorEscolha, MotorPrioridade, MotorCenario, RESPOSTAS, PAPEIS };
+  U.E = { MotorBase, MotorSequencia, MotorLeitura, MotorDecisao };
 
 })(window.U);
