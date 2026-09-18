@@ -1357,50 +1357,386 @@
   let heroFiltro = { f: null, q: '', pag: 1, aba: 'lista' };
   const POR_PAG = 20;
 
-  function telaHerois() {
-    const HE = U.HE;
-    if (!HE) return '<div class="painel"><div class="mini">Módulo de heróis não carregou.</div></div>';
-    const pan = HE.panorama();
-    if (heroFiltro.aba === 'importar') return telaImportar(pan);
+  /* ============================================================
+     HERÓIS — a central de dados
+     ------------------------------------------------------------
+     A primeira versão desta tela abria com um muro de texto sobre
+     proxy, 403 e transcrição. Isso é problema MEU, não seu, e
+     estava ocupando o lugar do que você veio ver. Você disse que
+     não entendeu nada, e estava certo.
 
-    let lista = heroFiltro.q ? HE.buscar(heroFiltro.q) : HE.todos();
-    if (heroFiltro.f) lista = lista.filter(h => HE.temFuncao(h, heroFiltro.f));
-    const pags = Math.max(1, Math.ceil(lista.length / POR_PAG));
-    heroFiltro.pag = U.clamp(heroFiltro.pag, 1, pags);
-    const pagina = lista.slice((heroFiltro.pag - 1) * POR_PAG, heroFiltro.pag * POR_PAG);
+     Regra desta versão: o que interessa primeiro. Quem está forte,
+     como está o seu herói, quem banir. A procedência de cada
+     número continua inteira — ela só desceu para o fim, onde quem
+     quiser auditar encontra.
+     ============================================================ */
+  let hf = { f: null, q: '', ord: 'bp', dir: -1, aba: 'ranking', iord: 'nome' };
+
+  const COL = {
+    vitoria:    { nome: 'Vitória',    curto: 'VIT', get: h => h.estatisticas && h.estatisticas.vitoria.v,
+                  ref: 50, sufixo: '%', ajuda: 'De cada 100 partidas com ele, quantas terminam em vitória. 50% é o equilíbrio.' },
+    escolha:    { nome: 'Escolha',    curto: 'ESC', get: h => h.estatisticas && h.estatisticas.escolha.v,
+                  sufixo: '%', ajuda: 'Em quantas partidas ele é escolhido. Alto quer dizer popular, não quer dizer bom.' },
+    banimento:  { nome: 'Banimento',  curto: 'BAN', get: h => h.estatisticas && h.estatisticas.banimento.v,
+                  sufixo: '%', ajuda: 'Em quantas partidas ele é banido. É o que o jogo de alto nível teme.' },
+    bp:         { nome: 'Escolhido ou banido', curto: 'BP', get: h => h.estatisticas && h.estatisticas.bp,
+                  sufixo: '%', ajuda: 'Escolhido OU banido. É a medida de quanto ele importa na fase de escolha — a mais próxima de "está forte agora".' },
+    participacao:{ nome: 'Presença em luta', curto: 'LUTA', get: h => h.estatisticas && h.estatisticas.participacao,
+                  sufixo: '%', ajuda: 'Em quantas mortes da equipe ele estava presente.' },
+    dano:       { nome: 'Fatia do dano', curto: 'DANO', get: h => h.estatisticas && h.estatisticas.dano,
+                  sufixo: '%', ajuda: 'Quanto do dano da equipe sai dele.' },
+    tier:       { nome: 'Tier',       curto: 'TIER', get: h => h.tier && h.tier.pontos,
+                  sufixo: '', ajuda: 'Pontuação da tier list do site. O próprio site marca essa lista como algoritmo em teste.' },
+  };
+  const ORDEM_TIER = { 'T0': 0, 'T0.5': 1, 'T1': 2, 'T2': 3, 'T3': 4 };
+
+  function comDados() {
+    return U.HE.todos().filter(h => h.estatisticas || h.tier);
+  }
+  function listaFiltrada() {
+    const HE = U.HE;
+    let l = hf.q ? HE.buscar(hf.q) : HE.todos();
+    if (hf.f) l = l.filter(h => HE.temFuncao(h, hf.f));
+    l = l.filter(h => h.estatisticas || h.tier);
+    const c = COL[hf.ord];
+    l.sort((a, b) => {
+      const va = c.get(a), vb = c.get(b);
+      if (va == null && vb == null) return a.name.localeCompare(b.name, 'pt');
+      if (va == null) return 1;
+      if (vb == null) return -1;
+      return (va - vb) * hf.dir;
+    });
+    return l;
+  }
+
+  /** Barra de magnitude: um hue só, com marca de referência quando faz sentido. */
+  function barra(v, max, ref) {
+    const pct = U.clamp((v / max) * 100, 0, 100);
+    const refPct = ref != null ? U.clamp((ref / max) * 100, 0, 100) : null;
+    return `<div class="barh">
+      <div class="barh-v" style="width:${pct.toFixed(1)}%"></div>
+      ${refPct != null ? `<div class="barh-ref" style="left:${refPct.toFixed(1)}%"></div>` : ''}
+    </div>`;
+  }
+
+  /* Taxa de vitória vive entre 45% e 55%. Barra a partir do zero
+     nesse intervalo desenha sessenta barras iguais e esconde
+     justamente a diferença que interessa. Onde a métrica tem um
+     ponto de equilíbrio declarado — 50% quer dizer "nem ganha nem
+     perde" —, a barra passa a medir o desvio em relação a ele,
+     para os dois lados do mesmo risco. Isso não é barra cortada:
+     é outra grandeza, a distância até o equilíbrio. */
+  function barraDesvio(v, ref, amp) {
+    const d = U.clamp((v - ref) / (amp || 1), -1, 1);
+    const larg = Math.abs(d) * 50;
+    const esq = d >= 0 ? 50 : 50 - larg;
+    return `<div class="barh dv">
+      <div class="barh-v ${d < 0 ? 'neg' : ''}" style="left:${esq.toFixed(1)}%;width:${larg.toFixed(1)}%"></div>
+      <div class="barh-ref" style="left:50%"></div>
+    </div>`;
+  }
+
+  /** Escolhe a codificação certa para a métrica k. */
+  function barraDe(k, v, ctx) {
+    const c = COL[k];
+    if (c.ref != null && ctx.amp != null) return barraDesvio(v, c.ref, ctx.amp);
+    return barra(v, ctx.max, c.ref);
+  }
+
+  /** Contexto de escala de uma métrica dentro de um universo de heróis. */
+  function escala(k, univ) {
+    const vs = univ.map(h => COL[k].get(h)).filter(v => v != null);
+    const max = vs.length ? Math.max(...vs) : 100;
+    const amp = COL[k].ref != null && vs.length
+      ? Math.max(...vs.map(v => Math.abs(v - COL[k].ref))) : null;
+    return { max, amp, media: vs.length ? U.mean(vs) : null, n: vs.length };
+  }
+
+  /* Uma barra só para as três sub-telas. Antes cada uma tinha o seu
+     próprio jeito de voltar, e de Itens não dava para chegar em Dados
+     sem passar pelo meio — que é como se perde alguém numa aba. */
+  function cabecalhoH(atual, sub) {
+    const A = [['ranking', 'Heróis'], ['itens', 'Itens'], ['importar', 'Dados']];
+    const cur = A.find(a => a[0] === atual) || A[0];
+    return `<div class="topo"><h1>❖ ${cur[1]}</h1>
+      ${sub ? `<span class="sub">${sub}</span>` : ''}
+      <div class="espaco"></div>
+      <div class="flex" style="gap:6px">
+        ${A.filter(a => a[0] !== atual).map(a =>
+          `<button class="btn sec sm" data-haba="${a[0]}">${a[1]}</button>`).join('')}
+      </div></div>`;
+  }
+
+  function telaHerois() {
+    const HE = U.HE, E = U.esc;
+    if (!HE) return '<div class="painel"><div class="mini">Módulo de heróis não carregou.</div></div>';
+    if (hf.aba === 'importar') return telaImportar(HE.panorama());
+    if (hf.aba === 'itens') return telaItens();
+
+    const meus = HE.noTreino().map(x => HE.porId(x.id)).filter(Boolean);
+    const destaque = meus[0] || HE.porId('jing');
+    const lista = listaFiltrada();
+    const todosComEst = comDados().filter(h => h.estatisticas);
+    const esc = {};
+    for (const k in COL) esc[k] = escala(k, todosComEst);
+    /* a coluna da direita mostra outra coisa: repetir a métrica que já
+       está na barra gasta espaço para dizer o que já foi dito */
+    const extras = ['vitoria', 'banimento', 'escolha'].filter(k => k !== hf.ord).slice(0, 2);
 
     return `
-    <div class="topo"><h1>❖ Heróis</h1><div class="espaco"></div>
-      <span class="sub">${pan.n} no banco · ${pan.comAlgo} com algum dado</span></div>
+    ${cabecalhoH('ranking')}
+    <div class="rolagem pilha">
+
+      ${destaque ? fichaRapida(destaque, todosComEst) : ''}
+
+      ${destaques(todosComEst)}
+
+      <div class="painel">
+        <div class="flex" style="gap:8px;align-items:center">
+          <h2 style="margin:0">Ranking</h2><div class="espaco"></div>
+          <span class="xs">${lista.length} ${lista.length === 1 ? 'herói' : 'heróis'} com dado</span>
+        </div>
+        <div class="xs" style="margin-top:3px">Toque em qualquer linha para abrir a ficha do herói.</div>
+        <input class="campo" id="hero-busca" placeholder="Buscar herói…" value="${E(hf.q)}" style="margin-top:8px">
+        <div class="grade" style="grid-template-columns:repeat(6,1fr);gap:5px;margin-top:7px">
+          <button class="btn sec sm ${!hf.f ? 'gold' : ''}" data-hfun="">TODOS</button>
+          ${HE.FUNCOES.map(f => `<button class="btn sec sm ${hf.f === f.id ? 'gold' : ''}" data-hfun="${f.id}">${f.nome}</button>`).join('')}
+        </div>
+        <div class="flex" style="gap:4px;flex-wrap:wrap;margin-top:7px">
+          ${Object.entries(COL).map(([k, c]) =>
+            `<button class="btn sec sm ${hf.ord === k ? 'gold' : ''}" data-hord="${k}"
+               style="padding:4px 8px;font-size:.62rem">${c.curto}${hf.ord === k ? (hf.dir < 0 ? ' ↓' : ' ↑') : ''}</button>`).join('')}
+        </div>
+        <div class="xs" style="margin-top:6px">${E(COL[hf.ord].ajuda)}
+          ${COL[hf.ord].ref != null
+            ? `<br>A barra mede a <b>distância até ${COL[hf.ord].ref}${COL[hf.ord].sufixo}</b>:
+               para a direita quem está acima, para a esquerda quem está abaixo.`
+            : `<br>A barra é o valor em si, do zero até o maior da lista
+               (${U.num(esc[hf.ord].max, 1)}${COL[hf.ord].sufixo}).`}</div>
+
+        <div class="tabh" style="margin-top:9px">
+          ${lista.slice(0, 60).map((h, i) => {
+            const e = h.estatisticas;
+            const v = COL[hf.ord].get(h);
+            return `<div class="linh" data-heroi="${E(h.id)}">
+              <div class="linh-n">${i + 1}</div>
+              <div class="linh-nome">
+                <div class="mt" style="font-size:.74rem">${E(h.name)}</div>
+                <div class="xs">${(h.role || []).map(r => (HE.FUNCOES.find(f => f.alt.includes(r)) || { nome: r }).nome).join(' · ') || '—'}</div>
+              </div>
+              ${h.tier ? `<span class="tierb t${(h.tier.lista || '').replace('.', '')}">${E(h.tier.lista)}</span>` : '<span class="tierb vazio">—</span>'}
+              <div class="linh-bar">
+                ${v != null ? barraDe(hf.ord, v, esc[hf.ord]) : '<div class="barh"></div>'}
+                <div class="linh-num">${v != null ? U.num(v, 1) + COL[hf.ord].sufixo : '—'}</div>
+              </div>
+              ${e ? `<div class="linh-extra">
+                ${extras.map(k => { const ev = COL[k].get(h);
+                  return `<span>${ev == null ? '—' : U.num(ev, 1)}<i>${COL[k].curto.toLowerCase()}</i></span>`;
+                }).join('')}
+              </div>` : '<div class="linh-extra"></div>'}
+            </div>`;
+          }).join('')}
+        </div>
+        ${lista.length > 60 ? `<div class="xs" style="margin-top:7px">Mostrando os 60 primeiros de ${lista.length}. Use a busca ou o filtro de rota.</div>` : ''}
+        ${!lista.length ? `<div class="aviso" style="margin-top:8px">Nenhum herói com dado nesse filtro.
+          ${hf.f ? 'A função só está preenchida onde foi lida da fonte — quem está sem função não aparece em filtro de rota.' : ''}</div>` : ''}
+      </div>
+
+      ${tierVisual()}
+
+      <div class="painel">
+        <h2>De onde vêm estes números</h2>
+        <div class="mini">Tudo o que você viu acima veio do <b>pvp.mcxssg.net</b>, o site que você indicou —
+        transcrito das capturas de tela que você enviou, porque a máquina onde este app foi montado não
+        consegue abrir aquele domínio. Dados de <b>${E(HE.STATS ? HE.STATS.data : '—')}</b>, modo
+        <b>${E(HE.STATS ? HE.STATS.modo : '—')}</b>.
+        <br><br>Transcrição de imagem erra às vezes, então nada aqui está marcado como conferido. A tela de
+        <b>Dados</b> tem o caminho para substituir tudo isto por dado de primeira mão — inclusive o botão de
+        exportar que existe no próprio site.</div>
+        <button class="btn sec sm full" data-haba="importar" style="margin-top:9px">Ver procedência e importar</button>
+      </div>
+    </div>`;
+  }
+
+  /* ---- o seu herói, em cima de tudo ---- */
+  function fichaRapida(h, universo) {
+    const E = U.esc, e = h.estatisticas;
+    const pos = (k) => {
+      if (!e) return null;
+      const v = COL[k].get(h);
+      if (v == null) return null;
+      const ord = universo.map(x => COL[k].get(x)).filter(x => x != null).sort((a, b) => b - a);
+      return { r: ord.indexOf(v) + 1, de: ord.length };
+    };
+    return `
+      <div class="painel hero">
+        <div class="flex" style="gap:10px;align-items:flex-start">
+          <div style="flex:1;min-width:0">
+            <div class="mini" style="color:var(--gold);font-weight:800;letter-spacing:.08em;text-transform:uppercase">O seu herói</div>
+            <h2 class="heroT" style="margin-top:1px">${E(h.name)}${h.nomeCn ? ` <span style="font-size:.7em;opacity:.6">${E(h.nomeCn)}</span>` : ''}</h2>
+            <div class="mini">${h.titulo ? E(h.titulo) + ' · ' : ''}${(h.role || []).map(r =>
+              (U.HE.FUNCOES.find(f => f.alt.includes(r)) || { nome: r }).nome).join(' · ')}</div>
+          </div>
+          ${h.tier ? `<div style="text-align:center">
+            <div class="tierb t${(h.tier.lista || '').replace('.', '')}" style="font-size:.9rem;padding:5px 11px">${E(h.tier.lista)}</div>
+            <div class="xs" style="margin-top:3px">${U.num(h.tier.pontos, 1)} pts</div>
+          </div>` : ''}
+        </div>
+        ${e ? `${[['vitoria', 'vitória'], ['escolha', 'escolha'], ['banimento', 'banimento'],
+                   ['bp', 'esc. ou ban.'], ['participacao', 'presença em luta'], ['dano', 'fatia do dano']]
+            .reduce((acc, x, i) => { (acc[i < 3 ? 0 : 1] = acc[i < 3 ? 0 : 1] || []).push(x); return acc; }, [])
+            .map((linha, li) => `<div class="grade g3" style="margin-top:${li ? 6 : 10}px">
+              ${linha.map(([k, rot]) => { const p = pos(k), v = COL[k].get(h);
+                return `<div class="kpi">
+                  <div class="v"${li ? ' style="font-size:1rem"' : ''}>${U.num(v, 1)}<span class="de">%</span></div>
+                  <div class="k">${rot}</div>
+                  <div class="xs">${p ? `${p.r}º de ${p.de}` : '&nbsp;'}</div></div>`;
+              }).join('')}
+            </div>`).join('')}
+          <div class="xs" style="margin-top:7px">Posição <b>${e.posicao}º</b> na tabela do site por
+          escolhido-ou-banido · dados de ${E(e.data)}</div>`
+        : `<div class="aviso" style="margin-top:9px">Ainda não tenho os números deste herói.
+           A página individual dele no site não foi capturada.</div>`}
+        <button class="btn full sm" data-heroi="${E(h.id)}" style="margin-top:10px">Abrir ficha completa</button>
+      </div>`;
+  }
+
+  /* ---- leituras rápidas ---- */
+  function destaques(univ) {
+    if (univ.length < 5) return '';
+    const E = U.esc;
+    const top = (k, n = 3) => univ.slice().sort((a, b) => COL[k].get(b) - COL[k].get(a)).slice(0, n);
+    const bloco = (titulo, k, porque) => `<div>
+      <div class="mt" style="font-size:.7rem">${titulo}</div>
+      <div class="pilha" style="gap:3px;margin-top:4px">
+        ${top(k).map(h => `<div class="flex" style="gap:5px;align-items:baseline;cursor:pointer" data-heroi="${E(h.id)}">
+          <span class="mini" style="flex:1">${E(h.name)}</span>
+          <span class="xs"><b>${U.num(COL[k].get(h), 1)}%</b></span>
+        </div>`).join('')}
+      </div>
+      <div class="xs" style="margin-top:4px;opacity:.8">${porque}</div>
+    </div>`;
+    return `<div class="painel">
+      <h2>O que está pesando agora</h2>
+      <div class="grade g3" style="margin-top:7px;gap:10px">
+        ${bloco('Mais banidos', 'banimento', 'O que o jogo de alto nível prefere não enfrentar.')}
+        ${bloco('Mais escolhidos', 'escolha', 'Popularidade. Não é o mesmo que força.')}
+        ${bloco('Maior vitória', 'vitoria', 'Cuidado: quem é pouco escolhido oscila mais.')}
+      </div>
+    </div>`;
+  }
+
+  /* ---- tier list como faixa ---- */
+  function tierVisual() {
+    const T = U.HE.TIER; if (!T) return '';
+    const E = U.esc;
+    return `<div class="painel">
+      <h2>Tier list · ${E(T.data)}</h2>
+      <div class="xs" style="margin-bottom:7px">${E(T.avisoDaFonte)}</div>
+      ${T.faixas.map(f => `<div class="flex" style="gap:8px;align-items:flex-start;margin-top:7px">
+        <span class="tierb t${f.id.replace('.', '')}" style="flex:0 0 auto">${E(f.id)}</span>
+        <div class="flex" style="gap:4px;flex-wrap:wrap;flex:1">
+          ${f.herois.map(x => {
+            const h = x.id && U.HE.porId(x.id);
+            return `<span class="tag ${h ? '' : 'warn'}" ${h ? `data-heroi="${E(x.id)}" style="cursor:pointer"` : ''}>${
+              E(h ? h.name : x.nomeCn)} <b>${U.num(x.pontos, 1)}</b></span>`;
+          }).join('')}
+        </div>
+      </div>`).join('')}
+      <div class="xs" style="margin-top:8px">Os amarelos, em chinês, são heróis que existem na fonte e não na
+      sua lista. Ficam assim porque adivinhar o nome internacional deles renomearia o herói errado.</div>
+    </div>`;
+  }
+
+  /* ---- itens ----
+     O catálogo só tem nome e preço — passiva e atributo não
+     aparecem em captura nenhuma. Com dois campos, cartão grande é
+     desperdício: cabiam seis itens na tela e os 54 viravam nove
+     rolagens. Aqui é lista compacta, ordenável, com barra de preço
+     — porque o que se faz com preço é comparar. */
+  function telaItens() {
+    const I = U.HE.ITENS, E = U.esc;
+    if (!I) return '<div class="painel"><div class="mini">Catálogo não carregou.</div></div>';
+    const q = (hf.q || '').toLowerCase();
+    let lista = q ? I.lista.filter(x => x.nome.toLowerCase().includes(q)) : I.lista.slice();
+    if (hf.iord === 'preco') {
+      lista.sort((a, b) => (b.preco == null ? -1 : b.preco) - (a.preco == null ? -1 : a.preco));
+    } else {
+      lista.sort((a, b) => a.nome.localeCompare(b.nome, 'en'));
+    }
+    const precos = I.lista.map(x => x.preco).filter(v => v != null);
+    const maxP = precos.length ? Math.max(...precos) : 1;
+    const semPreco = I.lista.length - precos.length;
+
+    return `
+    ${cabecalhoH('itens')}
+    <div class="rolagem pilha">
+      <div class="painel">
+        <div class="flex" style="gap:8px;align-items:center">
+          <h2 style="margin:0">${I.lista.length} itens</h2><div class="espaco"></div>
+          <span class="xs">${E(I.cobertura)}</span>
+        </div>
+        <input class="campo" id="hero-busca" placeholder="Buscar item…" value="${E(hf.q)}">
+        <div class="flex" style="gap:5px;margin-top:7px">
+          <button class="btn sec sm ${hf.iord !== 'preco' ? 'gold' : ''}" data-hiord="nome" style="padding:0 10px">A–Z</button>
+          <button class="btn sec sm ${hf.iord === 'preco' ? 'gold' : ''}" data-hiord="preco" style="padding:0 10px">Mais caro primeiro</button>
+          <div class="espaco"></div>
+          <span class="xs">${lista.length} na lista${semPreco ? ` · ${semPreco} sem preço lido` : ''}</span>
+        </div>
+        <div class="tabh" style="margin-top:9px">
+          ${lista.map(it => `<div class="lini">
+            <div class="lini-nome">${E(it.nome)}</div>
+            <div class="linh-bar">
+              ${it.preco != null ? barra(it.preco, maxP, null) : '<div class="barh"></div>'}
+              <div class="linh-num">${it.preco != null ? U.num(it.preco) : '—'}</div>
+            </div>
+            <div class="xs" style="text-align:right">${it.obs ? E(it.obs) : ''}</div>
+          </div>`).join('')}
+        </div>
+        ${!lista.length ? '<div class="aviso" style="margin-top:8px">Nenhum item com esse nome.</div>' : ''}
+        <div class="xs" style="margin-top:8px">A barra é o preço em ouro, do zero até o item mais caro
+        catalogado (${U.num(maxP)}).</div>
+      </div>
+      <div class="painel">
+        <h2>O que falta neste catálogo</h2>
+        <div class="pilha" style="gap:5px">
+          ${Object.values(I.lacunas).map(v => `<div class="mini">· ${E(v)}</div>`).join('')}
+        </div>
+        <div class="xs" style="margin-top:7px">Fonte: <b>${E(I.fonteNome)}</b> — não é a fonte prioritária,
+        e está marcado assim.</div>
+      </div>
+    </div>`;
+  }
+
+  /* ============================================================
+     DADOS — a tela honesta
+     Tudo o que antes abria a aba de heróis está aqui: de onde vem
+     cada número, o que a fonte não publica, quem existe lá e não
+     na sua lista, e como trocar transcrição por dado de primeira
+     mão. Continua inteiro. Só deixou de ser a primeira coisa que
+     você vê ao procurar a taxa de vitória da Jing.
+     ============================================================ */
+  function telaImportar(pan) {
+    const HE = U.HE, E = U.esc;
+    const fora = HE.foraDoBanco();
+    return `
+    ${cabecalhoH('importar', `${pan.n} no banco · ${pan.comAlgo} com algum dado`)}
     <div class="rolagem pilha">
 
       <div class="painel ${pan.daPrioritaria ? '' : 'hero'}">
-        <div class="flex" style="gap:8px;align-items:center">
-          <h2 style="margin:0">Estado da fonte</h2><div class="espaco"></div>
-          <button class="btn sec sm" data-haba="importar">Importar dados</button>
-        </div>
+        <h2>Estado da fonte</h2>
         <div class="aviso ${pan.baixado ? 'ok' : 'bad'}" style="margin-top:8px">
-          <b>${U.esc(HE.FONTE_ALVO.nome)}</b> — <b>nada foi baixado de lá.</b>
-          ${U.esc(HE.FONTE_ALVO.porque)}
+          <b>${E(HE.FONTE_ALVO.nome)}</b> — <b>nada foi baixado de lá.</b>
+          ${E(HE.FONTE_ALVO.porque)}
         </div>
         <div class="mini" style="margin-top:7px">
           ${pan.daPrioritaria ? `O que existe da fonte prioritária hoje — <b>${pan.daPrioritaria}
-          ${pan.daPrioritaria === 1 ? 'herói' : 'heróis'}</b> — foi <b>transcrito das capturas de tela que você
-          enviou</b>, e é só a tier list geral. Transcrição de imagem erra às vezes, então ela está marcada
-          como não conferida e qualquer importação a substitui.<br><br>` : ''}
-          O que <b>não</b> existe: a página individual de cada herói, que é onde moram taxa de vitória, itens
-          por slot e counters com amostra. Isso precisa ser capturado página por página.
-          <br><br>Enquanto não for, cada campo mostra <b>"${U.esc(HE.SEM_DADO)}"</b> em vez de um palpite.
-          Toque em <b>Importar dados</b> para o passo a passo.
-        </div>
-        <div class="aviso" style="margin-top:8px">
-          <b>O que esta fonte não publica, e nenhuma captura vai trazer:</b>
-          ${Object.entries(HE.FONTE_ALVO.naoPublica).map(([k, v]) =>
-            `<div class="xs" style="margin-top:3px"><b>${U.esc(k)}</b> — ${U.esc(v)}</div>`).join('')}
-          <div class="xs" style="margin-top:5px">Eu tinha suposto que o site fosse um guia de builds e combos.
-          As suas capturas mostraram que ele é uma <b>estação de estatística</b>: ele conta partidas. Isso é
-          melhor para auditar e pior para quem queria combo pronto — e está dito aqui em vez de virar um campo
-          que nunca preenche.</div>
+          ${pan.daPrioritaria === 1 ? 'herói' : 'heróis'}</b> — foi <b>transcrito das capturas de tela que
+          você enviou</b>. Transcrição de imagem erra às vezes, então está marcado como não conferido e
+          qualquer importação substitui.<br><br>` : ''}
+          O que <b>não</b> existe: a página individual de cada herói, que é onde moram itens por slot e
+          counters com número de amostra. Isso precisa ser capturado página por página.
+          <br><br>Enquanto não for, cada campo mostra <b>"${E(HE.SEM_DADO)}"</b> em vez de um palpite.
         </div>
         <div class="grade g3" style="margin-top:9px">
           <div class="kpi"><div class="v">${pan.n}</div><div class="k">heróis</div></div>
@@ -1410,156 +1746,56 @@
       </div>
 
       <div class="painel">
-        <input class="campo" id="hero-busca" placeholder="Buscar herói…" value="${U.esc(heroFiltro.q)}">
-        <div class="grade" style="grid-template-columns:repeat(6,1fr);gap:6px;margin-top:8px">
-          <button class="btn sec sm ${!heroFiltro.f ? 'gold' : ''}" data-hfun="">TODOS</button>
-          ${HE.FUNCOES.map(f => `<button class="btn sec sm ${heroFiltro.f === f.id ? 'gold' : ''}" data-hfun="${f.id}">${f.nome}</button>`).join('')}
+        <h2>O que esta fonte não publica</h2>
+        <div class="mini" style="margin-top:5px">Nenhuma captura vai trazer os campos abaixo, porque eles
+        não existem lá. Estão ditos aqui em vez de virarem campo que nunca preenche:</div>
+        <div class="pilha" style="gap:4px;margin-top:7px">
+          ${Object.entries(HE.FONTE_ALVO.naoPublica).map(([k, v]) =>
+            `<div class="xs"><b style="color:var(--warn)">${E(k)}</b> — ${E(v)}</div>`).join('')}
         </div>
-        <div class="xs" style="margin-top:6px">${lista.length} ${lista.length === 1 ? 'herói' : 'heróis'}${heroFiltro.f
-          ? ` com função conhecida <b>${(HE.FUNCOES.find(x => x.id === heroFiltro.f) || {}).nome}</b>. A função só está preenchida onde ela foi lida de algum lugar — quem está sem função não aparece em filtro nenhum, e isso é de propósito.`
-          : '.'}</div>
+        <div class="xs" style="margin-top:7px">Eu tinha suposto que o site fosse um guia de builds e combos.
+        As suas capturas mostraram que ele é uma <b>estação de estatística</b>: ele conta partidas. Isso é
+        melhor para auditar e pior para quem queria combo pronto.</div>
       </div>
 
-      <div class="painel">
-        <div class="grade" style="grid-template-columns:repeat(5,1fr);gap:7px">
-          ${pagina.map(h => {
-            const c = HE.completude(h);
-            const cor = c.daPrioritaria ? 'var(--ok)' : c.vazio ? 'var(--dim2)' : 'var(--gold)';
-            const e = h.estatisticas;
-            return `<div class="medida" data-heroi="${U.esc(h.id)}" style="cursor:pointer;padding:8px 6px">
-              <div class="flex" style="gap:4px;align-items:baseline">
-                <div class="mt" style="font-size:.72rem;line-height:1.15;flex:1;min-width:0">${U.esc(h.name)}</div>
-                ${h.tier ? `<span class="xs" style="color:var(--gold);font-weight:800">${U.esc(h.tier.lista)}</span>` : ''}
-              </div>
-              <div class="xs" style="margin-top:3px">${h.role && h.role.length
-                ? h.role.map(r => (HE.FUNCOES.find(f => f.alt.includes(r)) || { nome: r }).nome).join(' · ')
-                : '<span style="opacity:.55">função não lida</span>'}</div>
-              ${e && e.vitoria ? `<div class="xs" style="margin-top:4px">
-                  <b style="color:${e.vitoria.v >= 50 ? 'var(--ok)' : 'var(--bad)'}">${U.num(e.vitoria.v, 1)}%</b>
-                  <span style="opacity:.7"> vit · ${U.num(e.escolha.v, 1)}% esc</span></div>`
-                : `<div class="xs" style="margin-top:4px;color:${cor}">${c.vazio ? 'sem dados' : `${c.cheios}/${c.total} campos`}</div>`}
-            </div>`;
-          }).join('')}
+      ${fora.length ? `<div class="painel">
+        <h2>Na fonte, fora da sua lista</h2>
+        <div class="mini" style="margin-bottom:6px"><b>${fora.length} heróis</b> aparecem no pvp.mcxssg.net e
+        não estão na lista que você me passou. Ficam listados em chinês, sem id inventado — porque foi
+        exatamente esse o erro que eu cometi e os testes pegaram: mapear <code>少司缘</code> para um
+        <code>shaosiyuan</code> que não existia, e com isso jogar o dado da fonte num herói fantasma.
+        Quando você me disser o nome internacional de cada um, eles entram.</div>
+        <div class="flex" style="gap:4px;flex-wrap:wrap">
+          ${fora.slice(0, 60).map(x => `<span class="tag warn">${E(x.nomeCn)}</span>`).join('')}
         </div>
-        ${pags > 1 ? `<div class="flex" style="gap:6px;justify-content:center;margin-top:10px">
-          ${Array.from({ length: pags }, (_, i) => i + 1).map(n =>
-            `<button class="btn sec sm ${n === heroFiltro.pag ? 'gold' : ''}" data-hpag="${n}" style="min-width:34px">${n}</button>`).join('')}
-        </div>` : ''}
-      </div>
-
-      ${(() => {
-        const fora = HE.foraDoBanco();
-        if (!fora.length) return '';
-        return `<div class="painel">
-          <h2>Na fonte, fora da sua lista</h2>
-          <div class="mini" style="margin-bottom:6px"><b>${fora.length} heróis</b> aparecem no
-          pvp.mcxssg.net e não estão na lista que você me passou. Eles ficam listados em chinês, sem id
-          inventado — porque foi exatamente esse o erro que eu cometi e os testes pegaram: mapear
-          <code>少司缘</code> para um <code>shaosiyuan</code> que não existia, e com isso jogar o dado da
-          fonte num herói fantasma. Quando você me disser o nome internacional de cada um, eles entram.</div>
-          <div class="flex" style="gap:4px;flex-wrap:wrap">
-            ${fora.slice(0, 60).map(x => `<span class="tag warn">${U.esc(x.nomeCn)}</span>`).join('')}
-          </div>
-        </div>`;
-      })()}
-
-      ${U.HE.ITENS ? `<div class="painel">
-        <h2>Itens · ${U.HE.ITENS.lista.length} catalogados</h2>
-        <div class="mini" style="margin-bottom:6px">Nome em inglês e preço, das suas capturas do
-        <b>HoK Stats</b> — que <b>não</b> é a fonte prioritária, e está marcado assim.
-        ${U.esc(U.HE.ITENS.lacunas.nomeCn)}</div>
-        <div class="grade" style="grid-template-columns:repeat(4,1fr);gap:5px">
-          ${U.HE.ITENS.lista.slice(0, 24).map(it => `<div class="medida" style="padding:6px">
-            <div class="xs" style="font-weight:700;line-height:1.2">${U.esc(it.nome)}</div>
-            <div class="xs" style="color:var(--gold);margin-top:2px">${it.preco != null ? U.num(it.preco) : '—'}</div>
-          </div>`).join('')}
-        </div>
-        <div class="xs" style="margin-top:7px">Mostrando 24 de ${U.HE.ITENS.lista.length}.
-        Cobertura: ${U.esc(U.HE.ITENS.cobertura)}. ${U.esc(U.HE.ITENS.lacunas.passiva)}</div>
       </div>` : ''}
-
-      ${U.HE.TIER ? `<div class="painel">
-        <h2>Tier list da fonte · ${U.esc(U.HE.TIER.data)}</h2>
-        <div class="mini" style="margin-bottom:6px">Transcrita da captura do site. ${U.esc(U.HE.TIER.avisoDaFonte)}
-        Ainda <b>não conferida</b> — importar pelo extrator substitui.</div>
-        ${U.HE.TIER.faixas.map(f => `<div style="margin-top:7px">
-          <div class="flex" style="gap:6px;align-items:baseline">
-            <span class="tag gold">${U.esc(f.id)}</span>
-            <span class="xs">${f.herois.length} heróis · ${f.herois.filter(x => x.id).length} reconhecidos pelo mapa de nomes</span>
-          </div>
-          <div class="flex" style="gap:4px;flex-wrap:wrap;margin-top:4px">
-            ${f.herois.map(x => `<span class="tag ${x.id ? '' : 'warn'}" ${x.id ? `data-heroi="${U.esc(x.id)}" style="cursor:pointer"` : ''}>${
-              U.esc(x.id ? (U.HE.porId(x.id) || {}).name || x.nomeCn : x.nomeCn)} <b>${U.num(x.pontos, 1)}</b></span>`).join('')}
-          </div>
-        </div>`).join('')}
-        <div class="xs" style="margin-top:8px">Os que estão em amarelo e em chinês são os que o mapa de nomes
-        não soube converter. Ficam assim de propósito: adivinhar qual herói internacional corresponde a cada
-        nome renomearia o errado sem ninguém perceber.</div>
-      </div>` : ''}
-
-      <div class="painel">
-        <h2>Como este banco se relaciona com o seu treino</h2>
-        <div class="mini">Os dois não se misturam, de propósito, e é por isso que ficam em armazenamentos
-        separados:<br><br>
-        <b>DADOS DO HERÓI</b> — o que se sabe sobre o personagem. Vem de fora. Vale para qualquer jogador.<br>
-        <b>SEU TREINO</b> — as rotas que você pratica e a dificuldade que o sistema mirou.<br>
-        <b>SEU DESEMPENHO</b> — os toques, tempos e erros que você produziu.<br>
-        <b>SUA MAESTRIA</b> — as medidas e o índice que saem do seu desempenho.<br><br>
-        Uma build importada nunca entra numa medida sua; um tempo seu nunca vira dado do herói. O botão
-        <b>Adicionar ao treino</b> só cria uma referência por id entre os dois lados.</div>
-        ${HE.noTreino().length ? `<div class="mt" style="margin-top:9px">No treino agora</div>
-          <div class="flex" style="gap:6px;flex-wrap:wrap;margin-top:5px">
-            ${HE.noTreino().map(x => `<span class="tag">${U.esc(x.nome)}</span>`).join('')}
-          </div>` : ''}
-      </div>
-    </div>`;
-  }
-
-  function telaImportar(pan) {
-    const HE = U.HE;
-    return `
-    <div class="topo"><h1>❖ Importar dados</h1><div class="espaco"></div>
-      <button class="btn sec sm" data-haba="lista">Voltar</button></div>
-    <div class="rolagem pilha">
-      <div class="painel hero">
-        <h2 class="heroT">Por que a importação existe</h2>
-        <div class="mini" style="margin-top:5px">A fonte que você definiu — <b>${HE.FONTE_ALVO.url}</b> — não
-        pôde ser lida por quem montou esta versão: o proxy de saída da sessão recusa o domínio. Duas saídas
-        eram possíveis. A primeira era preencher com build plausível e escrever "fonte: pvp.mcxssg.net"
-        embaixo. Você proibiu isso três vezes no seu pedido, e estaria certo: build inventada com carimbo de
-        fonte é pior que campo vazio, porque campo vazio você desconfia.
-        <br><br>A segunda é esta: você alcança o site, então o app recebe o dado de você, confere e guarda.</div>
-      </div>
-
-      <div class="painel">
-        <h2>Passo 1 — capturar a página</h2>
-        <div class="mini">Abra <b>${HE.FONTE_ALVO.url}hero/584</b> no navegador, abra o console (F12), cole
-        o script abaixo e dê Enter. Ele baixa um <code>.json</code>.
-        <br><br>O script foi escrito em cima dos cabeçalhos <b>reais</b> do site, que apareceram nas capturas
-        que você mandou — 胜率, 出场率, 禁用率, 克制的英雄, 被克制的英雄, 最佳搭档, 较差搭档,
-        大家常出, 第N件装备, 装备胜率, 时段胜率. Ele lê o texto da página, que sobrevive a mudança de
-        CSS, e também guarda o estado bruto para o que os padrões não pegarem.</div>
-        <textarea class="campo" id="hero-extrator" readonly style="height:120px;font-family:ui-monospace,monospace;font-size:.62rem;margin-top:8px">${HE.EXTRATOR}</textarea>
-        <button class="btn sec sm full" id="hero-copiar" style="margin-top:7px">Copiar script</button>
-      </div>
 
       <div class="painel hero">
         <h2 class="heroT">Atalho que você tem e eu não</h2>
-        <div class="mini" style="margin-top:5px">A tabela <b>数据</b> do site (a aba "dados", com taxa de
-        vitória, escolha e banimento de todos os heróis) tem um botão <b>导出表格</b> — "exportar tabela" —
-        no canto inferior direito. Baixar por ali e me mandar o arquivo vale mais do que qualquer script:
-        é dado de primeira mão, sem transcrição no meio.
-        <br><br>Hoje o app tem essa tabela <b>transcrita das suas capturas</b>, com 84 das 88 linhas (as
-        posições 63 a 66 ficaram entre duas imagens e estão ausentes, não estimadas). Tudo marcado como
-        não conferido.</div>
+        <div class="mini" style="margin-top:5px">A tabela <b>数据</b> do site tem um botão
+        <b>导出表格</b> — "exportar tabela" — no canto inferior direito. Baixar por ali e me mandar o
+        arquivo vale mais do que qualquer script: é dado de primeira mão, sem transcrição no meio.
+        <br><br>Hoje o app tem essa tabela transcrita das suas capturas, com 84 das 88 linhas — as posições
+        63 a 66 ficaram entre duas imagens e estão <b>ausentes, não estimadas</b>.</div>
       </div>
 
       <div class="painel">
-        <h2>Passo 2 — colar o JSON já no formato do banco</h2>
-        <div class="mini">Se você já tiver o dado no formato deste banco, cole aqui. Um objeto ou uma lista.
-        O app <b>confere antes de aceitar</b>: registro sem <code>id</code>, sem <code>name</code>, ou com
-        conteúdo sem <code>source</code> declarado é recusado com o motivo. Build sem origem não entra.</div>
-        <textarea class="campo" id="hero-json" placeholder='{"id":"jing","name":"Jing","builds":[…],"source":"pvp.mcxssg.net","sourceUrl":"https://pvp.mcxssg.net/hero/584","lastUpdated":"2026-09-17"}' style="height:130px;font-family:ui-monospace,monospace;font-size:.66rem;margin-top:8px"></textarea>
+        <h2>Passo 1 — capturar a página de um herói</h2>
+        <div class="mini">Abra <b>${E(HE.FONTE_ALVO.url)}hero/584</b> no navegador, abra o console (F12),
+        cole o script abaixo e dê Enter. Ele baixa um <code>.json</code>.
+        <br><br>O script foi escrito em cima dos cabeçalhos <b>reais</b> do site, que apareceram nas suas
+        capturas — 胜率, 出场率, 禁用率, 克制的英雄, 被克制的英雄, 最佳搭档, 大家常出, 第N件装备,
+        装备胜率, 时段胜率. Ele lê o texto da página, que sobrevive a mudança de CSS.</div>
+        <textarea class="campo" id="hero-extrator" readonly style="height:110px;font-family:ui-monospace,monospace;font-size:.62rem;margin-top:8px">${E(HE.EXTRATOR)}</textarea>
+        <button class="btn sec sm full" id="hero-copiar" style="margin-top:7px">Copiar script</button>
+      </div>
+
+      <div class="painel">
+        <h2>Passo 2 — colar o JSON</h2>
+        <div class="mini">O app <b>confere antes de aceitar</b>: registro sem <code>id</code>, sem
+        <code>name</code>, ou com conteúdo sem <code>source</code> declarado é recusado com o motivo.
+        Build sem origem não entra.</div>
+        <textarea class="campo" id="hero-json" placeholder='{"id":"jing","name":"Jing","builds":[…],"source":"pvp.mcxssg.net","sourceUrl":"https://pvp.mcxssg.net/hero/584","lastUpdated":"2026-09-17"}' style="height:110px;font-family:ui-monospace,monospace;font-size:.66rem;margin-top:8px"></textarea>
         <div class="flex" style="gap:8px;margin-top:8px">
           <button class="btn sm" id="hero-importar">Conferir e importar</button>
           <button class="btn sec sm" id="hero-exportar">Exportar o banco atual</button>
@@ -1574,51 +1810,214 @@
   "name": "Jing",                  // obrigatório
   "titulo": "Miragem Partida",
   "role": ["selva"],
-  "dificuldade": "alta",
-  "abilities": [ { "tecla":"1", "nome":"…", "descricao":"…", "recarga":"…" } ],
+  "estatisticas": { "vitoria":{"v":51.7}, "escolha":{"v":21.0},
+                    "banimento":{"v":40.2}, "bp":61.1,
+                    "participacao":64.2, "dano":21.2,
+                    "posicao":10, "data":"2026-09-16", "escopo":"巅峰千强" },
+  "tier": { "lista":"T0", "pontos":78.5, "data":"2026-09-17" },
   "builds": [ {
       "tipo": "chinesa",           // chinesa | profissional | alternativa | situacional
       "itens": ["…","…"],          // na ORDEM de compra
-      "talento": "…", "feitico": "…",
       "source": "pvp.mcxssg.net",  // obrigatório em toda build
       "sourceUrl": "https://pvp.mcxssg.net/hero/584",
-      "patch": "…", "lastUpdated": "2026-09-17" } ],
+      "lastUpdated": "2026-09-17" } ],
   "arcana": [ { "nome":"…", "n":10 } ],
-  "combos": [ { "seq":["1","2","aa","3"], "finalidade":"…",
-                "dificuldade":"…", "situacao":"…", "obs":"…" } ],
-  "counters": { "forteContra":[{"nome":"…"}], "fracoContra":[{"nome":"…"}] },
-  "synergies": [ { "nome":"…", "porque":"…" } ],
-  "strategy": { "cedo":"…", "meio":"…", "tarde":"…", "dicas":["…"] },
+  "counters": { "forteContra":[{"nome":"…","delta":2.1,"n":900}],
+                "fracoContra":[{"nome":"…","delta":-1.8,"n":740}] },
+  "synergies": { "bons":[{"nome":"…","delta":1.4}] },
   "source": "pvp.mcxssg.net",
   "sourceUrl": "https://pvp.mcxssg.net/hero/584",
-  "patch": "…",
   "lastUpdated": "2026-09-17",
-  "fontes": { "builds":"pvp.mcxssg.net", "combos":"pvp.mcxssg.net" }
+  "fontes": { "builds":"pvp.mcxssg.net", "counters":"pvp.mcxssg.net" }
 }</pre>
-        <div class="xs" style="margin-top:7px"><code>fontes</code> permite origem diferente por campo — é
-        o que deixa você importar a build de um lugar e os counters de outro sem que o app misture os dois
-        na hora de dizer de onde veio cada coisa.</div>
+        <div class="xs" style="margin-top:7px"><code>fontes</code> permite origem diferente por campo — é o
+        que deixa você importar a build de um lugar e os counters de outro sem que o app misture os dois na
+        hora de dizer de onde veio cada coisa.</div>
+      </div>
+
+      <div class="painel">
+        <h2>Como este banco se relaciona com o seu treino</h2>
+        <div class="mini">Os dois não se misturam, de propósito, e por isso ficam em armazenamentos
+        separados:<br><br>
+        <b>DADOS DO HERÓI</b> — o que se sabe sobre o personagem. Vem de fora. Vale para qualquer jogador.<br>
+        <b>SEU TREINO</b> — as rotas que você pratica e a dificuldade que o sistema mirou.<br>
+        <b>SEU DESEMPENHO</b> — os toques, tempos e erros que você produziu.<br>
+        <b>SUA MAESTRIA</b> — as medidas e o índice que saem do seu desempenho.<br><br>
+        Uma build importada nunca entra numa medida sua; um tempo seu nunca vira dado do herói. O botão
+        <b>Adicionar ao treino</b> só cria uma referência por id entre os dois lados.</div>
+        ${HE.noTreino().length ? `<div class="mt" style="margin-top:9px">No treino agora</div>
+          <div class="flex" style="gap:6px;flex-wrap:wrap;margin-top:5px">
+            ${HE.noTreino().map(x => `<span class="tag nome">${E(x.nome)}</span>`).join('')}
+          </div>` : ''}
       </div>
     </div>`;
   }
 
+  /* ============================================================
+     FICHA DO HERÓI
+     Antes eram oito abas, e seis delas diziam "não encontrado".
+     Clicar seis vezes para descobrir que não tem nada é castigo.
+     Agora é uma rolagem só: o que existe aparece, e o que falta
+     fica resumido no fim, numa linha — não em seis telas vazias.
+     ============================================================ */
+  function abrirHeroi(id) {
+    const HE = U.HE, E = U.esc, h = HE.porId(id);
+    if (!h) return;
+    const univ = HE.todos().filter(x => x.estatisticas);
+    const e = h.estatisticas;
+    const noTreino = HE.estaNoTreino(id);
+
+    const rank = (k) => {
+      if (!e) return null;
+      const v = COL[k].get(h); if (v == null) return null;
+      const ord = univ.map(x => COL[k].get(x)).filter(x => x != null).sort((a, b) => b - a);
+      return { r: ord.indexOf(v) + 1, de: ord.length };
+    };
+    const linhaNum = (k) => {
+      const v = COL[k].get(h); if (v == null) return '';
+      const sc = escala(k, univ), r = rank(k);
+      return `<div style="margin-top:9px">
+        <div class="flex" style="gap:6px;align-items:baseline">
+          <span class="mini" style="flex:1">${COL[k].nome}</span>
+          <span class="numero" style="font-size:1.05rem">${U.num(v, 1)}<span class="de">${COL[k].sufixo}</span></span>
+          ${r ? `<span class="xs">${r.r}º/${r.de}</span>` : ''}
+        </div>
+        ${sc.amp != null ? barraDesvio(v, COL[k].ref, sc.amp) : barra(v, Math.max(sc.max, v), sc.media)}
+        <div class="xs" style="margin-top:2px">${sc.amp != null
+          ? `equilíbrio em ${COL[k].ref}${COL[k].sufixo} · ${v >= COL[k].ref ? 'acima' : 'abaixo'} dele por ${U.num(Math.abs(v - COL[k].ref), 1)} ponto${Math.abs(v - COL[k].ref) > 1 ? 's' : ''}`
+          : sc.media != null ? `média dos ${sc.n} heróis com dado: ${U.num(sc.media, 1)}${COL[k].sufixo}` : ''}</div>
+      </div>`;
+    };
+
+    /* o que a fonte não publica x o que ainda não foi capturado */
+    const naoPublica = HE.FONTE_ALVO.naoPublica;
+    const semDado = [];
+    for (const k of ['builds', 'combos', 'arcana', 'abilities', 'strategy', 'counters', 'synergies']) {
+      const c = HE.campo(h, k);
+      if (c.tem) continue;
+      semDado.push({ k, fonte: !!naoPublica[k], porque: naoPublica[k] || (h.lacunas && h.lacunas[k]) || null });
+    }
+    const rotulo = { builds: 'itens', combos: 'combos', arcana: 'arcana', abilities: 'habilidades',
+                     strategy: 'estratégia', counters: 'counters', synergies: 'sinergias' };
+
+    const cnt = HE.campo(h, 'counters'), sin = HE.campo(h, 'synergies'), arc = HE.campo(h, 'arcana');
+    /* Nome de adversário que existe na sua lista vira atalho: ler
+       "perde para Nezha" e não conseguir abrir o Nezha ali mesmo é
+       a mesma frustração de antes em escala menor. Quem não está na
+       lista fica como texto — inventar o id renomearia outro herói. */
+    const listaAdv = (arr, cls) => {
+      const l = (arr && arr.itens) || arr || [];
+      if (!l.length) return `<span class="xs">sem dado</span>`;
+      return l.map(x => {
+        const rot = x.nome || HE.rotularCn(x.nomeCn);
+        const alvo = x.id ? HE.porId(x.id) : (HE.buscar(rot) || []).find(y => y.name.toLowerCase() === String(rot).toLowerCase());
+        const num = x.delta != null ? ` <b>${x.delta > 0 ? '+' : ''}${U.num(x.delta, 2)}%</b>` : '';
+        return alvo
+          ? `<span class="tag nome ${cls} liga" data-hx="${E(alvo.id)}">${E(rot)}${num}</span>`
+          : `<span class="tag nome ${cls}">${E(rot)}${num}</span>`;
+      }).join(' ');
+    };
+
+    modal(`
+      <div class="flex" style="gap:10px;align-items:flex-start">
+        <div style="flex:1;min-width:0">
+          <h2 style="margin:0">${E(h.name)}${h.nomeCn ? ` <span class="xs" style="opacity:.7">${E(h.nomeCn)}</span>` : ''}</h2>
+          <div class="mini">${h.titulo ? E(h.titulo) : ''}</div>
+          <div class="flex" style="gap:5px;margin-top:5px;flex-wrap:wrap">
+            ${(h.role || []).map(r => `<span class="tag">${(HE.FUNCOES.find(f => f.alt.includes(r)) || { nome: r }).nome}</span>`).join('')
+              || '<span class="tag warn">função não lida</span>'}
+          </div>
+        </div>
+        ${h.tier ? `<div style="text-align:center">
+          <div class="tierb t${(h.tier.lista || '').replace('.', '')}" style="font-size:.85rem;padding:5px 10px">${E(h.tier.lista)}</div>
+          <div class="xs" style="margin-top:3px">${U.num(h.tier.pontos, 1)} pts</div></div>` : ''}
+      </div>
+
+      ${e ? `<div class="sep"></div>
+        <div class="mt">Os números</div>
+        ${['vitoria', 'escolha', 'banimento', 'bp', 'participacao', 'dano'].map(linhaNum).join('')}
+        <div class="xs" style="margin-top:8px">O risco vertical é a referência: o equilíbrio de 50%, na vitória;
+        a média dos ${univ.length} heróis com dado, no resto. Fonte: pvp.mcxssg.net, ${E(e.data)}, modo ${E(e.escopo)}.</div>`
+        : `<div class="sep"></div><div class="aviso">Ainda não tenho os números deste herói — a página
+           individual dele no site não foi capturada.</div>`}
+
+      ${arc.tem && arc.v.length ? `<div class="sep"></div>
+        <div class="mt">Arcana</div>
+        <div class="flex" style="gap:5px;flex-wrap:wrap;margin-top:5px">
+          ${arc.v.map(a => `<span class="tag nome">${a.nome ? E(a.nome) : '<i style="font-style:normal;color:var(--dim2)">nome não lido</i>'} <b>${a.n}</b></span>`).join('')}
+        </div>
+        <div class="xs" style="margin-top:5px">${arc.v.every(a => !a.nome)
+          ? 'A captura mostrava a quantidade de cada peça, não o nome legível dela. A contagem está aqui porque foi lida; o nome não está porque não foi.'
+          : ''} Fonte: ${E((arc.fonte && arc.fonte.nome) || arc.fonteId || '—')}.</div>` : ''}
+
+      ${cnt.tem || sin.tem ? `<div class="sep"></div>
+        <div class="mt">Confrontos</div>
+        ${cnt.tem ? `<div class="mini" style="margin-top:6px">Vence com mais facilidade</div>
+          <div class="flex" style="gap:4px;flex-wrap:wrap;margin-top:3px">${listaAdv(cnt.v.forteContra, 'ok')}</div>
+          <div class="mini" style="margin-top:7px">Perde com mais facilidade</div>
+          <div class="flex" style="gap:4px;flex-wrap:wrap;margin-top:3px">${listaAdv(cnt.v.fracoContra, 'bad')}</div>` : ''}
+        ${sin.tem ? `<div class="mini" style="margin-top:7px">Combina com</div>
+          <div class="flex" style="gap:4px;flex-wrap:wrap;margin-top:3px">${listaAdv(sin.v.bons || sin.v, 'vio')}</div>` : ''}
+        ${cnt.tem && !cnt.prioritaria ? `<div class="xs" style="margin-top:6px">Esta lista veio do app HOK PRO,
+          sem número de amostra. O pvp.mcxssg.net publica a mesma coisa com variação de vitória e nº de
+          partidas — quando você capturar a página dele, isto é substituído.</div>` : ''}` : ''}
+
+      <div class="sep"></div>
+      <div class="mt">O que ainda não tenho deste herói</div>
+      <div class="pilha" style="gap:4px;margin-top:5px">
+        ${semDado.map(x => `<div class="xs">
+          <b>${rotulo[x.k]}</b> — ${x.fonte
+            ? `<span style="color:var(--warn)">a fonte não publica isto.</span> ${E(x.porque)}`
+            : `falta capturar.${x.porque ? ' ' + E(x.porque) : ''}`}</div>`).join('')
+          || '<div class="xs">Nada — este herói está completo.</div>'}
+      </div>
+
+      <div class="sep"></div>
+      <div class="flex" style="gap:8px">
+        <button class="btn sm" id="h-treino" style="flex:1">${noTreino ? 'Remover do treino' : 'Adicionar ao treino'}</button>
+        <button class="btn sec sm" data-fecha>Fechar</button>
+      </div>
+      <div id="h-treino-res" style="margin-top:7px"></div>`,
+      (cx) => {
+        cx.querySelectorAll('[data-hx]').forEach(el => el.addEventListener('click', () => {
+          fecharModal(); setTimeout(() => abrirHeroi(el.dataset.hx), 60);
+        }));
+        cx.querySelector('#h-treino')?.addEventListener('click', () => {
+          if (HE.estaNoTreino(id)) { HE.removerDoTreino(id); toast('Removido do treino'); fecharModal(); render('herois'); return; }
+          const r = HE.adicionarAoTreino(id);
+          const el = cx.querySelector('#h-treino-res');
+          if (!r.ok) { el.innerHTML = `<div class="aviso">${E(r.motivo)}</div>`; return; }
+          el.innerHTML = r.aviso
+            ? `<div class="aviso bad">${E(r.aviso)}</div>`
+            : `<div class="aviso ok"><b>${E(r.herói)}</b> entrou no treino com ${HE.rotasDoTreino(id).n} rotas já definidas.</div>`;
+        });
+      });
+  }
+
   function depoisHerois() {
     const HE = U.HE;
-    $('#hero-busca')?.addEventListener('input', U.debounce((e) => {
-      heroFiltro.q = e.target.value; heroFiltro.pag = 1; render('herois');
+    $('#hero-busca')?.addEventListener('input', U.debounce((ev) => {
+      hf.q = ev.target.value; render('herois');
       const el = $('#hero-busca');
       if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
     }, 280));
     $$('[data-hfun]').forEach(b => b.addEventListener('click', () => {
-      heroFiltro.f = b.dataset.hfun || null; heroFiltro.pag = 1; render('herois');
+      hf.f = b.dataset.hfun || null; render('herois');
     }));
-    $$('[data-hpag]').forEach(b => b.addEventListener('click', () => {
-      heroFiltro.pag = +b.dataset.hpag; render('herois');
+    $$('[data-hiord]').forEach(b => b.addEventListener('click', () => {
+      hf.iord = b.dataset.hiord; render('herois');
+    }));
+    $$('[data-hord]').forEach(b => b.addEventListener('click', () => {
+      const k = b.dataset.hord;
+      if (hf.ord === k) hf.dir = -hf.dir; else { hf.ord = k; hf.dir = -1; }
+      render('herois');
     }));
     $$('[data-haba]').forEach(b => b.addEventListener('click', () => {
-      heroFiltro.aba = b.dataset.haba; render('herois');
+      hf.aba = b.dataset.haba; hf.q = ''; render('herois');
     }));
-    $$('[data-heroi]').forEach(b => b.addEventListener('click', () => abrirHeroi(b.dataset.heroi)));
+    $$('[data-heroi]').forEach(b => b.addEventListener('click', (ev) => {
+      ev.stopPropagation(); abrirHeroi(b.dataset.heroi);
+    }));
 
     $('#hero-copiar')?.addEventListener('click', async () => {
       const t = $('#hero-extrator');
@@ -1628,285 +2027,22 @@
     $('#hero-importar')?.addEventListener('click', () => {
       const r = HE.importar($('#hero-json').value);
       const el = $('#hero-res');
-      if (r.erro) { el.innerHTML = `<div class="aviso bad"><b>Não importei nada.</b> ${r.erro}</div>`; return; }
+      if (r.erro) { el.innerHTML = `<div class="aviso bad"><b>Não importei nada.</b> ${U.esc(r.erro)}</div>`; return; }
       el.innerHTML = `
-        ${r.aceitos.length ? `<div class="aviso ok"><b>${r.aceitos.length} aceito(s):</b> ${r.aceitos.join(', ')}</div>` : ''}
+        ${r.aceitos.length ? `<div class="aviso ok"><b>${r.aceitos.length} aceito(s):</b> ${r.aceitos.map(U.esc).join(', ')}</div>` : ''}
         ${r.recusados.length ? `<div class="aviso bad" style="margin-top:6px"><b>${r.recusados.length} recusado(s).</b>
-          ${r.recusados.map(x => `<br><b>${x.id || '(sem id)'}</b>: ${x.erros.join('; ')}`).join('')}
-          <br><br>Recusar é o comportamento certo aqui: o que entra sem origem declarada vira, depois, um
-          número que ninguém consegue auditar.</div>` : ''}`;
+          ${r.recusados.map(x => `<br><b>${U.esc(x.id || '(sem id)')}</b>: ${U.esc(x.erros.join('; '))}`).join('')}
+          <br><br>Recusar é o comportamento certo: o que entra sem origem declarada vira, depois, um número
+          que ninguém consegue auditar.</div>` : ''}`;
       if (r.aceitos.length) setTimeout(() => render('herois'), 1400);
     });
     $('#hero-exportar')?.addEventListener('click', () => {
-      const txt = HE.exportar();
-      const b = new Blob([txt], { type: 'application/json' });
+      const b = new Blob([HE.exportar()], { type: 'application/json' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(b); a.download = 'espelho-herois.json';
       document.body.appendChild(a); a.click(); a.remove();
       toast('Banco exportado', 'ok');
     });
-  }
-
-  /* ---- ficha do herói: as sete seções ---- */
-  let heroAba = 'geral';
-  function abrirHeroi(id) {
-    const HE = U.HE, h = HE.porId(id);
-    if (!h) return;
-    heroAba = 'geral';
-    const pintar = () => {
-      const c = HE.completude(h);
-      const sec = HE.SECOES.find(s => s.id === heroAba) || HE.SECOES[0];
-      const noTreino = HE.estaNoTreino(id);
-      modal(`
-        <div class="flex" style="gap:10px;align-items:flex-start">
-          <div style="flex:1;min-width:0">
-            <h2 style="margin:0">${U.esc(h.name)}${h.nomeCn ? ` <span class="xs" style="opacity:.75">${U.esc(h.nomeCn)}</span>` : ''}</h2>
-            <div class="mini">${h.titulo ? U.esc(h.titulo) : `<span style="opacity:.6">${HE.SEM_DADO}</span>`}</div>
-            <div class="flex" style="gap:5px;margin-top:5px;flex-wrap:wrap">
-              ${(h.role || []).map(r => `<span class="tag">${(HE.FUNCOES.find(f => f.alt.includes(r)) || { nome: r }).nome}</span>`).join('')
-                || '<span class="tag bad">função não lida</span>'}
-              <span class="tag ${c.daPrioritaria ? 'ok' : c.vazio ? 'bad' : 'warn'}">${c.cheios}/${c.total} campos</span>
-            </div>
-          </div>
-        </div>
-        <div class="flex" style="gap:4px;flex-wrap:wrap;margin-top:10px">
-          ${HE.SECOES.map(s => {
-            const cs = c.secoes.find(x => x.id === s.id);
-            return `<button class="btn sec sm ${s.id === heroAba ? 'gold' : ''}" data-hsec="${s.id}"
-              style="flex:1 1 auto;min-width:0;padding:5px 7px;font-size:.62rem">${s.nome}${cs.tem ? '' : ' ·'}</button>`;
-          }).join('')}
-        </div>
-        <div class="sep"></div>
-        ${secaoHeroi(h, sec)}
-        <div class="sep"></div>
-        <div class="flex" style="gap:8px">
-          <button class="btn sm" id="h-treino" style="flex:1">${noTreino ? 'Remover do treino' : 'Adicionar ao treino'}</button>
-          <button class="btn sec sm" data-fecha>Fechar</button>
-        </div>
-        <div id="h-treino-res" style="margin-top:7px"></div>
-        <div class="xs" style="margin-top:8px">${h.notaFonte || ''}
-          ${h.alvoUrl ? `<br>Fonte prioritária pretendida: <b>${h.alvoUrl}</b>.` : ''}</div>`,
-        (cx) => {
-          cx.querySelectorAll('[data-hsec]').forEach(b => b.addEventListener('click', () => { heroAba = b.dataset.hsec; pintar(); }));
-          cx.querySelector('#h-treino')?.addEventListener('click', () => {
-            if (HE.estaNoTreino(id)) { HE.removerDoTreino(id); toast('Removido do treino'); pintar(); return; }
-            const r = HE.adicionarAoTreino(id);
-            const el = cx.querySelector('#h-treino-res');
-            if (!r.ok) { el.innerHTML = `<div class="aviso">${r.motivo}</div>`; return; }
-            el.innerHTML = r.aviso
-              ? `<div class="aviso bad">${r.aviso}</div>`
-              : `<div class="aviso ok"><b>${r.herói}</b> entrou no treino com ${HE.rotasDoTreino(id).n} rotas já definidas.</div>`;
-            pintar();
-          });
-        }, h.name);
-    };
-    pintar();
-  }
-
-  function secaoHeroi(h, sec) {
-    const HE = U.HE, E = U.esc;
-    const naoPublica = HE.FONTE_ALVO.naoPublica;
-    const falta = (k) => {
-      /* Três casos diferentes, e misturá-los é o erro que este app
-         existe para não cometer:
-         · a fonte NÃO PUBLICA aquilo — não adianta esperar;
-         · a fonte publica e ainda não foi capturado;
-         · foi capturado e veio vazio.                               */
-      if (naoPublica[k]) return `<div class="aviso"><b>A fonte não publica isto.</b>
-        <div class="xs" style="margin-top:4px">${E(naoPublica[k])} Isso é diferente de "faltou coletar":
-        capturar a página de novo não vai trazer este campo. Se você quiser ter isto no app, vai ter que vir
-        de outra fonte — e aí vai aparecer marcado com o nome dela.</div></div>`;
-      const porque = h.lacunas && h.lacunas[k];
-      return `<div class="aviso"><b>${HE.SEM_DADO}</b>${porque
-        ? `<div class="xs" style="margin-top:4px">${E(porque)}</div>` : ''}</div>`;
-    };
-    const selo = (c) => c.tem ? `<div class="xs" style="margin-top:7px">Fonte: <b>${E(c.fonte ? c.fonte.nome : c.fonteId)}</b>${
-      c.quando ? ` · ${E(c.quando)}` : ''}${c.prioritaria ? '' : ' · <span style="color:var(--warn)">não é a fonte prioritária</span>'}</div>` : '';
-    const pctCor = (d) => d > 0 ? 'var(--ok)' : d < 0 ? 'var(--bad)' : 'var(--dim)';
-    const sinal = (d) => (d > 0 ? '+' : '') + U.num(d, 2);
-
-    if (sec.id === 'geral') {
-      const st = HE.campo(h, 'estatisticas'), ti = HE.campo(h, 'tier');
-      return `
-        ${ti.tem ? `<div class="medida">
-          <div class="flex" style="gap:8px;align-items:baseline">
-            <span class="tag gold" style="font-size:.8rem">${E(ti.v.lista)}</span>
-            <div class="numero" style="font-size:1.4rem">${U.num(ti.v.pontos, 1)}</div>
-            <div class="espaco"></div><span class="xs">${E(ti.v.data || '')} · ${E(ti.v.escopo || '')}</span>
-          </div>
-          ${ti.v.banimentoAzul != null ? `<div class="mini" style="margin-top:5px">Taxa de banimento no lado azul:
-            <b>${U.num(ti.v.banimentoAzul, 1)}%</b></div>` : ''}
-          ${ti.v.aviso ? `<div class="xs" style="margin-top:5px;color:var(--warn)">${E(ti.v.aviso)}</div>` : ''}
-          ${ti.v.conferido === false ? `<div class="xs" style="margin-top:3px">Transcrito de captura de tela e
-            <b>não conferido</b>. Importar pelo extrator substitui.</div>` : ''}
-          ${selo(ti)}
-        </div>` : falta('tier')}
-
-        <div class="mt" style="margin-top:11px">Taxas da fonte</div>
-        ${st.tem ? `<div class="grade g3" style="margin-top:5px">
-            ${[['vitoria', 'vitória'], ['escolha', 'escolha'], ['banimento', 'banimento']].map(([k, r]) => {
-              const x = st.v[k]; if (!x) return '';
-              return `<div class="kpi"><div class="v">${U.num(x.v, 2)}<span class="de">%</span></div>
-                <div class="k">${r}</div>${x.delta != null
-                  ? `<div class="xs" style="color:${pctCor(x.delta)}">${sinal(x.delta)}</div>` : ''}</div>`;
-            }).join('')}
-          </div>
-          <div class="xs" style="margin-top:6px">${E(st.v.escopo || '')} ${st.v.data ? `· dados de ${E(st.v.data)}` : ''}</div>
-          ${selo(st)}` : falta('estatisticas')}`;
-    }
-
-    if (sec.id === 'build') {
-      const b = HE.campo(h, 'builds');
-      if (!b.tem) return falta('builds');
-      const v = b.v;
-      return `
-        ${(v.comuns || []).length ? `<div class="mt">O que a maioria compra</div>
-          <div class="flex" style="gap:5px;flex-wrap:wrap;margin-top:5px">
-            ${v.comuns.map(x => `<span class="tag">${E(x.item || x.itemCn)} <b>${U.num(x.uso, 1)}%</b></span>`).join('')}
-          </div>` : ''}
-        ${(v.porSlot || []).length ? `<div class="mt" style="margin-top:11px">Por slot de compra</div>
-          <div class="xs" style="margin-bottom:5px">Percentual é quantos jogadores compram aquilo naquele slot;
-          o número ao lado é o efeito na taxa de vitória de quem compra. É contagem, não recomendação de
-          ninguém — e é por isso que dá para auditar.</div>
-          <div class="pilha" style="gap:7px">
-            ${v.porSlot.map(sl => `<div class="medida">
-              <div class="mt" style="font-size:.7rem">${sl.slot}ª peça</div>
-              <div class="pilha" style="gap:3px;margin-top:4px">
-                ${sl.opcoes.map(o => `<div class="flex" style="gap:6px;align-items:baseline">
-                  <span class="mini" style="flex:1">${E(o.item || o.itemCn)}</span>
-                  <span class="xs"><b>${U.num(o.uso, 1)}%</b></span>
-                  <span class="xs" style="color:${pctCor(o.deltaVitoria)};min-width:44px;text-align:right">${
-                    o.deltaVitoria == null ? '—' : sinal(o.deltaVitoria)}</span>
-                </div>`).join('')}
-              </div>
-            </div>`).join('')}
-          </div>` : ''}
-        ${(v.itensVitoria || []).length ? `<div class="mt" style="margin-top:11px">Vitória por item</div>
-          <div class="pilha" style="gap:3px;margin-top:4px">
-            ${v.itensVitoria.map(x => `<div class="flex" style="gap:6px;align-items:baseline">
-              <span class="mini" style="flex:1">${E(x.item || x.itemCn)}</span>
-              <span class="xs">uso ${U.num(x.uso, 1)}%</span>
-              <span class="xs"><b>${U.num(x.vitoria, 1)}%</b></span></div>`).join('')}
-          </div>` : ''}
-        ${selo(b)}`;
-    }
-
-    if (sec.id === 'counters') {
-      const c = HE.campo(h, 'counters');
-      if (!c.tem) return falta('counters');
-      const bloco = (t, arr, cls) => {
-        const lista = (arr && arr.itens) || arr || [];
-        return `<div class="mt" style="margin-top:9px">${t}</div>
-        ${lista.length ? `<div class="pilha" style="gap:3px;margin-top:4px">
-          ${lista.map(x => `<div class="flex" style="gap:6px;align-items:baseline">
-            <span class="tag ${cls}">${E(x.nome || HE.rotularCn(x.nomeCn))}</span>
-            <div class="espaco"></div>
-            ${x.delta != null ? `<span class="xs" style="color:${pctCor(x.delta)}"><b>${sinal(x.delta)}%</b></span>` : ''}
-            ${x.partidas != null ? `<span class="xs">${U.num(x.partidas)} partidas</span>` : ''}
-          </div>`).join('')}</div>`
-        : `<div class="xs" style="margin-top:3px">${HE.SEM_DADO}</div>`}`;
-      };
-      const naoMap = HE.nomesNaoMapeados([...(c.v.forteContra && c.v.forteContra.itens || []),
-                                          ...(c.v.fracoContra && c.v.fracoContra.itens || [])]);
-      return `${bloco('Forte contra · 克制的英雄', c.v.forteContra, 'ok')}
-        ${bloco('Fraco contra · 被克制的英雄', c.v.fracoContra, 'bad')}
-        ${c.v.nota ? `<div class="xs" style="margin-top:8px">${E(c.v.nota)}</div>` : ''}
-        ${(c.v.naoLidos || []).length ? `<div class="aviso" style="margin-top:8px"><b>Lacunas conhecidas:</b>
-          ${c.v.naoLidos.map(x => `${E(x.slot)} (${E(x.porque)})`).join(' · ')}.</div>` : ''}
-        ${naoMap.length ? `<div class="aviso" style="margin-top:8px"><b>Nomes que o mapa não reconheceu:</b>
-          ${naoMap.map(E).join(' · ')}.
-          <div class="xs" style="margin-top:4px">Ficam em chinês de propósito. Adivinhar a correspondência
-          renomearia o herói errado e ninguém perceberia.</div></div>` : ''}
-        ${selo(c)}`;
-    }
-
-    if (sec.id === 'sinergia') {
-      const s2 = HE.campo(h, 'synergies');
-      if (!s2.tem) return falta('synergies');
-      const v = s2.v;
-      const bloco = (t, arr, cls) => {
-        const lista = (arr && arr.itens) || arr || [];
-        if (!lista.length) return '';
-        return `<div class="mt" style="margin-top:9px">${t}</div>
-          <div class="pilha" style="gap:3px;margin-top:4px">
-            ${lista.map(x => `<div class="flex" style="gap:6px;align-items:baseline">
-              <span class="tag ${cls}">${E(x.nome || HE.rotularCn(x.nomeCn))}</span><div class="espaco"></div>
-              ${x.delta != null ? `<span class="xs" style="color:${pctCor(x.delta)}"><b>${sinal(x.delta)}%</b></span>` : ''}
-              ${x.partidas != null ? `<span class="xs">${U.num(x.partidas)} partidas</span>` : ''}
-            </div>`).join('')}</div>`;
-      };
-      return `${bloco('Combina com · 最佳搭档', v.bons || v, 'vio')}
-        ${bloco('Combina mal · 较差搭档', v.ruins, 'bad')}
-        ${v.nota ? `<div class="xs" style="margin-top:8px">${E(v.nota)}</div>` : ''}
-        ${selo(s2)}`;
-    }
-
-    if (sec.id === 'duracao') {
-      const d = HE.campo(h, 'duracao');
-      if (!d.tem) return falta('duracao');
-      const v = d.v;
-      return `
-        ${v.mediaVitoria || v.mediaDerrota ? `<div class="grade g2">
-          <div class="kpi"><div class="v" style="color:var(--ok)">${E(v.mediaVitoria || '—')}</div><div class="k">média quando vence</div></div>
-          <div class="kpi"><div class="v" style="color:var(--bad)">${E(v.mediaDerrota || '—')}</div><div class="k">média quando perde</div></div>
-        </div>` : ''}
-        ${(v.faixas || []).length ? `<div class="pilha" style="gap:5px;margin-top:9px">
-          ${v.faixas.map(f => `<div>
-            <div class="flex" style="gap:6px;align-items:baseline">
-              <span class="mini" style="flex:1">${E(f.faixa)}</span>
-              <span class="xs">vitória <b>${U.num(f.vitoria, 1)}%</b></span>
-              <span class="xs">${U.num(f.fatia, 1)}% das partidas</span>
-            </div>
-            <div style="height:5px;border-radius:3px;background:var(--line);margin-top:3px;overflow:hidden">
-              <div style="height:100%;width:${U.clamp(f.vitoria, 0, 100)}%;background:#3987e5"></div>
-            </div>
-          </div>`).join('')}</div>` : ''}
-        ${selo(d)}`;
-    }
-
-    if (sec.id === 'combos') {
-      const c = HE.campo(h, 'combos');
-      if (!c.tem) return falta('combos');
-      return `<div class="pilha" style="gap:8px">${c.v.map(cb => `<div class="medida">
-        <div class="flex" style="gap:4px;flex-wrap:wrap;align-items:center">
-          ${(cb.seq || []).map((p, i) => `${i ? '<span class="xs" style="opacity:.5">→</span>' : ''}<span class="tag">${E(p)}</span>`).join('')}
-        </div>
-        ${cb.finalidade ? `<div class="mini" style="margin-top:5px">${E(cb.finalidade)}</div>` : ''}
-        <div class="xs" style="margin-top:4px">${cb.dificuldade ? `Dificuldade: <b>${E(cb.dificuldade)}</b> · ` : ''}${cb.situacao ? E(cb.situacao) : ''}</div>
-        ${cb.obs ? `<div class="xs" style="margin-top:3px;opacity:.8">${E(cb.obs)}</div>` : ''}
-      </div>`).join('')}${selo(c)}</div>`;
-    }
-
-    if (sec.id === 'arcana') {
-      const a = HE.campo(h, 'arcana');
-      if (!a.tem) return falta('arcana');
-      const semNome = a.v.filter(x => !x.nome).length;
-      return `<div class="flex" style="gap:7px;flex-wrap:wrap">
-          ${a.v.map(x => `<div class="kpi" style="min-width:72px"><div class="v">${x.n != null ? x.n : '—'}</div>
-            <div class="k">${x.nome ? E(x.nome) : 'sem nome'}</div></div>`).join('')}
-        </div>
-        ${semNome ? `<div class="aviso" style="margin-top:8px"><b>${semNome} de ${a.v.length} sem nome.</b>
-          <div class="xs" style="margin-top:4px">${E((h.lacunas && h.lacunas.arcanaNomes) || '')}</div></div>` : ''}
-        <div class="xs" style="margin-top:7px">A fonte prioritária não publica arcana — isto veio de outro
-        lugar e está marcado assim.</div>
-        ${selo(a)}`;
-    }
-
-    if (sec.id === 'estrategia') {
-      const ab = HE.campo(h, 'abilities'), e = HE.campo(h, 'strategy');
-      return `
-        <div class="mt">Habilidades</div>
-        ${ab.tem ? `<div class="pilha" style="gap:6px;margin-top:4px">${ab.v.map(a => `<div class="mini">
-            <b>${a.tecla ? E(a.tecla) + ' · ' : ''}${E(a.nome || '—')}</b>
-            ${a.descricao ? `<div class="xs">${E(a.descricao)}</div>` : ''}</div>`).join('')}</div>${selo(ab)}`
-          : falta('abilities')}
-        <div class="mt" style="margin-top:11px">Estratégia</div>
-        ${e.tem ? `${['cedo', 'meio', 'tarde'].map(f => e.v[f]
-            ? `<div class="mini" style="margin-top:5px"><b>${{ cedo: 'Começo', meio: 'Meio', tarde: 'Fim' }[f]}:</b> ${E(e.v[f])}</div>` : '').join('')}
-          ${(e.v.dicas || []).length ? `<div class="pilha" style="gap:3px;margin-top:6px">${e.v.dicas.map(d => `<div class="mini">· ${E(d)}</div>`).join('')}</div>` : ''}
-          ${selo(e)}` : falta('strategy')}`;
-    }
-    return '';
   }
 
   /* ============================================================ */

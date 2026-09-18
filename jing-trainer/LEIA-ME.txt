@@ -1,5 +1,5 @@
 ================================================================
-ESPELHO v5 — Laboratório de evolução + central de heróis
+ESPELHO v6 — Laboratório de evolução + central de heróis
 Honor of Kings · Poco X7 Pro · HTML/CSS/JS, sem dependências
 ================================================================
 
@@ -15,6 +15,83 @@ jogo, tudo o que vier depois mede a coisa errada.
 
 Seus dados da v1 e da v2 continuam lá. Nada é apagado.
 
+
+================================================================
+PARTE -2 — O QUE MUDOU NA V6 (a aba Heróis, refeita)
+================================================================
+
+VOCÊ DISSE: "não entendi nada com acessar os heróis". Estava certo, e
+o defeito era meu, não seu. Dois erros, os dois de projeto:
+
+1. A TELA ABRIA COM UM MURO DE TEXTO SOBRE MIM. Proxy, 403,
+   transcrição, mapeamento inventado — página e meia de procedência
+   antes de qualquer número. Isso é problema meu, e estava ocupando o
+   lugar do que você abriu a aba para ver.
+
+2. A FICHA DO HERÓI TINHA OITO ABAS, E SEIS DIZIAM "não encontrado".
+   Clicar seis vezes para descobrir que não tem nada é castigo.
+
+O QUE A V6 FAZ DIFERENTE
+
+   ORDEM INVERTIDA. A aba agora abre em: o SEU herói (Jing, com os seis
+   números, a posição de cada um no ranking e o tier) → o que está
+   pesando agora (mais banidos, mais escolhidos, maior vitória) →
+   o ranking completo → a tier list → e só no fim, a procedência.
+   A procedência continua inteira. Ela só deixou de ser a porta.
+
+   UMA BARRA EM CADA LINHA. Número solto não se compara; comprimento
+   sim. Cada linha do ranking tem barra, valor, tier e duas métricas
+   de apoio — e a coluna de apoio nunca repete a métrica que já está
+   na barra.
+
+   A BARRA DE VITÓRIA É DIVERGENTE. Taxa de vitória vive entre 45% e
+   55%. Barra do zero nesse intervalo desenha sessenta barras iguais e
+   esconde exatamente a diferença que interessa. Onde existe um ponto
+   de equilíbrio declarado — 50% quer dizer "nem ganha nem perde" — a
+   barra passa a medir a DISTÂNCIA ATÉ ELE: azul para a direita quem
+   está acima, laranja para a esquerda quem está abaixo. Isso não é
+   barra cortada; é outra grandeza, e está escrito na tela qual é.
+   Nas outras métricas (escolha, banimento, BP, presença, dano) a
+   barra continua do zero, porque ali o zero significa alguma coisa.
+
+   SETE ORDENAÇÕES E FILTRO DE ROTA. Toque em VIT, ESC, BAN, BP, LUTA,
+   DANO ou TIER para reordenar; toque de novo para inverter. Abaixo dos
+   botões, uma linha explica o que aquela métrica mede e como ler a
+   barra naquele modo.
+
+   A FICHA VIROU UMA ROLAGEM SÓ. Cabeçalho → os seis números, cada um
+   com barra, posição (ex.: 12º de 53) e a referência (o equilíbrio de
+   50% na vitória, a média dos 53 no resto) → arcana, quando existe →
+   confrontos → e no fim, em UMA linha por campo, o que falta. A lista
+   do que falta separa duas coisas que não são a mesma:
+       "a fonte não publica isto"  → capturar de novo não traz
+       "falta capturar"            → existe lá, só não foi lido ainda
+
+   NOME DE ADVERSÁRIO VIROU ATALHO. Ler "perde para Nezha" e poder
+   abrir o Nezha ali mesmo. Quem não está na sua lista de 117 fica como
+   texto simples — sem id inventado, que é a regra que vale desde a V5.
+
+   TRÊS SUB-TELAS COM A MESMA BARRA. Heróis · Itens · Dados, sempre
+   visíveis no topo. Antes, de Itens não dava para chegar em Dados sem
+   passar pelo meio.
+
+   ITENS VIROU LISTA. Só existem dois campos (nome e preço), então
+   cartão grande era desperdício: cabiam seis itens por tela e os 54
+   viravam nove rolagens. Agora é lista compacta com barra de preço,
+   ordenável por nome ou por preço.
+
+O QUE NÃO MUDOU, DE PROPÓSITO
+
+   · Nenhum dado novo foi inventado. Os mesmos 53 heróis com
+     estatística, os mesmos 95 na tier list, os mesmos 47 nomes em
+     chinês sem correspondência. A V6 mexeu em como se lê, não no que
+     se tem.
+   · A regra de origem continua valendo em cada campo, e o teste que
+     recusa conteúdo sem source declarado continua passando.
+   · A separação DADOS DO HERÓI / SEU TREINO / SEU DESEMPENHO / SUA
+     MAESTRIA continua em armazenamentos diferentes.
+   · As telas de treino não foram tocadas — e há teste que renderiza
+     todas elas depois de mexer na aba Heróis, justamente para provar.
 
 ================================================================
 PARTE -1 — A ABA HERÓIS, E O QUE ELA HONESTAMENTE TEM
