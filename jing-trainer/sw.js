@@ -1,4 +1,4 @@
-const CACHE = 'espelho-v9';
+const CACHE = 'espelho-v10';
 const ARQS = [
   './', './index.html', './css/app.css', './manifest.json', './icone.svg',
   './js/util.js', './js/estat.js', './js/ciencia.js', './js/musica.js', './js/hud.js',

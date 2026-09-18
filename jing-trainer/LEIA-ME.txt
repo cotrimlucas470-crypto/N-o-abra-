@@ -1,5 +1,5 @@
 ================================================================
-ESPELHO v7 — Laboratório de evolução + central de heróis
+ESPELHO v8 — Laboratório de evolução + central de heróis
 Honor of Kings · Poco X7 Pro · HTML/CSS/JS, sem dependências
 ================================================================
 
@@ -15,6 +15,68 @@ jogo, tudo o que vier depois mede a coisa errada.
 
 Seus dados da v1 e da v2 continuam lá. Nada é apagado.
 
+
+================================================================
+PARTE -4 — V8: MAIS SETE HERÓIS, E A BUSCA ALCANÇANDO O KIT
+================================================================
+
+ONZE DE 117, TODOS CRUZADOS EM DUAS BUSCAS
+
+   COM KIT MONTADO (10)
+   Jing ......... 4 · a habilidade 3 com leitura em disputa
+   Luna ......... 4 · limpo
+   Nuwa ......... 4 · com aviso de rework na Temporada 8
+   Kongming ..... 4 · nome da habilidade 1 em disputa
+                      (Arcane Shift x Arcane Assault)
+   Mayene ....... 4 · descrição da habilidade 1 em disputa
+   Dun .......... 4 · nomes de uma busca, descrições de outra;
+                      só a ultimate bateu nas duas
+   Guan Yu ...... 4 · o mais limpo do lote: quatro nomes, duas
+                      buscas, zero divergência. A descrição da
+                      ultimate não apareceu e ficou em branco.
+   Ao'yin ....... 5 · QUATRO ativas. Nome da passiva em disputa:
+                      uma busca deu "Hidden Dragon", a outra,
+                      perguntada direto, disse que não achou.
+   Pei .......... 4 · duas formas; as habilidades 1 e 2 têm
+                      versão humana e versão tigre
+   Da Qiao ...... 5 · QUATRO ativas. A passiva se contradiz:
+                      uma leitura diz que ela acelera o time,
+                      a outra diz que só acelera ela. Isso muda
+                      se vale ficar colado nela, e por isso as
+                      duas estão na tela.
+
+   SEM KIT, DE PROPÓSITO (1)
+   Nezha ........ as duas buscas deram nomes diferentes para as
+                  três habilidades. Ficam as duas leituras.
+
+   Os outros 106 continuam vazios, e a tela de Dados conta isso.
+
+O QUE APARECEU DE NOVO NO ESQUEMA
+
+   · ULTIMATE MARCADA. Cada kit tem exatamente uma habilidade com
+     ult:true, e o selo na tela diz ULT em vez de "3".
+   · QUATRO ATIVAS. Ao'yin e Da Qiao têm quatro. O HUD do treino
+     tem três botões de habilidade, então a ultimate vai para o
+     botão 3, a 1 e a 2 vão para os seus, e a terceira ativa fica
+     SEM botão — declarada na tela em vez de casada à força.
+     Casar à força faria o treino medir o toque errado.
+   · VARIANTE DE FORMA. O Pei vira tigre, e cada habilidade dele
+     tem duas versões. A versão tigre aparece presa à habilidade
+     dona, não como habilidade separada.
+   · CAMPO SEM LEITURA continua virando "Não encontrado na fonte."
+     A ultimate do Guan Yu tem nome confirmado e descrição
+     ausente — e é assim que está na tela.
+
+A BUSCA AGORA ALCANÇA AS HABILIDADES
+
+   Você lembra de "Mirror Domain" e não de "Jing"; lembra de
+   "marca" e não de qual herói marca. Procurar por "marca" devolve
+   Ao'yin, Jing, Kongming e Luna, e cada linha diz EM QUE
+   habilidade o termo bateu. O nome do herói continua ganhando do
+   texto na ordenação, para digitar "pei" não trazer todo mundo.
+
+   Na lista, quem tem habilidade no banco ganha a etiqueta KIT, e
+   um botão "só com kit" filtra a lista para eles.
 
 ================================================================
 PARTE -3 — V7: HABILIDADES, SELO, TIER LIST E UM SELO QUE MENTIA

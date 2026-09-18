@@ -282,14 +282,43 @@
   }
   function porFuncao(f) { return todos().filter(h => temFuncao(h, f)); }
 
+  /* A busca agora alcança o KIT. Você lembra de "Mirror Domain" e não
+     de "Jing"; lembra de "marca" e não de qual herói marca. Procurar
+     por mecanismo e cair no herói certo é metade do valor de ter as
+     habilidades no banco. O nome do herói continua ganhando dos
+     outros campos na ordenação, para digitar "pei" não trazer todo
+     mundo que tem a palavra no texto. */
   function buscar(q) {
     const s = (q || '').trim().toLowerCase();
     if (!s) return todos();
-    return todos().filter(h =>
+    const nosCampos = (h) =>
       h.name.toLowerCase().includes(s) ||
       (h.nomePt || '').toLowerCase().includes(s) ||
       (h.titulo || '').toLowerCase().includes(s) ||
-      h.id.includes(s));
+      h.id.includes(s);
+    const noKit = (h) => (h.abilities || []).some(a =>
+      (a.nome || '').toLowerCase().includes(s) ||
+      (a.texto || '').toLowerCase().includes(s) ||
+      (a.variante && (a.variante.nome || '').toLowerCase().includes(s)));
+    const r = [];
+    for (const h of todos()) {
+      if (nosCampos(h)) r.push({ h, peso: 0 });
+      else if (noKit(h)) r.push({ h, peso: 1 });
+    }
+    return r.sort((a, b) => a.peso - b.peso || a.h.name.localeCompare(b.h.name, 'pt')).map(x => x.h);
+  }
+
+  /** Onde o termo bateu neste herói — para a tela poder dizer. */
+  function ondeBateu(h, q) {
+    const s = (q || '').trim().toLowerCase();
+    if (!s || !h.abilities) return null;
+    if (h.name.toLowerCase().includes(s) || h.id.includes(s)) return null;
+    for (const a of h.abilities) {
+      if ((a.nome || '').toLowerCase().includes(s)) return { tipo: 'nome', a };
+      if (a.variante && (a.variante.nome || '').toLowerCase().includes(s)) return { tipo: 'nome', a };
+      if ((a.texto || '').toLowerCase().includes(s)) return { tipo: 'texto', a };
+    }
+    return null;
   }
 
   /* ============================================================
@@ -674,17 +703,32 @@
      ============================================================ */
   const BOTAO_POR_SLOT = { passiva: 'pass', '1': 's1', '2': 's2', '3': 's3' };
 
+  /* Alguns heróis têm QUATRO ativas (Ao'yin, Da Qiao). O HUD do treino
+     tem três botões de habilidade, porque é assim que a tela do jogo é
+     para os heróis de três. Então: a ultimate vai sempre para s3 — é o
+     botão que o jogo reserva para ela —, 1 e 2 vão para s1 e s2, e a
+     terceira ativa de um herói de quatro fica SEM botão, declarada.
+     Forçar um casamento aqui faria o treino medir o toque errado. */
   function kitDoTreino(id) {
     const alvo = id || (noTreino()[0] && noTreino()[0].id) || 'jing';
     const h = porId(alvo);
     if (!h || !h.abilities || !h.abilities.length) return null;
-    const m = {};
+    const m = {}, soltas = [];
+    const embrulha = (a) => ({ nome: a.nome, texto: a.texto, confianca: a.confianca || 'alta',
+                               disputa: !!a.disputa, ult: !!a.ult, slot: a.slot,
+                               variante: a.variante || null });
+    /* rede de segurança: num herói de três ativas sem marca explícita,
+       a habilidade 3 É a ultimate — é assim que o jogo monta o HUD */
+    const temUlt = h.abilities.some(a => a.ult);
     for (const a of h.abilities) {
-      const b = BOTAO_POR_SLOT[a.slot];
-      if (b) m[b] = { nome: a.nome, texto: a.texto, confianca: a.confianca || 'alta', disputa: !!a.disputa };
+      if (a.ult || (!temUlt && a.slot === '3')) { m.s3 = embrulha(a); continue; }
+      const b = a.slot === 'passiva' ? 'pass' : a.slot === '1' ? 's1' : a.slot === '2' ? 's2' : null;
+      if (b && !m[b]) m[b] = embrulha(a);
+      else soltas.push(embrulha(a));
     }
     if (!Object.keys(m).length) return null;
-    return { heroi: alvo, nome: h.name, botoes: m,
+    return { heroi: alvo, nome: h.name, botoes: m, soltas,
+             quatroAtivas: soltas.length > 0,
              meta: h.habilidadesMeta || {}, fonte: (h.fontes && h.fontes.abilities) || null };
   }
 
@@ -696,7 +740,7 @@
 
   U.HE = {
     FONTE_ALVO, FONTES, SEM_DADO, CAMPOS, SECOES, TIPOS_BUILD, FUNCOES, EXTRATOR,
-    kitDoTreino, rotuloBotao, BOTAO_POR_SLOT,
+    kitDoTreino, rotuloBotao, BOTAO_POR_SLOT, ondeBateu,
     NOMES_CN, CN_POR_ID, idDoNomeCn, rotularCn, nomesNaoMapeados, conferirMapa, foraDoBanco,
     registrar, registrarLista, validar, porId, todos, buscar, porFuncao, temFuncao,
     aplicarTier, aplicarStats, aplicarFuncao,

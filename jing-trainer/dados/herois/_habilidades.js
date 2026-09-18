@@ -41,7 +41,7 @@
     conferido: false,
     quando: '2026-09-18',
     aviso: 'Resumo de busca, não leitura de página. Os três sites que você mandou estão bloqueados nesta sessão.',
-    cobertura: '3 de 117 heróis com kit montado (Jing, Luna, Nuwa) + 1 com conflito total registrado (Nezha).',
+    cobertura: '10 de 117 heróis com kit montado + 1 com conflito total registrado (Nezha).',
 
     jing: {
       cruzado: true,
@@ -69,7 +69,7 @@
           confianca: 'alta',
         },
         {
-          slot: '3', tecla: '3', nome: 'Mirror Domain',
+          slot: '3', tecla: '3', ult: true, nome: 'Mirror Domain',
           texto: 'Avança e fica sem poder ser alvo, puxando os inimigos para dentro da área e prendendo. Recebe menos dano enquanto está na área. Depois pode trocar de lugar com a imagem espelhada e recuperar vida.',
           confianca: 'media',
           disputa: {
@@ -108,7 +108,7 @@
           confianca: 'alta',
         },
         {
-          slot: '3', tecla: '3', nome: 'New Moon',
+          slot: '3', tecla: '3', ult: true, nome: 'New Moon',
           texto: 'Avança na direção alvo causando dano a quem estiver no caminho. Se acertar um inimigo MARCADO, a recarga desta habilidade é zerada.',
           confianca: 'alta',
           nota: 'É este reset que cria a corrente infinita da Luna: marcar, avançar, marcar de novo, avançar de novo. Duas buscas independentes descrevem o mesmo reset.',
@@ -153,7 +153,7 @@
           numeros: '540/610/680/750 (+65% AP) na explosão.',
         },
         {
-          slot: '3', tecla: '3', nome: 'Incantation - Ruin',
+          slot: '3', tecla: '3', ult: true, nome: 'Incantation - Ruin',
           texto: 'Depois de um atraso curto, libera energia pura numa direção, causando dano mágico pesado a quem estiver no caminho.',
           confianca: 'media', nota: 'Só uma das buscas nomeou a ultimate.',
         },
@@ -190,6 +190,220 @@
             '1': 'Scorching Ember',
             '2': 'Red Armillary Sash – Bind',
             '3': 'Universe Ring – Skyfall' } },
+      ],
+    },
+
+    /* ------------------------------------------------------------
+       KONGMING — nomes quase todos cruzados. O 1 não.
+       ------------------------------------------------------------ */
+    kongming: {
+      cruzado: true, buscas: 2,
+      urls: ['https://liquipedia.net/honorofkings/Kongming',
+             'https://honor-of-kings.fandom.com/wiki/Kongming',
+             'https://hokstats.gg/heroes/kongming/',
+             'https://gaminggblog.com/honor-of-kings-kong-ming-build/'],
+      lista: [
+        { slot: 'passiva', tecla: 'P', nome: 'Time for Tactics',
+          texto: 'Habilidade que acerta inimigo acumula marca. Com 5 marcas, aparecem 5 orbes mágicos que atacam sozinhos quem estiver perto, causando 135 (+25% de ataque mágico) de dano mágico. Os orbes preferem heróis inimigos e não atacam monstro fora de combate. Dano em monstro cai 40%; em minion sobe 40%.',
+          confianca: 'media',
+          nota: 'O mecanismo e os números batem nas duas buscas. O NOME não: apareceu como "Time for Tactics", "Time of Tactics" e "Moment of Intrigue". Guardei o mais repetido.' },
+        { slot: '1', tecla: '1', nome: 'Arcane Shift',
+          texto: 'Dispara 3 prismas num cone, causando dano a quem for atingido.',
+          confianca: 'media',
+          disputa: { oQue: 'o nome desta habilidade',
+            leituraA: 'Arcane Shift (primeira busca).',
+            leituraB: 'Arcane Assault (segunda busca).',
+            porQueNaoEscolhi: 'A descrição é idêntica nas duas — três prismas em cone. Só o nome muda, e as duas buscas apontam para as mesmas páginas. Pode ser tradução diferente ou mudança de patch. Confirme no jogo.' } },
+        { slot: '2', tecla: '2', nome: 'Time Shift',
+          texto: 'Teleporta na direção alvo, causando dano a quem estiver perto do ponto de partida e do ponto de chegada.',
+          confianca: 'alta' },
+        { slot: '3', tecla: '3', ult: true, nome: 'Winning Strategy',
+          texto: 'Canaliza um instante e solta uma bomba espiritual no inimigo alvo, causando dano letal. Se a bomba abate um herói, a recarga é zerada. Para cada 1% de vida que falta no alvo, o dano sobe 2%.',
+          confianca: 'alta',
+          nota: 'É por isso que o Kongming é counter da Jing: quanto mais machucada você está, mais forte fica a bomba dele.' },
+      ],
+    },
+
+    /* ------------------------------------------------------------
+       MAYENE — a mais banida da tabela (90%). Nomes cruzados.
+       ------------------------------------------------------------ */
+    mayene: {
+      cruzado: true, buscas: 2,
+      urls: ['https://liquipedia.net/honorofkings/Mayene',
+             'https://honor-of-kings.fandom.com/wiki/Mayene',
+             'https://itemlevel.net/honor-of-kings-complete-mayene-guide/',
+             'https://hokstats.gg/heroes/mayene/'],
+      lista: [
+        { slot: 'passiva', tecla: 'P', nome: 'Slack Off',
+          texto: 'Recupera Força e vida enquanto está parada. Não recupera se ataca, apanha, se move ou está no estado Sério. Parada e sem levar dano, ela senta e acelera a recuperação de Força em 25%; enquanto folga, come petiscos e recupera vida de vez em quando.',
+          confianca: 'alta',
+          nota: 'As habilidades dela gastam Força. Toda a luta contra a Mayene é sobre não deixar ela recarregar.' },
+        { slot: '1', tecla: '1', nome: 'Whatever (I)',
+          texto: 'Custa 1 de Força de Soco. Salta e dá um golpe forte, causando dano em volta. Quem está no centro leva mais, e ela recebe redução de dano enquanto usa.',
+          confianca: 'media',
+          disputa: { oQue: 'o que a habilidade faz',
+            leituraA: 'Salta e golpeia, dano maior no centro, com redução de dano (segunda busca, mais detalhada).',
+            leituraB: 'Puxa os inimigos num cone e causa dano em cone (primeira busca).',
+            porQueNaoEscolhi: 'Puxar e saltar são coisas diferentes, e isso muda como você se posiciona contra ela. Guardei a leitura mais detalhada em cima e a outra aqui.' } },
+        { slot: '2', tecla: '2', nome: 'Whatever (II)',
+          texto: 'Custa 1 de Força de Chute. Salta no inimigo e depois gira na direção alvo, causando dano e recuperando vida. Fica sem poder ser alvo durante o uso.',
+          confianca: 'alta' },
+        { slot: '3', tecla: '3', ult: true, nome: 'Get Serious',
+          texto: 'Causa dano físico em todos os inimigos perto. Recupera uma unidade de Soco e uma de Chute e sobe o limite de acúmulo para 3. Ganha 20% de velocidade de movimento e reduz lentidão em 50%, por 10 s.',
+          confianca: 'alta' },
+      ],
+    },
+
+    /* ------------------------------------------------------------
+       DUN — nomes de uma busca, descrições de outra. As duas
+       concordam na ultimate, que é o ponto de apoio.
+       ------------------------------------------------------------ */
+    dun: {
+      cruzado: true, buscas: 2,
+      urls: ['https://liquipedia.net/honorofkings/Dun',
+             'https://honor-of-kings.fandom.com/wiki/Dun',
+             'https://hokstats.gg/heroes/dun/',
+             'https://onlinegamingph.com/honor-of-kings-dun-guide/'],
+      alerta: 'As duas buscas se completaram em vez de se repetirem: a primeira trouxe as descrições sem nome, a segunda os nomes sem descrição. Só a ultimate apareceu nas duas com nome. O casamento entre nome e descrição é meu, e pode estar trocado entre a 1 e a 2.',
+      lista: [
+        { slot: 'passiva', tecla: 'P', nome: 'Unyielding Might',
+          texto: 'Quando a vida cai demais, levar dano fortalece o Dun. Fortalecido, acertos de habilidade e de ataque básico recuperam vida.',
+          confianca: 'media', nota: 'Nome de uma busca, descrição da outra.' },
+        { slot: '1', tecla: '1', nome: 'Wind Slash',
+          texto: 'Não encontrado na fonte.',
+          confianca: 'media', nota: 'Só o nome apareceu. Nenhuma das buscas descreveu esta habilidade.' },
+        { slot: '2', tecla: '2', nome: "Gale's Benediction",
+          texto: 'Gera escudo em volta dele, proporcional à vida máxima, e causa dano mágico a quem estiver perto. Depois, os três ataques seguintes causam dano verdadeiro, reduzem a recarga da ultimate e batem mais forte em monstro de selva.',
+          confianca: 'media', nota: 'Nome de uma busca, descrição da outra.' },
+        { slot: '3', tecla: '3', ult: true, nome: 'Unruly Blade',
+          texto: 'Se acertar um herói inimigo, pode ser usada de novo antes de entrar em recarga, causando dano e lançando os inimigos no alcance.',
+          confianca: 'alta', nota: 'Único campo dele confirmado nas duas buscas, nome e efeito.' },
+      ],
+    },
+
+    /* ------------------------------------------------------------
+       GUAN YU — o mais limpo do lote: quatro nomes, duas buscas,
+       zero divergência.
+       ------------------------------------------------------------ */
+    'guan-yu': {
+      cruzado: true, buscas: 2,
+      urls: ['https://liquipedia.net/honorofkings/Guan_Yu',
+             'https://honor-of-kings.fandom.com/wiki/Guan_Yu',
+             'https://hokstats.gg/heroes/guan-yu/',
+             'https://sportskeeda.com/mobile-games/guan-yu-honor-kings-skills-stats'],
+      lista: [
+        { slot: 'passiva', tecla: 'P', nome: 'Rider of Triumph',
+          texto: 'Ganha 2% de velocidade de movimento a cada 200 unidades percorridas, e entra em Postura de Carga depois de 2.000 unidades. Em Carga, o próximo ataque básico avança, causa dano físico e empurra quem estiver no caminho; ganha mais 20% de velocidade indo na direção de heróis inimigos.',
+          confianca: 'alta',
+          nota: 'Herói de duas posturas: quase tudo nele muda conforme ele já andou ou não.' },
+        { slot: '1', tecla: '1', nome: 'Heroic Charge',
+          texto: 'Na postura normal, causa dano a quem estiver no alcance. Em Carga, avança empurrando quem estiver no caminho e causando dano.',
+          confianca: 'alta' },
+        { slot: '2', tecla: '2', nome: 'Soaring Green Dragon',
+          texto: 'Na postura normal, remove controle de grupo e ganha velocidade. Em Carga, remove controle, salta para frente, empurra quem estiver na área de queda e causa dano.',
+          confianca: 'alta' },
+        { slot: '3', tecla: '3', ult: true, nome: 'Razor Cavalry',
+          texto: 'Não encontrado na fonte.',
+          confianca: 'media', nota: 'O NOME apareceu nas duas buscas. A descrição não apareceu em nenhuma das duas de forma completa, e eu não vou preencher por dedução.' },
+      ],
+    },
+
+    /* ------------------------------------------------------------
+       AO'YIN — quatro habilidades ativas, não três. As duas buscas
+       concordam nisso. O nome da passiva, não.
+       ------------------------------------------------------------ */
+    aoyin: {
+      cruzado: true, buscas: 2,
+      urls: ["https://liquipedia.net/honorofkings/Ao'yin",
+             "https://honor-of-kings.fandom.com/wiki/Ao'yin",
+             'https://hokstats.gg/heroes/aoyin/',
+             'https://grokipedia.com/page/Ao_Yin_Honor_of_Kings'],
+      alerta: 'Este herói tem QUATRO habilidades ativas, não três — as duas buscas concordam nisso. O treino do app mede três botões de habilidade, então a quarta não tem botão para casar.',
+      lista: [
+        { slot: 'passiva', tecla: 'P', nome: null,
+          texto: 'As Almas de Dragão das duas últimas habilidades usadas mudam o ataque básico, que passa a causar dano físico em até dois inimigos. Cada habilidade usada dá 1 marca, até 3. O ataque básico gasta todas as marcas de uma vez, batendo uma vez por marca.',
+          confianca: 'media',
+          disputa: { oQue: 'o nome da passiva',
+            leituraA: '"Hidden Dragon" (primeira busca).',
+            leituraB: 'A segunda busca, perguntada diretamente, disse que NÃO encontrou nenhuma passiva com esse nome.',
+            porQueNaoEscolhi: 'Uma busca afirmando e outra negando não é confirmação. O mecanismo (Almas de Dragão, marcas) apareceu nas duas e está guardado; o nome fica em branco.' } },
+        { slot: '1', tecla: '1', nome: 'Flaming Palm',
+          texto: 'Causa dano físico e dano verdadeiro. Prende uma Alma de Dragão de Fogo à espada: com ela, o ataque básico bate mais forte, causando dano físico e verdadeiro.',
+          confianca: 'alta' },
+        { slot: '2', tecla: '2', nome: 'Downpour',
+          texto: 'Causa dano físico e recupera vida ao acertar. Prende uma Alma de Dragão de Água: com ela, o ataque básico devolve vida e mana — menos vida quando acerta o que não é herói.',
+          confianca: 'alta' },
+        { slot: '3', tecla: '3', nome: 'Riding the Wind',
+          texto: 'Ganha velocidade de movimento que vai caindo com o tempo, causa dano físico e empurra. Prende uma Alma de Dragão de Vento.',
+          confianca: 'alta' },
+        { slot: '4', tecla: '4', ult: true, nome: 'Infinite Vastness',
+          texto: 'Sobe ao céu por até 4,5 s — sem poder ser alvo, ignorando terreno e sem poder atacar — e depois mergulha para a frente, causando dano e lentificando quem estiver no caminho.',
+          confianca: 'alta' },
+      ],
+    },
+
+    /* ------------------------------------------------------------
+       PEI — duas formas, e cada habilidade tem duas versões.
+       ------------------------------------------------------------ */
+    pei: {
+      cruzado: true, buscas: 2,
+      urls: ['https://liquipedia.net/honorofkings/Pei',
+             'https://honor-of-kings.fandom.com/wiki/Pei',
+             'https://itemlevel.net/honor-of-kings-complete-pei-guide/',
+             'https://hokstats.gg/heroes/pei/'],
+      alerta: 'Herói de DUAS FORMAS. As habilidades 1 e 2 têm uma versão em forma humana e outra em forma de tigre; a ultimate é a troca de forma. As duas buscas concordam nessa estrutura.',
+      lista: [
+        { slot: 'passiva', tecla: 'P', nome: 'Blast',
+          texto: 'Na forma humana, o alcance do ataque básico aumenta e o ataque causa 16 de dano mágico a mais. Esse extra acumula ao longo de 3 s, até três vezes o valor base. Cada ataque que acerta devolve 5 de energia.',
+          confianca: 'alta' },
+        { slot: '1', tecla: '1', nome: 'Striker Stance',
+          texto: 'Solta energia Qi causando dano mágico a quem estiver no caminho, mais 8% da vida atual do alvo como dano mágico, e reduz a velocidade dele em 50% por 1,5 s. Acertar devolve 20 de energia.',
+          numeros: '250/300/350/400/450/500 (+115% de ataque físico bônus).',
+          variante: { forma: 'tigre', nome: 'Roaring Tiger Stance', texto: 'Não encontrado na fonte.' },
+          confianca: 'alta' },
+        { slot: '2', tecla: '2', nome: 'Guarding Stance',
+          texto: 'Cria uma aura de Qi em volta dele, causando dano mágico perto, formando escudo e subindo a velocidade de ataque em 30%.',
+          numeros: '100/150/200/250/300/350 (+70% de ataque físico bônus) de dano; escudo de 400 (+150% de ataque físico bônus).',
+          variante: { forma: 'tigre', nome: 'Leaping Tiger Stance', texto: 'Não encontrado na fonte.' },
+          confianca: 'alta' },
+        { slot: '3', tecla: '3', ult: true, nome: 'Tiger Form',
+          texto: 'Troca para a forma de tigre: +30% de velocidade por 1 s e os dois próximos ataques básicos ficam melhorados por 7 s. O primeiro salta no alvo causando dano físico e lentidão de 90% por 1 s; o segundo, usado em até 5 s, causa dano mágico à frente.',
+          numeros: '20/110/200/290 (+100% de ataque físico) em cada um dos dois golpes.',
+          confianca: 'alta' },
+      ],
+    },
+
+    /* ------------------------------------------------------------
+       DA QIAO — nomes cruzados, passiva contraditória.
+       ------------------------------------------------------------ */
+    'da-qiao': {
+      cruzado: true, buscas: 2,
+      urls: ['https://liquipedia.net/honorofkings/Da_Qiao',
+             'https://honor-of-kings.fandom.com/wiki/Da_Qiao',
+             'https://hokstats.gg/heroes/da-qiao/',
+             'https://gaminggblog.com/hok-da-qiao-build/'],
+      alerta: 'Quatro habilidades ativas. Os cinco nomes bateram nas duas buscas; a DESCRIÇÃO DA PASSIVA se contradiz entre elas.',
+      lista: [
+        { slot: 'passiva', tecla: 'P', nome: 'Law of Infinity',
+          texto: 'Não encontrado na fonte.',
+          confianca: 'media',
+          disputa: { oQue: 'quem ganha o bônus da passiva',
+            leituraA: 'Ela E o aliado mais próximo dentro de 600 de alcance ganham 40–60 de velocidade de movimento.',
+            leituraB: 'Ela ganha 30–60 de velocidade e NÃO passa nada para o time; o que escala com ataque mágico é o alcance de Leaping Koi Tide e Severing Surge.',
+            porQueNaoEscolhi: 'As duas leituras dizem coisas opostas sobre a coisa mais importante do herói — se ele acelera o time ou não. Isso decide se vale ficar colado nela. Não dá para arbitrar por aqui.' } },
+        { slot: '1', tecla: '1', nome: 'Leaping Koi Tide',
+          texto: 'Lança e causa dano numa linha à frente, deixando uma maré que continua causando dano.',
+          confianca: 'alta' },
+        { slot: '2', tecla: '2', nome: 'Sea of Fate',
+          texto: 'Cria um portal que deixa um aliado voltar para a base e retornar.',
+          confianca: 'alta' },
+        { slot: '3', tecla: '3', nome: 'Severing Surge',
+          texto: 'Lança os inimigos à frente e causa dano.',
+          confianca: 'alta' },
+        { slot: '4', tecla: '4', ult: true, nome: 'Eye of the Whirlpool',
+          texto: 'Cria um círculo mágico que causa dano, deixa os aliados se teleportarem até ele e dá escudo.',
+          confianca: 'media',
+          nota: 'As duas buscas concordam que é teleporte de time. Divergem no acessório: uma fala em velocidade de ataque para os aliados, a outra em escudo. O núcleo — portal para o time — é o mesmo.' },
       ],
     },
   };

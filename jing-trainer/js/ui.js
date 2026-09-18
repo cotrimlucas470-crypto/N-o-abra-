@@ -1249,6 +1249,10 @@
               </div>
             </div>`).join('')}
           </div>
+          ${kit.quatroAtivas ? `<div class="aviso" style="margin-top:7px"><b>Este herói tem quatro habilidades ativas.</b>
+            O HUD do treino tem três botões de habilidade, então
+            ${kit.soltas.map(x => `<b>${U.esc(x.nome || 'a habilidade ' + x.slot)}</b>`).join(' e ')}
+            ficou sem botão para casar. Forçar um casamento aqui faria o treino medir o toque errado.</div>` : ''}
           <div class="xs" style="margin-top:6px">Nome vindo do banco de heróis (busca na web, não lida de página).
           O treino continua medindo o BOTÃO — o nome é só para você não ter que traduzir "habilidade 2" de cabeça
           enquanto joga.</div>` : ''}
@@ -1395,7 +1399,7 @@
      número continua inteira — ela só desceu para o fim, onde quem
      quiser auditar encontra.
      ============================================================ */
-  let hf = { f: null, q: '', ord: 'bp', dir: -1, aba: 'ranking', iord: 'nome' };
+  let hf = { f: null, q: '', ord: 'bp', dir: -1, aba: 'ranking', iord: 'nome', soKit: false };
 
   const COL = {
     vitoria:    { nome: 'Vitória',    curto: 'VIT', get: h => h.estatisticas && h.estatisticas.vitoria.v,
@@ -1423,6 +1427,7 @@
     let l = hf.q ? HE.buscar(hf.q) : HE.todos();
     if (hf.f) l = l.filter(h => HE.temFuncao(h, hf.f));
     l = l.filter(h => h.estatisticas || h.tier);
+    if (hf.soKit) l = l.filter(h => (h.abilities || []).length);
     const c = COL[hf.ord];
     l.sort((a, b) => {
       const va = c.get(a), vb = c.get(b);
@@ -1507,6 +1512,7 @@
     /* a coluna da direita mostra outra coisa: repetir a métrica que já
        está na barra gasta espaço para dizer o que já foi dito */
     const extras = ['vitoria', 'banimento', 'escolha'].filter(k => k !== hf.ord).slice(0, 2);
+    const comKit = comDados().filter(h => (h.abilities || []).length);
 
     return `
     ${cabecalhoH('ranking')}
@@ -1526,6 +1532,11 @@
         <div class="grade" style="grid-template-columns:repeat(6,1fr);gap:5px;margin-top:7px">
           <button class="btn sec sm ${!hf.f ? 'gold' : ''}" data-hfun="">TODOS</button>
           ${HE.FUNCOES.map(f => `<button class="btn sec sm ${hf.f === f.id ? 'gold' : ''}" data-hfun="${f.id}">${f.nome}</button>`).join('')}
+        </div>
+        <div class="flex" style="gap:5px;margin-top:7px">
+          <button class="btn sec sm ${hf.soKit ? 'gold' : ''}" data-hkit="1"
+            style="padding:0 10px;font-size:.66rem">${hf.soKit ? '✓ ' : ''}só com kit</button>
+          <span class="xs" style="flex:1;align-self:center">${comKit.length} de ${comDados().length} heróis com habilidade no banco</span>
         </div>
         <div class="flex" style="gap:4px;flex-wrap:wrap;margin-top:7px">
           ${Object.entries(COL).map(([k, c]) =>
@@ -1547,8 +1558,15 @@
               <div class="linh-n">${i + 1}</div>
               <div class="linh-selo">${U.EM.selo(h, 24)}</div>
               <div class="linh-nome">
-                <div class="mt" style="font-size:.74rem">${E(h.name)}</div>
-                <div class="xs">${(h.role || []).map(r => (HE.FUNCOES.find(f => f.alt.includes(r)) || { nome: r }).nome).join(' · ') || '—'}</div>
+                <div class="flex" style="gap:5px;align-items:baseline">
+                  <div class="mt" style="font-size:.74rem">${E(h.name)}</div>
+                  ${(h.abilities || []).length ? '<span class="pk" title="tem habilidades no banco">kit</span>' : ''}
+                </div>
+                <div class="xs">${(() => {
+                  const ob = hf.q ? HE.ondeBateu(h, hf.q) : null;
+                  if (ob) return `achou em <b style="color:var(--gold)">${E(ob.a.nome || 'habilidade ' + ob.a.slot)}</b>`;
+                  return (h.role || []).map(r => (HE.FUNCOES.find(f => f.alt.includes(r)) || { nome: r }).nome).join(' · ') || '—';
+                })()}</div>
               </div>
               ${h.tier ? `<span class="tierb t${(h.tier.lista || '').replace('.', '')}">${E(h.tier.lista)}</span>` : '<span class="tierb vazio">—</span>'}
               <div class="linh-bar">
@@ -2012,7 +2030,7 @@
        que a habilidade faz importa mais do que a taxa de banimento
        dela. E a confiança de cada linha fica escrita AO LADO da
        linha, não num rodapé que ninguém lê. */
-    const SLOT = { passiva: 'PASSIVA', '1': '1', '2': '2', '3': '3', '4': '4' };
+    const rotuloSlot = (a) => a.slot === 'passiva' ? 'PASSIVA' : a.ult ? 'ULT' : a.slot;
     const habBruto = (HE.HABILIDADES || {})[h.id] || null;
 
     /* Conflito total: existe informação, e ela se contradiz. Isso
@@ -2049,14 +2067,20 @@
       </div>
       ${habBruto && habBruto.alerta ? `<div class="aviso" style="margin-top:7px">${E(habBruto.alerta)}</div>` : ''}
       <div class="pilha" style="gap:6px;margin-top:7px">
-        ${hab.v.map(a => `<div class="hab ${a.slot === 'passiva' ? 'p' : ''}">
-          <div class="hab-t">${E(SLOT[a.slot] || a.slot)}</div>
+        ${hab.v.map(a => `<div class="hab ${a.slot === 'passiva' ? 'p' : ''}${a.ult ? ' u' : ''}">
+          <div class="hab-t">${E(rotuloSlot(a))}</div>
           <div style="min-width:0">
             <div class="flex" style="gap:6px;align-items:baseline">
-              <span class="hab-n">${E(a.nome)}</span>
+              <span class="hab-n">${a.nome ? E(a.nome)
+                : '<i style="font-style:normal;font-weight:700;color:var(--dim2)">nome não confirmado</i>'}</span>
               ${a.confianca === 'media' ? '<span class="tag warn" style="font-size:.5rem">leitura em disputa</span>' : ''}
             </div>
             <div class="mini" style="margin-top:2px">${E(a.texto)}</div>
+            ${a.variante ? `<div class="varf">
+              <span class="tag" style="font-size:.5rem">forma ${E(a.variante.forma)}</span>
+              <span class="mini" style="color:var(--txt);font-weight:700">${E(a.variante.nome)}</span>
+              <span class="xs" style="flex:1">${E(a.variante.texto)}</span>
+            </div>` : ''}
             ${a.numeros ? `<div class="xs" style="margin-top:3px"><b style="color:var(--dim)">Números:</b> ${E(a.numeros)}</div>` : ''}
             ${a.nota ? `<div class="xs" style="margin-top:3px">${E(a.nota)}</div>` : ''}
             ${a.disputa ? `<div class="aviso" style="margin-top:5px;font-size:.62rem">
@@ -2181,6 +2205,7 @@
     $$('[data-hfun]').forEach(b => b.addEventListener('click', () => {
       hf.f = b.dataset.hfun || null; render('herois');
     }));
+    $('[data-hkit]')?.addEventListener('click', () => { hf.soKit = !hf.soKit; render('herois'); });
     $$('[data-hiord]').forEach(b => b.addEventListener('click', () => {
       hf.iord = b.dataset.hiord; render('herois');
     }));

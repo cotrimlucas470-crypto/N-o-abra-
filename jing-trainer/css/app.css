@@ -524,3 +524,17 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em;
 /* números grandes pesam mais com um respiro de sombra atrás */
 .numero{filter:drop-shadow(0 2px 8px rgba(124,92,240,.28))}
 .kpi .v{text-shadow:0 2px 10px rgba(0,0,0,.5)}
+
+/* ultimate tem peso diferente das outras: o selo diz ULT e a moldura acompanha */
+.hab.u{border-color:rgba(124,92,240,.4);background:rgba(24,18,44,.62)}
+.hab.u .hab-t{background:rgba(124,92,240,.24);border-color:rgba(167,139,250,.45);
+  color:#cfc2ff;font-size:.5rem;letter-spacing:.06em}
+/* variante de forma (Pei vira tigre): filha da habilidade, não irmã */
+.varf{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;margin-top:5px;
+  padding:5px 8px;border-left:2px solid rgba(217,89,38,.5);
+  background:rgba(40,24,16,.45);border-radius:0 7px 7px 0}
+
+/* etiqueta "kit": diz que existe habilidade no banco para este herói */
+.pk{font-size:.46rem;font-weight:900;letter-spacing:.09em;text-transform:uppercase;
+  padding:1px 5px;border-radius:4px;color:#8fd8b4;
+  background:rgba(25,158,112,.16);border:1px solid rgba(25,158,112,.4)}

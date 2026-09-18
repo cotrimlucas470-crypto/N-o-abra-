@@ -77,6 +77,6 @@
     window.__rz = setTimeout(() => { if (!$('#treino').classList.contains('on')) U.UI.render(); }, 260);
   });
 
-  console.log('ESPELHO v7 ·', U.D.DRILLS.length, 'exercícios ·',
+  console.log('ESPELHO v8 ·', U.D.DRILLS.length, 'exercícios ·',
     U.DS.REGRAS.length, 'regras ·', U.CI.PRINCIPIOS.length, 'princípios');
 })(window.U);
