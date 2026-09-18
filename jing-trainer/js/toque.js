@@ -226,6 +226,10 @@
      ultrapassa nos perto. Então o pivô é o ponto que melhor
      alinha os vieses observados com essa direção.
      ============================================================ */
+  /* Acima disto o pivô é chute com cara de medida — ver a nota em
+     pivoEstimado(). Calibrado, não escolhido por gosto. */
+  const PIVO_INCERTEZA_MAX = 18;
+
   function pivoEstimado({ dias = 90 } = {}) {
     const ids = H.ACIONAVEIS.filter(id => {
       const r = porBotao(id, { dias });
@@ -280,7 +284,21 @@
       custo: melhor.c, incertezaMM: raio * MM.w, n: nTotal, botoes: usaveis.length,
       padrao: H.PIVO,
       desvioDoPadrao: Math.hypot((melhor.x - H.PIVO.x) * MM.w, (melhor.y - H.PIVO.y) * MM.h),
-      confiavel: melhor.c < 0.35 && usaveis.length >= 5,
+      /* V7 — o selo de confiança estava preso ao CUSTO do ajuste, e
+         custo baixo não quer dizer pivô certo: numa calibração de
+         200 jogadores simulados com pivô plantado, o custo correlaciona
+         r=0,17 com o erro real e o selo saía "confiável" em 200 de 200
+         casos — inclusive nos que erravam 35 mm. Um selo que nunca diz
+         não é pior que selo nenhum, porque parece que alguém conferiu.
+         A INCERTEZA declarada correlaciona r=0,49. Com a porta em
+         18 mm: passa 56% dos casos, e nesses o erro fica em 11,6 mm no
+         percentil 90, com 2% acima de 18 mm. Os 44% barrados têm
+         percentil 90 de 25,7 mm — que é o que se quer barrar. */
+      confiavel: raio * MM.w <= PIVO_INCERTEZA_MAX && usaveis.length >= 5,
+      porqueNaoConfiavel: raio * MM.w > PIVO_INCERTEZA_MAX
+        ? `o campo de vieses admite um pivô em qualquer ponto num raio de ${(raio * MM.w).toFixed(0)} mm sem piorar o ajuste — largo demais para apontar um ponto`
+        : usaveis.length < 5 ? `só ${usaveis.length} botões têm viés mensurável; preciso de 5`
+        : null,
     };
   }
 

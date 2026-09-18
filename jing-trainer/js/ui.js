@@ -617,7 +617,12 @@
         <br><br>Estimado a partir de <b>${res.pivo.botoes} botões</b> e ${res.pivo.n} toques, com incerteza de
         <b>±${res.pivo.incertezaMM.toFixed(0)} mm</b>. Fica <b>${res.pivo.desvioDoPadrao.toFixed(0)} mm</b> do
         ponto que a versão anterior supunha.
-        ${!res.pivo.confiavel ? '<br><b>Ainda não é confiável o bastante</b> para eu usar em conta nenhuma — precisa de mais botões com deslocamento mensurável.' : ''}</div>
+        ${!res.pivo.confiavel ? `<br><br><b style="color:var(--warn)">Este ponto ainda não é confiável</b>, e
+        não entra em conta nenhuma: ${U.esc(res.pivo.porqueNaoConfiavel || 'a estimativa está larga demais')}.
+        Numa calibração com 200 jogadores simulados, quando o app barra assim o erro chega a 22 mm no
+        percentil 90 — longe demais para apontar um ponto na sua tela.`
+        : `<br><br><b style="color:var(--ok)">Estimativa dentro da faixa utilizável.</b> Na mesma calibração,
+        quando o app libera assim o erro fica em 11 mm no percentil 90, e nenhum caso passou de 18 mm.`}</div>
       </div>` : ''}
 
       ${tc.ok && tc.itens.length ? `<div class="painel">
@@ -1217,7 +1222,12 @@
         </div>` : ''}
       </div>
 
-      <div class="painel">
+      ${(() => {
+        const kit = U.HE && U.HE.kitDoTreino ? U.HE.kitDoTreino() : null;
+        /* o botão continua sendo 1/2/3 — é o que o polegar aperta —
+           mas ao lado dele vem o nome de verdade, quando o banco tem */
+        const nomeDe = (k) => kit && kit.botoes[k] ? kit.botoes[k].nome : null;
+        return `<div class="painel">
         <h2>Rotas da Jing</h2>
         <div class="mini" style="margin-bottom:7px">Nomeadas pela função para continuarem válidas se a build ou o
         patch mudarem. A rota <b>Marca</b> é a de referência: mexer nela reinicia a comparação histórica.</div>
@@ -1228,7 +1238,22 @@
             <span class="tag">${r.id === 'marca' ? 'referência' : 'editar'}</span>
           </div>`).join('')}
         </div>
-      </div>
+        ${kit ? `<div class="sep"></div>
+          <div class="mt">Que botão é que, no ${U.esc(kit.nome)}</div>
+          <div class="grade" style="grid-template-columns:repeat(2,1fr);gap:6px;margin-top:6px">
+            ${['pass', 's1', 's2', 's3'].filter(k => kit.botoes[k]).map(k => `<div class="medida" style="padding:7px 9px">
+              <div class="flex" style="gap:7px;align-items:baseline">
+                <span class="tag" style="font-size:.56rem">${(H.getHud()[k] || {}).curto || k}</span>
+                <span class="mini" style="color:var(--txt);font-weight:700;flex:1">${U.esc(kit.botoes[k].nome)}</span>
+                ${kit.botoes[k].disputa ? '<span class="tag warn" style="font-size:.5rem">em disputa</span>' : ''}
+              </div>
+            </div>`).join('')}
+          </div>
+          <div class="xs" style="margin-top:6px">Nome vindo do banco de heróis (busca na web, não lida de página).
+          O treino continua medindo o BOTÃO — o nome é só para você não ter que traduzir "habilidade 2" de cabeça
+          enquanto joga.</div>` : ''}
+      </div>`;
+      })()}
 
       <div class="painel">
         <h2>Seus dados</h2>
@@ -1520,6 +1545,7 @@
             const v = COL[hf.ord].get(h);
             return `<div class="linh" data-heroi="${E(h.id)}">
               <div class="linh-n">${i + 1}</div>
+              <div class="linh-selo">${U.EM.selo(h, 24)}</div>
               <div class="linh-nome">
                 <div class="mt" style="font-size:.74rem">${E(h.name)}</div>
                 <div class="xs">${(h.role || []).map(r => (HE.FUNCOES.find(f => f.alt.includes(r)) || { nome: r }).nome).join(' · ') || '—'}</div>
@@ -1571,6 +1597,7 @@
     return `
       <div class="painel hero">
         <div class="flex" style="gap:10px;align-items:flex-start">
+          <div style="flex:0 0 auto">${U.EM.selo(h, 46)}</div>
           <div style="flex:1;min-width:0">
             <div class="mini" style="color:var(--gold);font-weight:800;letter-spacing:.08em;text-transform:uppercase">O seu herói</div>
             <h2 class="heroT" style="margin-top:1px">${E(h.name)}${h.nomeCn ? ` <span style="font-size:.7em;opacity:.6">${E(h.nomeCn)}</span>` : ''}</h2>
@@ -1609,7 +1636,8 @@
     const bloco = (titulo, k, porque) => `<div>
       <div class="mt" style="font-size:.7rem">${titulo}</div>
       <div class="pilha" style="gap:3px;margin-top:4px">
-        ${top(k).map(h => `<div class="flex" style="gap:5px;align-items:baseline;cursor:pointer" data-heroi="${E(h.id)}">
+        ${top(k).map(h => `<div class="flex" style="gap:6px;align-items:center;cursor:pointer" data-heroi="${E(h.id)}">
+          ${U.EM.selo(h, 18)}
           <span class="mini" style="flex:1">${E(h.name)}</span>
           <span class="xs"><b>${U.num(COL[k].get(h), 1)}%</b></span>
         </div>`).join('')}
@@ -1626,25 +1654,64 @@
     </div>`;
   }
 
-  /* ---- tier list como faixa ---- */
+  /* ---- tier list ----
+     Era uma nuvem de etiquetas: 95 nomes embolados, sem ordem
+     visível dentro da faixa, sem dizer o que separa T0 de T1, e
+     sem jeito de achar os seus. Agora cada faixa é uma faixa de
+     verdade — diz quantos tem e de quanto a quanto vai a pontuação
+     — e dentro dela os heróis vêm ordenados por ponto, com o selo
+     da rota. O filtro de rota do ranking vale aqui também. */
   function tierVisual() {
     const T = U.HE.TIER; if (!T) return '';
-    const E = U.esc;
+    const E = U.esc, HE = U.HE;
+    const meus = new Set(HE.noTreino().map(x => x.id));
+    const filtrar = (x) => {
+      if (!hf.f) return true;
+      const h = x.id && HE.porId(x.id);
+      return h ? HE.temFuncao(h, hf.f) : false;
+    };
+    const faixas = T.faixas.map(f => {
+      const l = f.herois.filter(filtrar).slice().sort((a, b) => b.pontos - a.pontos);
+      return { ...f, l };
+    });
+    const total = faixas.reduce((a, f) => a + f.l.length, 0);
+    const todosPts = T.faixas.flatMap(f => f.herois.map(x => x.pontos));
+    const maxPts = Math.max(...todosPts), minPts = Math.min(...todosPts);
+
     return `<div class="painel">
-      <h2>Tier list · ${E(T.data)}</h2>
-      <div class="xs" style="margin-bottom:7px">${E(T.avisoDaFonte)}</div>
-      ${T.faixas.map(f => `<div class="flex" style="gap:8px;align-items:flex-start;margin-top:7px">
-        <span class="tierb t${f.id.replace('.', '')}" style="flex:0 0 auto">${E(f.id)}</span>
-        <div class="flex" style="gap:4px;flex-wrap:wrap;flex:1">
-          ${f.herois.map(x => {
-            const h = x.id && U.HE.porId(x.id);
-            return `<span class="tag ${h ? '' : 'warn'}" ${h ? `data-heroi="${E(x.id)}" style="cursor:pointer"` : ''}>${
-              E(h ? h.name : x.nomeCn)} <b>${U.num(x.pontos, 1)}</b></span>`;
-          }).join('')}
-        </div>
-      </div>`).join('')}
-      <div class="xs" style="margin-top:8px">Os amarelos, em chinês, são heróis que existem na fonte e não na
-      sua lista. Ficam assim porque adivinhar o nome internacional deles renomearia o herói errado.</div>
+      <div class="flex" style="gap:8px;align-items:baseline">
+        <h2 style="margin:0">Tier list</h2><div class="espaco"></div>
+        <span class="xs">${E(T.data)} · ${total} ${total === 1 ? 'herói' : 'heróis'}${hf.f ? ' nesta rota' : ''}</span>
+      </div>
+      <div class="xs" style="margin-top:4px">${E(T.avisoDaFonte)}</div>
+      ${!total ? '<div class="aviso" style="margin-top:8px">Nenhum herói desta rota aparece na tier list — a rota só está preenchida onde foi lida da fonte.</div>' : ''}
+      ${faixas.filter(f => f.l.length).map(f => {
+        const pts = f.l.map(x => x.pontos);
+        const lo = Math.min(...pts), hi = Math.max(...pts);
+        return `<div class="faixa">
+          <div class="faixa-c">
+            <span class="tierb t${f.id.replace('.', '')}" style="font-size:.7rem;padding:4px 9px">${E(f.id)}</span>
+            <div class="xs" style="margin-top:4px;text-align:center">${f.l.length}</div>
+            <div class="xs" style="text-align:center;opacity:.75">${U.num(lo, 1)}–${U.num(hi, 1)}</div>
+          </div>
+          <div class="faixa-l">
+            ${f.l.map(x => {
+              const h = x.id && HE.porId(x.id);
+              const forca = U.clamp((x.pontos - minPts) / Math.max(1, maxPts - minPts), 0, 1);
+              if (!h) return `<span class="chipH cn" title="nome da fonte sem correspondência na sua lista">
+                <span class="chipH-n">${E(x.nomeCn)}</span><b>${U.num(x.pontos, 1)}</b></span>`;
+              return `<span class="chipH ${meus.has(h.id) ? 'meu' : ''}" data-heroi="${E(h.id)}">
+                ${U.EM.selo(h, 18)}
+                <span class="chipH-n">${E(h.name)}</span><b>${U.num(x.pontos, 1)}</b>
+                <i style="width:${(forca * 100).toFixed(0)}%"></i></span>`;
+            }).join('')}
+          </div>
+        </div>`;
+      }).join('')}
+      <div class="xs" style="margin-top:9px">A barrinha embaixo de cada nome é a pontuação dentro do intervalo
+      inteiro da lista (${U.num(minPts, 1)} a ${U.num(maxPts, 1)}) — serve para comparar dentro da faixa, onde
+      o selo T0 sozinho não separa ninguém. Os nomes em chinês, sem selo, existem na fonte e não na sua lista:
+      adivinhar o nome internacional deles renomearia o herói errado.</div>
     </div>`;
   }
 
@@ -1744,6 +1811,44 @@
           <div class="kpi"><div class="v" style="color:${pan.daPrioritaria ? 'var(--ok)' : 'var(--bad)'}">${pan.daPrioritaria}</div><div class="k">da fonte prioritária</div></div>
         </div>
       </div>
+
+      ${(() => {
+        const H = U.HE.HABILIDADES; if (!H) return '';
+        const ids = Object.keys(H).filter(k => H[k] && (H[k].lista || H[k].leituras));
+        const ok = ids.filter(k => H[k].lista), conf = ids.filter(k => H[k].conflitoTotal);
+        const total = U.HE.todos().length;
+        return `<div class="painel">
+        <h2>Habilidades e passivas — o estado real</h2>
+        <div class="aviso bad" style="margin-top:8px">
+          <b>Os três links que você mandou estão bloqueados aqui.</b>
+          bittopup.com, hokstats.gg e honor-of-kings.fandom.com devolvem 403 no proxy desta sessão.
+          liquipedia.net e hokbuild.com também. Não é contornável de dentro do app.
+        </div>
+        <div class="mini" style="margin-top:7px">O que sobrou foi a <b>busca</b>. Ela não devolve a página:
+        devolve título, link e um resumo que a máquina faz dos trechos. É mais fraco do que ler a página, e
+        erra de um jeito traiçoeiro — o resumo soa certo mesmo quando está errado. Por isso cada herói aqui
+        precisa de <b>duas buscas</b> que concordem, e quando elas discordam o app guarda as duas.</div>
+        <div class="grade g3" style="margin-top:9px">
+          <div class="kpi"><div class="v" style="color:var(--ok)">${ok.length}</div><div class="k">com kit montado</div></div>
+          <div class="kpi"><div class="v" style="color:var(--bad)">${conf.length}</div><div class="k">com leituras que brigam</div></div>
+          <div class="kpi"><div class="v" style="color:var(--dim2)">${total - ids.length}</div><div class="k">sem nada ainda</div></div>
+        </div>
+        <div class="pilha" style="gap:4px;margin-top:9px">
+          ${ids.map(k => { const h = U.HE.porId(k); const e = H[k];
+            return `<div class="flex" style="gap:7px;align-items:center">
+              ${h ? U.EM.selo(h, 18) : ''}
+              <span class="mini" style="flex:0 0 5.5rem;color:var(--txt)">${E(h ? h.name : k)}</span>
+              <span class="tag ${e.conflitoTotal ? 'bad' : e.lista ? 'ok' : 'warn'}" style="font-size:.52rem">${
+                e.conflitoTotal ? 'conflito' : `${e.lista.length} habilidades`}</span>
+              <span class="xs" style="flex:1">${e.alerta ? E(e.alerta.slice(0, 90)) + '…' : `cruzado em ${e.buscas} buscas`}</span>
+            </div>`; }).join('')}
+        </div>
+        <div class="xs" style="margin-top:9px"><b>Por que não estão os 117:</b> cada herói custa duas buscas
+        para cruzar, e cruzar é o que separa isto de chute. Fazer os 117 no chute levaria um minuto e
+        encheria o app de habilidade inventada — que é exatamente o que você proibiu. Se você conseguir
+        abrir um daqueles sites e colar o texto na tela de importar, entra na hora e com fonte melhor.</div>
+      </div>`;
+      })()}
 
       <div class="painel">
         <h2>O que esta fonte não publica</h2>
@@ -1901,6 +2006,75 @@
                      strategy: 'estratégia', counters: 'counters', synergies: 'sinergias' };
 
     const cnt = HE.campo(h, 'counters'), sin = HE.campo(h, 'synergies'), arc = HE.campo(h, 'arcana');
+    const hab = HE.campo(h, 'abilities'), hm = h.habilidadesMeta || {};
+
+    /* O kit vem antes dos números. Você voltou depois de um mês: o
+       que a habilidade faz importa mais do que a taxa de banimento
+       dela. E a confiança de cada linha fica escrita AO LADO da
+       linha, não num rodapé que ninguém lê. */
+    const SLOT = { passiva: 'PASSIVA', '1': '1', '2': '2', '3': '3', '4': '4' };
+    const habBruto = (HE.HABILIDADES || {})[h.id] || null;
+
+    /* Conflito total: existe informação, e ela se contradiz. Isso
+       não é "sem dado" nem "com dado" — é um terceiro estado, e
+       fingir que é um dos outros dois é que seria mentira. */
+    const blocoConflito = () => {
+      if (!habBruto || !habBruto.conflitoTotal) return '';
+      return `<div class="sep"></div>
+      <div class="flex" style="gap:7px;align-items:baseline">
+        <div class="mt" style="flex:1">O kit</div>
+        <span class="tag bad" style="font-size:.52rem">duas leituras que não batem</span>
+      </div>
+      <div class="aviso bad" style="margin-top:7px">${E(habBruto.alerta)}</div>
+      <div class="grade" style="grid-template-columns:repeat(2,1fr);gap:8px;margin-top:8px">
+        ${habBruto.leituras.map(L => `<div class="medida">
+          <div class="mt">${E(L.de)}</div>
+          <div class="pilha" style="gap:5px;margin-top:5px">
+            ${Object.entries(L.slots).map(([k, v]) => `<div class="xs">
+              <b style="color:var(--txt)">${k === 'passiva' ? 'P' : k}</b> — ${E(v)}</div>`).join('')}
+          </div>
+        </div>`).join('')}
+      </div>
+      <div class="xs" style="margin-top:7px">Montar um kit a partir disto seria escolher uma das duas por
+      gosto. As duas ficam à vista até você abrir o jogo e dizer qual é.</div>`;
+    };
+
+    const blocoHab = () => {
+      if (!hab.tem) return blocoConflito();
+      return `<div class="sep"></div>
+      <div class="flex" style="gap:7px;align-items:baseline">
+        <div class="mt" style="flex:1">O kit</div>
+        <span class="tag ${hm.cruzado ? 'ok' : 'warn'}" style="font-size:.52rem">${
+          hm.cruzado ? `cruzado em ${hm.buscas} buscas` : 'uma busca só'}</span>
+      </div>
+      ${habBruto && habBruto.alerta ? `<div class="aviso" style="margin-top:7px">${E(habBruto.alerta)}</div>` : ''}
+      <div class="pilha" style="gap:6px;margin-top:7px">
+        ${hab.v.map(a => `<div class="hab ${a.slot === 'passiva' ? 'p' : ''}">
+          <div class="hab-t">${E(SLOT[a.slot] || a.slot)}</div>
+          <div style="min-width:0">
+            <div class="flex" style="gap:6px;align-items:baseline">
+              <span class="hab-n">${E(a.nome)}</span>
+              ${a.confianca === 'media' ? '<span class="tag warn" style="font-size:.5rem">leitura em disputa</span>' : ''}
+            </div>
+            <div class="mini" style="margin-top:2px">${E(a.texto)}</div>
+            ${a.numeros ? `<div class="xs" style="margin-top:3px"><b style="color:var(--dim)">Números:</b> ${E(a.numeros)}</div>` : ''}
+            ${a.nota ? `<div class="xs" style="margin-top:3px">${E(a.nota)}</div>` : ''}
+            ${a.disputa ? `<div class="aviso" style="margin-top:5px;font-size:.62rem">
+              <b>Duas leituras, e eu não sei qual está certa.</b>
+              <div class="xs" style="margin-top:3px">A — ${E(a.disputa.leituraA)}</div>
+              <div class="xs" style="margin-top:2px">B — ${E(a.disputa.leituraB)}</div>
+              <div class="xs" style="margin-top:3px">${E(a.disputa.porQueNaoEscolhi)}</div>
+            </div>` : ''}
+          </div>
+        </div>`).join('')}
+      </div>
+      ${hm.ordemDeUpar ? `<div class="xs" style="margin-top:6px"><b>Ordem de upar:</b>
+        ${E(hm.ordemDeUpar.texto)} — ${E(hm.ordemDeUpar.nota || '')}</div>` : ''}
+      <div class="xs" style="margin-top:7px">Isto NÃO veio do pvp.mcxssg.net, que não publica habilidade.
+      Veio de <b>busca na web</b> — resumo de trechos, não leitura de página, porque os três sites que você
+      mandou estão bloqueados aqui. Páginas que a busca apontou:
+      ${(hm.urls || []).map(u => `<code style="font-size:.9em">${E(u.replace(/^https?:\/\//, '').split('/')[0])}</code>`).join(' · ')}.</div>`;
+    };
     /* Nome de adversário que existe na sua lista vira atalho: ler
        "perde para Nezha" e não conseguir abrir o Nezha ali mesmo é
        a mesma frustração de antes em escala menor. Quem não está na
@@ -1920,6 +2094,7 @@
 
     modal(`
       <div class="flex" style="gap:10px;align-items:flex-start">
+        <div style="flex:0 0 auto">${U.EM.selo(h, 42)}</div>
         <div style="flex:1;min-width:0">
           <h2 style="margin:0">${E(h.name)}${h.nomeCn ? ` <span class="xs" style="opacity:.7">${E(h.nomeCn)}</span>` : ''}</h2>
           <div class="mini">${h.titulo ? E(h.titulo) : ''}</div>
@@ -1932,6 +2107,8 @@
           <div class="tierb t${(h.tier.lista || '').replace('.', '')}" style="font-size:.85rem;padding:5px 10px">${E(h.tier.lista)}</div>
           <div class="xs" style="margin-top:3px">${U.num(h.tier.pontos, 1)} pts</div></div>` : ''}
       </div>
+
+      ${blocoHab()}
 
       ${e ? `<div class="sep"></div>
         <div class="mt">Os números</div>

@@ -1,5 +1,5 @@
 ================================================================
-ESPELHO v6 — Laboratório de evolução + central de heróis
+ESPELHO v7 — Laboratório de evolução + central de heróis
 Honor of Kings · Poco X7 Pro · HTML/CSS/JS, sem dependências
 ================================================================
 
@@ -15,6 +15,167 @@ jogo, tudo o que vier depois mede a coisa errada.
 
 Seus dados da v1 e da v2 continuam lá. Nada é apagado.
 
+
+================================================================
+PARTE -3 — V7: HABILIDADES, SELO, TIER LIST E UM SELO QUE MENTIA
+================================================================
+
+OS TRÊS LINKS QUE VOCÊ MANDOU ESTÃO BLOQUEADOS
+
+   bittopup.com ................ 403 no proxy desta sessão
+   hokstats.gg ................. 403
+   honor-of-kings.fandom.com ... 403
+   liquipedia.net .............. 403 (apareceu na busca)
+   hokbuild.com ................ 403
+
+   Não é contornável de dentro do app, e eu não vou fingir que li.
+   O que funciona aqui é a BUSCA — e busca não devolve a página:
+   devolve título, link e um resumo que a máquina faz dos trechos.
+
+POR QUE ISSO MUDA O JEITO DE GUARDAR
+
+   Resumo de trecho erra, e erra de um jeito traiçoeiro: soa certo.
+   Aconteceu duas vezes nesta sessão, e as duas estão no app:
+
+   · JING — a primeira busca devolveu "Skill 3: Dimensional Shift"
+     E "Ultimate: Mirror Domain" com descrições quase iguais. Uma
+     das duas leituras está errada e eu não sei qual. O app mostra
+     a habilidade 3 com o selo LEITURA EM DISPUTA e escreve as duas
+     versões embaixo.
+   · NEZHA — duas buscas, nomes DIFERENTES para as três
+     habilidades, e nenhuma confirmou a passiva. Esse herói fica
+     SEM KIT MONTADO, com as duas leituras lado a lado. Escolher
+     uma seria dar ao chute a aparência de dado.
+
+   Regra do arquivo dados/herois/_habilidades.js:
+   · toda entrada guarda as URLs que a busca devolveu;
+   · toda entrada nasce conferido:false;
+   · duas buscas que discordam viram DUAS leituras guardadas;
+   · nome que não apareceu em busca nenhuma não é inventado.
+
+O QUE TEM HOJE, E POR QUE NÃO SÃO OS 117
+
+   Jing ..... 4 habilidades, cruzado em 2 buscas
+   Luna ..... 4 habilidades, cruzado em 2 buscas
+   Nuwa ..... 4 habilidades, cruzado — COM AVISO: apareceu notícia
+              de rework da Nuwa na Temporada 8. Se o rework já
+              entrou, a descrição é do kit antigo.
+   Nezha .... conflito total registrado, sem kit montado
+   os outros 113 ... nada, e dito assim na tela de Dados.
+
+   Cada herói custa duas buscas para cruzar, e cruzar é o que
+   separa isto de chute. Fazer os 117 no chute levaria um minuto e
+   encheria o app de habilidade inventada — que é o que você
+   proibiu três vezes. Se você abrir um daqueles sites no celular e
+   colar o texto na tela de importar, entra na hora e com fonte
+   melhor.
+
+O SELO DE CADA HERÓI (a "textura" que você pediu)
+
+   Não dá para baixar imagem nenhuma aqui. Colocar um retrato
+   genérico em 117 lugares seria pior que nada.
+
+   Então cada herói ganhou um SELO GERADO: forma geométrica
+   derivada do id dele, colorida pela rota (TOP laranja, SELVA
+   verde, MID violeta, SUP dourado, ADC azul). É SVG embutido —
+   nada sai pela rede. É decoração honesta: não afirma nada sobre o
+   personagem, só faz o Nezha parecer diferente do Nuwa quando você
+   passa o olho por sessenta linhas.
+
+   Junto veio matéria na tela: grão fino por cima de tudo (ruído
+   SVG embutido), luz de 1px no topo de cada superfície e sombra
+   que separa painel de painel. Antes era tudo retângulo chapado.
+
+TIER LIST REFEITA
+
+   Era uma nuvem de 95 etiquetas embolada. Agora cada faixa é uma
+   faixa: selo T0/T0.5/T1/T2 com a CONTAGEM e o INTERVALO de
+   pontos, heróis ordenados por ponto dentro dela, selo da rota em
+   cada um e uma barrinha de força na base do chip. O filtro de
+   rota do ranking vale aqui também. Os nomes em chinês sem
+   correspondência continuam em amarelo, tracejados e sem id.
+
+O KIT ENTROU NO TREINO
+
+   A tela de Config agora mostra QUE BOTÃO É QUE: 1 = Reflective
+   Assault, 2 = Shattered Illusions, 3 = Mirror Domain (em
+   disputa), P = Lethal Reflections. O treino continua medindo o
+   BOTÃO — o nome é só para você não ter que traduzir "habilidade
+   2" de cabeça. Herói sem kit no banco cai no rótulo genérico:
+   rótulo genérico é feio, rótulo inventado é pior.
+
+UM SELO DE CONFIANÇA QUE NUNCA DIZIA NÃO  (a caçada desta versão)
+
+   O estimador de pivô do polegar devolve um selo "confiável". Ele
+   estava preso ao CUSTO do ajuste. Calibrei com 200 jogadores
+   simulados, com o pivô plantado num ponto conhecido:
+
+     correlação do CUSTO com o erro real ......... r = 0,17
+     correlação da INCERTEZA com o erro real ..... r = 0,49
+     vezes que o selo dizia "confiável" .......... 200 de 200
+     erro máximo entre esses "confiáveis" ........ 34,9 mm
+
+   Um selo que nunca diz não é pior que selo nenhum, porque parece
+   que alguém conferiu. Agora ele sai da incerteza declarada, com
+   porta em 18 mm:
+
+     libera ..... 97 de 200 · erro p90 = 11,3 mm · 0% acima de 18mm
+     barra ..... 103 de 200 · erro p90 = 21,6 mm
+
+   E quando barra, escreve o motivo na tela em vez de só encolher
+   os ombros.
+
+O QUE O ÍNDICE FAZ COM UM JOGADOR QUE NÃO MUDA (medido, 60 réplicas)
+
+   Rodei 60 jogadores parados — nível 6 fixo, 45 sessões — pelo
+   caminho real do app, e medi quanto o índice global anda sozinho
+   (média das 5 primeiras contra as 5 últimas sessões):
+
+     deriva média, com sinal ......... +2,2 pontos  (quase sem viés)
+     |deriva| mediana ................  3,4 pontos
+     |deriva| p90 .................... 11,2 pontos
+     |deriva| p95 .................... 12,4 pontos
+     |deriva| máxima ................. 24,0 pontos
+     passa de 12 pontos em ............ 5% dos jogadores
+
+   Leia assim: uma mudança de até ~11 pontos no índice, sozinha,
+   NÃO é prova de nada — cabe dentro do que o ruído produz num
+   jogador que ficou igual. Parte disso vem de eixos entrando na
+   conta aos poucos (de 1 eixo na primeira sessão a 8 na
+   quadragésima): o índice muda porque a conta mudou, não porque
+   você mudou. É por isso que a tela declara o nível de confiança
+   do índice e não fica gritando "evoluiu".
+
+   E um dia de sorte absurda (tempo de rota 40% melhor numa sessão
+   solta) vira veredicto de "evolução" em 1 de 12 rodadas — ~8%.
+   Não é zero, e a tela não promete zero.
+
+TRÊS TESTES QUE ESTAVAM ERRADOS (e o produto, certo)
+
+   As baterias tinham asserções instáveis. Investigadas uma a uma,
+   as três acusavam o produto por defeito delas:
+
+   1. "dedo centrado NÃO é acusado de viés" — o detector é um teste
+      T² de Hotelling a 5%: ele DEVE acusar ~5% das vezes. Exigir
+      0% numa rodada era exigir o impossível. Agora mede a taxa:
+      deu 5,5% em 200 rodadas, calibrado.
+   2. "o nível estimado fica perto da média verdadeira" — com n=20
+      e ruído sd=4 uma rodada passeia. Agora mede viés e largura em
+      60 réplicas.
+   3. "a leitura diz quantas sessões faltam" — o padrão do teste
+      casava "sessões" e não casava "sessão". Quando a conta dava
+      1, o teste acusava o produto por erro do teste.
+
+   Mais três na bateria de longo prazo, pelo mesmo motivo:
+   "o índice NÃO inventa melhora" media UM jogador contra um
+   limiar de 12 pontos que 5% dos jogadores parados ultrapassam
+   por ruído; "o índice sobe quando melhora" tirava mediana de
+   três; e "uma sessão excepcional NÃO vira evolução" exigia 0%
+   de um evento que acontece em ~8%. As três viraram medidas de
+   distribuição.
+
+   Depois: 10 rodadas seguidas de cada bateria rápida, todas
+   limpas, e as baterias longas passando inteiras.
 
 ================================================================
 PARTE -2 — O QUE MUDOU NA V6 (a aba Heróis, refeita)

@@ -70,7 +70,7 @@
     naoPublica: {
       combos: 'Não existe seção de combo no site. Ele conta partidas, não ensina sequência de botão.',
       arcana: 'Não aparece seção de arcana/inscrição em nenhuma das capturas do site.',
-      abilities: 'Não aparece descrição de habilidade — só o ícone do herói.',
+      abilities: 'Não aparece descrição de habilidade — só o ícone do herói. (Isto vale para ESTA fonte; habilidade agora vem de outro lugar, marcado como tal.)',
       strategy: 'Não há texto de estratégia. O site publica número, não conselho.',
     },
   };
@@ -85,6 +85,21 @@
     'usuario': {
       id: 'usuario', nome: 'Você', url: null, prioridade: 0,
       porque: 'Informado ou editado por você dentro do app.',
+    },
+    /* Fonte fraca, e marcada como fraca de propósito.
+       Os sites de habilidade que você mandou (fandom, hokstats.gg,
+       bittopup) também são recusados pelo proxy desta sessão. O que
+       restou foi a BUSCA: ela devolve título, link e um resumo feito
+       por máquina em cima de trechos — não o texto da página.
+       Resumo de trecho erra, e erra de um jeito perigoso: ele soa
+       certo. Por isso todo campo que vem daqui guarda as URLs que
+       apareceram na busca, fica com conferido:false, e quando duas
+       buscas discordam o app guarda AS DUAS leituras em vez de
+       escolher uma. */
+    'busca_web': {
+      id: 'busca_web', nome: 'Busca na web (resumo de trechos)',
+      url: null, prioridade: 3, fraca: true,
+      porque: 'Não é leitura de página: é o resumo que o buscador faz dos trechos. As páginas de origem estão listadas em cada campo. Trate como pista forte, não como transcrição.',
     },
   };
 
@@ -231,6 +246,17 @@
       c.estatisticas = e;
       c.fontes = Object.assign({}, c.fontes || {}, { estatisticas: 'pvp.mcxssg.net' });
       c.fontesData = Object.assign({}, c.fontesData || {}, { estatisticas: e.data });
+    }
+    /* habilidade: camada mais fraca de todas (resumo de busca), então
+       só entra onde ainda não há nada, e leva a origem grudada */
+    const ab = U.HE.HABILIDADES && U.HE.HABILIDADES[id];
+    if (ab && ab.lista && ab.lista.length && !(c.abilities && c.abilities.length)) {
+      c.abilities = ab.lista;
+      c.habilidadesMeta = { cruzado: !!ab.cruzado, buscas: ab.buscas || 0, urls: ab.urls || [],
+                            ordemDeUpar: ab.ordemDeUpar || null };
+      c.fontes = Object.assign({}, c.fontes || {}, { abilities: 'busca_web' });
+      c.fontesUrl = Object.assign({}, c.fontesUrl || {}, { abilities: (ab.urls || [])[0] || null });
+      c.fontesData = Object.assign({}, c.fontesData || {}, { abilities: U.HE.HABILIDADES.quando });
     }
     return c;
   }
@@ -634,8 +660,43 @@
     return { tem: Array.isArray(d[k]) && d[k].length > 0, chave: k, n: (d[k] || []).length };
   }
 
+  /* ============================================================
+     A PONTE ENTRE O BANCO E O TREINO
+     O treino fala em s1/s2/s3/pass porque é disso que ele mede o
+     toque. O banco agora sabe o NOME da habilidade que mora em
+     cada um desses botões. Juntar as duas coisas é uma consulta
+     por id — não é misturar armazenamento, e é o que faz o
+     briefing dizer "Crescent Slice" em vez de "Habilidade 1".
+
+     Se o herói do treino não tem kit no banco, isto devolve null e
+     a tela cai no rótulo genérico. Rótulo genérico é feio; rótulo
+     inventado é pior.
+     ============================================================ */
+  const BOTAO_POR_SLOT = { passiva: 'pass', '1': 's1', '2': 's2', '3': 's3' };
+
+  function kitDoTreino(id) {
+    const alvo = id || (noTreino()[0] && noTreino()[0].id) || 'jing';
+    const h = porId(alvo);
+    if (!h || !h.abilities || !h.abilities.length) return null;
+    const m = {};
+    for (const a of h.abilities) {
+      const b = BOTAO_POR_SLOT[a.slot];
+      if (b) m[b] = { nome: a.nome, texto: a.texto, confianca: a.confianca || 'alta', disputa: !!a.disputa };
+    }
+    if (!Object.keys(m).length) return null;
+    return { heroi: alvo, nome: h.name, botoes: m,
+             meta: h.habilidadesMeta || {}, fonte: (h.fontes && h.fontes.abilities) || null };
+  }
+
+  /** Rótulo curto de um botão, com o nome real quando existe. */
+  function rotuloBotao(k, kit) {
+    const a = kit && kit.botoes && kit.botoes[k];
+    return a ? a.nome : null;
+  }
+
   U.HE = {
     FONTE_ALVO, FONTES, SEM_DADO, CAMPOS, SECOES, TIPOS_BUILD, FUNCOES, EXTRATOR,
+    kitDoTreino, rotuloBotao, BOTAO_POR_SLOT,
     NOMES_CN, CN_POR_ID, idDoNomeCn, rotularCn, nomesNaoMapeados, conferirMapa, foraDoBanco,
     registrar, registrarLista, validar, porId, todos, buscar, porFuncao, temFuncao,
     aplicarTier, aplicarStats, aplicarFuncao,
