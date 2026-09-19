@@ -297,6 +297,12 @@
             (folga.depois > folga.antes && folga.antes < folgaMin),
       incerteza: fitts.erro,
       leitura: leitura(ganhoMs, ganhoTempo, ganhoErro, fitts, mudancas, folga),
+      /* Vale para TODOS os ramos da leitura, inclusive o que diz
+         "não vale a pena": qualquer milissegundo que sai daqui é
+         previsão de modelo. Fica como campo do resultado, e não
+         enfiado numa das frases, para que quem consumir o módulo
+         receba a ressalva junto do número — não só quem lê a tela. */
+      avisoModelo: 'Isto é previsão de um modelo ajustado nos seus toques, não medida. Ele vale o que vale a reta de tempo por distância que você alimentou.',
     };
   }
 
@@ -311,7 +317,7 @@
     const parte = gE > gT
       ? `A maior parte do ganho não é velocidade: é toque errado que deixa de acontecer (${gE.toFixed(0)} ms de ${ganho.toFixed(0)}).`
       : `A maior parte do ganho é distância percorrida (${gT.toFixed(0)} ms de ${ganho.toFixed(0)}).`;
-    return `Cerca de <b>${ganho.toFixed(0)} ms por trajeto</b>, mexendo ${mud.length} ${mud.length === 1 ? 'botão' : 'botões'}. ${parte}${folgaTxt} Isto é previsão de um modelo ajustado em você, não medida: o jeito de saber se vale é mudar, treinar uma semana e comparar o tempo de rota — o sistema faz essa comparação sozinho depois que você aplicar.`;
+    return `Cerca de <b>${ganho.toFixed(0)} ms por trajeto</b>, mexendo ${mud.length} ${mud.length === 1 ? 'botão' : 'botões'}. ${parte}${folgaTxt} O jeito de saber se vale é mudar, treinar uma semana e comparar o tempo de rota — o sistema faz essa comparação sozinho depois que você aplicar.`;
   }
 
   /* ============================================================

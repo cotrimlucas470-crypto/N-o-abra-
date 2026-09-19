@@ -794,6 +794,7 @@
           <div class="kpi"><div class="v">${r.mudancas.length}</div><div class="k">botões movidos</div></div>
           <div class="kpi"><div class="v" style="color:${r.folga.depois >= r.folga.min ? 'var(--ok)' : 'var(--warn)'}">${r.folga.depois.toFixed(1)}<span class="de">mm</span></div><div class="k">menor folga (era ${r.folga.antes.toFixed(1)})</div></div>
         </div>
+        <div class="xs" style="margin-top:6px">${U.esc(r.avisoModelo)}</div>
         <div class="aviso" style="margin-top:8px">${r.leitura}</div>
         ${r.apertados.length ? `<div class="aviso ${r.folga.antes < r.folga.min ? 'bad' : ''}" style="margin-top:7px">
           <b>Botões mais apertados que o seu dedo:</b>
@@ -1249,10 +1250,14 @@
               </div>
             </div>`).join('')}
           </div>
-          ${kit.quatroAtivas ? `<div class="aviso" style="margin-top:7px"><b>Este herói tem quatro habilidades ativas.</b>
-            O HUD do treino tem três botões de habilidade, então
+          ${kit.soltas.length ? `<div class="aviso ${kit.ordemIncerta ? 'bad' : ''}" style="margin-top:7px">
+            <b>${kit.ordemIncerta
+              ? 'Não dá para dizer qual botão é qual neste herói.'
+              : 'Este herói tem quatro habilidades ativas.'}</b>
+            ${U.esc(kit.porqueSoltas)}, então
             ${kit.soltas.map(x => `<b>${U.esc(x.nome || 'a habilidade ' + x.slot)}</b>`).join(' e ')}
-            ficou sem botão para casar. Forçar um casamento aqui faria o treino medir o toque errado.</div>` : ''}
+            ${kit.soltas.length > 1 ? 'ficaram' : 'ficou'} sem botão para casar.
+            Forçar um casamento aqui faria o treino medir o toque errado.</div>` : ''}
           <div class="xs" style="margin-top:6px">Nome vindo do banco de heróis (busca na web, não lida de página).
           O treino continua medindo o BOTÃO — o nome é só para você não ter que traduzir "habilidade 2" de cabeça
           enquanto joga.</div>` : ''}
@@ -2065,7 +2070,7 @@
         <span class="tag ${hm.cruzado ? 'ok' : 'warn'}" style="font-size:.52rem">${
           hm.cruzado ? `cruzado em ${hm.buscas} buscas` : 'uma busca só'}</span>
       </div>
-      ${habBruto && habBruto.alerta ? `<div class="aviso" style="margin-top:7px">${E(habBruto.alerta)}</div>` : ''}
+      ${habBruto && habBruto.alerta ? `<div class="aviso ${habBruto.ordemIncerta ? 'bad' : ''}" style="margin-top:7px">${E(habBruto.alerta)}</div>` : ''}
       <div class="pilha" style="gap:6px;margin-top:7px">
         ${hab.v.map(a => `<div class="hab ${a.slot === 'passiva' ? 'p' : ''}${a.ult ? ' u' : ''}">
           <div class="hab-t">${E(rotuloSlot(a))}</div>

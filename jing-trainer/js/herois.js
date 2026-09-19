@@ -253,7 +253,8 @@
     if (ab && ab.lista && ab.lista.length && !(c.abilities && c.abilities.length)) {
       c.abilities = ab.lista;
       c.habilidadesMeta = { cruzado: !!ab.cruzado, buscas: ab.buscas || 0, urls: ab.urls || [],
-                            ordemDeUpar: ab.ordemDeUpar || null };
+                            ordemDeUpar: ab.ordemDeUpar || null,
+                            ordemIncerta: !!ab.ordemIncerta };
       c.fontes = Object.assign({}, c.fontes || {}, { abilities: 'busca_web' });
       c.fontesUrl = Object.assign({}, c.fontesUrl || {}, { abilities: (ab.urls || [])[0] || null });
       c.fontesData = Object.assign({}, c.fontesData || {}, { abilities: U.HE.HABILIDADES.quando });
@@ -713,6 +714,11 @@
     const alvo = id || (noTreino()[0] && noTreino()[0].id) || 'jing';
     const h = porId(alvo);
     if (!h || !h.abilities || !h.abilities.length) return null;
+    /* Quando a ORDEM entre as habilidades 1 e 2 não foi estabelecida
+       (Zhao Yun), casar nome com botão é rifa: metade das vezes o
+       treino diria "botão 1 = X" com X no botão errado. A ultimate
+       continua entrando, porque essa está confirmada. */
+    const ordemIncerta = !!(h.habilidadesMeta && h.habilidadesMeta.ordemIncerta);
     const m = {}, soltas = [];
     const embrulha = (a) => ({ nome: a.nome, texto: a.texto, confianca: a.confianca || 'alta',
                                disputa: !!a.disputa, ult: !!a.ult, slot: a.slot,
@@ -722,13 +728,18 @@
     const temUlt = h.abilities.some(a => a.ult);
     for (const a of h.abilities) {
       if (a.ult || (!temUlt && a.slot === '3')) { m.s3 = embrulha(a); continue; }
+      if (ordemIncerta && (a.slot === '1' || a.slot === '2')) { soltas.push(embrulha(a)); continue; }
       const b = a.slot === 'passiva' ? 'pass' : a.slot === '1' ? 's1' : a.slot === '2' ? 's2' : null;
       if (b && !m[b]) m[b] = embrulha(a);
       else soltas.push(embrulha(a));
     }
     if (!Object.keys(m).length) return null;
     return { heroi: alvo, nome: h.name, botoes: m, soltas,
-             quatroAtivas: soltas.length > 0,
+             ordemIncerta,
+             quatroAtivas: !ordemIncerta && soltas.length > 0,
+             porqueSoltas: ordemIncerta
+               ? 'a ordem entre as habilidades 1 e 2 não foi estabelecida nas buscas'
+               : soltas.length ? 'o HUD do treino tem três botões de habilidade e este herói tem quatro ativas' : null,
              meta: h.habilidadesMeta || {}, fonte: (h.fontes && h.fontes.abilities) || null };
   }
 

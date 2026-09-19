@@ -1,5 +1,5 @@
 ================================================================
-ESPELHO v8 — Laboratório de evolução + central de heróis
+ESPELHO v9 — Laboratório de evolução + central de heróis
 Honor of Kings · Poco X7 Pro · HTML/CSS/JS, sem dependências
 ================================================================
 
@@ -20,7 +20,31 @@ Seus dados da v1 e da v2 continuam lá. Nada é apagado.
 PARTE -4 — V8: MAIS SETE HERÓIS, E A BUSCA ALCANÇANDO O KIT
 ================================================================
 
-ONZE DE 117, TODOS CRUZADOS EM DUAS BUSCAS
+QUINZE DE 117, TODOS CRUZADOS EM DUAS BUSCAS
+
+   Quatro entraram depois: Han Xin, Xiao Qiao, Wukong e Zhao Yun.
+
+   Han Xin ..... 4 · limpo
+   Xiao Qiao ... 4 · limpo, nomes E descrições cruzados
+   Wukong ...... 4 · uma busca se contradisse DENTRO DELA MESMA:
+                     chamou a habilidade 1 de "Fortification Spell"
+                     no meio do texto e de "Protective Shroud" ao
+                     listar o conjunto, na mesma resposta
+   Zhao Yun .... 4 · o mais embaralhado depois do Nezha. Três
+                     problemas juntos: o jogo usa dois nomes para
+                     ele (Zhao Yun e Zilong) e as fontes misturam;
+                     "Soaring Dragon" aparece ora como estágio da
+                     passiva, ora como habilidade ativa; e não deu
+                     para saber qual ativa é a 1 e qual é a 2.
+
+   O QUE O APP FAZ COM O ZHAO YUN: não casa as habilidades 1 e 2
+   com os botões do treino. Só a ultimate, que está confirmada.
+   Casar nome com botão sem saber a ordem é rifa — metade das
+   vezes o treino diria "botão 1 = X" com X no botão errado.
+   Isso é diferente de "tem quatro ativas" (Ao'yin, Da Qiao), e o
+   app trata os dois casos separado.
+
+ONZE DE 117 NA V8, TODOS CRUZADOS EM DUAS BUSCAS
 
    COM KIT MONTADO (10)
    Jing ......... 4 · a habilidade 3 com leitura em disputa

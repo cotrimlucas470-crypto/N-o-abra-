@@ -41,7 +41,7 @@
     conferido: false,
     quando: '2026-09-18',
     aviso: 'Resumo de busca, não leitura de página. Os três sites que você mandou estão bloqueados nesta sessão.',
-    cobertura: '10 de 117 heróis com kit montado + 1 com conflito total registrado (Nezha).',
+    cobertura: '14 de 117 heróis com kit montado + 1 com conflito total registrado (Nezha).',
 
     jing: {
       cruzado: true,
@@ -404,6 +404,124 @@
           texto: 'Cria um círculo mágico que causa dano, deixa os aliados se teleportarem até ele e dá escudo.',
           confianca: 'media',
           nota: 'As duas buscas concordam que é teleporte de time. Divergem no acessório: uma fala em velocidade de ataque para os aliados, a outra em escudo. O núcleo — portal para o time — é o mesmo.' },
+      ],
+    },
+
+    /* ------------------------------------------------------------
+       HAN XIN — limpo: quatro nomes, duas buscas, sem divergência.
+       ------------------------------------------------------------ */
+    'han-xin': {
+      cruzado: true, buscas: 2,
+      urls: ['https://liquipedia.net/honorofkings/Han_Xin',
+             'https://honor-of-kings.fandom.com/wiki/Han_Xin',
+             'https://hokstats.gg/heroes/han-xin/',
+             'https://gaminggblog.com/han-xin-builds/'],
+      lista: [
+        { slot: 'passiva', tecla: 'P', nome: 'Killing Spear',
+          texto: 'A cada 4º ataque básico, lança o alvo para o alto. Acertos de habilidade e ataques básicos melhorados dão velocidade de ataque.',
+          confianca: 'alta' },
+        { slot: '1', tecla: '1', nome: 'Ruthless Assault',
+          texto: 'Salta até o local alvo causando dano e lançando o inimigo.',
+          confianca: 'alta' },
+        { slot: '2', tecla: '2', nome: 'Fight or Die!',
+          texto: 'Causa dano pesado enquanto recua.',
+          confianca: 'alta',
+          nota: 'A descrição que a busca devolveu é curta assim mesmo. Não completei o resto por dedução.' },
+        { slot: '3', tecla: '3', ult: true, nome: 'The Unrivaled Spear',
+          texto: 'Solta um combo de quatro golpes em leque, cada um com dano físico pesado, lançando os inimigos no último. Durante a ultimate ele fica em super armadura e ganha 30% de redução de dano.',
+          confianca: 'alta' },
+      ],
+    },
+
+    /* ------------------------------------------------------------
+       XIAO QIAO — limpo: nomes E descrições cruzados.
+       ------------------------------------------------------------ */
+    'xiao-qiao': {
+      cruzado: true, buscas: 2,
+      urls: ['https://liquipedia.net/honorofkings/Xiao_Qiao',
+             'https://honor-of-kings.fandom.com/wiki/Xiao_Qiao',
+             'https://hokstats.gg/heroes/xiao-qiao/',
+             'https://gaminggblog.com/honor-of-kings-breezy-builds/'],
+      lista: [
+        { slot: 'passiva', tecla: 'P', nome: 'Encouraging Thoughts',
+          texto: 'Acertar um inimigo com habilidade dá 25% de velocidade de movimento por 2 s.',
+          confianca: 'alta' },
+        { slot: '1', tecla: '1', nome: 'Blossoming Fan',
+          texto: 'Joga o leque na direção alvo; ao chegar no alcance máximo ele volta, causando dano na ida e na volta.',
+          confianca: 'alta' },
+        { slot: '2', tecla: '2', nome: 'Honeysweet Breeze',
+          texto: 'Causa dano na área alvo e lança os inimigos para o alto.',
+          confianca: 'alta' },
+        { slot: '3', tecla: '3', ult: true, nome: 'Meteor Storm',
+          texto: 'Invoca meteoros que caem sem parar sobre os inimigos por perto durante 6 s. Cada meteoro causa dano mágico, e cada inimigo pode ser atingido até 4 vezes.',
+          numeros: '400/500/600 (+100% de poder mágico) por meteoro.',
+          confianca: 'alta' },
+      ],
+    },
+
+    /* ------------------------------------------------------------
+       WUKONG — uma busca se contradiz DENTRO DELA MESMA sobre o
+       nome da habilidade 1.
+       ------------------------------------------------------------ */
+    'sun-wukong': {
+      cruzado: true, buscas: 2,
+      urls: ['https://liquipedia.net/honorofkings/Wukong',
+             'https://honor-of-kings.fandom.com/wiki/Wukong',
+             'https://hokstats.gg/heroes/wukong/',
+             'https://gamingonphone.com/guides/honor-of-kings-wukong-guide-gameplay-tips/'],
+      alerta: 'A segunda busca se contradisse sozinha: no meio do texto chamou a habilidade 1 de "Fortification Spell" e, ao listar o conjunto, de "Protective Shroud". Não é divergência entre fontes; é a mesma resposta discordando dela mesma.',
+      lista: [
+        { slot: 'passiva', tecla: 'P', nome: 'The Great Sage',
+          texto: 'Usar habilidade melhora o próximo ataque básico, que vira um golpe com avanço e causa dano extra. Ele tem taxa de crítico base mais alta e dano crítico base mais baixo que os outros heróis.',
+          confianca: 'media', nota: 'O nome apareceu numa busca só; o mecanismo, nas duas.' },
+        { slot: '1', tecla: '1', nome: 'Fortification Spell',
+          texto: 'Ganha velocidade de movimento e bloqueia o dano e os efeitos da próxima habilidade inimiga. Bloqueando com sucesso, ganha dano temporário, invulnerabilidade a habilidade e escudo.',
+          confianca: 'media',
+          disputa: { oQue: 'o nome desta habilidade',
+            leituraA: 'Fortification Spell — como as duas buscas escreveram ao descrever o efeito.',
+            leituraB: 'Protective Shroud — como a segunda busca escreveu ao listar o conjunto completo, na mesma resposta.',
+            porQueNaoEscolhi: 'A mesma resposta usou os dois nomes para a mesma habilidade. Guardei o que aparece junto da descrição, e deixei o outro aqui.' } },
+        { slot: '2', tecla: '2', nome: 'Furious Advance',
+          texto: 'Desloca-se na direção alvo. Acertar unidades durante o deslocamento dispara outro deslocamento e dá velocidade de movimento.',
+          confianca: 'alta' },
+        { slot: '3', tecla: '3', ult: true, nome: 'Golden Cudgel',
+          texto: 'Lança para o alto os inimigos no alcance, causando dano e aplicando 3 marcas. Disparar as marcas rende dano adicional.',
+          confianca: 'media', nota: 'Nome numa busca só; o efeito (controle + 3 marcas) apareceu nas duas.' },
+      ],
+    },
+
+    /* ------------------------------------------------------------
+       ZHAO YUN — o caso mais embaralhado depois do Nezha.
+       ------------------------------------------------------------ */
+    'zhao-yun': {
+      cruzado: true, buscas: 2,
+      ordemIncerta: true,
+      urls: ['https://honor-of-kings.fandom.com/wiki/Zilong',
+             'https://liquipedia.net/honorofkings/Zhao_Huaizhen',
+             'https://hokstats.gg/heroes/zilong/',
+             'https://gaminggblog.com/honor-of-kings-zilong-build/'],
+      alerta: 'Três problemas de uma vez. (1) O jogo usa DOIS nomes para ele — Zhao Yun e Zilong — e as fontes misturam. (2) "Soaring Dragon" aparece ora como estágio da passiva, ora como habilidade ativa. (3) Não deu para estabelecer qual ativa é a 1 e qual é a 2. Por isso o app NÃO casa as habilidades 1 e 2 com os botões do treino deste herói: só a ultimate.',
+      lista: [
+        { slot: 'passiva', tecla: 'P', nome: null,
+          texto: 'A redução de dano cresce conforme a vida cai. Uma das leituras detalha três estágios: acima de 66% de vida, 5% de redução; entre 33% e 66%, 10% e mais alcance no avanço; abaixo de 33%, 20% e mais golpes com a lança.',
+          confianca: 'media',
+          disputa: { oQue: 'o nome da passiva',
+            leituraA: 'A passiva tem três estágios chamados Hidden Dragon, Rising Dragon e Soaring Dragon.',
+            leituraB: 'A passiva se chama "Roar of Protection".',
+            porQueNaoEscolhi: 'Pior ainda: "Soaring Dragon" aparece também como nome de uma habilidade ATIVA na mesma busca. Se o mesmo nome está em dois lugares, uma das leituras está errada e eu não sei qual.' } },
+        { slot: '1', tecla: '1', nome: 'Soaring Dragon',
+          texto: 'Lança o inimigo para o alto.',
+          confianca: 'media',
+          nota: 'A ORDEM não está estabelecida: as buscas citam "Soaring Dragon" e "Cloud-Piercing Dragon" como as duas ativas, sem dizer qual é a 1 e qual é a 2. Pode estar trocado com a linha de baixo.' },
+        { slot: '2', tecla: '2', nome: 'Cloud-Piercing Dragon',
+          texto: 'É a habilidade de dano da sequência, usada depois do lançamento.',
+          confianca: 'media',
+          nota: 'Mesma ressalva da habilidade 1: a ordem entre as duas não foi confirmada.' },
+        { slot: '3', tecla: '3', ult: true, nome: 'Thunderbreaker',
+          texto: 'Salta no ar e desce com um golpe de trovão, derrubando quem estiver na área por 1 s e causando dano físico.',
+          numeros: '550/825/1100 (+1150% de ataque físico bônus).',
+          confianca: 'alta',
+          nota: 'Único campo dele confirmado nas duas buscas. O número de escala (+1150%) é o que a busca devolveu; parece alto e não foi conferido.' },
       ],
     },
   };
