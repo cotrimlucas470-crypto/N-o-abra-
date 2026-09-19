@@ -1,5 +1,5 @@
 ================================================================
-ESPELHO v9 — Laboratório de evolução + central de heróis
+ESPELHO v11 — Laboratório de evolução + central de heróis
 Honor of Kings · Poco X7 Pro · HTML/CSS/JS, sem dependências
 ================================================================
 
@@ -20,7 +20,53 @@ Seus dados da v1 e da v2 continuam lá. Nada é apagado.
 PARTE -4 — V8: MAIS SETE HERÓIS, E A BUSCA ALCANÇANDO O KIT
 ================================================================
 
-QUINZE DE 117, TODOS CRUZADOS EM DUAS BUSCAS
+VINTE E QUATRO DE 117, TODOS CRUZADOS EM DUAS BUSCAS
+
+   Mais seis depois: Yuhuan, Musashi, Athena, Arthur, Lady Sun e
+   Shouyue. O padrão das divergências ficou claro, e cada tipo
+   ganhou tratamento próprio:
+
+   · NOME TROCADO DE LUGAR — "Niten Ichiryu" é ultimate do Musashi
+     numa busca e passiva na outra. Os dois campos ficam marcados.
+   · MECANISMO DIFERENTE, NÃO SÓ NOME — a passiva do Shouyue vem
+     com duas descrições que não são a mesma coisa: uma fala em
+     marcas fora de combate, a outra em converter crítico em dano.
+     Isso é mais grave que divergência de nome, e a descrição fica
+     em branco.
+   · SLOT DESCONHECIDO QUE A SEGUNDA BUSCA RESOLVE — a primeira
+     busca da Athena trouxe os três nomes e disse que não sabia
+     qual era qual; a segunda deu a ordem e as descrições
+     encaixaram. O kit foi montado, com o aviso de que tudo
+     desloca junto se a ordem estiver errada.
+   · NÚMERO QUE NÃO PARECE DE JOGO — a ultimate da Lady Sun veio
+     com "757% do dano". Provavelmente é 75,7%, ou erro da fonte.
+     O mecanismo ficou; o número NÃO. Número errado é pior que
+     nenhum.
+   · APELIDO REGIONAL — Erin tem nomes alternativos por idioma, e
+     os dois aparecem.
+
+DEZENOVE DE 117 NA V10, TODOS CRUZADOS EM DUAS BUSCAS
+
+   Mais quatro no último lote:
+
+   Mai Shiranui .. 4 · o mais completo até agora: nomes, descrições
+                       E números cruzados nas duas buscas
+   Erin .......... 4 · nomes cruzados. As duas buscas avisam que
+                       ela tem nomes alternativos por região
+                       (Fairy Dance, Spinning Song, Laurel Bloom) —
+                       isso não é divergência de fonte, é o jogo
+                       publicando em mais de um idioma, e os dois
+                       nomes ficam na tela
+   Charlotte ..... 4 · passiva e ultimate cruzadas; os nomes da 1 e
+                       da 2 vieram de uma busca só, e as descrições
+                       delas de nenhuma — ficaram "não encontrado"
+   Yao ........... 4 · três de quatro cruzados. O nome da 2 está em
+                       disputa (Starburn x Star Rush), e a segunda
+                       busca reconhece os dois. A passiva é a soma
+                       de duas leituras que falam de partes
+                       diferentes dela — dito assim na tela
+
+QUINZE DE 117 NA V9, TODOS CRUZADOS EM DUAS BUSCAS
 
    Quatro entraram depois: Han Xin, Xiao Qiao, Wukong e Zhao Yun.
 

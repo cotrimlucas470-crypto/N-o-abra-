@@ -41,7 +41,7 @@
     conferido: false,
     quando: '2026-09-18',
     aviso: 'Resumo de busca, não leitura de página. Os três sites que você mandou estão bloqueados nesta sessão.',
-    cobertura: '14 de 117 heróis com kit montado + 1 com conflito total registrado (Nezha).',
+    cobertura: '24 de 117 heróis com kit montado + 1 com conflito total registrado (Nezha).',
 
     jing: {
       cruzado: true,
@@ -522,6 +522,310 @@
           numeros: '550/825/1100 (+1150% de ataque físico bônus).',
           confianca: 'alta',
           nota: 'Único campo dele confirmado nas duas buscas. O número de escala (+1150%) é o que a busca devolveu; parece alto e não foi conferido.' },
+      ],
+    },
+
+    /* ------------------------------------------------------------
+       CHARLOTTE — passiva e ultimate cruzadas; 1 e 2 de uma busca.
+       ------------------------------------------------------------ */
+    charlotte: {
+      cruzado: true, buscas: 2,
+      urls: ['https://liquipedia.net/honorofkings/Charlotte',
+             'https://honor-of-kings.fandom.com/wiki/Charlotte',
+             'https://hokstats.gg/heroes/charlotte/',
+             'https://itemlevel.net/honor-of-kings-complete-charlotte-guide/'],
+      lista: [
+        { slot: 'passiva', tecla: 'P', nome: 'Splash Gradation',
+          texto: 'Quando uma habilidade acerta, a próxima vem melhorada como golpe de sequência e ela ganha uma marca por 4 s. Com 3 marcas, o próximo ataque básico vira o golpe Seven-Star Radiant Sword, que trava num inimigo e bate 7 vezes.',
+          confianca: 'alta',
+          nota: 'Ela é herói de encadear: cada acerto prepara o seguinte. Parar de acertar zera a cadeia.' },
+        { slot: '1', tecla: '1', nome: 'Tri-Slash',
+          texto: 'Não encontrado na fonte.',
+          confianca: 'media', nota: 'Só o nome, e de uma busca só. A outra não nomeou as habilidades 1 e 2.' },
+        { slot: '2', tecla: '2', nome: 'Splash Fount',
+          texto: 'Não encontrado na fonte.',
+          confianca: 'media', nota: 'Idem: nome de uma busca, sem descrição em nenhuma das duas.' },
+        { slot: '3', tecla: '3', ult: true, nome: 'Power Gradation',
+          texto: 'Desenha uma estrela de sete pontas em volta dela, causando dano e lentidão em quem estiver dentro. Depois ela ganha imunidade e redução de dano.',
+          confianca: 'alta' },
+      ],
+    },
+
+    /* ------------------------------------------------------------
+       ERIN — nomes cruzados, com apelidos regionais registrados.
+       ------------------------------------------------------------ */
+    erin: {
+      cruzado: true, buscas: 2,
+      urls: ['https://liquipedia.net/honorofkings/Erin',
+             'https://honor-of-kings.fandom.com/wiki/Erin',
+             'https://hokstats.gg/heroes/erin/',
+             'https://gaminggblog.com/honor-of-kings-erin-build/'],
+      alerta: 'As duas buscas dizem que esta heroína tem nomes ALTERNATIVOS por região/tradução, e trazem os dois. Aqui fica o nome mais repetido, com o alternativo ao lado — não é divergência de fonte, é o jogo publicando em mais de um idioma.',
+      lista: [
+        { slot: 'passiva', tecla: 'P', nome: 'Elf Dance',
+          texto: 'Ela usa Energia no lugar de mana, e o ataque básico enche a barra. No máximo de Energia ela acelera, ganha uma marca de Louro e o próximo ataque básico vem melhorado.',
+          confianca: 'alta', nota: 'Apelido regional: "Fairy Dance". O Louro é o recurso que abre a ultimate.' },
+        { slot: '1', tecla: '1', nome: 'Dance - Leaf Greeting',
+          texto: 'Atira uma folha que causa dano e rende marcas. A folha depois forma um círculo, causando dano e lentidão.',
+          confianca: 'alta', nota: 'Apelido regional: "Greeting of Leaves".' },
+        { slot: '2', tecla: '2', nome: 'Twirl - Forest Whisper',
+          texto: 'Ganha velocidade de ataque e imunidade a lentidão. Ganha 2 marcas de Louro na hora e enche a Energia, disparando a passiva.',
+          confianca: 'alta', nota: 'Apelido regional: "Spinning Song".' },
+        { slot: '3', tecla: '3', ult: true, nome: 'Waltz - Laurel Blossom',
+          texto: 'Só pode ser usada com 6 marcas de Louro. Ganha velocidade de movimento e entra num estado em que gasta cada marca disparando rápido em quem estiver perto.',
+          confianca: 'alta', nota: 'Apelido regional: "Laurel Bloom". Contar as marcas dela é contar quando a ultimate vem.' },
+      ],
+    },
+
+    /* ------------------------------------------------------------
+       YAO — três de quatro cruzados; o 2 tem dois nomes.
+       ------------------------------------------------------------ */
+    yao: {
+      cruzado: true, buscas: 2,
+      urls: ['https://liquipedia.net/honorofkings/Yao',
+             'https://honor-of-kings.fandom.com/wiki/Yao',
+             'https://hokstats.gg/heroes/yao/',
+             'https://www.vcgamers.com/news/en/yao-skill-and-build-explanation-in-honor-of-kings/'],
+      lista: [
+        { slot: 'passiva', tecla: 'P', nome: 'Gift of the Stars',
+          texto: 'Recupera vida ao acertar habilidade. Usar três habilidades quaisquer melhora a próxima, e usar a melhorada melhora o ataque básico seguinte. Parte do dano que ele leva vira Redução Estelar depois de um atraso curto.',
+          confianca: 'media',
+          nota: 'As duas buscas descrevem PARTES diferentes da passiva — uma fala da cura e do encadeamento, a outra da Redução Estelar. Juntei as duas porque não se contradizem; se uma delas for de outro herói ou de outro patch, isto está errado e eu não teria como saber.' },
+        { slot: '1', tecla: '1', nome: 'Starlight Slice',
+          texto: 'Causa dano a quem estiver perto.',
+          confianca: 'alta' },
+        { slot: '2', tecla: '2', nome: 'Starburn',
+          texto: 'Move-se rápido, causando dano e lentificando quem estiver no caminho.',
+          confianca: 'media',
+          disputa: { oQue: 'o nome desta habilidade',
+            leituraA: 'Starburn (primeira busca).',
+            leituraB: 'Star Rush (segunda busca, que menciona "também chamada Starburn em algumas fontes").',
+            porQueNaoEscolhi: 'A segunda busca reconhece os dois nomes em vez de escolher. A descrição é a mesma nas duas.' } },
+        { slot: '3', tecla: '3', ult: true, nome: 'Return to Dust',
+          texto: 'Volta para onde ele estava 2 s atrás, remove a Redução Estelar e causa dano a quem estiver no caminho.',
+          confianca: 'alta',
+          nota: 'Voltar no tempo é o que faz ele sobreviver a uma entrada que deu errado — e é o que você precisa prever ao caçá-lo.' },
+      ],
+    },
+
+    /* ------------------------------------------------------------
+       MAI SHIRANUI — o mais completo do lote: nomes, descrições e
+       números cruzados nas duas buscas.
+       ------------------------------------------------------------ */
+    'mai-shiranui': {
+      cruzado: true, buscas: 2,
+      urls: ['https://liquipedia.net/honorofkings/Mai_Shiranui',
+             'https://honor-of-kings.fandom.com/wiki/Mai_Shiranui',
+             'https://hokstats.gg/heroes/mai-shiranui/',
+             'https://itemlevel.net/honor-of-kings-complete-mai-shiranui-guide/'],
+      lista: [
+        { slot: 'passiva', tecla: 'P', nome: 'Hissatsu Shinobi-Bachi',
+          texto: 'A cada 5 s o ataque básico vem melhorado: causa dano mágico, empurra e devolve 10 de Energia. Dá para deslizar com a alavanca de movimento durante o ataque básico ou durante uma habilidade, ganhando 50% de velocidade que some em 0,5 s.',
+          numeros: '100 (+100% de ataque mágico).',
+          confianca: 'alta' },
+        { slot: '1', tecla: '1', nome: 'Hishou Ryuuenjin',
+          texto: 'Avança na direção alvo e termina com um chute voador, causando dano mágico e lançando quem estiver no alcance por 0,75 s. Devolve 25 de Energia se acertar.',
+          numeros: '600 (+80% de ataque mágico).',
+          confianca: 'alta' },
+        { slot: '2', tecla: '2', nome: 'Kachousen',
+          texto: 'Joga o leque na direção alvo, causando dano mágico no primeiro inimigo atingido, lentificando em 90% por 0,5 s e reduzindo a defesa mágica dele em 50 por 3 s. Devolve 10 de Energia e bate também na unidade logo atrás (metade contra heróis).',
+          numeros: '450 (+90% de ataque mágico).',
+          confianca: 'alta' },
+        { slot: '3', tecla: '3', ult: true, nome: 'Chou Hissatsu Shinobi-Bachi',
+          texto: 'Avança na direção alvo, derruba todos no caminho, reduz o ataque físico deles em 20% por 2,5 s e causa dano mágico. Devolve 25 de Energia por inimigo atingido.',
+          numeros: '800 (+110% de ataque mágico).',
+          confianca: 'alta' },
+      ],
+    },
+
+    /* ------------------------------------------------------------
+       YUHUAN — quatro ativas, nomes todos cruzados. O que diverge
+       é como as fontes chamam os DOIS MODOS da passiva.
+       ------------------------------------------------------------ */
+    yuhuan: {
+      cruzado: true, buscas: 2,
+      urls: ['https://liquipedia.net/honorofkings/Yuhuan',
+             'https://honor-of-kings.fandom.com/wiki/Yuhuan',
+             'https://hokstats.gg/heroes/yuhuan/',
+             'https://onlinegamingph.com/honor-of-kings-yuhuan-guide/'],
+      alerta: 'Quatro habilidades ativas. Os quatro nomes bateram nas duas buscas — o que diverge é como cada fonte chama os DOIS MODOS da passiva: uma diz "Tragic Beauty" e "Melody of Peace", a outra diz simplesmente "Guerra" e "Paz". E esses mesmos nomes aparecem também como habilidade 1 e como ultimate, o que confunde a leitura.',
+      lista: [
+        { slot: 'passiva', tecla: 'P', nome: 'Poignant Melodies',
+          texto: 'Ela troca de melodia, e a melodia muda o que as habilidades fazem. No modo de dano, cada habilidade lançada causa dano mágico a quem estiver perto. No modo de cura, cada habilidade cura os aliados por perto (até cinco heróis) e cura ela também.',
+          numeros: 'dano 90–180 (+15% de ataque mágico) em 800 de alcance; cura 35–70 (+6% de ataque mágico), mais 5% de vida extra nela.',
+          confianca: 'alta',
+          nota: 'Saber em que modo ela está é metade da luta contra ela — e os nomes dos modos mudam conforme a fonte.' },
+        { slot: '1', tecla: '1', nome: 'Tragic Beauty',
+          texto: 'Causa dano e lentidão em quem estiver perto. O próximo ataque básico bate mais forte.',
+          confianca: 'alta' },
+        { slot: '2', tecla: '2', nome: 'Mournful Tempo',
+          texto: 'Ganha velocidade de movimento e, depois de um atraso curto, causa dano e atordoa na área alvo.',
+          confianca: 'alta' },
+        { slot: '3', tecla: '3', nome: 'Unending Sorrow',
+          texto: 'Fica sem poder ser alvo e, depois de um atraso curto, cura os aliados no alcance e causa dano nos inimigos.',
+          confianca: 'alta' },
+        { slot: '4', tecla: '4', ult: true, nome: 'Melody of Peace',
+          texto: 'Salta no ar tocando o instrumento — sem poder ser alvo e removendo todo controle nesse tempo. Ao terminar, cura a si mesma, cura os aliados no alcance de 500 pela metade desse valor, e causa dano mágico aos inimigos na área.',
+          numeros: 'cura 750/1125/1500 (+100% de ataque mágico) (+5% da vida máxima); dano 500/750/1000 (+75% de ataque mágico).',
+          confianca: 'alta' },
+      ],
+    },
+
+    /* ------------------------------------------------------------
+       MUSASHI — as ativas batem; a passiva e a ultimate trocam de
+       lugar entre as buscas.
+       ------------------------------------------------------------ */
+    musashi: {
+      cruzado: true, buscas: 2,
+      urls: ['https://liquipedia.net/honorofkings/Musashi',
+             'https://honor-of-kings.fandom.com/wiki/Musashi',
+             'https://hokstats.gg/heroes/musashi/',
+             'https://gamingonphone.com/guides/honor-of-kings-musashi-guide-gameplay-tips/'],
+      alerta: '"Niten Ichiryu" aparece como ULTIMATE numa busca e como PASSIVA na outra. As habilidades 1 e 2 batem nas duas. Enquanto isso não se resolve, o nome fica marcado em disputa nos dois lugares.',
+      lista: [
+        { slot: 'passiva', tecla: 'P', nome: null,
+          texto: 'Depois de usar uma habilidade ele acumula uma carga; cada ataque básico gasta uma carga e ganha um efeito diferente.',
+          confianca: 'media',
+          disputa: { oQue: 'o nome da passiva',
+            leituraA: '"Oni Hunter" (primeira busca).',
+            leituraB: '"Niten Ichiryuu" (segunda busca) — que é o nome que a PRIMEIRA busca deu para a ultimate. A segunda, perguntada direto, disse que não achou nada chamado "Oni Hunter".',
+            porQueNaoEscolhi: 'Um nome não pode ser passiva numa fonte e ultimate na outra sem que uma delas esteja errada. O mecanismo (carga por habilidade, gasta no básico) apareceu igual nas duas e está guardado; o nome fica em branco.' } },
+        { slot: '1', tecla: '1', nome: 'Illuminating Slash',
+          texto: 'Solta energia de espada na direção alvo, causando dano a quem estiver no caminho e derrubando projéteis.',
+          confianca: 'alta', nota: 'Apelido que apareceu numa das buscas: "Sky Cleave".' },
+        { slot: '2', tecla: '2', nome: 'Extreme Speed',
+          texto: 'Avança para a frente causando dano físico a quem estiver no caminho.',
+          numeros: '180/216/252/288/324/360 (+40% de ataque físico).',
+          confianca: 'alta' },
+        { slot: '3', tecla: '3', ult: true, nome: 'Niten Ichiryu',
+          texto: 'Trava num herói inimigo, avança até a área dele causando dano físico e lançando por 1 s. Depois desafia o alvo para um duelo de 5 s, em que toda cura recebida pelo alvo fica adiada.',
+          numeros: '350/475/600 (+70% de ataque físico).',
+          confianca: 'media',
+          disputa: { oQue: 'se este nome é da ultimate ou da passiva',
+            leituraA: 'É a ultimate — primeira busca, com descrição e números completos.',
+            leituraB: 'É a PASSIVA — segunda busca, que não descreve a ultimate.',
+            porQueNaoEscolhi: 'Só a primeira busca descreveu um efeito de ultimate, e é um efeito de ultimate (trava alvo, duelo de 5 s). Guardei aqui por isso, mas com a ressalva à vista.' } },
+      ],
+    },
+
+    /* ------------------------------------------------------------
+       ATHENA — a primeira busca trouxe os nomes SEM saber em que
+       slot cada um ficava; a segunda resolveu, e as descrições
+       batem com a ordem que ela deu.
+       ------------------------------------------------------------ */
+    athena: {
+      cruzado: true, buscas: 2,
+      urls: ['https://liquipedia.net/honorofkings/Athena',
+             'https://honor-of-kings.fandom.com/wiki/Athena',
+             'https://hokstats.gg/heroes/athena/',
+             'https://gamingonphone.com/guides/honor-of-kings-athena-guide-gameplay-tips/'],
+      alerta: 'A primeira busca devolveu os três nomes de ativa e disse, com todas as letras, que não sabia qual era qual. A segunda deu a ordem, e as descrições da primeira encaixam nessa ordem — por isso este kit está montado. Se a ordem da segunda estiver errada, tudo aqui desloca junto.',
+      lista: [
+        { slot: 'passiva', tecla: 'P', nome: 'Divine Awakening',
+          texto: 'Depois de morrer ela continua se movendo em forma verdadeira e, ao ressuscitar, causa dano e lança para o alto quem estiver no alcance — com dano extra em unidades que não são heróis.',
+          confianca: 'media', nota: 'O nome veio de uma busca só; o mecanismo, das duas.' },
+        { slot: '1', tecla: '1', nome: 'Holy Advance',
+          texto: 'Avança com o escudo à frente, empurrando e causando dano, e ganha um escudo que dá imunidade a controle.',
+          confianca: 'alta' },
+        { slot: '2', tecla: '2', nome: 'Unstoppable Spear',
+          texto: 'Desloca-se na direção alvo e melhora o próximo ataque básico, que avança e causa dano. Acertar o MESMO alvo três vezes seguidas causa dano extra proporcional à vida que falta nele.',
+          confianca: 'alta' },
+        { slot: '3', tecla: '3', ult: true, nome: 'Immovable Aegis',
+          texto: 'Ergue um escudo que dá imunidade a controle.',
+          confianca: 'media', nota: 'A descrição que as buscas devolveram é curta assim. Não completei o resto por dedução.' },
+      ],
+    },
+
+    /* ------------------------------------------------------------
+       ARTHUR — limpo, e com números na segunda busca.
+       ------------------------------------------------------------ */
+    arthur: {
+      cruzado: true, buscas: 2,
+      urls: ['https://liquipedia.net/honorofkings/Arthur_(Honor_of_Kings)',
+             'https://honor-of-kings.fandom.com/wiki/Arthur',
+             'https://hokstats.gg/heroes/arthur/',
+             'https://gaminggblog.com/honor-of-kings-arthur/'],
+      lista: [
+        { slot: 'passiva', tecla: 'P', nome: 'Holy Vanguard',
+          texto: 'Recupera 2% da vida máxima a cada 2 s. Se a velocidade de movimento dele estiver reduzida, a recuperação dobra.',
+          confianca: 'alta',
+          nota: 'Curar mais justamente quando está lentificado é o que faz ele aguentar ser perseguido.' },
+        { slot: '1', tecla: '1', nome: 'Valiant Charge',
+          texto: 'Melhora o próximo ataque básico, que passa a avançar, causar dano extra e silenciar.',
+          confianca: 'media',
+          disputa: { oQue: 'o que exatamente a habilidade faz além do avanço',
+            leituraA: 'Dá +30% de velocidade por 3 s, e o próximo básico vira um salto com dano físico e silêncio de 1,25 s.',
+            leituraB: 'O básico melhorado também MARCA o alvo, e a marca rende dano mágico extra no básico ou habilidade seguinte.',
+            porQueNaoEscolhi: 'As duas podem ser partes da mesma habilidade em patches diferentes. A marca muda como se joga contra ele, então não juntei as duas como se fossem uma leitura só.' } },
+        { slot: '2', tecla: '2', nome: 'Whirling Strike',
+          texto: 'Invoca o escudo sagrado, causando dano físico por segundo a quem estiver no alcance durante 5 s.',
+          numeros: '145 (+80% de ataque físico) por segundo.',
+          confianca: 'alta' },
+        { slot: '3', tecla: '3', ult: true, nome: 'Might of Excalibur',
+          texto: 'Salta até o herói inimigo alvo causando dano mágico igual a 16% da vida máxima dele e deixando um selo sagrado no chão. O salto lança para o alto os heróis no alcance do selo por 0,5 s. O selo dura 5 s, causando dano mágico por segundo a quem estiver dentro.',
+          numeros: '16% da vida máxima no impacto; 85 de dano mágico por segundo no selo.',
+          confianca: 'alta' },
+      ],
+    },
+
+    /* ------------------------------------------------------------
+       LADY SUN — quatro nomes cruzados, com um número suspeito.
+       ------------------------------------------------------------ */
+    'lady-sun': {
+      cruzado: true, buscas: 2,
+      urls: ['https://liquipedia.net/honorofkings/Lady_Sun',
+             'https://honor-of-kings.fandom.com/wiki/Lady_Sun',
+             'https://hokstats.gg/heroes/lady-sun/',
+             'https://gamingonphone.com/guides/honor-of-kings-lady-sun-guide-gameplay-tips/'],
+      lista: [
+        { slot: 'passiva', tecla: 'P', nome: 'Energy Burst',
+          texto: 'Cada ataque básico que acerta reduz em 0,5 s a recarga da habilidade 1.',
+          confianca: 'alta',
+          nota: 'Por isso ela rola tanto: bater de básico é o que devolve o rolamento.' },
+        { slot: '1', tecla: '1', nome: 'Rolling Raid',
+          texto: 'Rola na direção indicada, e o próximo ataque básico vira um tiro carregado que causa dano físico em linha. Ganha velocidade de movimento se houver herói inimigo por perto depois do rolamento.',
+          numeros: '270/290/310/330/350/370 (+100% de ataque físico).',
+          confianca: 'alta' },
+        { slot: '2', tecla: '2', nome: 'Frag Grenade',
+          texto: 'Joga uma granada no local alvo, causando dano e MARCANDO quem for atingido. O ataque básico dela bate mais forte em alvo marcado.',
+          confianca: 'alta',
+          nota: 'Sobre o efeito na defesa do alvo as duas buscas divergem no detalhe: uma fala em "quebrar defesa", a outra em reduzir 10% da defesa física. O mecanismo da marca é o mesmo.' },
+        { slot: '3', tecla: '3', ult: true, nome: 'Ultimate Shell',
+          texto: 'Dispara um tiro forte na direção alvo, causando dano físico pesado no primeiro inimigo atingido; depois o tiro explode no ar e atinge quem estiver num leque além do ponto da explosão.',
+          confianca: 'media',
+          nota: 'A segunda busca dá "757% do dano" para a parte em leque. Isso não parece um número de jogo — provavelmente é 75,7%, ou um erro da fonte. Guardei o mecanismo e NÃO guardei esse número, porque um número errado é pior que nenhum.' },
+      ],
+    },
+
+    /* ------------------------------------------------------------
+       SHOUYUE — as três ativas batem; a passiva vem com dois
+       mecanismos diferentes, não só dois nomes.
+       ------------------------------------------------------------ */
+    shouyue: {
+      cruzado: true, buscas: 2,
+      urls: ['https://liquipedia.net/honorofkings/Shouyue',
+             'https://honor-of-kings.fandom.com/wiki/Shouyue',
+             'https://hokstats.gg/heroes/shouyue/',
+             'https://itemlevel.net/honor-of-kings-complete-shouyue-guide/'],
+      alerta: 'As três ativas batem nas duas buscas. A PASSIVA não: as duas descrevem mecanismos diferentes, não apenas nomes diferentes. Isso é mais grave que divergência de nome, e está marcado assim.',
+      lista: [
+        { slot: 'passiva', tecla: 'P', nome: 'Accuracy',
+          texto: 'Não encontrado na fonte.',
+          confianca: 'media',
+          disputa: { oQue: 'o que a passiva faz',
+            leituraA: 'Fora de combate ele acumula marcas que aumentam penetração física e dano do ataque básico; acertar herói com básico ou habilidade gasta as marcas. Com certa velocidade de ataque, as marcas vêm mais rápido. (sem nome)',
+            leituraB: '"Accuracy": a taxa de crítico dele é convertida em dano de ataque.',
+            porQueNaoEscolhi: 'Não são dois nomes para a mesma coisa: são duas passivas diferentes. Uma delas pertence a outro herói, a outro patch, ou está simplesmente errada. Guardei o nome mais explícito e deixei a descrição em branco.' } },
+        { slot: '1', tecla: '1', nome: 'The Tranquil Eye',
+          texto: 'Coloca um aparelho que dá visão na área em volta. Fora de combate, ele ganha camuflagem e mais velocidade de movimento e de ataque perto de terreno natural ou dentro da área do aparelho.',
+          confianca: 'alta' },
+        { slot: '2', tecla: '2', nome: 'Wild Wind',
+          texto: 'Dá um tiro de precisão na direção alvo, causando dano e lentidão. Fica melhorada quando a velocidade de ataque passa de certos limiares.',
+          confianca: 'alta' },
+        { slot: '3', tecla: '3', ult: true, nome: 'Getaway',
+          texto: 'Salta para trás e atira na direção alvo, causando dano e lentidão em quem acertar, e ganhando velocidade de movimento. Divide a munição com Wild Wind e aumenta o alcance do ataque básico.',
+          confianca: 'alta',
+          nota: 'Dividir munição com a habilidade 2 é o detalhe que decide a luta contra ele: se ele gastou no tiro, não tem a fuga.' },
       ],
     },
   };
