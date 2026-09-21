@@ -1,5 +1,5 @@
 ================================================================
-ESPELHO v13 — Itens em português, com selo e cruzamento
+ESPELHO v14 — Visão de mapa
 Honor of Kings · Poco X7 Pro · HTML/CSS/JS, sem dependências
 ================================================================
 
@@ -14,6 +14,136 @@ todo número daqui sai de toques sobre a réplica. Se ela não bate com o seu
 jogo, tudo o que vier depois mede a coisa errada.
 
 Seus dados da v1 e da v2 continuam lá. Nada é apagado.
+
+
+================================================================
+PARTE -8 — V14: O TREINO DE VISÃO DE MAPA
+================================================================
+
+O EXERCÍCIO, EM UMA FRASE
+
+   Um minimapa pequeno fica no canto, como no jogo. Sinais piscam
+   nele em intervalos de 1 a 6 segundos. Num momento que você não
+   consegue prever, A TELA CONGELA — e você responde onde o último
+   sinal estava e o que ele queria dizer.
+
+AS CINCO LEITURAS, E POR QUE A COR VEM DO LUGAR
+
+   · VERMELHO · invasão na SUA selva — o caçador deles entrou para
+     roubar recurso. Perdeu o campo e ainda deu vantagem.
+   · AZUL · farm na selva DELES — o caçador está na própria selva.
+     É a informação mais barata do jogo: enquanto ele está ali, ele
+     não está na sua rota.
+   · AMARELO · objetivo no rio — Tirano ou Soberano. É o único
+     sinal com relógio correndo.
+   · ROXO · limpando o miolo de uma rota — estão presos ali e
+     visíveis. Vale mais avançar em outro lugar.
+   · VERDE · recuo para uma das bases — vida cheia chegando em
+     alguns segundos.
+
+   A cor não é um rótulo solto: ela sai da região do mapa. É assim
+   no jogo também — você não lê "invasão", você vê um ponto no seu
+   lado do mapa e conclui invasão. O exercício treina a conclusão,
+   não a legenda.
+
+DUAS PERGUNTAS, PORQUE SÃO DUAS MEMÓRIAS
+
+   ONDE você responde TOCANDO o mapa. Sai daí um erro em distância,
+   não um certo/errado — e essa é a diferença entre "lembrei mal" e
+   "não lembrei", que certo/errado joga fora.
+
+   O QUE você responde escolhendo entre as cinco. A memória
+   semântica decai mais devagar que a espacial, então as duas
+   discordam com frequência — e quando discordam o erro ganha nome:
+   "lugar certo, leitura errada" e "leitura certa, lugar errado"
+   são problemas diferentes, com correções diferentes.
+
+   Da dificuldade 4 em diante vem uma terceira: QUAL objetivo
+   exatamente. Ela existe porque a leitura é grossa e o mapa é
+   fino — as duas bases são a mesma leitura ("recuaram") em cantos
+   opostos, e "recuaram para a base deles" não é a mesma coisa que
+   "estão dentro da SUA base".
+
+A CURVA DE ESQUECIMENTO
+
+   O tempo entre o sinal e a pergunta NÃO é aleatório: ele é
+   sorteado entre três valores fixos, em quantidades iguais. É isso
+   que transforma o resultado numa curva ("aos 8 segundos você já
+   perdeu metade") em vez de um "% de acerto" que mistura tudo.
+
+   A leitura da curva é direta: se a faixa curta está bem e a longa
+   não, o seu problema é SEGURAR, e treinar sinal mais rápido não
+   resolve. Se as três estão igualmente baixas, o problema é
+   CODIFICAR, e o caminho é baixar a dificuldade até o sinal piscar
+   tempo suficiente para entrar.
+
+   Um bloco dá 4 tentativas por faixa. QUATRO TENTATIVAS NÃO SÃO
+   UMA CURVA, e o painel escreve isso em vez de desenhar uma. A
+   curva que ele mostra é a acumulada de todos os blocos, e só
+   passa a comparar faixas entre si a partir de 10 tentativas em
+   cada uma.
+
+A TAREFA SECUNDÁRIA — O PEDAÇO QUE MAIS IMPORTA
+
+   Da dificuldade 4 em diante um alvo acende no MEIO da tela e tem
+   que ser tocado. Ele não está lá para dar ponto: está lá para
+   tirar o seu olho do minimapa, que é a condição real.
+
+   Consciência de mapa medida com o olho parado no mapa não é
+   consciência de mapa. Por isso ela é pontuada em separado — e
+   acerto alto no mapa com a secundária no chão faz o painel
+   escrever, com todas as letras, que você ficou encarando e que o
+   número do mapa está inflado.
+
+O VIÉS PARA O CENTRO
+
+   Memória espacial não erra ao acaso: ela arrasta o ponto lembrado
+   para o meio da região a que ele pertence. O painel projeta cada
+   vetor de erro na direção do centro do mapa e diz se os seus
+   palpites têm DIREÇÃO, não só tamanho. Saber a direção do erro
+   vale mais que saber o tamanho, porque dá para corrigir de
+   propósito enquanto aponta.
+
+O MAPA É UM ESQUEMA, NÃO O MAPA DO JOGO
+
+   Vale aqui o mesmo que vale para os selos dos itens: o proxy
+   desta sessão não baixa imagem nenhuma, então o minimapa de
+   verdade não existe aqui e este desenho não finge ser ele.
+
+   O que está correto são as RELAÇÕES — bases em cantos opostos,
+   três rotas ligando as duas, o rio atravessando na perpendicular
+   e separando os territórios, Soberano na ponta de cima do rio e
+   Tirano na de baixo, quatro selvas entre as rotas. Um pixel daqui
+   não é um pixel do jogo, mas "o sinal piscou na minha selva de
+   baixo" é a mesma frase nos dois.
+
+   A geometria foi ajustada para a MEDIDA funcionar, não para ficar
+   bonita: as rotas não encostam nas bases e as selvas são menores
+   que no jogo, porque com os tamanhos "fiéis" um sinal sorteado
+   dentro da base caía mais perto de uma rota do que do centro da
+   base — e o exercício marcaria como errada uma resposta certa.
+   Fidelidade que quebra a medida não vale.
+
+POR QUE ELE TEM BOTÃO PRÓPRIO
+
+   É o único exercício com entrada direta, na tela Agora. O resto
+   do catálogo é prescrito pelo treinador, que escolhe olhando qual
+   MEDIDA está mais atrasada — e este não alimenta medida nenhuma:
+   ele mede a coisa dele, dentro do bloco. Enfiá-lo na fila tiraria
+   blocos das medidas que o treinador acompanha em troca de nada
+   que o treinador saiba usar.
+
+   O "Mapa atrasado" é a mesma tarefa perguntando pelo sinal
+   ANTERIOR ao último, com outro já por cima dele. Abre depois de
+   24 sinais no básico.
+
+O QUE ELE NÃO CONSEGUE MEDIR
+
+   · Não sabe se você OLHOU o minimapa — sabe se você acertou. Daí
+     a tarefa secundária existir e ser relatada à parte.
+   · Não mede transferência para partida. Nenhum exercício deste
+     app mede. Mede se a sua memória de mapa está melhor do que
+     estava, na mesma condição.
 
 
 ================================================================

@@ -12,7 +12,8 @@
   const { $, $$, el } = U;
   const MD = U.MD, CT = U.CT, DS = U.DS, D = U.D, H = U.HUD, S = U.S;
 
-  const MOTORES = { sequencia: U.E.MotorSequencia, leitura: U.E.MotorLeitura, decisao: U.E.MotorDecisao };
+  const MOTORES = { sequencia: U.E.MotorSequencia, leitura: U.E.MotorLeitura,
+                    decisao: U.E.MotorDecisao, mapa: U.E.MotorMapa };
 
   const St = {
     surf: null, motor: null, drill: null, cfg: null, aberto: false,
@@ -31,6 +32,8 @@
         onJoy: (e) => St.motor && St.motor.joy(e),
         onJoyStart: (e) => St.motor && St.motor.joy(e),
         onCampo: (e) => St.motor && St.motor.campo(e),
+        onMapa: (e) => St.motor && St.motor.mapaTocado && St.motor.mapaTocado(e),
+        onAlvo: () => St.motor && St.motor.alvoTocado && St.motor.alvoTocado(),
       });
     }
     St.surf.hud = H.getHud();
@@ -326,6 +329,8 @@
                ${Math.abs(ab.proativa) >= 0.25 ? 'Você foi ficando mais lento ao longo do set — isso faz você parar mais, mas não porque freia melhor. O número seria mentira.' : 'Mais um set resolve.'}`}
         </div>` : ''}
 
+      ${(r.extras || {}).mapa ? mapaTexto(r) : ''}
+
       ${erros.length ? `<div class="sep"></div>
         <div class="mini"><b>Onde os erros caíram</b></div>
         <div class="pilha" style="gap:5px;margin-top:5px">
@@ -340,6 +345,153 @@
         <div class="aviso"><b>Próximo: ${prox.titulo}</b><br>${prox.porque}
         <div class="xs" style="margin-top:4px">regra <code>${prox.regra}</code> · confiança: ${S.rotuloNivel(prox.confianca)}</div></div>` : ''}
     `, botoesFim(prox));
+  }
+
+  /* ============================================================
+     RESULTADO DO TREINO DE VISÃO DE MAPA
+
+     Um bloco tem 12 tentativas divididas entre três tempos de espera:
+     quatro em cada ponto. QUATRO TENTATIVAS NÃO SÃO UMA CURVA, e o
+     painel não finge que são — a curva que ele apresenta é a
+     ACUMULADA de todos os blocos, e o bloco de hoje aparece só como
+     a linha de hoje. Com pouca amostra acumulada ele escreve que
+     ainda não dá para falar de curva, em vez de desenhar uma.
+
+     As três faixas de espera (até 3 s, 3 a 6 s, 6 a 10 s) são fixas
+     de propósito: os tempos exatos mudam com a dificuldade, e agrupar
+     pelo valor cru faria dezenas de pontos com duas tentativas cada.
+     ============================================================ */
+  const FAIXAS_MAPA = [
+    { id: 'curta', nome: 'até 3 s', lo: 0, hi: 3000 },
+    { id: 'media', nome: '3 a 6 s', lo: 3000, hi: 6000 },
+    { id: 'longa', nome: '6 a 10 s', lo: 6000, hi: 99000 },
+  ];
+
+  function faixaDe(ret) {
+    return FAIXAS_MAPA.find(f => ret > f.lo && ret <= f.hi) || FAIXAS_MAPA[2];
+  }
+
+  function barra(frac, cor, altura = 7) {
+    return `<div style="height:${altura}px;background:rgba(255,255,255,.10);border-radius:3px;overflow:hidden">
+      <div style="height:100%;width:${Math.round(U.clamp(frac, 0, 1) * 100)}%;background:${cor};border-radius:3px"></div></div>`;
+  }
+
+  function mapaTexto(r) {
+    const m = r.extras.mapa;
+    const pct = (v) => (v == null ? '—' : Math.round(v * 100) + '%');
+    /* erro em % da largura do mapa: é a unidade que o jogador vê no
+       retorno de cada tentativa, então é a mesma aqui */
+    const errTxt = (e) => (e == null ? '—' : Math.round(e * 100) + '%');
+
+    /* ---- histórico acumulado deste exercício ---- */
+    const hist = MD.filtrar({ k: 'mapa', drill: St.drill.id }).filter(x => x.x && x.x.ret != null);
+    const porFaixa = {};
+    for (const t of hist) {
+      const f = faixaDe(t.x.ret);
+      const e = porFaixa[f.id] || (porFaixa[f.id] = { n: 0, zona: 0, leitura: 0, erros: [] });
+      e.n++; e.zona += t.x.zo ? 1 : 0; e.leitura += t.x.lo ? 1 : 0;
+      if (t.x.e != null) e.erros.push(t.x.e);
+    }
+    const temCurva = FAIXAS_MAPA.filter(f => (porFaixa[f.id] || {}).n >= S.MIN.proporcao.explorar).length >= 2;
+
+    const linhasCurva = FAIXAS_MAPA.map(f => {
+      const e = porFaixa[f.id];
+      if (!e || !e.n) return `<div class="mini" style="opacity:.45">${f.nome} — sem tentativas ainda</div>`;
+      const w = S.wilson(e.zona, e.n);
+      return `<div style="margin-bottom:6px">
+        <div class="flex" style="gap:6px;align-items:baseline">
+          <span class="xs" style="width:58px;color:var(--dim2)">${f.nome}</span>
+          <b style="font-size:.78rem">${Math.round(e.zona / e.n * 100)}%</b>
+          <span class="xs" style="flex:1">na área certa · erro mediano ${errTxt(e.erros.length ? U.median(e.erros) : null)}
+            <span style="opacity:.6">· ${e.n} tent. (${Math.round(w.lo * 100)}–${Math.round(w.hi * 100)}%)</span></span>
+        </div>
+        ${barra(e.zona / e.n, e.n < S.MIN.proporcao.explorar ? '#5b708f' : '#7fd4ff')}
+      </div>`;
+    }).join('');
+
+    /* ---- pontos cegos ---- */
+    const zs = Object.entries(m.porZona || {}).sort((a, b) => (a[1].ok / a[1].n) - (b[1].ok / b[1].n));
+    const cegos = zs.map(([z, e]) => {
+      const Z = U.MP.ZONAS[z];
+      return `<div class="flex" style="gap:6px;align-items:center;margin-bottom:4px">
+        <span style="width:9px;height:9px;border-radius:50%;background:${Z.cor};flex:none"></span>
+        <span class="xs" style="flex:1">${Z.nome}</span>
+        <b class="xs">${Math.round(e.ok / e.n * 100)}%</b>
+        <span class="xs" style="opacity:.55">${e.n} tent.</span>
+      </div>`;
+    }).join('');
+
+    /* ---- viés ---- */
+    const v = m.vies || {};
+    const viesTxt = v.puxa == null
+      ? `<div class="xs" style="opacity:.6">Viés de posição: ainda sem amostra (${v.n || 0} de 6 tentativas com alvo fora do centro).</div>`
+      : Math.abs(v.puxa) < 0.02
+        ? `<div class="xs">Viés de posição: nenhum. Seus erros não têm direção — o que sobrou é imprecisão, não distorção.</div>`
+        : `<div class="aviso ${v.puxa > 0 ? '' : 'ok'}" style="margin-top:6px">
+            <b>Você puxa os palpites ${v.puxa > 0 ? 'para o centro' : 'para as bordas'} do mapa
+            em ${Math.abs(Math.round(v.puxa * 100))}% da largura.</b><br>
+            Memória espacial costuma arrastar o ponto lembrado para o meio da região a que ele pertence.
+            Isso não é falta de atenção: é como a memória guarda lugar. Saber a direção do seu erro vale
+            mais que saber o tamanho — dá para corrigir de propósito enquanto aponta.</div>`;
+
+    /* ---- atenção dividida ---- */
+    const sec = m.secundaria;
+    const secTxt = !sec ? ''
+      : sec.n === 0 ? ''
+      : (() => {
+          const acc = sec.ok / sec.n;
+          const encarando = acc < 0.5 && m.zonaAcc > 0.7;
+          return `<div class="aviso ${encarando ? 'bad' : acc > 0.8 ? 'ok' : ''}" style="margin-top:7px">
+            <b>Atenção dividida: ${sec.ok}/${sec.n} alvos do centro da tela</b>
+            ${sec.rt ? `<span class="xs">(${Math.round(sec.rt)} ms)</span>` : ''}<br>
+            ${encarando
+              ? 'Acerto alto no mapa com o alvo do centro no chão quer dizer que você ficou <b>encarando o minimapa</b>. Isso não é visão de mapa — numa partida esse tempo sai da sua luta. O número do mapa acima está inflado.'
+              : acc > 0.8
+                ? 'Você manteve o centro da tela e ainda leu o mapa. É esta a condição que interessa: o número do mapa acima foi conquistado de relance, não encarando.'
+                : 'O alvo do centro existe para tirar o seu olho do mapa. Perder alguns é esperado; perder a maioria quer dizer que a dificuldade está acima do que dá para dividir hoje.'}</div>`;
+        })();
+
+    return `
+      <div class="sep"></div>
+      <div class="flex" style="gap:16px;align-items:flex-start">
+        <div>
+          <div class="numero" style="color:var(--gold)">${m.pontos}</div>
+          <div class="xs">pontos${m.melhorSeq >= 2 ? ` · melhor sequência ${m.melhorSeq}` : ''}</div>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div class="mini"><b>Lugar</b> — ${pct(m.zonaAcc)} na área certa,
+            ${pct(m.objAcc)} no objetivo exato.<br>
+            Erro mediano de <b>${errTxt(m.erro)}</b> da largura do mapa
+            <span class="xs">(${U.MP.bandaErro(m.erro, true)})</span>${m.semResposta ? `,
+            ${m.semResposta} sem resposta` : ''}.</div>
+          <div class="mini" style="margin-top:4px"><b>Leitura</b> — ${pct(m.leituraAcc)} certo${m.rtLeitura ? ` em ${Math.round(m.rtLeitura)} ms` : ''}${
+            m.finoAcc != null ? ` · objetivo exato ${pct(m.finoAcc)}` : ''}.</div>
+        </div>
+      </div>
+
+      <div class="sep"></div>
+      <div class="mini"><b>Curva de esquecimento</b> <span class="xs">— acumulada de todos os blocos
+        deste exercício (${hist.length} tentativas)</span></div>
+      <div style="margin-top:7px">${linhasCurva}</div>
+      ${temCurva
+        ? `<div class="xs" style="margin-top:4px">É isto que a espera custa a você. Se a faixa curta está
+             bem e a longa não, o problema é <b>segurar</b>, e treinar sinal mais rápido não resolve. Se as
+             três estão igualmente baixas, o problema é <b>codificar</b>, e o caminho é baixar a dificuldade
+             até o sinal piscar tempo suficiente para entrar.</div>`
+        : `<div class="aviso" style="margin-top:6px">Ainda não é uma curva. Um bloco dá quatro tentativas por
+             faixa, e quatro tentativas não sustentam conclusão nenhuma — as barras acima são o que aconteceu,
+             não o que você é. A partir de ${S.MIN.proporcao.explorar} tentativas por faixa o painel passa a
+             comparar as faixas entre si.</div>`}
+
+      ${cegos ? `<div class="sep"></div>
+        <div class="mini"><b>Por leitura, neste bloco</b>
+          <span class="xs">— da pior para a melhor; poucas tentativas em cada uma</span></div>
+        <div style="margin-top:6px">${cegos}</div>` : ''}
+
+      <div class="sep"></div>
+      ${viesTxt}
+      ${secTxt}
+    `;
   }
 
   /**

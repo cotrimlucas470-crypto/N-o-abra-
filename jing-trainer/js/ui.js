@@ -125,7 +125,7 @@
       <h1>◈ ESPELHO</h1>
       <span class="tag vio">${fase.nome}</span>
       <div class="espaco"></div>
-      <span class="sub">${d.legado ? 'v13 · dados anteriores preservados' : 'v13'}</span>
+      <span class="sub">${d.legado ? 'v14 · dados anteriores preservados' : 'v14'}</span>
     </div>
     <div class="rolagem pilha">
 
@@ -173,6 +173,8 @@
         <div><button class="btn sec sm" style="margin-top:7px;min-height:34px" data-princ="espacamento">por quê</button></div>
       </div>` : ''}
 
+      ${painelVisaoMapa(d)}
+
       <div class="painel">
         <h2>Suas medidas</h2>
         ${cartoesMedidas(p)}
@@ -191,8 +193,60 @@
     </div>`;
   }
 
+  /* ============================================================
+     VISÃO DE MAPA — o único exercício com entrada direta
+
+     O resto do catálogo é prescrito: quem escolhe é o treinador,
+     olhando qual medida está mais atrasada. Este fica de fora dessa
+     fila, e de propósito.
+
+     O rodízio do treinador existe para nenhuma MEDIDA envelhecer, e
+     este exercício não alimenta medida nenhuma — ele mede a própria
+     coisa dele, dentro do bloco, e a curva de esquecimento dele não
+     é comparável com execução, leitura ou aborto. Enfiá-lo na fila
+     tiraria blocos das medidas que o treinador de fato acompanha,
+     em troca de nada que o treinador saiba usar. Então ele tem botão
+     próprio: você entra quando quiser, e as outras medidas não pagam
+     por isso.
+
+     Ele também é o exercício que dá para fazer em qualquer estado —
+     não depende do HUD estar calibrado nem de rota nenhuma estar
+     recuperada, porque não usa os botões de combate.
+     ============================================================ */
+  function painelVisaoMapa(d) {
+    const base = D.porId('mapa'), dur = D.porId('mapa-atraso');
+    if (!base) return '';
+    const feitas = MD.filtrar({ k: 'mapa' }).length;
+    const melhor = (d.sets || []).filter(s => s.drill === 'mapa' || s.drill === 'mapa-atraso');
+    const difBase = CT.estado('mapa').dif;
+    const liberado = feitas >= 24;
+    return `
+      <div class="painel">
+        <h2>Visão de mapa</h2>
+        <div class="mini">${U.esc(base.objetivo)}</div>
+        <div class="flex wrap" style="gap:6px;margin-top:7px">
+          <span class="tag vio">${U.esc(D.CATEGORIAS.visao.nome)}</span>
+          <span class="tag">dificuldade ${difBase.toFixed(1)}</span>
+          ${feitas ? `<span class="tag">${feitas} sinais respondidos</span>` : '<span class="tag warn">ainda não treinado</span>'}
+          ${melhor.length ? `<span class="tag">${melhor.length} bloco${melhor.length === 1 ? '' : 's'}</span>` : ''}
+        </div>
+        <div class="flex" style="margin-top:10px;gap:8px">
+          <button class="btn" style="flex:2" data-mapa="mapa">Treinar visão de mapa</button>
+          <button class="btn sec" style="flex:1" data-mapa="mapa-atraso" ${liberado ? '' : 'disabled'}>Atrasado</button>
+        </div>
+        <div class="xs" style="margin-top:6px">${liberado
+          ? `O "Atrasado" pergunta pelo sinal <b>anterior</b> ao último, com outro já por cima dele.`
+          : `O "Atrasado" abre com ${24 - feitas} sinal${24 - feitas === 1 ? '' : 'is'} a mais aqui. Ele é a mesma
+             tarefa perguntando pelo sinal <b>anterior</b> ao último, e antes do básico firmar ele só mede frustração.`}</div>
+      </div>`;
+  }
+
   function depoisAgora() {
     desenharMedidores($('#tela-agora'));
+    $$('#tela-agora [data-mapa]').forEach(b => b.addEventListener('click', () => {
+      const dr = D.porId(b.dataset.mapa);
+      if (dr) U.T.abrirBloco(dr, CT.estado(dr.id).dif);
+    }));
     const sit = DS.situacao();
     const dec = sit.proxima;
     $('#ir-agora')?.addEventListener('click', () => {

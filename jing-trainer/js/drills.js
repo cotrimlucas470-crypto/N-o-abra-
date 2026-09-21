@@ -59,6 +59,7 @@
     decisao: { nome: 'Decisão', descricao: 'Ler, escolher a ação certa e executar — as três juntas, como numa partida.' },
     pressao: { nome: 'Controle sob pressão', descricao: 'Quanto do seu nível sobrevive com a atenção dividida.' },
     movimentacao: { nome: 'Movimentação', descricao: 'Executar andando. Combo parado é combo que só existe em treino.' },
+    visao: { nome: 'Visão de mapa', descricao: 'Codificar o minimapa numa relanceada e ainda ter aquilo na cabeça segundos depois.' },
   };
 
   const DRILLS = [
@@ -260,6 +261,91 @@
         janelaFreio: Math.round(escala(d, 1000, 650)),
         explicaNaHora: d < 6,
         confianca: d >= 4, tempoConfianca: 2000,
+      }),
+    },
+    /* ============================================================
+       VISÃO DE MAPA
+
+       Os dois exercícios abaixo são a mesma tarefa com UMA diferença:
+       o segundo pergunta pelo sinal ANTERIOR ao último, o primeiro
+       pelo último. Isso é de propósito e é a mesma regra que rege o
+       resto do catálogo — mais devagar, sem destaque, com ruído são
+       níveis da mesma tarefa e não tarefas novas, porque assim a
+       amostra se concentra em vez de se espalhar.
+
+       A geometria do mapa, as cinco leituras e a pontuação estão em
+       js/mapa.js; o ciclo da tentativa, em js/motor-mapa.js.
+       ============================================================ */
+    {
+      id: 'mapa', nome: 'Visão de mapa', motor: 'mapa', mede: null, categoria: 'visao',
+      objetivo: 'Pegar o sinal de canto de olho, segurar na cabeça e dizer onde era e o que queria dizer.',
+      comoFunciona: [
+        'O minimapa fica <b>pequeno, no canto</b> — onde ele está no jogo. Sinais piscam nele em intervalos sorteados de 1 a 6 segundos.',
+        'Cada cor quer dizer uma coisa, e a cor vem do <b>lugar</b>: vermelho é invasão na sua selva, azul é o caçador deles farmando na selva dele, amarelo é Tirano ou Soberano no rio, roxo é alguém limpando o miolo de uma rota, verde é recuo para uma das bases.',
+        'Em algum momento que você não consegue prever, <b>a tela congela</b>. O mapa cresce e você toca o lugar exato onde o último sinal estava.',
+        'Depois você escolhe, entre as cinco, a leitura daquele sinal. A partir da dificuldade 4 ainda vem uma terceira pergunta: qual objetivo exatamente.',
+        'Da dificuldade 4 em diante um <b>alvo acende no meio da tela</b> e precisa ser tocado. Ele existe para tirar o seu olho do mapa — é assim na partida.',
+        'Da 6 em diante aparecem <b>sinais de aliado</b>, em losango branco. Eles não são a pergunta e têm que ser descartados no ato.',
+        'Pontos: até 60 pela distância do seu toque até o ponto certo, 20 por cair na área certa, 25 pela leitura, até 15 por responder rápido e 20 pelo objetivo exato.',
+      ],
+      porque: 'Consciência de mapa não é olhar mais o minimapa: é conseguir codificar numa relanceada e ainda ter aquilo na cabeça alguns segundos depois, fazendo outra coisa. São três habilidades e este exercício mede as três separadas. O intervalo entre o sinal e a pergunta é sorteado de propósito entre três valores fixos, o que transforma o resultado numa curva de esquecimento ("aos 8 segundos você já perdeu metade") em vez de um "% de acerto" que mistura tudo. E o lugar é respondido tocando o mapa, não escolhendo um botão: a distância do palpite até a verdade separa "lembrei mal" de "não lembrei", coisa que certo/errado joga fora.',
+      cfg: (d) => ({
+        tentativas: 12,
+        flash: Math.round(escala(d, 1200, 420)),
+        isiMin: Math.round(escala(d, 1400, 900)),
+        isiMax: Math.round(escala(d, 6000, 2800)),
+        preMin: 1, preMax: d < 5 ? 2 : 3,
+        retencoes: [
+          Math.round(escala(d, 1800, 3000) / 100) * 100,
+          Math.round(escala(d, 3600, 6200) / 100) * 100,
+          Math.round(escala(d, 5500, 10000) / 100) * 100,
+        ],
+        nBacks: [0],
+        rotulos: d < 3.5,
+        objetivoFino: d >= 4,
+        secundaria: d >= 4,
+        secIsiMin: Math.round(escala(d, 2200, 1200)),
+        secIsiMax: Math.round(escala(d, 3600, 2200)),
+        secVida: Math.round(escala(d, 1400, 800)),
+        distratores: d < 6 ? 0 : +(0.25 + (U.clamp(d, 6, 10) - 6) / 4 * 0.35).toFixed(2),
+        tempoOnde: Math.round(escala(d, 7000, 3800)),
+        tempoLeitura: Math.round(escala(d, 5000, 2800)),
+        tempoFino: Math.round(escala(d, 3600, 2400)),
+        tempoRetorno: Math.round(escala(d, 4200, 2600)),
+      }),
+    },
+    {
+      id: 'mapa-atraso', nome: 'Mapa atrasado', motor: 'mapa', mede: null, categoria: 'visao',
+      objetivo: 'Responder pelo sinal ANTERIOR ao último, com outro já por cima dele.',
+      comoFunciona: [
+        'Igual ao Visão de mapa, com uma diferença: a pergunta é sobre o sinal inimigo que veio <b>antes</b> do último.',
+        'Depois do sinal que interessa, outro pisca — e é ele que você vai querer responder. Segurar o primeiro enquanto o segundo entra é o exercício inteiro.',
+        'Sinais de aliado continuam não contando. Eles não empurram a fila.',
+      ],
+      porque: 'Numa partida a informação nova não espera você processar a velha. Manter o item anterior enquanto um novo chega é uma exigência diferente de só lembrar do último, e é ela que falha primeiro quando a luta começa. Este exercício isola essa exigência: tudo o mais é igual ao Visão de mapa, então a diferença de acerto entre os dois é atribuível a ela e não a outra coisa.',
+      cfg: (d) => ({
+        tentativas: 10,
+        flash: Math.round(escala(d, 1100, 450)),
+        isiMin: Math.round(escala(d, 1300, 900)),
+        isiMax: Math.round(escala(d, 4200, 2400)),
+        preMin: 1, preMax: 2,
+        retencoes: [
+          Math.round(escala(d, 2600, 4200) / 100) * 100,
+          Math.round(escala(d, 4600, 7000) / 100) * 100,
+          Math.round(escala(d, 6400, 10000) / 100) * 100,
+        ],
+        nBacks: d < 6 ? [1] : [1, 1, 2],
+        rotulos: d < 3,
+        objetivoFino: d >= 5,
+        secundaria: d >= 5,
+        secIsiMin: Math.round(escala(d, 2400, 1400)),
+        secIsiMax: Math.round(escala(d, 3800, 2400)),
+        secVida: Math.round(escala(d, 1400, 850)),
+        distratores: d < 5 ? 0 : +(0.25 + (U.clamp(d, 5, 10) - 5) / 5 * 0.35).toFixed(2),
+        tempoOnde: Math.round(escala(d, 7000, 4200)),
+        tempoLeitura: Math.round(escala(d, 5000, 3000)),
+        tempoFino: Math.round(escala(d, 3600, 2400)),
+        tempoRetorno: Math.round(escala(d, 4200, 2800)),
       }),
     },
     /* ---------------------------------------------------------- */

@@ -26,6 +26,19 @@
     volta: { x: 0.534, y: 0.897, r: 0.022, tipo: 'sis',  nome: 'Retornar',     curto: 'RET',  cor: '#7dd3fc' },
   };
 
+  /** Quebra um texto em linhas que cabem na largura, por palavra. */
+  function quebrarLinhas(c, txt, larg) {
+    const out = [];
+    let linha = '';
+    for (const p of txt.split(' ')) {
+      const teste = linha ? linha + ' ' + p : p;
+      if (c.measureText(teste).width > larg && linha) { out.push(linha); linha = p; }
+      else linha = teste;
+    }
+    if (linha) out.push(linha);
+    return out.length ? out : [''];
+  }
+
   /* Botões que contam como entrada de combate */
   const ACIONAVEIS = ['s1', 's2', 's3', 'aa', 'flash', 'it1', 'it2'];
   /* Botões que, se tocados sem querer, são erro de HUD e não de memória */
@@ -137,6 +150,8 @@
       this.campo = [];                  // cartas/alvos tocáveis no campo
       this.trilhas = [];                // ruído visual
       this.quadAceso = -1;              // quadrante piscando agora
+      this.mapa = null;                 // minimapa do treino de visão de mapa
+      this.ocultarBotoes = false;       // exercício que não usa o HUD de combate
       this.calibrando = false;
       this.arrastando = null;
 
@@ -230,6 +245,32 @@
         if (alvo) { this.arrastando = { id: alvo, pid: ev.pointerId }; this.opts.onSelecionar?.(alvo); }
         return;
       }
+      /* Minimapa: só intercepta quando o exercício está de fato
+         pedindo um toque nele. Fora disso ele é figura. */
+      if (this.mapa && this.mapa.tocavel) {
+        const r = this.mapaPx();
+        if (p.x >= r.x && p.x <= r.x + r.s && p.y >= r.y && p.y <= r.y + r.s) {
+          this.efeitos.push({ t: 0, tipo: 'anel', x: p.x, y: p.y, r: 22, cor: '#7fd4ff' });
+          U.Haptic.tap();
+          this.opts.onMapa?.({ x: (p.x - r.x) / r.s, y: (p.y - r.y) / r.s, t });
+          return;
+        }
+      }
+
+      /* Alvo tocável no campo (tarefa secundária do treino de mapa).
+         Só quem marca o alvo como tocável entra aqui — os motores que
+         usam setAlvo só para mostrar onde mirar continuam iguais. */
+      if (this.alvoVisual && this.alvoVisual.tocavel) {
+        const B = this.box, a = this.alvoVisual;
+        const ax = B.x + a.x * B.w, ay = B.y + a.y * B.h, ar = (a.r || 0.035) * B.w;
+        if (Math.hypot(p.x - ax, p.y - ay) <= ar * 1.3) {
+          this.efeitos.push({ t: 0, tipo: 'anel', x: ax, y: ay, r: ar, cor: a.cor || '#ffd479' });
+          U.Haptic.tap();
+          this.opts.onAlvo?.({ t });
+          return;
+        }
+      }
+
       if (this.travado) return;
 
       // cartas no campo (prioridade de alvo, cenários)
@@ -241,6 +282,9 @@
           return;
         }
       }
+
+      // exercício sem HUD de combate: analógico e botões não existem
+      if (this.ocultarBotoes) return;
 
       // metade esquerda = analógico  (ou 4 quadrantes, na dupla tarefa)
       const joyP = this.px(this.hud.joy);
@@ -388,10 +432,12 @@
       if (this.alvoVisual) this.drawAlvo();
 
       // botões
-      for (const id in this.hud) {
-        const b = this.hud[id];
-        if (b.tipo === 'joy') this.drawJoy(b, id);
-        else this.drawBtn(b, id);
+      if (!this.ocultarBotoes) {
+        for (const id in this.hud) {
+          const b = this.hud[id];
+          if (b.tipo === 'joy') this.drawJoy(b, id);
+          else this.drawBtn(b, id);
+        }
       }
 
       // efeitos
@@ -399,6 +445,10 @@
 
       // overlay
       if (this.overlay) this.drawOverlay();
+
+      // o minimapa vem por último: durante o congelamento ele precisa
+      // ficar por cima do véu que apaga o resto da tela
+      if (this.mapa) this.drawMapa();
 
       if (this.calibrando) {
         c.save();
@@ -473,9 +523,9 @@
         c.fillStyle = '#e8eefc';
         c.font = `800 ${Math.round(q.h * 0.28)}px system-ui`;
         c.fillText(cta.icone || '?', q.x + q.w / 2, q.y + q.h * 0.28);
-        c.font = `700 ${Math.round(q.h * 0.15)}px system-ui`;
         c.fillStyle = '#b9c8e4';
-        c.fillText(cta.titulo || '', q.x + q.w / 2, q.y + q.h * 0.56);
+        this.textoCaixa(cta.titulo || '', q.x + q.w / 2, q.y + q.h * 0.52,
+                        q.w * 0.90, q.h * 0.15, 700, 3);
         if (cta.hp != null) {
           const bw = q.w * 0.76, bx = q.x + q.w * 0.12, by = q.y + q.h * 0.70, bh = q.h * 0.10;
           c.fillStyle = 'rgba(0,0,0,.55)'; c.fillRect(bx, by, bw, bh);
@@ -484,9 +534,9 @@
           c.strokeStyle = 'rgba(255,255,255,.25)'; c.lineWidth = 1; c.strokeRect(bx, by, bw, bh);
         }
         if (cta.nota) {
-          c.font = `600 ${Math.round(q.h * 0.12)}px system-ui`;
           c.fillStyle = cta.notaCor || '#8fa3c4';
-          c.fillText(cta.nota, q.x + q.w / 2, q.y + q.h * 0.90);
+          this.textoCaixa(cta.nota, q.x + q.w / 2, q.y + q.h * 0.845,
+                          q.w * 0.90, q.h * 0.12, 600, 2);
         }
         if (cta.pulso) {
           c.globalAlpha = cta.pulso * 0.8; c.strokeStyle = '#fff'; c.lineWidth = 3;
@@ -494,6 +544,30 @@
         }
         c.restore();
       }
+    }
+
+    /* ------------------------------------------------------------
+       Texto centrado numa largura: quebra por palavra e, se ainda
+       assim não couber nas linhas disponíveis, encolhe a fonte.
+
+       Antes daqui os títulos das cartas saíam numa linha só e
+       vazavam por cima das cartas vizinhas. Com cinco cartas na
+       largura da tela, "Invasão na sua selva" ocupava o triplo do
+       espaço que tinha.
+       ------------------------------------------------------------ */
+    textoCaixa(txt, cx, cy, larg, tam, peso = 700, maxLinhas = 3) {
+      const c = this.ctx;
+      let t = Math.max(7, tam), linhas = [];
+      for (let tent = 0; tent < 5; tent++) {
+        c.font = `${peso} ${Math.round(t)}px system-ui`;
+        linhas = quebrarLinhas(c, String(txt), larg);
+        if (linhas.length <= maxLinhas || t <= 8) break;
+        t *= 0.85;
+      }
+      if (linhas.length > maxLinhas) linhas = linhas.slice(0, maxLinhas);
+      const alt = t * 1.14;
+      let y = cy - (linhas.length - 1) * alt / 2;
+      for (const l of linhas) { c.fillText(l, cx, y); y += alt; }
     }
 
     roundRect(x, y, w, h, r) {
@@ -534,6 +608,33 @@
         c.fillText(a.rotulo, x, y);
       }
       c.restore();
+    }
+
+    /* ------------------------------------------------------------
+       MINIMAPA — a geometria e o desenho são de js/mapa.js. Daqui
+       sai só ONDE ele fica e o que um toque dentro dele significa:
+       uma coordenada 0..1 do próprio mapa, e não da tela.
+       ------------------------------------------------------------ */
+    mapaPx() {
+      const B = this.box, m = this.mapa;
+      return { x: B.x + m.x * B.w, y: B.y + m.y * B.h, s: m.s * B.w };
+    }
+
+    drawMapa() {
+      if (!U.MP) return;
+      const c = this.ctx, B = this.box, m = this.mapa, r = this.mapaPx();
+      U.MP.desenhar(c, r, m);
+      if (m.placar) U.MP.desenharPlacar(c, r.x, r.y + r.s + B.h * 0.030, r.s, m.placar);
+      if (m.painel) {
+        /* O painel vai do lado que tiver espaço: à esquerda quando o
+           mapa está grande e no meio, à direita quando ele está
+           pequeno no canto. */
+        const folgaEsq = r.x - (B.x + B.w * 0.030);
+        const esquerda = folgaEsq > B.w * 0.20;
+        const px = esquerda ? B.x + B.w * 0.030 : r.x + r.s + B.w * 0.030;
+        const pw = esquerda ? folgaEsq - B.w * 0.022 : (B.x + B.w * 0.970) - px;
+        if (pw > B.w * 0.10) U.MP.desenharPainel(c, px, B.y + B.h * 0.085, pw, B.h * 0.82, m.painel);
+      }
     }
 
     drawJoy(b, id) {

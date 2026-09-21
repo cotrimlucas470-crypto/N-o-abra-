@@ -335,6 +335,21 @@
       o_que: 'Botão errado e longe do pretendido: a ordem ainda não está gravada.',
       acao: 'Rota mais curta e ritmo marcado. Acelerar agora multiplica o erro.',
     },
+    posicao: {
+      nome: 'Lugar', cor: 'serie1',
+      o_que: 'Você leu o sinal certo mas apontou na área errada do mapa.',
+      acao: 'A parte semântica ficou e a espacial não. Baixe a retenção (dificuldade) antes de treinar mais tempo de espera: o que falta é codificar, não segurar.',
+    },
+    sentido: {
+      nome: 'Sentido', cor: 'atencao',
+      o_que: 'Você lembrou o lugar e errou o que ele queria dizer.',
+      acao: 'O mapa está entrando; a leitura das cinco cores ainda não está automática. Este é o erro que some mais rápido, porque é regra e não memória.',
+    },
+    perdeu: {
+      nome: 'Não ficou nada', cor: 'critico',
+      o_que: 'Nem o lugar nem a leitura sobreviveram até a pergunta.',
+      acao: 'Ou o sinal piscou rápido demais para você, ou a espera foi longa demais. Se isso domina o set, a dificuldade desce.',
+    },
     pressa: {
       nome: 'Pressa', cor: 'atencao',
       o_que: 'Erro logo depois de um intervalo mais curto que o seu próprio ritmo estável.',
