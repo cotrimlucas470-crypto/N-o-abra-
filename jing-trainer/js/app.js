@@ -77,6 +77,9 @@
     window.__rz = setTimeout(() => { if (!$('#treino').classList.contains('on')) U.UI.render(); }, 260);
   });
 
-  console.log('ESPELHO v11 ·', U.D.DRILLS.length, 'exercícios ·',
-    U.DS.REGRAS.length, 'regras ·', U.CI.PRINCIPIOS.length, 'princípios');
+  console.log('ESPELHO v12 ·', U.D.DRILLS.length, 'exercícios em',
+    Object.keys(U.D.CATEGORIAS).length, 'categorias ·',
+    U.DS.REGRAS.length, 'regras ·', U.CI.PRINCIPIOS.length, 'princípios ·',
+    Object.keys((U.HE.BUILDS || { porHeroi: {} }).porHeroi).length, 'heróis com itens ·',
+    ((U.HE.ITENS || {}).lista || []).length, 'itens no catálogo');
 })(window.U);

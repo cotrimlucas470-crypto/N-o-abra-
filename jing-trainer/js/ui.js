@@ -113,7 +113,7 @@
       <h1>◈ ESPELHO</h1>
       <span class="tag vio">${fase.nome}</span>
       <div class="espaco"></div>
-      <span class="sub">${d.legado ? 'v5 · dados anteriores preservados' : 'v5'}</span>
+      <span class="sub">${d.legado ? 'v12 · dados anteriores preservados' : 'v12'}</span>
     </div>
     <div class="rolagem pilha">
 
@@ -140,7 +140,7 @@
       </div>
 
       <div class="painel">
-        <h2>Quanto da sua Jing voltou</h2>
+        <h2>Quanto da sua rota de referência voltou</h2>
         <div class="aviso ${rec.estado === 'recuperado' ? 'ok' : rec.estado === 'medindo' ? '' : ''}">${rec.texto}</div>
         ${rec.pct != null ? `<div class="flex" style="gap:10px;margin-top:8px;align-items:center">
           <div class="numero" style="font-size:1.6rem">${rec.pct}<span class="de">%</span></div>
@@ -1435,7 +1435,7 @@
      número continua inteira — ela só desceu para o fim, onde quem
      quiser auditar encontra.
      ============================================================ */
-  let hf = { f: null, q: '', ord: 'bp', dir: -1, aba: 'ranking', iord: 'nome', soKit: false };
+  let hf = { f: null, q: '', ord: 'bp', dir: -1, aba: 'ranking', iord: 'nome', soKit: false, icat: null };
 
   const COL = {
     vitoria:    { nome: 'Vitória',    curto: 'VIT', get: h => h.estatisticas && h.estatisticas.vitoria.v,
@@ -1770,16 +1770,21 @@
   }
 
   /* ---- itens ----
-     O catálogo só tem nome e preço — passiva e atributo não
-     aparecem em captura nenhuma. Com dois campos, cartão grande é
-     desperdício: cabiam seis itens na tela e os 54 viravam nove
-     rolagens. Aqui é lista compacta, ordenável, com barra de preço
-     — porque o que se faz com preço é comparar. */
+     Com nome, preço, passiva, categoria e procedência, cartão grande
+     seria nove rolagens. Aqui é lista compacta, ordenável e filtrável,
+     com barra de preço — porque o que se faz com preço é comparar.
+     A passiva abre embaixo da linha, junto da fonte e da confiança. */
+  const CAT_ITEM = { fisico: 'Físico', magico: 'Mágico', defesa: 'Defesa', movimento: 'Botas',
+                     selva: 'Selva', roaming: 'Roaming', componente: 'Componente' };
+
   function telaItens() {
     const I = U.HE.ITENS, E = U.esc;
     if (!I) return '<div class="painel"><div class="mini">Catálogo não carregou.</div></div>';
     const q = (hf.q || '').toLowerCase();
-    let lista = q ? I.lista.filter(x => x.nome.toLowerCase().includes(q)) : I.lista.slice();
+    let lista = I.lista.slice();
+    if (hf.icat) lista = lista.filter(x => x.categoriaItem === hf.icat);
+    if (q) lista = lista.filter(x => x.nome.toLowerCase().includes(q)
+      || (x.efeito || '').toLowerCase().includes(q));
     if (hf.iord === 'preco') {
       lista.sort((a, b) => (b.preco == null ? -1 : b.preco) - (a.preco == null ? -1 : a.preco));
     } else {
@@ -1788,6 +1793,7 @@
     const precos = I.lista.map(x => x.preco).filter(v => v != null);
     const maxP = precos.length ? Math.max(...precos) : 1;
     const semPreco = I.lista.length - precos.length;
+    const comCat = Object.keys(CAT_ITEM).filter(c => I.lista.some(x => x.categoriaItem === c));
 
     return `
     ${cabecalhoH('itens')}
@@ -1797,12 +1803,18 @@
           <h2 style="margin:0">${I.lista.length} itens</h2><div class="espaco"></div>
           <span class="xs">${E(I.cobertura)}</span>
         </div>
-        <input class="campo" id="hero-busca" placeholder="Buscar item…" value="${E(hf.q)}">
-        <div class="flex" style="gap:5px;margin-top:7px">
+        <input class="campo" id="hero-busca" placeholder="Buscar item ou efeito…" value="${E(hf.q)}">
+        <div class="flex wrap" style="gap:5px;margin-top:7px">
           <button class="btn sec sm ${hf.iord !== 'preco' ? 'gold' : ''}" data-hiord="nome" style="padding:0 10px">A–Z</button>
           <button class="btn sec sm ${hf.iord === 'preco' ? 'gold' : ''}" data-hiord="preco" style="padding:0 10px">Mais caro primeiro</button>
           <div class="espaco"></div>
           <span class="xs">${lista.length} na lista${semPreco ? ` · ${semPreco} sem preço lido` : ''} · ${I.lista.filter(x => x.efeito).length} com passiva encontrada</span>
+        </div>
+        <div class="flex wrap" style="gap:5px;margin-top:6px">
+          <button class="btn sec sm ${!hf.icat ? 'gold' : ''}" data-icat="" style="padding:0 10px">Todos</button>
+          ${comCat.map(c => `<button class="btn sec sm ${hf.icat === c ? 'gold' : ''}" data-icat="${c}" style="padding:0 10px">${CAT_ITEM[c]}</button>`).join('')}
+          <div class="espaco"></div>
+          <span class="xs">categoria só existe nos ${I.lista.filter(x => x.categoriaItem).length} achados por busca — os das suas capturas não vinham com ela</span>
         </div>
         <div class="tabh" style="margin-top:9px">
           ${lista.map(it => {
@@ -1814,7 +1826,10 @@
               ${it.preco != null ? barra(it.preco, maxP, null) : '<div class="barh"></div>'}
               <div class="linh-num">${it.preco != null ? U.num(it.preco) : '—'}</div>
             </div>
-            <div class="xs" style="text-align:right">${it.obs ? E(it.obs) : ''}</div>
+            <div class="xs" style="text-align:right">
+              ${it.categoriaItem ? `<span class="tag" style="font-size:.5rem">${CAT_ITEM[it.categoriaItem] || it.categoriaItem}</span>` : ''}
+              ${it.fonteItem === 'busca_web' ? '<span class="tag warn" style="font-size:.5rem">da busca</span>' : ''}
+              ${it.obs ? E(it.obs) : ''}</div>
             ${it.efeito ? `<div class="xs" style="grid-column:1/-1;margin-top:4px;padding-top:6px;border-top:1px solid rgba(190,215,255,.08)">
               <span class="tag ${confCls}" style="font-size:.5rem">passiva · confiança ${E(it.confiancaEfeito)}</span>
               <div class="mini" style="margin-top:3px">${E(it.efeito)}</div>
@@ -1916,20 +1931,21 @@
       ${(() => {
         const B = U.HE.BUILDS; if (!B) return '';
         const ids = Object.keys(B.porHeroi);
-        const conc = ids.reduce((a, k) => a + B.porHeroi[k].concordam.length, 0);
-        const uma = ids.reduce((a, k) => a + B.porHeroi[k].soUmaBusca.length, 0);
-        const briga = ids.reduce((a, k) => a + B.porHeroi[k].divergem.length, 0);
+        const cruz = ids.filter(k => B.porHeroi[k].cruzado);
+        const briga = cruz.reduce((a, k) => a + B.porHeroi[k].divergem.length, 0);
+        const ressalva = ids.filter(k => B.porHeroi[k].nota);
         return `<div class="painel">
         <h2>Itens por herói — e por que não estão no mesmo lugar dos números</h2>
         <div class="aviso warn" style="margin-top:8px"><b>Isto é opinião de guia, não estatística.</b>
         ${E(B.aviso)}</div>
         <div class="grade g3" style="margin-top:9px">
-          <div class="kpi"><div class="v" style="color:var(--ok)">${conc}</div><div class="k">itens em duas buscas</div></div>
-          <div class="kpi"><div class="v" style="color:var(--warn)">${uma}</div><div class="k">itens em uma busca só</div></div>
-          <div class="kpi"><div class="v" style="color:var(--bad)">${briga}</div><div class="k">pontos em que as buscas brigam</div></div>
+          <div class="kpi"><div class="v" style="color:var(--ok)">${cruz.length}</div><div class="k">cruzados em 2 buscas</div></div>
+          <div class="kpi"><div class="v" style="color:var(--warn)">${ids.length - cruz.length}</div><div class="k">com uma busca só</div></div>
+          <div class="kpi"><div class="v" style="color:var(--bad)">${briga + ressalva.length}</div><div class="k">com disputa ou ressalva</div></div>
         </div>
-        <div class="pilha" style="gap:4px;margin-top:9px">
-          ${ids.map(k => { const h2 = HE.porId(k), b = B.porHeroi[k];
+        <div class="mini" style="margin-top:9px"><b>Os cruzados — duas buscas cada</b></div>
+        <div class="pilha" style="gap:4px;margin-top:5px">
+          ${cruz.map(k => { const h2 = HE.porId(k), b = B.porHeroi[k];
             return `<div class="flex" style="gap:7px;align-items:center">
               ${h2 ? U.EM.selo(h2, 18) : ''}
               <span class="mini" style="flex:0 0 5.5rem;color:var(--txt)">${E(h2 ? h2.name : k)}</span>
@@ -1938,7 +1954,17 @@
               <span class="xs" style="flex:1">cruzado em ${b.buscas} buscas</span>
             </div>`; }).join('')}
         </div>
-        <div class="xs" style="margin-top:9px">${E(B.semOrdem)} O campo <code>builds</code> do banco continua
+        ${ressalva.length ? `<div class="mini" style="margin-top:9px"><b>Onde o resumo da busca se atrapalhou</b>
+          <span class="xs">— registrado, não limpo</span></div>
+          <div class="pilha" style="gap:4px;margin-top:5px">
+            ${ressalva.map(k => { const h2 = HE.porId(k);
+              return `<div class="xs">• <b style="color:var(--txt)">${E(h2 ? h2.name : k)}</b> — ${E(B.porHeroi[k].nota.slice(0, 120))}…</div>`;
+            }).join('')}
+          </div>` : ''}
+        <div class="xs" style="margin-top:9px"><b>Por que 114 têm uma busca só:</b> você pediu todos os
+        personagens. 117 heróis × 2 buscas não cabia, então eles entraram com uma cada — e cada ficha diz
+        "uma busca só" em vez de deixar parecer que têm o mesmo lastro dos três cruzados.
+        <br><br>${E(B.semOrdem)} O campo <code>builds</code> do banco continua
         VAZIO de propósito: ele é o lugar do 出装推荐 da fonte prioritária, que vem com % de uso e efeito na
         vitória. Enchê-lo com isto faria opinião virar contagem.</div>
       </div>`;
@@ -2202,15 +2228,57 @@
         </div>`;
       };
 
-      return `<div class="sep"></div>
-      <div class="flex" style="gap:7px;align-items:baseline">
+      /* nome solto (herói de uma busca só) vira a mesma linha,
+         com o catálogo consultado pelo nome exato */
+      const linhaNome = (nome, marca) => {
+        const cat = doCatalogo(nome);
+        return linhaItem({ nome, papel: cat && cat.categoriaItem ? CAT_ITEM[cat.categoriaItem] || '' : '',
+                           noCatalogo: cat ? true : false,
+                           nota: cat ? null : 'Não está no seu catálogo de 97 itens.' }, marca);
+      };
+
+      const cab = `<div class="sep"></div>
+      <div class="flex wrap" style="gap:7px;align-items:baseline">
         <div class="mt" style="flex:1">Itens</div>
-        <span class="tag ${b.cruzado ? 'ok' : 'warn'}" style="font-size:.52rem">cruzado em ${b.buscas} buscas</span>
+        <span class="tag ${b.cruzado ? 'ok' : 'warn'}" style="font-size:.52rem">${
+          b.cruzado ? `cruzado em ${b.buscas} buscas` : 'uma busca só'}</span>
         <span class="tag warn" style="font-size:.52rem">opinião de guia</span>
       </div>
       <div class="aviso" style="margin-top:7px">${E(B.aviso)}</div>
       ${b.alerta ? `<div class="aviso" style="margin-top:6px">${E(b.alerta)}</div>` : ''}
+      ${b.nota ? `<div class="aviso bad" style="margin-top:6px">${E(b.nota)}</div>` : ''}`;
 
+      const pe = `<div class="xs" style="margin-top:8px"><b>Sem ordem de compra:</b> ${E(B.semOrdem)}
+      Páginas que a busca apontou:
+      ${(b.urls || []).map(u => `<code style="font-size:.9em">${E(u.replace(/^https?:\/\//, '').split('/')[0])}</code>`).join(' · ')}.</div>`;
+
+      /* herói de UMA busca: lista simples, sem fingir cruzamento */
+      if (!b.cruzado) {
+        return `${cab}
+        ${b.itens && b.itens.length ? `
+          <div class="mini" style="margin-top:9px"><b>O que a busca deu como núcleo</b></div>
+          <div class="pilha" style="gap:5px;margin-top:5px">
+            ${b.itens.map(n => linhaNome(n, null)).join('')}
+          </div>` : `<div class="aviso" style="margin-top:8px">A busca não devolveu lista de itens para este herói.</div>`}
+        ${b.extras && b.extras.length ? `
+          <div class="mini" style="margin-top:9px"><b>Situacionais</b>
+            <span class="xs">— a busca chamou de "conforme o confronto"</span></div>
+          <div class="flex wrap" style="gap:4px;margin-top:5px">
+            ${b.extras.map(n => `<span class="tag nome">${E(n)}</span>`).join('')}
+          </div>` : ''}
+        <div class="grade" style="grid-template-columns:repeat(3,1fr);gap:8px;margin-top:9px">
+          <div class="medida"><div class="mt">Início</div>
+            <div class="mini" style="margin-top:3px;color:var(--txt);font-weight:700">${b.inicio ? E(b.inicio) : '<span style="color:var(--dim2);font-weight:400">não veio na busca</span>'}</div></div>
+          <div class="medida"><div class="mt">Feitiço</div>
+            <div class="mini" style="margin-top:3px;color:var(--txt);font-weight:700">${b.feitico ? E(b.feitico) : '<span style="color:var(--dim2);font-weight:400">não veio na busca</span>'}</div></div>
+          <div class="medida"><div class="mt">Arcana</div>
+            <div class="mini" style="margin-top:3px;color:var(--txt);font-weight:700">${b.arcana ? E(b.arcana) : '<span style="color:var(--dim2);font-weight:400">não veio na busca</span>'}</div>
+            ${b.arcanaNota ? `<div class="xs" style="margin-top:3px">${E(b.arcanaNota)}</div>` : ''}</div>
+        </div>
+        ${pe}`;
+      }
+
+      return `${cab}
       <div class="mini" style="margin-top:9px"><b>As duas buscas deram estes</b></div>
       <div class="pilha" style="gap:5px;margin-top:5px">
         ${b.concordam.map(it => linhaItem(it, null)).join('')}
@@ -2244,10 +2312,7 @@
           ${b.arcana.conflitoComSuasCapturas ? `<div class="aviso bad" style="margin-top:5px;font-size:.6rem">${E(b.arcana.conflitoComSuasCapturas)}</div>` : ''}
         </div>
       </div>
-
-      <div class="xs" style="margin-top:8px"><b>Sem ordem de compra:</b> ${E(B.semOrdem)}
-      Páginas que a busca apontou:
-      ${(b.urls || []).map(u => `<code style="font-size:.9em">${E(u.replace(/^https?:\/\//, '').split('/')[0])}</code>`).join(' · ')}.</div>`;
+      ${pe}`;
     };
 
     /* Nome de adversário que existe na sua lista vira atalho: ler
@@ -2361,6 +2426,9 @@
     $('[data-hkit]')?.addEventListener('click', () => { hf.soKit = !hf.soKit; render('herois'); });
     $$('[data-hiord]').forEach(b => b.addEventListener('click', () => {
       hf.iord = b.dataset.hiord; render('herois');
+    }));
+    $$('[data-icat]').forEach(b => b.addEventListener('click', () => {
+      hf.icat = b.dataset.icat || null; render('herois');
     }));
     $$('[data-hord]').forEach(b => b.addEventListener('click', () => {
       const k = b.dataset.hord;

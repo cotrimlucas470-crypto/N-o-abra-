@@ -1,5 +1,5 @@
 ================================================================
-ESPELHO v11 — Laboratório de evolução + central de heróis
+ESPELHO v12 — Treino geral por categoria + itens de todo mundo
 Honor of Kings · Poco X7 Pro · HTML/CSS/JS, sem dependências
 ================================================================
 
@@ -14,6 +14,113 @@ todo número daqui sai de toques sobre a réplica. Se ela não bate com o seu
 jogo, tudo o que vier depois mede a coisa errada.
 
 Seus dados da v1 e da v2 continuam lá. Nada é apagado.
+
+
+================================================================
+PARTE -6 — V12: O TREINO DEIXOU DE SER "DA JING"
+================================================================
+
+NÃO É MAIS TREINO DE UM HERÓI SÓ
+
+   O app se chamava "Treino Jing". Agora é "Treino HoK", e a
+   diferença não é só o nome: o treino passou a DECLARAR o que
+   treina. São oito categorias, e cada exercício carrega a dele:
+
+   Percepção ........ decidir certo com pouca informação na tela
+   Reflexo .......... ver o sinal e responder — inclusive p/ abortar
+   Movimentação ..... executar andando; combo parado é combo morto
+   Mecânica ......... executar o combo no tempo, sem travar
+   Precisão ......... onde o dedo cai dentro do botão
+   Consistência ..... sair igual toda vez
+   Decisão .......... ler, escolher e executar, as três juntas
+   Controle sob pressão .. quanto do nível sobrevive com a atenção
+                           dividida
+
+   As três primeiras foram pedidas por nome. As outras cinco já
+   eram treinadas — só não tinham rótulo. Seis das oito também são
+   eixo medido no Estado; Movimentação ainda não tem eixo próprio,
+   e isso está dito no código em vez de escondido.
+
+   A categoria aparece em três lugares: no cartão do "agora"
+   ("treina: Percepção"), na faixa durante o treino, e numa seção
+   nova do Método que lista as oito com os exercícios de cada.
+
+   O QUE NÃO MUDOU: continua sem menu de exercícios. Quem escolhe
+   é o treinador, olhando o que está mais atrasado. Categoria é
+   rótulo, não cardápio.
+
+ITENS: DE 54 PARA 119, E AGORA COM PASSIVA
+
+   O catálogo tinha nome e preço. Agora 58 dos 119 têm a passiva
+   escrita, com a URL de onde saiu e o grau de confiança na tela.
+
+   Três origens, e cada item diz a sua:
+   · 54 vieram das SUAS capturas — têm preço, vão de A até H;
+   · 43 vieram de busca depois — quase nenhum tem preço, mas têm
+     categoria (físico/mágico/defesa/botas/selva/roaming/componente),
+     e dá para filtrar por ela;
+   · 22 entraram porque as BUILDS dos heróis citavam e eles não
+     existiam aqui. Quase nenhum trouxe passiva: a busca confirmou
+     que o item existe sem dizer o que ele faz.
+
+   RESULTADO: 100% dos itens citados nas builds dos 117 heróis
+   existem no catálogo. Abrir a ficha de qualquer herói mostra
+   preço, categoria e passiva de cada item da build dele — não só
+   uma lista de nomes.
+
+   Uma busca diz que o jogo tem 107 itens; aqui há 119. A diferença
+   não é sobra: alguns nomes podem ser o mesmo item escrito de dois
+   jeitos (Daybreaker × Daybreaker's Virtue, Frostscar's Grip ×
+   Frostscar's Embrace, Cloud Piercing Bow × Cloud Piercer). Não
+   foram fundidos — fundir por semelhança é o chute que este banco
+   recusa. Cada um carrega a dúvida escrita.
+
+   TRÊS PREÇOS QUE BRIGAM ficaram os dois: Guardian e Crimson
+   Shadow (sua captura diz 850, a busca diz 900) e Hunting Knife
+   (a captura cortou, a busca diz 250). Valeu o da captura, porque
+   é o que VOCÊ viu — e a outra leitura está na nota do item.
+
+ITENS POR HERÓI: OS 117, MAS COM DOIS PESOS DIFERENTES
+
+   Você pediu todos os personagens, e são todos. Mas não são todos
+   iguais, e a tela diz qual é qual:
+
+   · 3 CRUZADOS EM DUAS BUSCAS — Jing, Luna e Marco Polo. O que as
+     duas deram fica junto; o que só uma deu fica separado; onde
+     elas brigam, ficam AS DUAS leituras. Exemplo: a bota da Jing
+     (Dexterity numa busca, Resistance na outra) não foi escolhida.
+   · 114 COM UMA BUSCA SÓ — e a ficha estampa "uma busca só".
+     117 × 2 buscas não cabia. Uma busca não é cruzamento, e
+     chamar de cruzamento seria a mentira que este banco existe
+     para não contar.
+
+   ONDE ELE MORA: num campo próprio, NÃO no campo builds do banco.
+   Aquele é o lugar do 出装推荐 da fonte prioritária, que vem com
+   % de uso e efeito na vitória. Isto aqui é opinião de guia.
+   Misturar faria opinião herdar autoridade de estatística.
+
+   SEM ORDEM DE COMPRA: nenhuma busca devolveu slot 1 → slot 6 de
+   forma confiável. As listas são CONJUNTOS. Inventar uma ordem a
+   partir de lista sem ordem seria invenção.
+
+   SETE HERÓIS TÊM RESSALVA ESCRITA, porque o resumo da busca se
+   atrapalhou: Zhao Yun e Wukong (listaram nome de arcana entre os
+   itens), Augran (devolveu rota de habilidade no lugar de build),
+   Wang Zhaojun (build de defesa para maga de meio), e a
+   ambiguidade Wukong × Sun Wukong, que são dois heróis na sua
+   lista e um só nas fontes.
+
+HABILIDADES: MARCO POLO ENTROU, TRÊS DISPUTAS RESOLVIDAS
+
+   Marco Polo estava vazio e agora tem o kit completo — foi o que
+   você apontou. As passivas de Ao'yin, Sun Wukong e Shouyue saíram
+   de disputa porque uma TERCEIRA busca convergiu com uma das duas.
+
+   No Zhao Yun a terceira busca PIOROU: "Thunderbreaker", que duas
+   buscas davam como ultimate, apareceu como habilidade 1. A
+   confiança foi rebaixada em vez de eu escolher um vencedor. Mais
+   pesquisa nem sempre reduz a dúvida — às vezes ela aumenta, e
+   fingir o contrário seria pior que a dúvida.
 
 
 ================================================================

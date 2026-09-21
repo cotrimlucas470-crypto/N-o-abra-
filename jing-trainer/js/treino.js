@@ -600,7 +600,7 @@
          ? 'Esta é uma das primeiras medições. O sistema vai somar as próximas antes de afirmar qualquer tendência.'
          : `Retenção acumulada até aqui: <b>${ret.v}%</b> (intervalo ${ret.lo}–${ret.hi}%, ${ret.n} tentativas).`}</div>
        <div class="aviso" style="margin-top:8px">É a medida que separa aprendizado de desempenho — e a única
-       que o sistema usa para dizer quanto da sua Jing voltou.
+       que o sistema usa para dizer quanto da sua rota de referência voltou.
        <div><button class="btn sec sm" style="margin-top:7px;min-height:34px" data-princ="retencao">por quê</button></div></div>`,
       () => rodar());
   }
@@ -617,7 +617,7 @@
     painel(`
       ${depoisDaProva ? `<div class="aviso ok"><b>Prova registrada.</b> As medidas abaixo somam esta prova
         com as anteriores em condição idêntica.</div><div class="sep"></div>` : ''}
-      <div class="mini" style="margin-bottom:8px"><b>Quanto da sua Jing voltou</b></div>
+      <div class="mini" style="margin-bottom:8px"><b>Quanto da sua rota de referência voltou</b></div>
       <div class="aviso ${rec.estado === 'recuperado' ? 'ok' : ''}">${rec.texto}</div>
       <div class="sep"></div>
       ${U.UI.cartoesMedidas(p)}
