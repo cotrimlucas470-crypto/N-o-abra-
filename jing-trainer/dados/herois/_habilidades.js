@@ -41,7 +41,7 @@
     conferido: false,
     quando: '2026-09-18',
     aviso: 'Resumo de busca, não leitura de página. Os três sites que você mandou estão bloqueados nesta sessão.',
-    cobertura: '24 de 117 heróis com kit montado + 1 com conflito total registrado (Nezha).',
+    cobertura: '25 de 117 heróis com kit montado + 1 com conflito total registrado (Nezha).',
 
     jing: {
       cruzado: true,
@@ -320,13 +320,10 @@
              'https://grokipedia.com/page/Ao_Yin_Honor_of_Kings'],
       alerta: 'Este herói tem QUATRO habilidades ativas, não três — as duas buscas concordam nisso. O treino do app mede três botões de habilidade, então a quarta não tem botão para casar.',
       lista: [
-        { slot: 'passiva', tecla: 'P', nome: null,
+        { slot: 'passiva', tecla: 'P', nome: 'Hidden Dragon',
           texto: 'As Almas de Dragão das duas últimas habilidades usadas mudam o ataque básico, que passa a causar dano físico em até dois inimigos. Cada habilidade usada dá 1 marca, até 3. O ataque básico gasta todas as marcas de uma vez, batendo uma vez por marca.',
-          confianca: 'media',
-          disputa: { oQue: 'o nome da passiva',
-            leituraA: '"Hidden Dragon" (primeira busca).',
-            leituraB: 'A segunda busca, perguntada diretamente, disse que NÃO encontrou nenhuma passiva com esse nome.',
-            porQueNaoEscolhi: 'Uma busca afirmando e outra negando não é confirmação. O mecanismo (Almas de Dragão, marcas) apareceu nas duas e está guardado; o nome fica em branco.' } },
+          confianca: 'alta',
+          nota: 'O nome ficou em disputa numa rodada anterior — uma busca disse que não encontrou nada com esse nome. Uma TERCEIRA busca, perguntada de novo e direto, confirmou "Hidden Dragon" de forma explícita. Resolvido: 2 confirmações contra 1 não-achado.' },
         { slot: '1', tecla: '1', nome: 'Flaming Palm',
           texto: 'Causa dano físico e dano verdadeiro. Prende uma Alma de Dragão de Fogo à espada: com ela, o ataque básico bate mais forte, causando dano físico e verdadeiro.',
           confianca: 'alta' },
@@ -473,7 +470,7 @@
       lista: [
         { slot: 'passiva', tecla: 'P', nome: 'The Great Sage',
           texto: 'Usar habilidade melhora o próximo ataque básico, que vira um golpe com avanço e causa dano extra. Ele tem taxa de crítico base mais alta e dano crítico base mais baixo que os outros heróis.',
-          confianca: 'media', nota: 'O nome apareceu numa busca só; o mecanismo, nas duas.' },
+          confianca: 'alta', nota: 'O nome tinha aparecido numa busca só. Uma TERCEIRA busca, feita depois, confirmou "The Great Sage" de novo, de forma independente.' },
         { slot: '1', tecla: '1', nome: 'Fortification Spell',
           texto: 'Ganha velocidade de movimento e bloqueia o dano e os efeitos da próxima habilidade inimiga. Bloqueando com sucesso, ganha dano temporário, invulnerabilidade a habilidade e escudo.',
           confianca: 'media',
@@ -500,7 +497,7 @@
              'https://liquipedia.net/honorofkings/Zhao_Huaizhen',
              'https://hokstats.gg/heroes/zilong/',
              'https://gaminggblog.com/honor-of-kings-zilong-build/'],
-      alerta: 'Três problemas de uma vez. (1) O jogo usa DOIS nomes para ele — Zhao Yun e Zilong — e as fontes misturam. (2) "Soaring Dragon" aparece ora como estágio da passiva, ora como habilidade ativa. (3) Não deu para estabelecer qual ativa é a 1 e qual é a 2. Por isso o app NÃO casa as habilidades 1 e 2 com os botões do treino deste herói: só a ultimate.',
+      alerta: 'Quatro problemas agora, não três. (1) O jogo usa DOIS nomes para ele — Zhao Yun e Zilong — e as fontes misturam. (2) "Soaring Dragon" aparece ora como estágio da passiva, ora como habilidade ativa. (3) Não deu para estabelecer qual ativa é a 1 e qual é a 2. (4) Numa busca posterior, "Thunderbreaker" — que as duas primeiras buscas deram como ULTIMATE — apareceu como habilidade 1, ao lado de um nome novo ("Stormpiercer") para a 2. Mais pesquisa não reduziu a confusão deste herói, aumentou. Por isso o app NÃO casa as habilidades 1 e 2 com os botões do treino: só a ultimate, e com confiança rebaixada.',
       lista: [
         { slot: 'passiva', tecla: 'P', nome: null,
           texto: 'A redução de dano cresce conforme a vida cai. Uma das leituras detalha três estágios: acima de 66% de vida, 5% de redução; entre 33% e 66%, 10% e mais alcance no avanço; abaixo de 33%, 20% e mais golpes com a lança.',
@@ -520,8 +517,8 @@
         { slot: '3', tecla: '3', ult: true, nome: 'Thunderbreaker',
           texto: 'Salta no ar e desce com um golpe de trovão, derrubando quem estiver na área por 1 s e causando dano físico.',
           numeros: '550/825/1100 (+1150% de ataque físico bônus).',
-          confianca: 'alta',
-          nota: 'Único campo dele confirmado nas duas buscas. O número de escala (+1150%) é o que a busca devolveu; parece alto e não foi conferido.' },
+          confianca: 'media',
+          nota: 'Duas buscas confirmam este texto como a ultimate. Uma TERCEIRA busca, numa rodada depois, chamou "Thunderbreaker" de HABILIDADE 1 e deu "Stormpiercer" como habilidade 2 — nomes que não batem com nada registrado aqui. Isso não resolve nada: só confirma que este é o herói com a pesquisa mais inconsistente do banco, e por isso a confiança caiu de "alta" para "média" em vez de subir.' },
       ],
     },
 
@@ -807,15 +804,12 @@
              'https://honor-of-kings.fandom.com/wiki/Shouyue',
              'https://hokstats.gg/heroes/shouyue/',
              'https://itemlevel.net/honor-of-kings-complete-shouyue-guide/'],
-      alerta: 'As três ativas batem nas duas buscas. A PASSIVA não: as duas descrevem mecanismos diferentes, não apenas nomes diferentes. Isso é mais grave que divergência de nome, e está marcado assim.',
+      alerta: 'As três ativas batem nas duas buscas. A passiva parecia ter duas descrições incompatíveis — uma TERCEIRA busca mostrou que não eram incompatíveis: são duas partes da mesma passiva, e por isso o texto foi reescrito juntando as duas.',
       lista: [
         { slot: 'passiva', tecla: 'P', nome: 'Accuracy',
-          texto: 'Não encontrado na fonte.',
-          confianca: 'media',
-          disputa: { oQue: 'o que a passiva faz',
-            leituraA: 'Fora de combate ele acumula marcas que aumentam penetração física e dano do ataque básico; acertar herói com básico ou habilidade gasta as marcas. Com certa velocidade de ataque, as marcas vêm mais rápido. (sem nome)',
-            leituraB: '"Accuracy": a taxa de crítico dele é convertida em dano de ataque.',
-            porQueNaoEscolhi: 'Não são dois nomes para a mesma coisa: são duas passivas diferentes. Uma delas pertence a outro herói, a outro patch, ou está simplesmente errada. Guardei o nome mais explícito e deixei a descrição em branco.' } },
+          texto: 'Ataques básicos causam dano extra, e a taxa de crítico dele é convertida em ataque físico — crítico a mais vira mais dano de básico direto, sem depender de acertar o crítico. Fora de combate, junto de uma parede, ele ganha camuflagem e velocidade de movimento; fora de combate ele também acumula marcas que aumentam penetração física e dano do básico, e acertar herói consome as marcas.',
+          confianca: 'alta',
+          nota: 'Duas buscas anteriores pareciam descrever passivas DIFERENTES — uma falava só da conversão de crítico, a outra só das marcas fora de combate. Uma terceira busca trouxe as duas partes juntas, com o mesmo nome ("Accuracy") cobrindo tudo. Não era divergência: era descrição parcial nas duas primeiras.' },
         { slot: '1', tecla: '1', nome: 'The Tranquil Eye',
           texto: 'Coloca um aparelho que dá visão na área em volta. Fora de combate, ele ganha camuflagem e mais velocidade de movimento e de ataque perto de terreno natural ou dentro da área do aparelho.',
           confianca: 'alta' },
@@ -826,6 +820,37 @@
           texto: 'Salta para trás e atira na direção alvo, causando dano e lentidão em quem acertar, e ganhando velocidade de movimento. Divide a munição com Wild Wind e aumenta o alcance do ataque básico.',
           confianca: 'alta',
           nota: 'Dividir munição com a habilidade 2 é o detalhe que decide a luta contra ele: se ele gastou no tiro, não tem a fuga.' },
+      ],
+    },
+
+    /* ------------------------------------------------------------
+       MARCO POLO — pedido nomeado. Nomes e ordem cruzados nas duas
+       buscas; o efeito de "mais dano perto de herói inimigo" aparece
+       preso à passiva numa busca e à habilidade 2 na outra.
+       ------------------------------------------------------------ */
+    'marco-polo': {
+      cruzado: true, buscas: 2,
+      urls: ['https://liquipedia.net/honorofkings/Marco_Polo',
+             'https://honor-of-kings.fandom.com/wiki/Marco_Polo',
+             'https://hokstats.gg/heroes/marco-polo/',
+             'https://hokmeta.com/learn/marco-polo-guide/'],
+      alerta: 'Um efeito aparece em dois lugares diferentes entre as buscas: "mais dano e velocidade perto de herói inimigo" está descrito dentro da PASSIVA numa busca, e dentro da habilidade 2 (Roaming Gun) na outra. Pode ser o mesmo texto duplicado na hora de resumir, ou a passiva realmente ativar via a habilidade 2. Guardei na passiva, que é onde apareceu com mais detalhe, e deixei a ressalva na habilidade 2.',
+      lista: [
+        { slot: 'passiva', tecla: 'P', nome: 'Chain Reaction',
+          texto: 'Com herói inimigo a 500 de distância, o dano dele sobe 20% e a velocidade de movimento sobe 15–30% (escala com nível). Ataque básico e dano de habilidade aplicam uma marca de Corrosão de Armadura no alvo (5 marcas de uma vez em minion). Com 10 marcas, ele recupera 30 de energia e o alvo entra em Corrosão: cada acerto seguinte causa dano verdadeiro extra.',
+          numeros: '+40 (+35% de ataque físico) de dano verdadeiro extra por acerto durante a Corrosão.',
+          confianca: 'alta' },
+        { slot: '1', tecla: '1', nome: 'Resplendent Revolver',
+          texto: 'Atira na direção alvo por um tempo, ganhando velocidade de movimento enquanto atira.',
+          confianca: 'alta' },
+        { slot: '2', tecla: '2', nome: 'Roaming Gun',
+          texto: 'Desloca-se (blink) na direção alvo.',
+          confianca: 'media',
+          nota: 'Uma das buscas repete aqui o mesmo texto de "mais dano e velocidade perto de herói inimigo" que também apareceu na passiva. Guardado só na passiva — ver o aviso deste herói.' },
+        { slot: '3', tecla: '3', ult: true, nome: 'Fevered Barrage',
+          texto: 'Desloca-se (blink) na direção alvo e passa a se mover devagar nessa direção atirando rajadas nos inimigos por perto durante 3 s. A cadência da rajada segue a velocidade de ataque; a cada 3 rajadas conta como 1 ataque básico.',
+          numeros: '213 (170 + 25% de ataque físico) por rajada.',
+          confianca: 'alta' },
       ],
     },
   };

@@ -125,6 +125,12 @@
           <span class="tag">regra <code>${dec ? dec.regra : '—'}</code></span>
           <span class="tag ${NIVEL_CLASSE[dec ? dec.confianca : ''] || ''}">confiança: ${dec ? S.rotuloNivel(dec.confianca) : '—'}</span>
           ${acao && acao.drill ? `<span class="tag">dificuldade ${acao.dif.toFixed(1)}</span>` : ''}
+          ${(() => {
+            if (!acao || !acao.drill) return '';
+            const dr = D.porId(acao.drill);
+            const cat = dr && dr.categoria && D.CATEGORIAS[dr.categoria];
+            return cat ? `<span class="tag vio">treina: ${U.esc(cat.nome)}</span>` : '';
+          })()}
         </div>
         <div class="flex" style="margin-top:10px;gap:8px">
           <button class="btn" style="flex:2" id="ir-agora">${rotulo}</button>
@@ -1127,6 +1133,28 @@
       </div>
 
       <div class="painel">
+        <h2>O que o sistema treina</h2>
+        <div class="mini">Não existe uma lista de exercícios para você escolher — quem escolhe é o treinador,
+        olhando o que está mais atrasado agora (ver "Como o sistema decide", na Config). Mas cada exercício treina
+        UMA coisa com nome, e são estas ${Object.keys(D.CATEGORIAS).length}:</div>
+        <div class="pilha" style="gap:8px;margin-top:9px">
+          ${Object.entries(D.CATEGORIAS).map(([id, c]) => {
+            const drills = D.DRILLS.filter(x => x.categoria === id);
+            return `<div class="medida">
+              <div class="flex" style="gap:7px;align-items:baseline">
+                <span class="mt" style="flex:1">${U.esc(c.nome)}</span>
+                <span class="xs">${drills.length} exercício${drills.length === 1 ? '' : 's'}</span>
+              </div>
+              <div class="mini" style="margin-top:3px">${U.esc(c.descricao)}</div>
+              <div class="flex wrap" style="gap:4px;margin-top:6px">
+                ${drills.map(x => `<span class="tag${x.heroi ? ' vio' : ''}" style="font-size:.56rem">${U.esc(x.nome)}</span>`).join('')}
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+
+      <div class="painel">
         <h2>O que mudou de versão para versão</h2>
         <div class="pilha" style="gap:7px">
           ${CI.AUDITORIA.map(a => `<div class="mini">
@@ -1229,8 +1257,11 @@
            mas ao lado dele vem o nome de verdade, quando o banco tem */
         const nomeDe = (k) => kit && kit.botoes[k] ? kit.botoes[k].nome : null;
         return `<div class="painel">
-        <h2>Rotas da Jing</h2>
-        <div class="mini" style="margin-bottom:7px">Nomeadas pela função para continuarem válidas se a build ou o
+        <h2>Rotas de combo — Jing</h2>
+        <div class="mini" style="margin-bottom:7px">As oito categorias de treino (Mecânica, Precisão, Percepção,
+        Reflexo, Movimentação e as outras — ver a aba Método) valem para o sistema inteiro. Esta lista é o que é
+        necessariamente por herói: a sequência de botões que o exercício de Mecânica/Precisão pratica quando o
+        herói ativo é a Jing. Nomeadas pela função para continuarem válidas se a build ou o
         patch mudarem. A rota <b>Marca</b> é a de referência: mexer nela reinicia a comparação histórica.</div>
         <div class="pilha" style="gap:6px">
           ${rotas.map(r => `<div class="item" data-rota="${r.id}">
@@ -1771,17 +1802,26 @@
           <button class="btn sec sm ${hf.iord !== 'preco' ? 'gold' : ''}" data-hiord="nome" style="padding:0 10px">A–Z</button>
           <button class="btn sec sm ${hf.iord === 'preco' ? 'gold' : ''}" data-hiord="preco" style="padding:0 10px">Mais caro primeiro</button>
           <div class="espaco"></div>
-          <span class="xs">${lista.length} na lista${semPreco ? ` · ${semPreco} sem preço lido` : ''}</span>
+          <span class="xs">${lista.length} na lista${semPreco ? ` · ${semPreco} sem preço lido` : ''} · ${I.lista.filter(x => x.efeito).length} com passiva encontrada</span>
         </div>
         <div class="tabh" style="margin-top:9px">
-          ${lista.map(it => `<div class="lini">
+          ${lista.map(it => {
+            const confCls = { alta: 'ok', media: 'warn', baixa: 'bad' }[it.confiancaEfeito] || '';
+            const dominio = it.urlEfeito ? it.urlEfeito.replace(/^https?:\/\//, '').split('/')[0] : '';
+            return `<div class="lini" style="${it.efeito ? 'height:auto' : ''}">
             <div class="lini-nome">${E(it.nome)}</div>
             <div class="linh-bar">
               ${it.preco != null ? barra(it.preco, maxP, null) : '<div class="barh"></div>'}
               <div class="linh-num">${it.preco != null ? U.num(it.preco) : '—'}</div>
             </div>
             <div class="xs" style="text-align:right">${it.obs ? E(it.obs) : ''}</div>
-          </div>`).join('')}
+            ${it.efeito ? `<div class="xs" style="grid-column:1/-1;margin-top:4px;padding-top:6px;border-top:1px solid rgba(190,215,255,.08)">
+              <span class="tag ${confCls}" style="font-size:.5rem">passiva · confiança ${E(it.confiancaEfeito)}</span>
+              <div class="mini" style="margin-top:3px">${E(it.efeito)}</div>
+              ${it.notaEfeito ? `<div class="xs" style="margin-top:3px;opacity:.85">${E(it.notaEfeito)}</div>` : ''}
+              ${dominio ? `<div class="xs" style="margin-top:3px">fonte: <a href="${E(it.urlEfeito)}" target="_blank" rel="noopener"><code style="font-size:.9em">${E(dominio)}</code></a></div>` : ''}
+            </div>` : ''}
+          </div>`; }).join('')}
         </div>
         ${!lista.length ? '<div class="aviso" style="margin-top:8px">Nenhum item com esse nome.</div>' : ''}
         <div class="xs" style="margin-top:8px">A barra é o preço em ouro, do zero até o item mais caro
@@ -1870,6 +1910,37 @@
         para cruzar, e cruzar é o que separa isto de chute. Fazer os 117 no chute levaria um minuto e
         encheria o app de habilidade inventada — que é exatamente o que você proibiu. Se você conseguir
         abrir um daqueles sites e colar o texto na tela de importar, entra na hora e com fonte melhor.</div>
+      </div>`;
+      })()}
+
+      ${(() => {
+        const B = U.HE.BUILDS; if (!B) return '';
+        const ids = Object.keys(B.porHeroi);
+        const conc = ids.reduce((a, k) => a + B.porHeroi[k].concordam.length, 0);
+        const uma = ids.reduce((a, k) => a + B.porHeroi[k].soUmaBusca.length, 0);
+        const briga = ids.reduce((a, k) => a + B.porHeroi[k].divergem.length, 0);
+        return `<div class="painel">
+        <h2>Itens por herói — e por que não estão no mesmo lugar dos números</h2>
+        <div class="aviso warn" style="margin-top:8px"><b>Isto é opinião de guia, não estatística.</b>
+        ${E(B.aviso)}</div>
+        <div class="grade g3" style="margin-top:9px">
+          <div class="kpi"><div class="v" style="color:var(--ok)">${conc}</div><div class="k">itens em duas buscas</div></div>
+          <div class="kpi"><div class="v" style="color:var(--warn)">${uma}</div><div class="k">itens em uma busca só</div></div>
+          <div class="kpi"><div class="v" style="color:var(--bad)">${briga}</div><div class="k">pontos em que as buscas brigam</div></div>
+        </div>
+        <div class="pilha" style="gap:4px;margin-top:9px">
+          ${ids.map(k => { const h2 = HE.porId(k), b = B.porHeroi[k];
+            return `<div class="flex" style="gap:7px;align-items:center">
+              ${h2 ? U.EM.selo(h2, 18) : ''}
+              <span class="mini" style="flex:0 0 5.5rem;color:var(--txt)">${E(h2 ? h2.name : k)}</span>
+              <span class="tag ok" style="font-size:.52rem">${b.concordam.length} confirmados</span>
+              ${b.divergem.length ? `<span class="tag bad" style="font-size:.52rem">${b.divergem.length} em disputa</span>` : ''}
+              <span class="xs" style="flex:1">cruzado em ${b.buscas} buscas</span>
+            </div>`; }).join('')}
+        </div>
+        <div class="xs" style="margin-top:9px">${E(B.semOrdem)} O campo <code>builds</code> do banco continua
+        VAZIO de propósito: ele é o lugar do 出装推荐 da fonte prioritária, que vem com % de uso e efeito na
+        vitória. Enchê-lo com isto faria opinião virar contagem.</div>
       </div>`;
       })()}
 
@@ -2104,6 +2175,81 @@
       mandou estão bloqueados aqui. Páginas que a busca apontou:
       ${(hm.urls || []).map(u => `<code style="font-size:.9em">${E(u.replace(/^https?:\/\//, '').split('/')[0])}</code>`).join(' · ')}.</div>`;
     };
+    /* Build: opinião de guia, e o rótulo disso fica colado na
+       seção inteira. Cada item que existe no catálogo abre a
+       passiva dele ali mesmo — que é o ponto de ter os dois
+       bancos. O que não existe no catálogo diz que não existe,
+       em vez de sumir. */
+    const blocoBuild = () => {
+      const B = U.HE.BUILDS;
+      const b = B && B.porHeroi ? B.porHeroi[h.id] : null;
+      if (!b) return '';
+      const doCatalogo = (nome) => ((U.HE.ITENS || {}).lista || []).find(x => x.nome === nome) || null;
+
+      const linhaItem = (it, marca) => {
+        const cat = it.noCatalogo === true ? doCatalogo(it.nome) : null;
+        return `<div class="medida" style="padding:7px 9px">
+          <div class="flex" style="gap:6px;align-items:baseline">
+            <span class="mini" style="color:var(--txt);font-weight:700;flex:1">${E(it.nome)}</span>
+            ${marca ? `<span class="tag warn" style="font-size:.5rem">${E(marca)}</span>` : ''}
+            ${it.noCatalogo === false ? '<span class="tag" style="font-size:.5rem">fora do catálogo</span>' : ''}
+            ${it.noCatalogo === null ? '<span class="tag bad" style="font-size:.5rem">nome não casa</span>' : ''}
+            ${cat && cat.preco != null ? `<span class="xs">${U.num(cat.preco)} ouro</span>` : ''}
+          </div>
+          <div class="xs" style="margin-top:2px">${E(it.papel)}</div>
+          ${cat && cat.efeito ? `<div class="mini" style="margin-top:4px"><b style="color:var(--dim)">Passiva:</b> ${E(cat.efeito)}</div>` : ''}
+          ${it.nota ? `<div class="xs" style="margin-top:3px;opacity:.85">${E(it.nota)}</div>` : ''}
+        </div>`;
+      };
+
+      return `<div class="sep"></div>
+      <div class="flex" style="gap:7px;align-items:baseline">
+        <div class="mt" style="flex:1">Itens</div>
+        <span class="tag ${b.cruzado ? 'ok' : 'warn'}" style="font-size:.52rem">cruzado em ${b.buscas} buscas</span>
+        <span class="tag warn" style="font-size:.52rem">opinião de guia</span>
+      </div>
+      <div class="aviso" style="margin-top:7px">${E(B.aviso)}</div>
+      ${b.alerta ? `<div class="aviso" style="margin-top:6px">${E(b.alerta)}</div>` : ''}
+
+      <div class="mini" style="margin-top:9px"><b>As duas buscas deram estes</b></div>
+      <div class="pilha" style="gap:5px;margin-top:5px">
+        ${b.concordam.map(it => linhaItem(it, null)).join('')}
+      </div>
+
+      ${b.soUmaBusca && b.soUmaBusca.length ? `
+        <div class="mini" style="margin-top:9px"><b>Só uma busca deu estes</b>
+          <span class="xs">— ficam separados de propósito: uma leitura não é cruzamento</span></div>
+        <div class="pilha" style="gap:5px;margin-top:5px">
+          ${b.soUmaBusca.map(it => linhaItem(it, 'uma busca só')).join('')}
+        </div>` : ''}
+
+      ${b.divergem && b.divergem.length ? b.divergem.map(dv => `
+        <div class="aviso bad" style="margin-top:8px;font-size:.62rem">
+          <b>As duas buscas brigam: ${E(dv.oQue)}.</b>
+          <div class="xs" style="margin-top:3px">A — ${E(dv.leituraA)}</div>
+          <div class="xs" style="margin-top:2px">B — ${E(dv.leituraB)}</div>
+          <div class="xs" style="margin-top:3px">${E(dv.porQueNaoEscolhi)}</div>
+        </div>`).join('') : ''}
+
+      <div class="grade" style="grid-template-columns:repeat(2,1fr);gap:8px;margin-top:9px">
+        <div class="medida">
+          <div class="mt">Feitiço</div>
+          <div class="mini" style="margin-top:3px;color:var(--txt);font-weight:700">${E(b.feitico.nome)}</div>
+          <div class="xs" style="margin-top:2px">confiança ${E(b.feitico.confianca)} — ${E(b.feitico.nota)}</div>
+        </div>
+        <div class="medida">
+          <div class="mt">Arcana</div>
+          <div class="mini" style="margin-top:3px;color:var(--txt);font-weight:700">${E(b.arcana.leitura)}</div>
+          <div class="xs" style="margin-top:2px">confiança ${E(b.arcana.confianca)} — ${E(b.arcana.nota)}</div>
+          ${b.arcana.conflitoComSuasCapturas ? `<div class="aviso bad" style="margin-top:5px;font-size:.6rem">${E(b.arcana.conflitoComSuasCapturas)}</div>` : ''}
+        </div>
+      </div>
+
+      <div class="xs" style="margin-top:8px"><b>Sem ordem de compra:</b> ${E(B.semOrdem)}
+      Páginas que a busca apontou:
+      ${(b.urls || []).map(u => `<code style="font-size:.9em">${E(u.replace(/^https?:\/\//, '').split('/')[0])}</code>`).join(' · ')}.</div>`;
+    };
+
     /* Nome de adversário que existe na sua lista vira atalho: ler
        "perde para Nezha" e não conseguir abrir o Nezha ali mesmo é
        a mesma frustração de antes em escala menor. Quem não está na
@@ -2138,6 +2284,8 @@
       </div>
 
       ${blocoHab()}
+
+      ${blocoBuild()}
 
       ${e ? `<div class="sep"></div>
         <div class="mt">Os números</div>

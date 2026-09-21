@@ -33,10 +33,38 @@
     return seqs(ids);
   }
 
+  /* ============================================================
+     CATEGORIAS — o que cada exercício treina
+     ------------------------------------------------------------
+     Este sistema não deixa você escolher exercício num menu (a
+     prescrição é do treinador, de propósito — ver DS.plano()). Mas
+     "geral, sem nome" não é a mesma coisa que "sem categoria": cada
+     exercício treina UMA coisa específica, e ela tem nome. Oito
+     categorias, não um número redondo escolhido por estética:
+     Percepção, Reflexo e Movimentação porque foram pedidas por
+     nome; Mecânica, Precisão, Consistência, Decisão e Controle sob
+     pressão porque são as outras cinco coisas que os exercícios já
+     treinavam sem rótulo — a maioria delas é também eixo medido no
+     Estado (a exceção é Movimentação, que ainda não tem eixo
+     próprio: 'movimento' alimenta o mesmo limiar de execução que
+     'rota', então por enquanto ela é categoria de treino sem ser
+     medida à parte).
+     ============================================================ */
+  const CATEGORIAS = {
+    mecanica: { nome: 'Mecânica', descricao: 'Executar o combo no tempo — sem travar, sem gaguejar.' },
+    precisao: { nome: 'Precisão', descricao: 'Onde o dedo cai dentro do botão, não só se caiu.' },
+    consistencia: { nome: 'Consistência', descricao: 'Sair igual toda vez. Ritmo que não varia.' },
+    percepcao: { nome: 'Percepção', descricao: 'Decidir certo com pouca informação na tela.' },
+    reflexo: { nome: 'Reflexo', descricao: 'Tempo entre ver o sinal e responder — inclusive para abortar.' },
+    decisao: { nome: 'Decisão', descricao: 'Ler, escolher a ação certa e executar — as três juntas, como numa partida.' },
+    pressao: { nome: 'Controle sob pressão', descricao: 'Quanto do seu nível sobrevive com a atenção dividida.' },
+    movimentacao: { nome: 'Movimentação', descricao: 'Executar andando. Combo parado é combo que só existe em treino.' },
+  };
+
   const DRILLS = [
     /* ---------------------------------------------------------- */
     {
-      id: 'trajeto', nome: 'Trajeto caro', motor: 'sequencia', mede: null,
+      id: 'trajeto', nome: 'Trajeto caro', motor: 'sequencia', mede: null, categoria: 'mecanica',
       objetivo: 'Repetir só o pedaço do combo que custa mais do que devia.',
       comoFunciona: [
         'Duas teclas por tentativa: exatamente o trajeto que o sistema mediu como lento.',
@@ -60,7 +88,7 @@
       },
     },
     {
-      id: 'ancorar', nome: 'Ancoragem', motor: 'sequencia', mede: null,
+      id: 'ancorar', nome: 'Ancoragem', motor: 'sequencia', mede: null, categoria: 'precisao',
       objetivo: 'Reencontrar cada botão e alimentar o mapa do seu polegar.',
       comoFunciona: [
         'Aparece o nome de um botão. Some. Quando surgir VAI, acerte esse botão.',
@@ -81,7 +109,7 @@
     },
     /* ---------------------------------------------------------- */
     {
-      id: 'ritmo', nome: 'Ritmo', motor: 'sequencia', mede: 'estabilidade',
+      id: 'ritmo', nome: 'Ritmo', motor: 'sequencia', mede: 'estabilidade', categoria: 'consistencia',
       objetivo: 'Tirar a variação do combo. Regularidade antes de velocidade.',
       comoFunciona: [
         'Um metrônomo marca a batida. Um toque por batida — <b>na</b> batida, não antes.',
@@ -101,7 +129,7 @@
     },
     /* ---------------------------------------------------------- */
     {
-      id: 'rota', nome: 'Rota', motor: 'sequencia', mede: 'execucao',
+      id: 'rota', nome: 'Rota', motor: 'sequencia', mede: 'execucao', categoria: 'mecanica',
       objetivo: 'Encontrar o tempo de rota que você sustenta — e empurrá-lo.',
       comoFunciona: [
         'Execute a rota mostrada dentro do tempo limite.',
@@ -129,7 +157,7 @@
     },
     /* ---------------------------------------------------------- */
     {
-      id: 'movimento', nome: 'Andando', motor: 'sequencia', mede: 'execucao',
+      id: 'movimento', nome: 'Andando', motor: 'sequencia', mede: 'execucao', categoria: 'movimentacao',
       objetivo: 'Executar sem parar de andar. Combo parado é combo morto.',
       comoFunciona: [
         'A seta dourada mostra a direção que o personagem precisa manter.',
@@ -150,7 +178,7 @@
     },
     /* ---------------------------------------------------------- */
     {
-      id: 'carga', nome: 'Carga', motor: 'sequencia', mede: 'custoDecisao',
+      id: 'carga', nome: 'Carga', motor: 'sequencia', mede: 'custoDecisao', categoria: 'pressao',
       objetivo: 'Descobrir se a rota sai sozinha ou se ela come a sua atenção.',
       comoFunciona: [
         'A metade esquerda vira quatro quadrantes. Durante a execução, <b>um</b> pisca.',
@@ -170,7 +198,7 @@
     },
     /* ---------------------------------------------------------- */
     {
-      id: 'ler', nome: 'Leitura', motor: 'leitura', mede: 'leitura',
+      id: 'ler', nome: 'Leitura', motor: 'leitura', mede: 'leitura', categoria: 'percepcao',
       objetivo: 'Decidir com informação incompleta — que é o normal em luta.',
       comoFunciona: [
         'A situação aparece por um instante e some atrás de uma máscara.',
@@ -192,7 +220,7 @@
     },
     /* ---------------------------------------------------------- */
     {
-      id: 'frear', nome: 'Freio', motor: 'sequencia', mede: 'aborto',
+      id: 'frear', nome: 'Freio', motor: 'sequencia', mede: 'aborto', categoria: 'reflexo',
       objetivo: 'Descobrir com quanta antecedência você consegue cancelar uma jogada.',
       comoFunciona: [
         'Execute a rota normalmente. Em algumas tentativas aparece <b>PARAR</b> no meio.',
@@ -215,7 +243,7 @@
     },
     /* ---------------------------------------------------------- */
     {
-      id: 'lutar', nome: 'Luta', motor: 'decisao', mede: 'custoDecisao',
+      id: 'lutar', nome: 'Luta', motor: 'decisao', mede: 'custoDecisao', categoria: 'decisao',
       objetivo: 'Perceber, interpretar, decidir, executar e reavaliar — numa coisa só.',
       comoFunciona: [
         'A situação aparece por um instante. Leia o que der.',
@@ -236,7 +264,7 @@
     },
     /* ---------------------------------------------------------- */
     {
-      id: 'luna-elo', nome: 'Luna · Elo', motor: 'sequencia', heroi: 'luna', mede: null,
+      id: 'luna-elo', nome: 'Luna · Elo', motor: 'sequencia', heroi: 'luna', mede: null, categoria: 'consistencia',
       objetivo: 'O elo básico da cadeia, um por vez.',
       comoFunciona: [
         'Marcar, bater, saltar. Encaixado na batida.',
@@ -251,7 +279,7 @@
       }),
     },
     {
-      id: 'luna-cadeia', nome: 'Luna · Cadeia', motor: 'sequencia', heroi: 'luna', mede: null,
+      id: 'luna-cadeia', nome: 'Luna · Cadeia', motor: 'sequencia', heroi: 'luna', mede: null, categoria: 'mecanica',
       objetivo: 'Três elos seguidos. Um erro derruba tudo — como na partida.',
       comoFunciona: [
         'Nove toques sem falha. Qualquer botão errado encerra a tentativa na hora.',
@@ -416,6 +444,6 @@
     },
   };
 
-  U.D = { DRILLS, porId, deJing, deLuna, PROVA, RETENCAO, FINAL_CEGO, AJUSTES, aplicarAjuste, escala, ajudaPor };
+  U.D = { DRILLS, porId, deJing, deLuna, PROVA, RETENCAO, FINAL_CEGO, AJUSTES, aplicarAjuste, escala, ajudaPor, CATEGORIAS };
 
 })(window.U);

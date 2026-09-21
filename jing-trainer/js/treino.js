@@ -143,11 +143,13 @@
     const modo = St.cfg.mo;
     const esq = U.CI.ESQUEMAS[St.cfg.esquema];
     const aj = St.cfg.__ajuste ? D.AJUSTES[St.cfg.__ajuste] : null;
+    const cat = drill.categoria && D.CATEGORIAS[drill.categoria];
     const chips = [
       modo === 'prova' ? '<span class="chip aviso">PROVA · sem retorno</span>'
       : modo === 'retencao' ? '<span class="chip aviso">RETENÇÃO · sem ajuda</span>'
       : modo === 'cego' ? '<span class="chip aviso">CEGO · inédito</span>'
       : `<span class="chip">dif ${dif.toFixed(1)}</span>`,
+      cat ? `<span class="chip">${cat.nome}</span>` : '',
       aj ? `<span class="chip">${aj.nome}</span>` : '',
       esq && modo === 'treino' ? `<span class="chip">${esq.nome}</span>` : '',
     ].join('');
@@ -160,6 +162,8 @@
 
     brief(drill.nome, drill.objetivo, drill.comoFunciona,
       `<div class="sep"></div>
+       ${cat ? `<div class="mini"><b>Categoria:</b> <span style="color:var(--gold);font-weight:800">${cat.nome}</span>
+         <span style="color:var(--dim2)"> — ${cat.descricao}</span></div>` : ''}
        ${rotasTxt ? `<div class="mini"><b>Rotas:</b> <span style="color:var(--gold);font-weight:800">${rotasTxt}</span></div>` : ''}
        <div class="mini" style="margin-top:5px"><b>${St.cfg.tentativas} tentativas</b>
        ${modo === 'treino' ? ` · o sistema está mirando <b>${Math.round(alvo * 100)}% de acerto</b>:

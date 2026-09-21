@@ -1,7 +1,7 @@
 {
-  "name": "ESPELHO — Treino Jing",
+  "name": "ESPELHO — Treino HoK",
   "short_name": "ESPELHO",
-  "description": "Sistema de recuperação e evolução mecânica para Jing e Luna.",
+  "description": "Sistema geral de treino para Honor of Kings — mecânica, precisão, consistência, percepção, reflexo, decisão, controle sob pressão e movimentação, com rotas afinadas para Jing e Luna.",
   "start_url": "./index.html",
   "display": "fullscreen",
   "orientation": "landscape",
