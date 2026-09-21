@@ -53,6 +53,37 @@
 'use strict';
 (function (U) {
 
+  /* ============================================================
+     NOME DAS ARCANAS EM PORTUGUÊS
+     Mesma regra dos itens: 'br' é nome visto em fonte brasileira,
+     'eu' é tradução minha e o jogo pode chamar de outra coisa. O
+     nome em inglês nunca é apagado — ele é a chave das builds.
+     ============================================================ */
+  U.HE.ARCANA_PT = {
+    'Red Moon':     ['Lua Vermelha', 'br'],
+    'Avarice':      ['Avareza', 'br'],
+    'Hunter':       ['Caça', 'br'],
+    'Eagle Eye':    ['Olho de Águia', 'br'],
+    'Fate':         ['Destino', 'br'],
+    "Mind's Eye":   ['Terceiro Olho', 'br'],
+    'Cataclysm':    ['Cataclismo', 'eu'],
+    'Compassion':   ['Compaixão', 'eu'],
+    'Concealment':  ['Ocultação', 'eu'],
+    'Conflict':     ['Conflito', 'eu'],
+    'Dominator':    ['Dominador', 'eu'],
+    'Harmony':      ['Harmonia', 'eu'],
+    'Longevity':    ['Longevidade', 'eu'],
+    'Mutation':     ['Mutação', 'eu'],
+    'Nightmare':    ['Pesadelo', 'eu'],
+    'Reaver':       ['Saqueador', 'eu'],
+    'Reincarnation':['Reencarnação', 'eu'],
+    'Reverberation':['Reverberação', 'eu'],
+    'Saint':        ['Santo', 'eu'],
+    'Tribute':      ['Tributo', 'eu'],
+    'Vacuity':      ['Vacuidade', 'eu'],
+    'Beast Scar':   ['Cicatriz da Fera', 'eu'],
+  };
+
   U.HE.BUILDS = {
     fonte: 'busca_web',
     fonteNome: 'busca na web (resumo de trechos, não leitura de página)',
@@ -94,8 +125,8 @@
         divergem: [
           {
             oQue: 'qual bota',
-            leituraA: 'Boots of Dexterity (velocidade de ataque)',
-            leituraB: 'Boots of Resistance (defesa mágica e resistência a controle)',
+            leituraA: 'Botas da Destreza / Boots of Dexterity (velocidade de ataque)',
+            leituraB: 'Botas da Resistência / Boots of Resistance (defesa mágica e resistência a controle)',
             porQueNaoEscolhi: 'As duas botas existem no seu catálogo e custam o mesmo (700). A escolha entre elas depende da composição inimiga, e nenhuma das duas buscas disse contra o quê. Escolher uma aqui seria dar cara de dado a um chute meu.',
           },
         ],
@@ -137,14 +168,14 @@
         divergem: [
           {
             oQue: 'o item de ataque mágico do meio da build',
-            leituraA: 'Runeblade (150 de ataque mágico, 5% de recarga, 7% de velocidade de movimento; sobe quando você ou um aliado mata monstro)',
-            leituraB: "Savant's Wrath",
+            leituraA: 'Lâmina Rúnica de Caça / Runeblade (150 de ataque mágico, 5% de recarga, 7% de velocidade de movimento; sobe quando você ou um aliado mata monstro)',
+            leituraB: "Ira do Sábio / Savant's Wrath",
             porQueNaoEscolhi: 'A primeira busca descreveu o item com números; a segunda só deu o nome. Ter mais detalhe não torna uma leitura mais certa que a outra — pode só significar que uma fonte escreve mais. Nenhum dos dois está no seu catálogo para eu conferir pelo preço.',
           },
           {
             oQue: 'a terceira arcana',
-            leituraA: '10 Red Moon',
-            leituraB: 'Nightmare',
+            leituraA: '10 Lua Vermelha / Red Moon',
+            leituraB: 'Pesadelo / Nightmare',
             porQueNaoEscolhi: 'As duas buscas concordam nas outras duas (Hunter e Mind\'s Eye) e divergem só nesta. Sem uma terceira leitura, é 1 contra 1.',
           },
         ],

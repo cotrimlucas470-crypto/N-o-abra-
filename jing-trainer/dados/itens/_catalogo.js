@@ -99,11 +99,17 @@
 [
   {
     nome: "Amble - Winter",
+    nomePt: "Passo Leve - Inverno",
+    fontePt: "eu?",
+    notaPt: "\"Amble\" é andar sem pressa. O item tem prefixo com traço, como as variantes de roaming.",
     preco: 3190,
     fonteItem: "captura"
   },
   {
     nome: "Ardent Dominion",
+    nomePt: "Domínio Ardente",
+    fontePt: "eu?",
+    notaPt: "O nome já estava em dúvida: a busca achou o efeito sob \"Ardent Dominator\".",
     preco: 2040,
     fonteItem: "captura",
     efeito: "Com a vida abaixo de 30%, remove todo controle de grupo em você e ganha um escudo que absorve (500 +150% de algo não especificado na busca) de dano, mais 30% de velocidade de movimento, por 4 s.",
@@ -114,6 +120,8 @@
   },
   {
     nome: "Augur's Word",
+    nomePt: "Palavra do Áugure",
+    fontePt: "eu",
     preco: 2150,
     fonteItem: "captura",
     efeito: "Subir de nível recupera 20% de vida e mana em 3 s. Dá defesa física e mágica proporcional a 40% do ataque mágico, até 230.",
@@ -123,6 +131,8 @@
   },
   {
     nome: "Axe of Torment",
+    nomePt: "Machado do Tormento",
+    fontePt: "eu",
     preco: 2090,
     fonteItem: "captura",
     efeito: "Habilidade que acerta lentifica em 10% por 3 s o primeiro herói inimigo atingido; recarga de 8 s. Dá 58 a 170 de perfuração física.",
@@ -132,11 +142,15 @@
   },
   {
     nome: "Belt of Might",
+    nomePt: "Cinto do Poder",
+    fontePt: "eu",
     preco: 850,
     fonteItem: "captura"
   },
   {
     nome: "Blazing Cape",
+    nomePt: "Manto Flamejante",
+    fontePt: "eu",
     preco: 2040,
     fonteItem: "captura",
     efeito: "Inflige queimadura em inimigos num raio de 300, causando 28–56 (+3% da vida deles) de dano mágico por segundo. Ataque básico, habilidade ou a própria queimadura reduzem a recuperação de vida e o roubo de vida do alvo em 35%, por 3 s.",
@@ -146,11 +160,15 @@
   },
   {
     nome: "Blood Clan's Grimoire",
+    nomePt: "Grimório do Clã de Sangue",
+    fontePt: "eu",
     preco: 800,
     fonteItem: "captura"
   },
   {
     nome: "Blood Rage",
+    nomePt: "Fúria Sanguínea",
+    fontePt: "eu",
     preco: 2180,
     fonteItem: "captura",
     efeito: "Passiva \"Apoplexy\": ataque básico causa dano físico extra igual a 1,5% da vida máxima do alvo; esse extra sobe para 25%–50% quando a sua vida está abaixo de 50%.",
@@ -160,36 +178,53 @@
   },
   {
     nome: "Boots of Deftness",
+    nomePt: "Botas da Agilidade",
+    fontePt: "eu",
     preco: 700,
     fonteItem: "captura"
   },
   {
     nome: "Boots of Dexterity",
+    nomePt: "Botas da Destreza",
+    fontePt: "br",
+    notaPt: "Nome visto em guia brasileiro.",
     preco: 700,
     fonteItem: "captura"
   },
   {
     nome: "Boots of Fortitude",
+    nomePt: "Botas da Fortitude",
+    fontePt: "br",
+    notaPt: "Nome visto em guia brasileiro — que mantém \"Fortitude\" sem traduzir.",
     preco: 700,
     fonteItem: "captura"
   },
   {
     nome: "Boots of Resistance",
+    nomePt: "Botas da Resistência",
+    fontePt: "br",
+    notaPt: "Aparece nas notas de atualização em português da App Store.",
     preco: 700,
     fonteItem: "captura"
   },
   {
     nome: "Boots of the Arcane",
+    nomePt: "Botas do Arcano",
+    fontePt: "eu",
     preco: 700,
     fonteItem: "captura"
   },
   {
     nome: "Boots of Tranquility",
+    nomePt: "Botas da Tranquilidade",
+    fontePt: "eu",
     preco: 700,
     fonteItem: "captura"
   },
   {
     nome: "Breakthrough Robe",
+    nomePt: "Manto da Ruptura",
+    fontePt: "eu",
     preco: 2120,
     fonteItem: "captura",
     efeito: "Converte vida em perfuração mágica: dá 4% da vida em ataque mágico extra (até 100), e 7% da vida em perfuração mágica extra (até 175).",
@@ -199,21 +234,29 @@
   },
   {
     nome: "Clandestine Cape",
+    nomePt: "Capa Clandestina",
+    fontePt: "eu",
     preco: 800,
     fonteItem: "captura"
   },
   {
     nome: "Cloth Jerkin",
+    nomePt: "Gibão de Pano",
+    fontePt: "eu",
     preco: 275,
     fonteItem: "captura"
   },
   {
     nome: "Cloud Piercer",
+    nomePt: "Perfura-Nuvens",
+    fontePt: "eu",
     preco: 800,
     fonteItem: "captura"
   },
   {
     nome: "Crimson Shadow",
+    nomePt: "Sombra Carmesim",
+    fontePt: "eu",
     preco: 850,
     fonteItem: "captura",
     efeito: "Item de suporte/roaming avançado: aliados dentro de 800 de alcance ganham 8% de velocidade de ataque, 8% de redução de recarga e 10 de mana a cada 5 s.",
@@ -224,6 +267,8 @@
   },
   {
     nome: "Crimson Shadow - Howl",
+    nomePt: "Sombra Carmesim - Uivo",
+    fontePt: "eu",
     preco: 2080,
     fonteItem: "captura",
     efeito: "Herda o efeito-base do Crimson Shadow (velocidade de ataque, redução de recarga e mana para o time perto). O que esta forma avançada acrescenta além disso não foi encontrado.",
@@ -233,6 +278,8 @@
   },
   {
     nome: "Crimson Shadow - Radiance",
+    nomePt: "Sombra Carmesim - Fulgor",
+    fontePt: "eu",
     preco: 2080,
     fonteItem: "captura",
     efeito: "Herda o efeito-base do Crimson Shadow. O acréscimo desta forma avançada não foi encontrado na busca.",
@@ -242,6 +289,8 @@
   },
   {
     nome: "Crimson Shadow - Redemption",
+    nomePt: "Sombra Carmesim - Redenção",
+    fontePt: "eu",
     preco: 2080,
     fonteItem: "captura",
     efeito: "Herda o efeito-base do Crimson Shadow. O acréscimo desta forma avançada não foi encontrado na busca.",
@@ -251,6 +300,8 @@
   },
   {
     nome: "Crimson Shadow - Starspring",
+    nomePt: "Sombra Carmesim - Fonte Estelar",
+    fontePt: "eu",
     preco: 2080,
     fonteItem: "captura",
     efeito: "Herda o efeito-base do Crimson Shadow. O acréscimo desta forma avançada não foi encontrado na busca.",
@@ -260,6 +311,8 @@
   },
   {
     nome: "Cuirass of Savagery",
+    nomePt: "Couraça da Selvageria",
+    fontePt: "eu",
     preco: 2050,
     fonteItem: "captura",
     efeito: "Ao levar dano, ganha 2% de dano causado e 1% de velocidade de movimento por 3 s, até 5 cargas.",
@@ -269,16 +322,23 @@
   },
   {
     nome: "Cuirass of Swiftness",
+    nomePt: "Couraça da Rapidez",
+    fontePt: "eu",
     preco: 800,
     fonteItem: "captura"
   },
   {
     nome: "Dagger",
+    nomePt: "Adaga",
+    fontePt: "eu",
     preco: 300,
     fonteItem: "captura"
   },
   {
     nome: "Dawnlight",
+    nomePt: "Alvorada",
+    fontePt: "br",
+    notaPt: "ATENÇÃO: \"Alvorada\" aparece nas notas em português, mas o inglês tem DOIS itens que podem virar isso — Dawnlight e Daybreaker. Coloquei no Dawnlight por ser tradução mais direta, e o aviso fica aqui porque pode estar no item errado.",
     preco: 2040,
     fonteItem: "captura",
     efeito: "Causar dano com ataque básico ou habilidade em herói inimigo dá um escudo que anula 120–260 (+2% da sua vida) de dano, para você e o aliado com menos vida por perto, por 3 s. Recarga de 10 s.",
@@ -288,6 +348,9 @@
   },
   {
     nome: "Daybreaker's Virtue",
+    nomePt: "Virtude do Alvorecer",
+    fontePt: "eu?",
+    notaPt: "Cuidado: \"Alvorada\" (nome oficial visto em português) pode ser ESTE item e não o Dawnlight.",
     preco: 2570,
     fonteItem: "captura",
     efeito: "Não encontrado na fonte.",
@@ -298,6 +361,8 @@
   },
   {
     nome: "Deepfrost Siege",
+    nomePt: "Cerco do Gelo Profundo",
+    fontePt: "eu",
     preco: 2040,
     fonteItem: "captura",
     efeito: "Ataque básico reduz a velocidade de movimento do alvo em 3% por 2 s, até 5 cargas. No máximo de cargas, o próximo orbe de ataque básico causa 30% de dano extra.",
@@ -307,6 +372,8 @@
   },
   {
     nome: "Demonsbane",
+    nomePt: "Flagelo dos Demônios",
+    fontePt: "eu",
     preco: 2060,
     fonteItem: "captura",
     efeito: "Passiva \"Anti-Mago\": ganha ataque físico igual a 50% da sua defesa mágica, até 250.",
@@ -316,11 +383,16 @@
   },
   {
     nome: "Destiny",
+    nomePt: "Destino",
+    fontePt: "eu",
     preco: 2060,
     fonteItem: "captura"
   },
   {
     nome: "Doomsday",
+    nomePt: "Fim do Mundo",
+    fontePt: "eu?",
+    notaPt: "O nome chinês na fonte prioritária é 末世, que é literalmente \"fim do mundo\" — isso reforça a tradução, mas o chinês e o inglês nunca foram casados oficialmente aqui.",
     preco: 2100,
     fonteItem: "captura",
     efeito: "Ataque básico causa dano físico extra igual a 8% da vida ATUAL do alvo (até 80 de dano em monstro).",
@@ -330,16 +402,23 @@
   },
   {
     nome: "Dragon's Rage",
+    nomePt: "Fúria do Dragão",
+    fontePt: "eu",
     preco: 2040,
     fonteItem: "captura"
   },
   {
     nome: "Enigma - Moon Goddess",
+    nomePt: "Enigma - Deusa da Lua",
+    fontePt: "eu",
     preco: 3340,
     fonteItem: "captura"
   },
   {
     nome: "Eternity Blade",
+    nomePt: "Lâmina Eterna",
+    fontePt: "br",
+    notaPt: "Nome visto em guia brasileiro.",
     preco: 2110,
     fonteItem: "captura",
     efeito: "Ganha 20% de dano crítico de saída; cada 2% de chance crítica extra que você tiver dá mais 1% de dano crítico, até 50%.",
@@ -349,6 +428,8 @@
   },
   {
     nome: "Eye of the Phoenix",
+    nomePt: "Olho da Fênix",
+    fontePt: "eu",
     preco: 2020,
     fonteItem: "captura",
     efeito: "Dá +1200 de vida máxima. Passiva \"Bloodline\": para cada 10% de vida máxima que falta, a cura recebida de habilidade sobe 6%.",
@@ -358,16 +439,22 @@
   },
   {
     nome: "Frigid Charge",
+    nomePt: "Carga Gélida",
+    fontePt: "eu",
     preco: 2030,
     fonteItem: "captura"
   },
   {
     nome: "Frosthold Targe",
+    nomePt: "Broquel do Forte Gelado",
+    fontePt: "eu",
     preco: 750,
     fonteItem: "captura"
   },
   {
     nome: "Frostscar's Embrace",
+    nomePt: "Abraço da Cicatriz Gélida",
+    fontePt: "eu",
     preco: 2060,
     fonteItem: "captura",
     efeito: "O próximo ataque básico em até 5 s depois de usar uma habilidade causa 140–420 de dano físico extra a quem estiver perto, e reduz a velocidade de movimento do alvo em 30% (20% se ele for de longo alcance) por 0,5 s. Recarga de 1,2 s.",
@@ -377,6 +464,8 @@
   },
   {
     nome: "Frozen Breath",
+    nomePt: "Sopro Congelante",
+    fontePt: "eu",
     preco: 2100,
     fonteItem: "captura",
     efeito: "Habilidade que acerta reduz a velocidade de movimento do alvo em 20% por 2 s; enquanto isso, habilidades causam 120–400 de dano mágico extra nesse alvo.",
@@ -386,6 +475,9 @@
   },
   {
     nome: "Giant's Grip",
+    nomePt: "Garra do Gigante",
+    fontePt: "eu?",
+    notaPt: "Um guia brasileiro cita \"Armadura do Gigante\" entre os itens de caça — pode ser este item com outro nome em inglês, ou outro item. Não casei.",
     preco: 2160,
     fonteItem: "captura",
     efeito: "Ataque básico ou habilidade que acerta monstro de selva causa 75 (+5% do ataque físico) de dano verdadeiro extra a cada 0,5 s durante 2 s. Em herói, esse extra vale só 20%.",
@@ -395,6 +487,8 @@
   },
   {
     nome: "Glacial Buckler",
+    nomePt: "Broquel Glacial",
+    fontePt: "eu",
     preco: 2040,
     fonteItem: "captura",
     efeito: "Item defensivo avançado: reflete parte do dano recebido e lentifica quem te acerta de perto.",
@@ -405,6 +499,8 @@
   },
   {
     nome: "Golden Blade",
+    nomePt: "Lâmina Dourada",
+    fontePt: "eu",
     preco: 2070,
     fonteItem: "captura",
     efeito: "Ataque básico que acerta dá 10% de velocidade de ataque por 5 s, até 2 cargas; no máximo de cargas, o ataque básico causa 30% do ataque mágico em dano mágico extra.",
@@ -414,11 +510,15 @@
   },
   {
     nome: "Grand Staff",
+    nomePt: "Grande Cajado",
+    fontePt: "eu",
     preco: 820,
     fonteItem: "captura"
   },
   {
     nome: "Guardian",
+    nomePt: "Guardião",
+    fontePt: "eu",
     preco: 850,
     fonteItem: "captura",
     efeito: "Dá +500 de vida máxima e +6% de velocidade de movimento. Aliados dentro de 800 de alcance ganham 32–60 de defesa física e mágica, e +200–400 de vida máxima e +20–40 no atributo de ataque principal. Também dá 5 de ouro e experiência a cada 3 s, com um bônus separado de 25%–50% de ouro/XP que atinge o teto aos 20:00 de partida.",
@@ -429,6 +529,8 @@
   },
   {
     nome: "Guardian - Radiance",
+    nomePt: "Guardião - Fulgor",
+    fontePt: "eu",
     preco: 2080,
     fonteItem: "captura",
     efeito: "Herda o efeito-base do Guardian (vida, velocidade, defesa e ouro/XP para o time perto). O que esta forma avançada acrescenta especificamente não foi encontrado na busca.",
@@ -438,6 +540,8 @@
   },
   {
     nome: "Guardian - Redemption",
+    nomePt: "Guardião - Redenção",
+    fontePt: "eu",
     preco: 2080,
     fonteItem: "captura",
     efeito: "Herda o efeito-base do Guardian (vida, velocidade, defesa e ouro/XP para o time perto). O que esta forma avançada acrescenta especificamente não foi encontrado na busca.",
@@ -447,6 +551,8 @@
   },
   {
     nome: "Guardian - Starspring",
+    nomePt: "Guardião - Fonte Estelar",
+    fontePt: "eu",
     preco: 2080,
     fonteItem: "captura",
     efeito: "Herda o efeito-base do Guardian (vida, velocidade, defesa e ouro/XP para o time perto). O que esta forma avançada acrescenta especificamente não foi encontrado na busca.",
@@ -456,6 +562,8 @@
   },
   {
     nome: "Guerrilla Machete",
+    nomePt: "Facão de Guerrilha",
+    fontePt: "eu",
     preco: 700,
     fonteItem: "captura",
     efeito: "Ataque básico ou habilidade que acerta monstro de selva causa 70 (+25% do ataque mágico) de dano extra a cada 0,5 s durante 2 s (herói recebe só 10% disso). Matar monstro — você ou aliado a 700 de distância — dá 6 de ataque mágico, até 15 cargas.",
@@ -465,6 +573,9 @@
   },
   {
     nome: "Haste - Sunpool",
+    nomePt: "Pressa - Lago Solar",
+    fontePt: "eu?",
+    notaPt: "O nome já estava em dúvida: a busca achou este item como \"Sunpool\", sem o prefixo.",
     preco: 3320,
     fonteItem: "captura",
     efeito: "Aumenta o alcance do ataque básico em 150% e a velocidade de movimento em 40%; dá 30% de dano extra num inimigo perto do alvo, por 5 s. O alcance e o dano bônus só valem para herói de ataque à distância.",
@@ -475,12 +586,17 @@
   },
   {
     nome: "Bloodsoul",
+    nomePt: "Alma de Sangue",
+    fontePt: "eu",
     preco: null,
     obs: "preço cortado na captura",
     fonteItem: "captura"
   },
   {
     nome: "Bloodweeper",
+    nomePt: "Chora-Sangue",
+    fontePt: "eu?",
+    notaPt: "\"weeper\" é quem chora. Tradução desconfortável, mas o literal.",
     preco: null,
     obs: "preço cortado na captura",
     fonteItem: "captura",
@@ -491,6 +607,8 @@
   },
   {
     nome: "Holy Grail",
+    nomePt: "Santo Graal",
+    fontePt: "eu",
     preco: null,
     obs: "preço cortado na captura",
     fonteItem: "captura",
@@ -501,6 +619,8 @@
   },
   {
     nome: "Hunting Knife",
+    nomePt: "Faca de Caça",
+    fontePt: "eu",
     preco: null,
     obs: "preço cortado na captura",
     fonteItem: "captura",
@@ -512,6 +632,8 @@
   },
   {
     nome: "Master Sword",
+    nomePt: "Espada Mestra",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "fisico",
@@ -522,6 +644,8 @@
   },
   {
     nome: "Siege Breaker",
+    nomePt: "Quebra-Cerco",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "fisico",
@@ -532,6 +656,8 @@
   },
   {
     nome: "Storm Sword",
+    nomePt: "Espada da Tempestade",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "fisico",
@@ -543,6 +669,9 @@
   },
   {
     nome: "Shadow Ripper",
+    nomePt: "Rasga-Sombras",
+    fontePt: "eu?",
+    notaPt: "Um guia brasileiro cita \"Foice das Sombras\" — pode ser este item ou o Vampiric Scythe. Não casei.",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "fisico",
@@ -553,6 +682,9 @@
   },
   {
     nome: "Sunchaser",
+    nomePt: "Caça-Sol",
+    fontePt: "eu?",
+    notaPt: "Um guia brasileiro cita \"Arco Solar\" — pode ser este item ou outro. Não casei.",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "fisico",
@@ -563,6 +695,9 @@
   },
   {
     nome: "Pure Sky",
+    nomePt: "Céu Limpo",
+    fontePt: "br",
+    notaPt: "Confirmado duas vezes: o nome aparece nas notas em português E a passiva descrita lá (\"Mutilação\": lentidão de 30% e 20% menos dano do alvo) bate com a que este catálogo já tinha. Nome e efeito cruzados.",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "fisico",
@@ -573,6 +708,8 @@
   },
   {
     nome: "Sky Dome",
+    nomePt: "Cúpula Celeste",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "fisico",
@@ -583,6 +720,8 @@
   },
   {
     nome: "Sparkforged Dagger",
+    nomePt: "Adaga Forjada em Faísca",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "fisico",
@@ -593,6 +732,8 @@
   },
   {
     nome: "Runic Blade",
+    nomePt: "Lâmina Rúnica",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "fisico",
@@ -603,6 +744,8 @@
   },
   {
     nome: "Void Staff",
+    nomePt: "Cajado do Vazio",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "magico",
@@ -613,6 +756,8 @@
   },
   {
     nome: "Scepter of Reverberation",
+    nomePt: "Cetro da Reverberação",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "magico",
@@ -623,6 +768,8 @@
   },
   {
     nome: "Mask of Agony",
+    nomePt: "Máscara da Agonia",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "magico",
@@ -633,6 +780,8 @@
   },
   {
     nome: "Twilight Stream",
+    nomePt: "Corrente do Crepúsculo",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "magico",
@@ -643,6 +792,8 @@
   },
   {
     nome: "Stave of Sorcery",
+    nomePt: "Bordão da Feitiçaria",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "magico",
@@ -653,6 +804,8 @@
   },
   {
     nome: "Savant's Wrath",
+    nomePt: "Ira do Sábio",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "magico",
@@ -663,6 +816,8 @@
   },
   {
     nome: "Insatiable Tome",
+    nomePt: "Tomo Insaciável",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "magico",
@@ -674,6 +829,8 @@
   },
   {
     nome: "Tome of Wisdom",
+    nomePt: "Tomo da Sabedoria",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "magico",
@@ -684,6 +841,8 @@
   },
   {
     nome: "Overlord's Platemail",
+    nomePt: "Armadura do Soberano",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "defesa",
@@ -695,6 +854,9 @@
   },
   {
     nome: "Ominous Premonition",
+    nomePt: "Premonição Sinistra",
+    fontePt: "br",
+    notaPt: "Nome visto em guia brasileiro.",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "defesa",
@@ -706,6 +868,8 @@
   },
   {
     nome: "Spikemail",
+    nomePt: "Cota de Espinhos",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "defesa",
@@ -716,6 +880,8 @@
   },
   {
     nome: "Succubus Cloak",
+    nomePt: "Manto da Súcubo",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "defesa",
@@ -726,6 +892,8 @@
   },
   {
     nome: "Longnight Guardian",
+    nomePt: "Guardião da Noite Longa",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "defesa",
@@ -736,6 +904,8 @@
   },
   {
     nome: "Lightfoot Shoes",
+    nomePt: "Sapatos de Pé Leve",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "movimento",
@@ -746,6 +916,9 @@
   },
   {
     nome: "Runeblade",
+    nomePt: "Lâmina Rúnica de Caça",
+    fontePt: "eu?",
+    notaPt: "Cuidado: existe também \"Runic Blade\", que traduzi como \"Lâmina Rúnica\". São itens diferentes em inglês (um é de selva, outro físico) e ficaram com nomes parecidos em português. Acrescentei \"de Caça\" para separar.",
     preco: 2160,
     fonteItem: "busca_web",
     categoriaItem: "selva",
@@ -756,6 +929,8 @@
   },
   {
     nome: "Rapacious Bite",
+    nomePt: "Mordida Voraz",
+    fontePt: "eu",
     preco: 2160,
     fonteItem: "busca_web",
     categoriaItem: "selva",
@@ -767,6 +942,8 @@
   },
   {
     nome: "Relentless Blade",
+    nomePt: "Lâmina Implacável",
+    fontePt: "eu",
     preco: 700,
     fonteItem: "busca_web",
     categoriaItem: "selva",
@@ -778,6 +955,8 @@
   },
   {
     nome: "Stormchaser",
+    nomePt: "Caça-Tempestade",
+    fontePt: "eu",
     preco: 900,
     fonteItem: "busca_web",
     categoriaItem: "roaming",
@@ -789,6 +968,8 @@
   },
   {
     nome: "Howling Emblem",
+    nomePt: "Emblema Uivante",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "roaming",
@@ -799,6 +980,9 @@
   },
   {
     nome: "Starspring",
+    nomePt: "Fonte Estelar",
+    fontePt: "eu?",
+    notaPt: "Existem três coisas com \"Starspring\" no catálogo. Não foram casadas.",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "roaming",
@@ -810,6 +994,8 @@
   },
   {
     nome: "Wings of Redemption",
+    nomePt: "Asas da Redenção",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "roaming",
@@ -820,6 +1006,8 @@
   },
   {
     nome: "Extreme Shadow",
+    nomePt: "Sombra Extrema",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "roaming",
@@ -830,6 +1018,8 @@
   },
   {
     nome: "Guardian's Glory",
+    nomePt: "Glória do Guardião",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "roaming",
@@ -840,6 +1030,8 @@
   },
   {
     nome: "Pugilist's Gauntlet",
+    nomePt: "Manopla do Pugilista",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "componente",
@@ -850,6 +1042,8 @@
   },
   {
     nome: "Iron Sword",
+    nomePt: "Espada de Ferro",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "componente",
@@ -860,6 +1054,9 @@
   },
   {
     nome: "Vampiric Scythe",
+    nomePt: "Foice Vampírica",
+    fontePt: "eu?",
+    notaPt: "Um guia brasileiro cita \"Foice das Sombras\" — pode ser este item ou o Shadow Ripper. Não casei.",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "componente",
@@ -870,6 +1067,8 @@
   },
   {
     nome: "Anti-magic Cloak",
+    nomePt: "Manto Antimagia",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "componente",
@@ -880,6 +1079,8 @@
   },
   {
     nome: "Resilient Agate",
+    nomePt: "Ágata Resiliente",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "componente",
@@ -890,6 +1091,8 @@
   },
   {
     nome: "Sparkling Sapphire",
+    nomePt: "Safira Cintilante",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "componente",
@@ -900,6 +1103,8 @@
   },
   {
     nome: "Revitalizing Crystal",
+    nomePt: "Cristal Revitalizante",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "componente",
@@ -910,6 +1115,8 @@
   },
   {
     nome: "Spell Tome",
+    nomePt: "Tomo de Feitiços",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "componente",
@@ -920,6 +1127,8 @@
   },
   {
     nome: "Sage's Codex",
+    nomePt: "Códice do Sábio",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "componente",
@@ -930,6 +1139,8 @@
   },
   {
     nome: "Alchemist's Amulet",
+    nomePt: "Amuleto do Alquimista",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "componente",
@@ -940,6 +1151,8 @@
   },
   {
     nome: "Knowledge Gem",
+    nomePt: "Gema do Conhecimento",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     categoriaItem: "componente",
@@ -950,6 +1163,8 @@
   },
   {
     nome: "Venomous Staff",
+    nomePt: "Cajado Venenoso",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     citadoEmBuild: true,
@@ -962,6 +1177,9 @@
   },
   {
     nome: "Sage's Tome",
+    nomePt: "Tomo do Sábio",
+    fontePt: "eu?",
+    notaPt: "Parecido com \"Sage’s Codex\" (Códice do Sábio) e \"Sage’s Sanctuary\" (Santuário do Sábio). São três itens distintos em inglês.",
     preco: 2610,
     fonteItem: "busca_web",
     citadoEmBuild: true,
@@ -973,6 +1191,8 @@
   },
   {
     nome: "Stone of Sorcery",
+    nomePt: "Pedra da Feitiçaria",
+    fontePt: "eu",
     preco: 800,
     fonteItem: "busca_web",
     citadoEmBuild: true,
@@ -984,6 +1204,8 @@
   },
   {
     nome: "Nettle Gauntlet",
+    nomePt: "Manopla de Urtiga",
+    fontePt: "eu",
     preco: 750,
     fonteItem: "busca_web",
     citadoEmBuild: true,
@@ -996,6 +1218,8 @@
   },
   {
     nome: "Starbreaker",
+    nomePt: "Quebra-Estrelas",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     citadoEmBuild: true,
@@ -1008,6 +1232,8 @@
   },
   {
     nome: "Meteor",
+    nomePt: "Meteoro",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     citadoEmBuild: true,
@@ -1019,6 +1245,9 @@
   },
   {
     nome: "Overlord's Might",
+    nomePt: "Poderio do Soberano",
+    fontePt: "eu?",
+    notaPt: "Este item já tinha dúvida: 7 builds citam, mas a busca dedicada não o achou. Parecido com \"Overlord’s Platemail\" (Armadura do Soberano), que é outro.",
     preco: null,
     fonteItem: "busca_web",
     citadoEmBuild: true,
@@ -1030,6 +1259,8 @@
   },
   {
     nome: "Sage's Sanctuary",
+    nomePt: "Santuário do Sábio",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     citadoEmBuild: true,
@@ -1041,6 +1272,8 @@
   },
   {
     nome: "Thunderclap Brand",
+    nomePt: "Marca do Trovão",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     citadoEmBuild: true,
@@ -1052,6 +1285,9 @@
   },
   {
     nome: "Daybreaker",
+    nomePt: "Alvorecer",
+    fontePt: "eu?",
+    notaPt: "ATENÇÃO: \"Alvorada\", nome oficial visto em português, pode ser ESTE item — e não o Dawnlight, onde eu coloquei. Os dois carregam o aviso.",
     preco: null,
     fonteItem: "busca_web",
     citadoEmBuild: true,
@@ -1063,6 +1299,9 @@
   },
   {
     nome: "Frostscar's Grip",
+    nomePt: "Garra da Cicatriz Gélida",
+    fontePt: "eu?",
+    notaPt: "Já estava em dúvida com \"Frostscar’s Embrace\" (Abraço da Cicatriz Gélida).",
     preco: null,
     fonteItem: "busca_web",
     citadoEmBuild: true,
@@ -1074,6 +1313,8 @@
   },
   {
     nome: "Twinblades of Destruction",
+    nomePt: "Lâminas Gêmeas da Destruição",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     citadoEmBuild: true,
@@ -1085,6 +1326,8 @@
   },
   {
     nome: "Mortal Punisher",
+    nomePt: "Punidor Mortal",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     citadoEmBuild: true,
@@ -1096,6 +1339,9 @@
   },
   {
     nome: "Tempest",
+    nomePt: "Tempestade",
+    fontePt: "eu?",
+    notaPt: "Uma busca escreveu \"Dreamforged - Tempest\". E \"Storm Sword\" virou \"Espada da Tempestade\" — nomes vizinhos em português para itens diferentes em inglês.",
     preco: null,
     fonteItem: "busca_web",
     citadoEmBuild: true,
@@ -1107,6 +1353,8 @@
   },
   {
     nome: "Nebulon Wood",
+    nomePt: "Madeira Nebulosa",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     citadoEmBuild: true,
@@ -1118,6 +1366,8 @@
   },
   {
     nome: "Splendor",
+    nomePt: "Esplendor",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     citadoEmBuild: true,
@@ -1129,6 +1379,8 @@
   },
   {
     nome: "Twilight Bow",
+    nomePt: "Arco do Crepúsculo",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     citadoEmBuild: true,
@@ -1140,6 +1392,8 @@
   },
   {
     nome: "Protector's Cuirass",
+    nomePt: "Couraça do Protetor",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     citadoEmBuild: true,
@@ -1151,6 +1405,9 @@
   },
   {
     nome: "Cloud Piercing Bow",
+    nomePt: "Arco Perfura-Nuvens",
+    fontePt: "eu?",
+    notaPt: "Parecido com \"Cloud Piercer\" (Perfura-Nuvens), que é outro item. Não casei.",
     preco: null,
     fonteItem: "busca_web",
     citadoEmBuild: true,
@@ -1162,6 +1419,8 @@
   },
   {
     nome: "Sunglow Striker",
+    nomePt: "Golpeador do Brilho Solar",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     citadoEmBuild: true,
@@ -1173,6 +1432,8 @@
   },
   {
     nome: "Moon Soul",
+    nomePt: "Alma Lunar",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     citadoEmBuild: true,
@@ -1184,6 +1445,8 @@
   },
   {
     nome: "Lance of Swiftness",
+    nomePt: "Lança da Rapidez",
+    fontePt: "eu",
     preco: null,
     fonteItem: "busca_web",
     citadoEmBuild: true,

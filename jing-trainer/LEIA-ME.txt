@@ -1,5 +1,5 @@
 ================================================================
-ESPELHO v12 — Treino geral por categoria + itens de todo mundo
+ESPELHO v13 — Itens em português, com selo e cruzamento
 Honor of Kings · Poco X7 Pro · HTML/CSS/JS, sem dependências
 ================================================================
 
@@ -14,6 +14,78 @@ todo número daqui sai de toques sobre a réplica. Se ela não bate com o seu
 jogo, tudo o que vier depois mede a coisa errada.
 
 Seus dados da v1 e da v2 continuam lá. Nada é apagado.
+
+
+================================================================
+PARTE -7 — V13: PORTUGUÊS, SELO E "QUEM USA ISSO?"
+================================================================
+
+OS 119 ITENS TÊM NOME EM PORTUGUÊS — E A ORIGEM DE CADA UM
+
+   A tela mostra o nome em português na frente e o INGLÊS embaixo.
+   O inglês não sumiu de propósito: é ele que bate com a loja do
+   jogo e é a chave que liga item a build.
+
+   · 7 nomes foram VISTOS em fonte brasileira — notas de
+     atualização em português da App Store e guias BR. Esses são o
+     nome que o jogo usa, e a linha traz "nome do jogo";
+   · 112 são TRADUÇÃO MINHA. Servem para ler, mas o jogo pode
+     chamar de outra coisa. Está escrito na tela, não no rodapé.
+
+   O melhor caso foi o Céu Limpo (Pure Sky): o nome apareceu em
+   português E a passiva descrita na fonte brasileira ("Mutilação":
+   lentidão de 30%, 20% menos dano do alvo) bate com a que este
+   catálogo já tinha de outra busca. Nome e efeito cruzados.
+
+   O caso mais delicado é "Alvorada". Ele aparece nas notas em
+   português, mas o inglês tem DOIS itens que podem virar isso:
+   Dawnlight e Daybreaker. Coloquei no Dawnlight por ser a tradução
+   mais direta, e escrevi na tela que pode estar no item errado.
+   Os dois carregam o aviso. Escolher calado seria o erro.
+
+   18 itens têm ressalva extra: nome parecido com o de outro item
+   (Lâmina Rúnica × Lâmina Rúnica de Caça, Tomo do Sábio × Códice
+   do Sábio × Santuário do Sábio), ou dúvida que já vinha do inglês.
+
+   As ARCANAS também: 6 confirmadas em fonte BR (Lua Vermelha,
+   Avareza, Caça, Olho de Águia, Destino, Terceiro Olho) e 16
+   traduzidas por mim. Aparecem nas 85 builds que têm arcana.
+
+O SELO DE CADA ITEM — QUE NÃO É O ÍCONE DO JOGO
+
+   Você pediu a imagem de todos os itens. O proxy desta sessão
+   recusa TODA imagem externa — testei três domínios diferentes,
+   os três devolveram zero byte. Então o ícone real do jogo não
+   existe aqui, e eu não vou colocar um desenho genérico fingindo
+   que é ele.
+
+   O que existe é um SELO GERADO, do mesmo jeito que os heróis já
+   tinham. A diferença é que o selo do item CARREGA INFORMAÇÃO: o
+   desenho diz a categoria — espada é físico, tomo é mágico, escudo
+   é defesa, bota é movimento, presa é selva, estandarte é roaming,
+   gema é componente. Cada categoria tem três variantes, escolhidas
+   pelo hash do nome, para dois itens da mesma família não saírem
+   idênticos. A tela traz a legenda.
+
+TOQUE NUM ITEM E VEJA QUEM MONTA ELE
+
+   Isto saiu de graça de ter os dois bancos completos: cruzar 119
+   itens com 117 builds responde a pergunta que a lista sozinha
+   não respondia. O Machado do Tormento, por exemplo, está no
+   núcleo de 30 heróis — e cada nome ali abre a ficha dele.
+
+   A tela avisa junto: a build de 114 dos 117 veio de uma busca só,
+   então isso mostra TENDÊNCIA, não estatística de partida.
+
+MIÚDEZAS QUE INCOMODAVAM
+
+   · Escape fecha as fichas. Antes era preciso rolar até o fim
+     para achar o botão Fechar. O treino continua com saída
+     própria (o ✕), porque tecla acidental não pode perder um set;
+   · a lista de itens era ordenada pelo nome em inglês e exibida em
+     português — parecia embaralhada. Agora ordena pelo que mostra;
+   · "Quanto da sua Jing voltou" virou "Quanto da sua rota de
+     referência voltou", que é o que a medida de fato mede.
 
 
 ================================================================

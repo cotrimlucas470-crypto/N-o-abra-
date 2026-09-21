@@ -30,9 +30,21 @@
   }
   function modal(html, onOpen) {
     $('#modal-cx').innerHTML = html; $('#modal').classList.add('on');
+    $('#modal-cx').scrollTop = 0;
     onOpen && onOpen($('#modal-cx'));
   }
   const fecharModal = () => $('#modal').classList.remove('on');
+
+  /* Escape fecha o que estiver aberto. Faltava, e a falta aparece
+     justo quando a ficha é longa: você rola até o fim para achar o
+     botão Fechar, em vez de apertar uma tecla. O treino tem saída
+     própria (o ✕ da faixa) e não entra aqui — fechar treino por
+     tecla acidental perderia o set em andamento. */
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key !== 'Escape') return;
+    if ($('#modal').classList.contains('on')) { fecharModal(); return; }
+    if ($('#brief').classList.contains('on')) $('#brief-volta')?.click();
+  });
 
   /* ============================================================
      Peças
@@ -113,7 +125,7 @@
       <h1>◈ ESPELHO</h1>
       <span class="tag vio">${fase.nome}</span>
       <div class="espaco"></div>
-      <span class="sub">${d.legado ? 'v12 · dados anteriores preservados' : 'v12'}</span>
+      <span class="sub">${d.legado ? 'v13 · dados anteriores preservados' : 'v13'}</span>
     </div>
     <div class="rolagem pilha">
 
@@ -1777,6 +1789,82 @@
   const CAT_ITEM = { fisico: 'Físico', magico: 'Mágico', defesa: 'Defesa', movimento: 'Botas',
                      selva: 'Selva', roaming: 'Roaming', componente: 'Componente' };
 
+  /* Troca o nome inglês da arcana pelo português, preservando os números
+     ("10 Mutation · 10 Eagle Eye" → "10 Mutação · 10 Olho de Águia").
+     Nome que não está na tabela fica como veio — melhor inglês do que
+     um chute com cara de tradução oficial. */
+  function arcanaPt(txt) {
+    const T = U.HE && U.HE.ARCANA_PT;
+    if (!txt || !T) return txt || '';
+    const chaves = Object.keys(T).sort((a, b) => b.length - a.length);
+    let s = String(txt);
+    for (const en of chaves) {
+      s = s.split(en).join(T[en][0]);
+    }
+    return s;
+  }
+
+  /* Quem usa cada item. O banco de builds tem 117 heróis e o catálogo
+     tem 119 itens; cruzar os dois é de graça e responde a pergunta que
+     a lista de itens sozinha não responde: "isso serve para quem?".
+     Calculado uma vez e guardado — 117 × ~5 itens roda a cada render
+     senão. */
+  let _usoItem = null;
+  function usoDosItens() {
+    if (_usoItem) return _usoItem;
+    _usoItem = {};
+    const B = U.HE.BUILDS;
+    if (!B || !B.porHeroi) return _usoItem;
+    for (const [id, b] of Object.entries(B.porHeroi)) {
+      const nucleo = b.itens || (b.concordam || []).map(x => x.nome);
+      const extra = [...(b.extras || []), ...((b.soUmaBusca || []).map(x => x.nome))];
+      for (const n of nucleo) (_usoItem[n] || (_usoItem[n] = { nucleo: [], extra: [] })).nucleo.push(id);
+      for (const n of extra) (_usoItem[n] || (_usoItem[n] = { nucleo: [], extra: [] })).extra.push(id);
+    }
+    return _usoItem;
+  }
+
+  function verQuemUsa(nome) {
+    const HE = U.HE, E = U.esc;
+    const it = (HE.ITENS.lista || []).find(x => x.nome === nome);
+    const u = usoDosItens()[nome] || { nucleo: [], extra: [] };
+    const chip = (id) => { const h = HE.porId(id);
+      return `<span class="chipH liga" data-hx="${E(id)}">${h ? U.EM.selo(h, 16) : ''}
+        <span class="chipH-n">${E(h ? h.name : id)}</span></span>`; };
+    modal(`
+      <div class="flex" style="gap:9px;align-items:center">
+        ${it ? U.EM.seloItem(it, 34) : ''}
+        <div style="flex:1;min-width:0">
+          <h2 style="margin:0">${E(it && it.nomePt ? it.nomePt : nome)}</h2>
+          <div class="lini-en">${E(nome)}${it && it.fontePt === 'br' ? ' · nome do jogo' : ''}</div>
+        </div>
+        ${it && it.preco != null ? `<div style="text-align:right">
+          <div class="numero" style="font-size:1.1rem">${U.num(it.preco)}</div>
+          <div class="xs">ouro</div></div>` : ''}
+      </div>
+      ${it && it.efeito ? `<div class="sep"></div>
+        <div class="mt">Passiva</div>
+        <div class="mini" style="margin-top:4px">${E(it.efeito)}</div>
+        <div class="xs" style="margin-top:4px">confiança ${E(it.confiancaEfeito)}</div>` : ''}
+      ${it && it.notaPt ? `<div class="aviso ${it.fontePt === 'br' ? 'ok' : ''}" style="margin-top:8px;font-size:.62rem">
+        <b>Sobre o nome:</b> ${E(it.notaPt)}</div>` : ''}
+      <div class="sep"></div>
+      <div class="mt">Quem monta este item</div>
+      <div class="mini" style="margin-top:4px">Cruzamento com as builds dos 117 heróis. Lembrando que a
+      build de 114 deles veio de <b>uma busca só</b> — isto mostra tendência, não estatística de partida.</div>
+      ${u.nucleo.length ? `<div class="xs" style="margin-top:8px;color:var(--gold)"><b>No núcleo — ${u.nucleo.length}</b></div>
+        <div class="flex wrap" style="gap:4px;margin-top:5px">${u.nucleo.map(chip).join('')}</div>` : ''}
+      ${u.extra.length ? `<div class="xs" style="margin-top:8px"><b>Situacional — ${u.extra.length}</b></div>
+        <div class="flex wrap" style="gap:4px;margin-top:5px">${u.extra.map(chip).join('')}</div>` : ''}
+      ${!u.nucleo.length && !u.extra.length ? `<div class="aviso" style="margin-top:8px">Nenhuma das 117
+        builds cita este item. Isso não quer dizer que ele seja ruim — quer dizer que as buscas que
+        montaram as builds não o mencionaram.</div>` : ''}
+      <button class="btn full sm" style="margin-top:12px" data-fecha>Fechar</button>`);
+    $$('#modal [data-hx]').forEach(b => b.addEventListener('click', () => {
+      fecharModal(); abrirHeroi(b.dataset.hx);
+    }));
+  }
+
   function telaItens() {
     const I = U.HE.ITENS, E = U.esc;
     if (!I) return '<div class="painel"><div class="mini">Catálogo não carregou.</div></div>';
@@ -1784,11 +1872,14 @@
     let lista = I.lista.slice();
     if (hf.icat) lista = lista.filter(x => x.categoriaItem === hf.icat);
     if (q) lista = lista.filter(x => x.nome.toLowerCase().includes(q)
+      || (x.nomePt || '').toLowerCase().includes(q)
       || (x.efeito || '').toLowerCase().includes(q));
+    /* ordena pelo nome que a linha MOSTRA. Ordenar pelo inglês e exibir o
+       português fazia a lista parecer embaralhada para quem lê a tela. */
     if (hf.iord === 'preco') {
       lista.sort((a, b) => (b.preco == null ? -1 : b.preco) - (a.preco == null ? -1 : a.preco));
     } else {
-      lista.sort((a, b) => a.nome.localeCompare(b.nome, 'en'));
+      lista.sort((a, b) => (a.nomePt || a.nome).localeCompare(b.nomePt || b.nome, 'pt-BR'));
     }
     const precos = I.lista.map(x => x.preco).filter(v => v != null);
     const maxP = precos.length ? Math.max(...precos) : 1;
@@ -1816,25 +1907,51 @@
           <div class="espaco"></div>
           <span class="xs">categoria só existe nos ${I.lista.filter(x => x.categoriaItem).length} achados por busca — os das suas capturas não vinham com ela</span>
         </div>
+        <div class="aviso" style="margin-top:8px;font-size:.62rem">
+          <b>Sobre os nomes em português.</b> Só
+          <b style="color:var(--ok)">${I.lista.filter(x => x.fontePt === 'br').length}</b> foram vistos numa
+          fonte brasileira — esses são o nome que o jogo usa, e a linha traz "nome do jogo".
+          Os outros <b style="color:var(--warn)">${I.lista.filter(x => x.fontePt === 'eu' || x.fontePt === 'eu?').length}</b>
+          são <b>tradução minha</b>: servem para você ler, mas o jogo pode chamar de outra coisa. Por isso o
+          nome em inglês continua embaixo de cada um — é ele que bate com a loja e com as builds.
+          ${I.lista.filter(x => x.fontePt === 'eu?').length} carregam ressalva extra (nome parecido com o de
+          outro item, ou dúvida que já vinha do inglês); a ressalva abre junto da passiva.
+        </div>
+        <div class="flex wrap" style="gap:9px;margin-top:8px;align-items:center">
+          <span class="xs">O selo é gerado, não é o ícone do jogo — o desenho diz a categoria:</span>
+          ${comCat.map(c => `<span class="flex" style="gap:4px;align-items:center">
+            ${U.EM.seloItem({ nome: c, categoriaItem: c }, 18)}<span class="xs">${CAT_ITEM[c]}</span></span>`).join('')}
+        </div>
         <div class="tabh" style="margin-top:9px">
           ${lista.map(it => {
             const confCls = { alta: 'ok', media: 'warn', baixa: 'bad' }[it.confiancaEfeito] || '';
             const dominio = it.urlEfeito ? it.urlEfeito.replace(/^https?:\/\//, '').split('/')[0] : '';
-            return `<div class="lini" style="${it.efeito ? 'height:auto' : ''}">
-            <div class="lini-nome">${E(it.nome)}</div>
+            const uso = usoDosItens()[it.nome];
+            const nUso = uso ? uso.nucleo.length + uso.extra.length : 0;
+            return `<div class="lini liga" data-item="${E(it.nome)}" style="${it.efeito ? 'height:auto' : ''}">
+            <div class="lini-id">
+              ${U.EM.seloItem(it, 22)}
+              <div class="lini-txt">
+                <div class="lini-nome">${E(it.nomePt || it.nome)}</div>
+                ${it.nomePt ? `<div class="lini-en">${E(it.nome)}${it.fontePt === 'br' ? ' · nome do jogo' : ''}</div>` : ''}
+              </div>
+            </div>
             <div class="linh-bar">
               ${it.preco != null ? barra(it.preco, maxP, null) : '<div class="barh"></div>'}
               <div class="linh-num">${it.preco != null ? U.num(it.preco) : '—'}</div>
             </div>
             <div class="xs" style="text-align:right">
+              ${nUso ? `<span class="tag ok" style="font-size:.5rem">${nUso} ${nUso === 1 ? 'herói' : 'heróis'}</span>` : ''}
               ${it.categoriaItem ? `<span class="tag" style="font-size:.5rem">${CAT_ITEM[it.categoriaItem] || it.categoriaItem}</span>` : ''}
               ${it.fonteItem === 'busca_web' ? '<span class="tag warn" style="font-size:.5rem">da busca</span>' : ''}
               ${it.obs ? E(it.obs) : ''}</div>
-            ${it.efeito ? `<div class="xs" style="grid-column:1/-1;margin-top:4px;padding-top:6px;border-top:1px solid rgba(190,215,255,.08)">
-              <span class="tag ${confCls}" style="font-size:.5rem">passiva · confiança ${E(it.confiancaEfeito)}</span>
-              <div class="mini" style="margin-top:3px">${E(it.efeito)}</div>
+            ${it.efeito || it.notaPt ? `<div class="xs" style="grid-column:1/-1;margin-top:4px;padding-top:6px;border-top:1px solid rgba(190,215,255,.08)">
+              ${it.efeito ? `<span class="tag ${confCls}" style="font-size:.5rem">passiva · confiança ${E(it.confiancaEfeito)}</span>
+                <div class="mini" style="margin-top:3px">${E(it.efeito)}</div>` : ''}
               ${it.notaEfeito ? `<div class="xs" style="margin-top:3px;opacity:.85">${E(it.notaEfeito)}</div>` : ''}
-              ${dominio ? `<div class="xs" style="margin-top:3px">fonte: <a href="${E(it.urlEfeito)}" target="_blank" rel="noopener"><code style="font-size:.9em">${E(dominio)}</code></a></div>` : ''}
+              ${it.notaPt ? `<div class="xs" style="margin-top:3px;opacity:.85">
+                <b style="color:${it.fontePt === 'br' ? 'var(--ok)' : 'var(--warn)'}">Sobre o nome:</b> ${E(it.notaPt)}</div>` : ''}
+              ${dominio && it.efeito ? `<div class="xs" style="margin-top:3px">fonte: <a href="${E(it.urlEfeito)}" target="_blank" rel="noopener"><code style="font-size:.9em">${E(dominio)}</code></a></div>` : ''}
             </div>` : ''}
           </div>`; }).join('')}
         </div>
@@ -2215,8 +2332,10 @@
       const linhaItem = (it, marca) => {
         const cat = it.noCatalogo === true ? doCatalogo(it.nome) : null;
         return `<div class="medida" style="padding:7px 9px">
-          <div class="flex" style="gap:6px;align-items:baseline">
-            <span class="mini" style="color:var(--txt);font-weight:700;flex:1">${E(it.nome)}</span>
+          <div class="flex" style="gap:6px;align-items:center">
+            ${cat ? U.EM.seloItem(cat, 20) : ''}
+            <span class="mini" style="color:var(--txt);font-weight:700;flex:1">${E(cat && cat.nomePt ? cat.nomePt : it.nome)}
+              ${cat && cat.nomePt ? `<span class="lini-en" style="font-weight:400">${E(it.nome)}</span>` : ''}</span>
             ${marca ? `<span class="tag warn" style="font-size:.5rem">${E(marca)}</span>` : ''}
             ${it.noCatalogo === false ? '<span class="tag" style="font-size:.5rem">fora do catálogo</span>' : ''}
             ${it.noCatalogo === null ? '<span class="tag bad" style="font-size:.5rem">nome não casa</span>' : ''}
@@ -2264,7 +2383,8 @@
           <div class="mini" style="margin-top:9px"><b>Situacionais</b>
             <span class="xs">— a busca chamou de "conforme o confronto"</span></div>
           <div class="flex wrap" style="gap:4px;margin-top:5px">
-            ${b.extras.map(n => `<span class="tag nome">${E(n)}</span>`).join('')}
+            ${b.extras.map(n => { const c = doCatalogo(n);
+              return `<span class="tag nome" title="${E(n)}">${E(c && c.nomePt ? c.nomePt : n)}</span>`; }).join('')}
           </div>` : ''}
         <div class="grade" style="grid-template-columns:repeat(3,1fr);gap:8px;margin-top:9px">
           <div class="medida"><div class="mt">Início</div>
@@ -2272,7 +2392,8 @@
           <div class="medida"><div class="mt">Feitiço</div>
             <div class="mini" style="margin-top:3px;color:var(--txt);font-weight:700">${b.feitico ? E(b.feitico) : '<span style="color:var(--dim2);font-weight:400">não veio na busca</span>'}</div></div>
           <div class="medida"><div class="mt">Arcana</div>
-            <div class="mini" style="margin-top:3px;color:var(--txt);font-weight:700">${b.arcana ? E(b.arcana) : '<span style="color:var(--dim2);font-weight:400">não veio na busca</span>'}</div>
+            <div class="mini" style="margin-top:3px;color:var(--txt);font-weight:700">${b.arcana ? E(arcanaPt(b.arcana)) : '<span style="color:var(--dim2);font-weight:400">não veio na busca</span>'}</div>
+            ${b.arcana ? `<div class="lini-en">${E(b.arcana)}</div>` : ''}
             ${b.arcanaNota ? `<div class="xs" style="margin-top:3px">${E(b.arcanaNota)}</div>` : ''}</div>
         </div>
         ${pe}`;
@@ -2307,7 +2428,8 @@
         </div>
         <div class="medida">
           <div class="mt">Arcana</div>
-          <div class="mini" style="margin-top:3px;color:var(--txt);font-weight:700">${E(b.arcana.leitura)}</div>
+          <div class="mini" style="margin-top:3px;color:var(--txt);font-weight:700">${E(arcanaPt(b.arcana.leitura))}</div>
+          <div class="lini-en">${E(b.arcana.leitura)}</div>
           <div class="xs" style="margin-top:2px">confiança ${E(b.arcana.confianca)} — ${E(b.arcana.nota)}</div>
           ${b.arcana.conflitoComSuasCapturas ? `<div class="aviso bad" style="margin-top:5px;font-size:.6rem">${E(b.arcana.conflitoComSuasCapturas)}</div>` : ''}
         </div>
@@ -2430,6 +2552,7 @@
     $$('[data-icat]').forEach(b => b.addEventListener('click', () => {
       hf.icat = b.dataset.icat || null; render('herois');
     }));
+    $$('[data-item]').forEach(b => b.addEventListener('click', () => verQuemUsa(b.dataset.item)));
     $$('[data-hord]').forEach(b => b.addEventListener('click', () => {
       const k = b.dataset.hord;
       if (hf.ord === k) hf.dir = -hf.dir; else { hf.ord = k; hf.dir = -1; }
