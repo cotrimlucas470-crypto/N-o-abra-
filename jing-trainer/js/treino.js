@@ -13,7 +13,8 @@
   const MD = U.MD, CT = U.CT, DS = U.DS, D = U.D, H = U.HUD, S = U.S;
 
   const MOTORES = { sequencia: U.E.MotorSequencia, leitura: U.E.MotorLeitura,
-                    decisao: U.E.MotorDecisao, mapa: U.E.MotorMapa, mira: U.E.MotorMira };
+                    decisao: U.E.MotorDecisao, mapa: U.E.MotorMapa, mira: U.E.MotorMira,
+                    reset: U.E.MotorReset };
 
   const St = {
     surf: null, motor: null, drill: null, cfg: null, aberto: false,
@@ -39,7 +40,7 @@
       });
     }
     St.surf.hud = H.getHud();
-    requestAnimationFrame(() => St.surf.resize());
+    requestAnimationFrame(() => St.surf && St.surf.resize());
     setTimeout(() => St.surf && St.surf.resize(), 120);
     abrirSessao();
   }
@@ -85,7 +86,14 @@
   }
 
   /* ---------- faixa superior ---------- */
-  function faixa(nome, chips) { $('#tf-nome').textContent = nome; $('#tf-chips').innerHTML = chips || ''; }
+  function faixa(nome, chips) {
+    $('#tf-nome').textContent = nome;
+    /* a base dos chips é regravada por bloco. Sem apagar a anterior, todo
+       bloco depois do primeiro da sessão mostrava os chips do PRIMEIRO —
+       outro exercício, outra dificuldade — no topo da tela */
+    delete $('#tf-chips').dataset.base;
+    $('#tf-chips').innerHTML = chips || '';
+  }
   let fbT = null;
   function mensagem(txt, tipo, dica) {
     const f = $('#fb');
@@ -130,7 +138,7 @@
     const rot = U.CO.getRotas('jing');
     const fase = CT.fase();
     const teto = fase === 'reconexao' ? 3 : fase === 'consolidacao' ? 5 : 7;
-    return rot.filter(r => r.prio <= teto).slice(0, 3).map(r => r.id);
+    return rot.filter(r => r.prio <= teto).sort((a, b) => a.prio - b.prio).slice(0, 3).map(r => r.id);
   }
 
   function pisoIki() {
@@ -171,8 +179,17 @@
          <span style="color:var(--dim2)"> — ${cat.descricao}</span></div>` : ''}
        ${rotasTxt ? `<div class="mini"><b>Rotas:</b> <span style="color:var(--gold);font-weight:800">${rotasTxt}</span></div>` : ''}
        <div class="mini" style="margin-top:5px"><b>${St.cfg.tentativas} tentativas</b>
-       ${modo === 'treino' ? ` · o sistema está mirando <b>${Math.round(alvo * 100)}% de acerto</b>:
-         acima disso a dificuldade sobe, abaixo ela desce` : ' · nada se adapta aqui'}</div>
+       ${modo !== 'treino' ? ' · nada se adapta aqui'
+         : St.cfg.escadaViva && CT.fase() !== 'reconexao'
+           ? ` · <b>o limite se ajusta a cada tentativa</b> até parar no ponto em que você acerta
+               ${Math.round(U.clamp(alvo, 0.80, 0.85) * 100)}%`
+           : ` · o sistema está mirando <b>${Math.round(alvo * 100)}% de acerto</b>:
+               acima disso a dificuldade sobe no próximo bloco, abaixo ela desce`}</div>
+       ${modo === 'treino' && St.cfg.escadaViva && CT.fase() === 'reconexao'
+         ? `<div class="xs" style="margin-top:4px">A adaptação a cada tentativa entra quando você sair da
+            Reconexão. Aqui o objetivo é reencontrar a rota errando pouco, e uma escada só funciona errando:
+            na simulação, com o alvo de ${Math.round(alvo * 100)}% desta fase ela errou o seu limiar em mais de
+            90 ms. Por enquanto a dificuldade se ajusta entre um bloco e outro.</div>` : ''}
        ${drill.mede ? `<div class="mini" style="margin-top:4px">Alimenta a medida
          <b>${(MD.MEDIDAS[drill.mede] || MD.DERIVADAS[drill.mede] || {}).nome || drill.mede}</b>.</div>` : ''}
        ${aj ? `<div class="aviso" style="margin-top:8px"><b>Este bloco foi montado contra uma fraqueza detectada:</b>
@@ -189,10 +206,13 @@
     else U.Musica.paraExercicio(St.drill, St.cfg);
 
     const api = {
-      info: ({ i, n, ok }) => {
+      info: ({ i, n, ok, total }) => {
         const base = $('#tf-chips').dataset.base || $('#tf-chips').innerHTML;
         $('#tf-chips').dataset.base = base;
-        const pct = i > 1 ? Math.round(ok / (i - 1) * 100) : null;
+        /* o denominador é o que já foi anotado — e não "i − 1", que só vale
+           para motor que atualiza o placar no começo da tentativa */
+        const feitas = total != null ? total : i - 1;
+        const pct = feitas > 0 ? Math.round(ok / feitas * 100) : null;
         $('#tf-chips').innerHTML = base +
           `<span class="chip">${i}/${n}</span>` +
           (pct != null && St.cfg.mo === 'treino'
@@ -202,14 +222,19 @@
       fim: (resumo) => finalizar(resumo),
     };
     const M = MOTORES[St.drill.motor];
-    St.motor = new M(St.surf, St.cfg, api);
-    contagem(() => St.motor && St.motor.iniciar());
+    const motor = new M(St.surf, St.cfg, api);
+    St.motor = motor;
+    /* a largada é DESTE motor: se o bloco foi fechado (ou trocado por
+       outro) durante o 3-2-1, a contagem antiga morre calada em vez de
+       dar a largada no bloco novo antes da hora dele */
+    contagem(() => { if (St.motor === motor && !motor.ativo) motor.iniciar(); });
   }
 
   function contagem(depois) {
     let k = 3;
+    const surf = St.surf;
     const passo = () => {
-      if (!St.surf) return;
+      if (!St.surf || St.surf !== surf) return;
       if (k === 0) { St.surf.setOverlay(null); return depois(); }
       St.surf.setOverlay({ texto: String(k), tam: 0.3, cor: '#c4b5fd', fundo: 'rgba(5,8,14,.45)' });
       U.Sfx.tick(); k--;
@@ -232,10 +257,23 @@
       if (d.aborto.length > 40) d.aborto = d.aborto.slice(-40);
     }
 
-    let ctrl = null;
+    let ctrl = null, escadaSes = null;
     if (r.mo === 'treino') {
-      ctrl = CT.ajustar(drill.id, { acertos: r.ok, n: r.n, erros: r.erros, cvRitmo: r.cv });
-      if (drill.mede === 'execucao' && r.alvoMs) CT.registrarLimiar(drill.id, r.alvoMs, r.acc, r.n);
+      const ev = ex.escadaViva;
+      if (ev) {
+        /* Os vales deste bloco se somam aos da sessão; é o limiar da
+           SESSÃO, e não o do bloco, que vira dificuldade e medida. */
+        escadaSes = U.ES.registrarBloco(drill.id, ev);
+        const base = escadaSes.ok ? escadaSes.v
+                   : ev.ok ? ev.v
+                   : (ev.teto || ev.piso) ? ev.valorFinal : null;
+        const difAlvo = base != null && ev.faixa ? U.ES.difDoLimiar(base, ev.faixa) : null;
+        ctrl = CT.ajustar(drill.id, { acertos: r.ok, n: r.n, erros: r.erros, cvRitmo: r.cv, difAlvo });
+        if (drill.mede === 'execucao' && escadaSes.ok) CT.registrarLimiarEscada(drill.id, escadaSes);
+      } else {
+        ctrl = CT.ajustar(drill.id, { acertos: r.ok, n: r.n, erros: r.erros, cvRitmo: r.cv });
+        if (drill.mede === 'execucao' && r.alvoMs) CT.registrarLimiar(drill.id, r.alvoMs, r.acc, r.n);
+      }
     }
 
     const rec = {
@@ -252,7 +290,7 @@
     if (d.sessaoAtual) d.sessaoAtual.blocos.push({ drill: drill.id, mo: r.mo, acc: r.acc, n: r.n });
     U.DB.save();
     CT.avaliarFase();
-    return { rec, ctrl };
+    return { rec, ctrl, escadaSes };
   }
 
   function registrarToques(lista) {
@@ -288,7 +326,7 @@
     pararMotor();
     if (St.prova) return proximoBlocoProva(r);
 
-    const { rec, ctrl } = aplicarResultado(St.drill, r);
+    const { rec, ctrl, escadaSes } = aplicarResultado(St.drill, r);
     r.mo === 'treino' && r.acc >= 0.8 ? U.Sfx.done() : U.Sfx.cue();
 
     const eh = r.mo;
@@ -331,8 +369,10 @@
                ${Math.abs(ab.proativa) >= 0.25 ? 'Você foi ficando mais lento ao longo do set — isso faz você parar mais, mas não porque freia melhor. O número seria mentira.' : 'Mais um set resolve.'}`}
         </div>` : ''}
 
+      ${(r.extras || {}).escadaViva ? escadaTexto(r.extras.escadaViva, escadaSes, r.erros) : ''}
       ${(r.extras || {}).mapa ? mapaTexto(r) : ''}
       ${(r.extras || {}).mira ? miraTexto(r) : ''}
+      ${(r.extras || {}).reset && r.extras.reset.n ? resetTexto(r.extras.reset) : ''}
 
       ${erros.length ? `<div class="sep"></div>
         <div class="mini"><b>Onde os erros caíram</b></div>
@@ -346,7 +386,7 @@
 
       ${prox ? `<div class="sep"></div>
         <div class="aviso"><b>Próximo: ${prox.titulo}</b><br>${prox.porque}
-        <div class="xs" style="margin-top:4px">regra <code>${prox.regra}</code> · confiança: ${S.rotuloNivel(prox.confianca)}</div></div>` : ''}
+        <div class="xs" style="margin-top:4px">regra ${U.DS.rotuloRegra(prox.regra)} · confiança: ${S.rotuloNivel(prox.confianca)}</div></div>` : ''}
     `, botoesFim(prox));
   }
 
@@ -494,6 +534,169 @@
       <div class="sep"></div>
       ${viesTxt}
       ${secTxt}
+    `;
+  }
+
+  /* ============================================================
+     RESULTADO DA ESCADA VIVA
+
+     O que mais convence de que a adaptação funciona é VER a escada:
+     cada tentativa no nível em que aconteceu, verde se acertou,
+     vermelha se errou. Dá para ver a descida rápida da fase grossa, a
+     oscilação da fase fina em volta do seu nível, e os vales — os
+     pontos circulados, de onde sai o limiar.
+
+     O eixo vertical está invertido de propósito: MENOS ms por passo é
+     mais difícil, e mais difícil fica em cima. Assim "subir" no
+     gráfico é "ficar mais rápido", que é como a gente fala.
+     ============================================================ */
+  function trilhaSvg(ev) {
+    const pts = ev.trilha || [];
+    if (pts.length < 2) return '';
+    /* 6:1 e altura travada: o painel de resultado é largo, e um SVG que
+       escala só pela largura ficava com 220 px de altura e letra enorme */
+    const W = 900, Hh = 150, ml = 46, mr = 12, mt = 14, mb = 22;
+    /* A escala segue a TRILHA e o limiar — não o intervalo. Com dois
+       vales só, o intervalo é honestamente enorme, e se ele ditasse a
+       escala a trilha virava uma linha espremida no meio do gráfico. O
+       intervalo é desenhado cortado nas bordas; o número dele está no
+       texto logo abaixo. */
+    const vs = pts.map(p => p.v).concat(ev.ok ? [ev.v] : []);
+    let lo = Math.min(...vs), hi = Math.max(...vs);
+    const pad = Math.max(12, (hi - lo) * 0.12); lo -= pad; hi += pad;
+    const corta = (v) => U.clamp(v, lo, hi);
+    const X = (i) => ml + (W - ml - mr) * (pts.length === 1 ? 0.5 : i / (pts.length - 1));
+    const Y = (v) => mt + (Hh - mt - mb) * (v - lo) / (hi - lo);     // menor ms em cima
+    const linha = pts.map((p, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)},${Y(p.v).toFixed(1)}`).join(' ');
+    const iFina = (ev.marcas || []).filter(m => !m.fina).length >= 2
+      ? ((ev.marcas || []).filter(m => !m.fina)[1] || {}).i : null;
+    const grade = [lo + (hi - lo) * 0.1, (lo + hi) / 2, hi - (hi - lo) * 0.1]
+      .map(v => `<line x1="${ml}" x2="${W - mr}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="rgba(255,255,255,.07)"/>
+                 <text x="${ml - 6}" y="${(Y(v) + 3).toFixed(1)}" fill="#66748f" font-size="10" text-anchor="end">${Math.round(v)}</text>`).join('');
+    return `<svg viewBox="0 0 ${W} ${Hh}" width="100%" style="display:block;margin-top:6px;max-height:150px" role="img"
+        aria-label="Trilha da escada: nível de cada tentativa">
+      ${grade}
+      ${ev.ok && ev.lo != null ? `<rect x="${ml}" width="${W - ml - mr}" y="${Y(corta(ev.lo)).toFixed(1)}"
+          height="${Math.max(1, Y(corta(ev.hi)) - Y(corta(ev.lo))).toFixed(1)}" fill="rgba(255,212,121,.10)"/>` : ''}
+      ${ev.ok ? `<line x1="${ml}" x2="${W - mr}" y1="${Y(ev.v).toFixed(1)}" y2="${Y(ev.v).toFixed(1)}"
+          stroke="#ffd479" stroke-width="1.6" stroke-dasharray="6 4"/>` : ''}
+      ${iFina != null ? `<line x1="${X(iFina).toFixed(1)}" x2="${X(iFina).toFixed(1)}" y1="${mt}" y2="${Hh - mb}"
+          stroke="rgba(196,181,253,.35)" stroke-dasharray="2 4"/>
+          <text x="${(X(iFina) + 4).toFixed(1)}" y="${mt + 9}" fill="#8f86c9" font-size="10">passo fino</text>` : ''}
+      <path d="${linha}" fill="none" stroke="#5b708f" stroke-width="1.4"/>
+      ${pts.map((p, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(p.v).toFixed(1)}" r="3.6"
+          fill="${p.ok ? '#6ee7a8' : '#ff8fa3'}"/>`).join('')}
+      ${(ev.marcas || []).filter(m => m.fina && m.vale).map(m => `<circle cx="${X(m.i).toFixed(1)}"
+          cy="${Y(m.v).toFixed(1)}" r="8" fill="none" stroke="#ffd479" stroke-width="1.8"/>`).join('')}
+      <text x="${ml}" y="${Hh - 5}" fill="#66748f" font-size="10">tentativa →</text>
+      <text x="${W - mr}" y="${Hh - 5}" fill="#66748f" font-size="10" text-anchor="end">ms por passo · mais rápido em cima</text>
+    </svg>`;
+  }
+
+  function escadaTexto(ev, ses, erros = {}) {
+    const ms = (v) => (v == null ? '—' : Math.round(v) + ' ms');
+    const origem = {
+      escada: 'de onde o seu último bloco terminou',
+      tempos: 'dos seus tempos reais recentes',
+      configuracao: 'do nível configurado — ainda não há tempo seu para partir',
+    }[ev.origem] || '';
+    const valesBloco = (ev.vales || []).length;
+
+    return `
+      <div class="sep"></div>
+      <div class="mini"><b>Adaptação dentro do bloco</b>
+        <span class="xs">— o limite mudou a cada tentativa para encontrar o ritmo que você sustenta a
+        ${Math.round(ev.alvo * 100)}%</span></div>
+      ${trilhaSvg(ev)}
+      <div class="xs" style="margin-top:3px;color:var(--dim2)">
+        <span style="color:#6ee7a8">●</span> acerto ·
+        <span style="color:#ff8fa3">●</span> erro ·
+        <span style="color:#ffd479">◯</span> vale, de onde sai o limiar ·
+        <span style="color:#ffd479">- -</span> limiar e o intervalo dele</div>
+
+      <div class="flex" style="gap:16px;align-items:flex-start;margin-top:9px">
+        <div>
+          <div class="numero" style="color:var(--gold)">${ses && ses.ok ? Math.round(ses.v) : ev.ok ? Math.round(ev.v) : '—'}</div>
+          <div class="xs">ms por passo<br>${ses && ses.ok ? 'limiar da sessão' : ev.ok ? 'limiar do bloco' : 'sem limiar ainda'}</div>
+        </div>
+        <div class="mini" style="flex:1;min-width:0">
+          ${ev.ok ? `Neste bloco: <b>${ms(ev.v)}</b> por passo
+            ${ev.lo != null ? `<span class="xs">(intervalo ${ms(ev.lo)}–${ms(ev.hi)})</span>` : ''}
+            — numa rota de três toques, <b>${ms(ev.v * 3)}</b>.`
+          : `Neste bloco: ${U.esc(ev.motivo || 'sem limiar')}.`}
+          ${ses && ses.ok && ses.blocos > 1 ? `<br>Somando os ${ses.blocos} blocos desta sessão
+            (${ses.n} vales): <b>${ms(ses.v)}</b> por passo
+            ${ses.lo != null ? `<span class="xs">(${ms(ses.lo)}–${ms(ses.hi)})</span>` : ''}.` : ''}
+          ${!ev.ok && valesBloco ? `<br><span class="xs">O vale deste bloco entrou na conta da sessão —
+            o próximo bloco retoma a escada daqui e completa.</span>` : ''}
+          <div class="xs" style="margin-top:4px">Começou em ${ms(ev.inicio)} por passo, ${origem}.
+            ${ev.taxaFina != null ? `Na fase fina você acertou ${Math.round(ev.taxaFina * 100)}% — perto dos
+            ${Math.round(ev.alvo * 100)}% quer dizer que a escada achou o seu ponto; longe quer dizer que o bloco
+            acabou antes.` : ''}</div>
+        </div>
+      </div>
+
+      ${(() => {
+        const tot = Object.values(erros).reduce((a, b) => a + b, 0);
+        const lentos = erros.lento || 0;
+        if (!tot) return '';
+        return lentos / tot >= 0.6
+          ? `<div class="xs" style="margin-top:6px">Os erros "fora do tempo" aqui são o esperado, não um problema: a
+             escada procura exatamente o ponto em que cerca de ${Math.round((1 - ev.alvo) * 100)} de cada 100
+             tentativas passam do limite. É assim que ela sabe onde o limite está.</div>`
+          : `<div class="xs" style="margin-top:6px">Mais da metade dos erros <b>não</b> foi de tempo. A escada só
+             mexe no tempo, então ela não resolve esses — veja o tipo abaixo.</div>`;
+      })()}
+
+      ${ev.teto ? `<div class="aviso ok" style="margin-top:7px"><b>Você chegou ao limite do exercício.</b>
+        A escada bateu ${ev.bateuDificil} vezes no tempo mais curto que ele consegue pedir. O seu limiar está além
+        disso, então o número acima é um piso, não uma medida — e os vales deste bloco ficaram fora da conta.</div>` : ''}
+      ${ev.piso ? `<div class="aviso bad" style="margin-top:7px"><b>A escada bateu no limite fácil.</b>
+        Mesmo com o tempo mais folgado que o exercício dá, os erros continuaram. Isso não é velocidade: olhe o
+        tipo de erro abaixo — sequência errada e toque no botão vizinho não se resolvem com mais tempo.</div>` : ''}
+    `;
+  }
+
+  /* ============================================================
+     RESULTADO DA QUEBRA DO ESPELHO
+
+     Três números, porque são três erros diferentes com três
+     correções diferentes:
+     · o TEMPO até soltar a 1 ou a 2 depois da quebra;
+     · os resets que passaram sem você soltar nada;
+     · os toques com a passiva travada — que é o erro de quem
+       não olha o P e aperta no chute.
+     ============================================================ */
+  function resetTexto(m) {
+    const pct = (a, b) => (b ? Math.round(a / b * 100) + '%' : '—');
+    const perdidos = m.reais - m.pegos;
+    const fr = m.fronteira;
+    return `
+      <div class="sep"></div>
+      <div class="flex" style="gap:16px;align-items:flex-start">
+        <div>
+          <div class="numero" style="color:var(--gold)">${m.rt != null ? Math.round(m.rt) : '—'}</div>
+          <div class="xs">ms até soltar<br>depois da quebra</div>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div class="mini">Você pegou <b>${m.pegos} de ${m.reais}</b> resets
+            ${m.rtIC && m.rtIC.lo != null ? `<span class="xs">(tempo mediano, intervalo
+              ${Math.round(m.rtIC.lo)}–${Math.round(m.rtIC.hi)} ms)</span>` : ''}.
+            ${perdidos ? `${perdidos} passaram sem você soltar nada dentro de ${m.janela} ms.` : 'Nenhum passou.'}</div>
+          <div class="mini" style="margin-top:4px">Com a passiva travada, você apertou em
+            <b>${m.falsos} de ${m.bloq}</b>${m.falsos ? ' — toques que o jogo ignora' : ''}.
+            ${m.antecipou ? `E ${m.antecipou} toque${m.antecipou > 1 ? 's' : ''} em habilidade em recarga antes de
+              qualquer sinal.` : ''}</div>
+        </div>
+      </div>
+      ${fr && fr.n >= 3 ? `<div class="aviso ${fr.ok / fr.n >= 0.75 ? 'ok' : ''}" style="margin-top:8px">
+        <b>Perto dos 5 s: ${fr.ok} de ${fr.n} certos (${pct(fr.ok, fr.n)}).</b>
+        É ali que a trava decide — longe dela qualquer um acerta. ${fr.ok / fr.n >= 0.75
+          ? 'Você está acompanhando a trava, não chutando.'
+          : 'Abaixo de três em quatro, o mais provável é que você esteja adivinhando pelo tempo em vez de olhar o botão P.'}</div>` : ''}
+      ${m.falsos > m.bloq * 0.4 && m.bloq >= 3 ? `<div class="xs" style="margin-top:6px">Muito toque com a passiva
+        travada costuma ser a mão treinada para "quebrou, aperta" sem o olho conferir se quebrou mesmo. A correção
+        é esperar ver a recarga sumir — perder 100 ms esperando custa menos que perder o toque inteiro.</div>` : ''}
     `;
   }
 
@@ -712,7 +915,7 @@
     painel(`
       <h2 style="margin:0 0 6px;font-size:1rem;color:var(--warn)">${dec.titulo}</h2>
       <div class="mini">${dec.porque}</div>
-      <div class="xs" style="margin-top:8px">regra <code>${dec.regra}</code> · confiança: ${S.rotuloNivel(dec.confianca)}</div>
+      <div class="xs" style="margin-top:8px">regra ${U.DS.rotuloRegra(dec.regra)} · confiança: ${S.rotuloNivel(dec.confianca)}</div>
       <div class="sep"></div>
       <div class="mini">Você pode treinar assim mesmo — o sistema não bloqueia nada. Mas a recomendação é essa,
       e ela existe porque repetição de baixa qualidade não é neutra: ela grava o padrão pior.</div>
@@ -918,7 +1121,7 @@
 
       ${prox ? `<div class="sep"></div>
         <div class="aviso"><b>Próxima sessão: ${prox.titulo}</b><br>${prox.porque}
-        <div class="xs" style="margin-top:4px">regra <code>${prox.regra}</code> · confiança: ${S.rotuloNivel(prox.confianca)}</div></div>` : ''}
+        <div class="xs" style="margin-top:4px">regra ${U.DS.rotuloRegra(prox.regra)} · confiança: ${S.rotuloNivel(prox.confianca)}</div></div>` : ''}
     `, [{ txt: 'Concluir', cls: 'full', fn: () => fecharPalco() }]);
   }
 

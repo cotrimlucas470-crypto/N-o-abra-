@@ -125,7 +125,7 @@
       <h1>◈ ESPELHO</h1>
       <span class="tag vio">${fase.nome}</span>
       <div class="espaco"></div>
-      <span class="sub">${d.legado ? 'v16 · dados anteriores preservados' : 'v16'}</span>
+      <span class="sub">${d.legado ? 'v17 · dados anteriores preservados' : 'v17'}</span>
     </div>
     <div class="rolagem pilha">
 
@@ -134,7 +134,7 @@
         <h2 class="heroT">${dec ? dec.titulo : 'Nada pendente'}</h2>
         <div class="mini" style="margin-top:4px">${dec ? dec.porque : ''}</div>
         <div class="flex wrap" style="gap:6px;margin-top:8px">
-          <span class="tag">regra <code>${dec ? dec.regra : '—'}</code></span>
+          <span class="tag">regra ${dec ? U.DS.rotuloRegra(dec.regra) : '—'}</span>
           <span class="tag ${NIVEL_CLASSE[dec ? dec.confianca : ''] || ''}">confiança: ${dec ? S.rotuloNivel(dec.confianca) : '—'}</span>
           ${acao && acao.drill ? `<span class="tag">dificuldade ${acao.dif.toFixed(1)}</span>` : ''}
           ${(() => {
@@ -172,6 +172,8 @@
         mais que empilhadas num dia.
         <div><button class="btn sec sm" style="margin-top:7px;min-height:34px" data-princ="espacamento">por quê</button></div>
       </div>` : ''}
+
+      ${painelJing()}
 
       ${painelVisaoMapa(d)}
 
@@ -241,8 +243,146 @@
       </div>`;
   }
 
+  /* ============================================================
+     SUA JING
+
+     O treino ficava falando em "1 › AA › 2" enquanto o app tinha,
+     guardado na aba Heróis, o kit da Jing cruzado em duas buscas. Este
+     painel junta as duas coisas: o que cada botão É, com a confiança
+     de cada leitura, e os treinos que dependem disso.
+
+     As rotas vêm marcadas pela origem. As que vieram com o app são
+     sequências montadas por mim a partir da descrição do kit — não
+     são combos verificados de jogador. As que você editou ou criou
+     são suas. Mostrar as duas iguais faria uma sugestão minha parecer
+     um fato sobre a Jing.
+     ============================================================ */
+  const CONF_ROT = { alta: 'confiança alta', media: 'confiança média', baixa: 'confiança baixa' };
+
+  function rotuloKit(k, kit) {
+    const b = kit && kit.botoes && kit.botoes[k];
+    return b ? b.nome : null;
+  }
+
+  function painelJing() {
+    const kit = U.HE && U.HE.kitDoTreino ? U.HE.kitDoTreino('jing') : null;
+    const rotas = CO.getRotas('jing');
+    const ativas = rotas.slice().sort((a, b) => a.prio - b.prio).slice(0, 3);
+    const hist = MD.filtrar({ k: 'reset' }).filter(x => x.x && x.x.r1 === 'ok' && x.rt);
+    const rtMed = hist.length >= 6 ? Math.round(U.median(hist.map(x => x.rt))) : null;
+    const suas = rotas.filter(r => r.origem === 'sua').length;
+
+    const linhaKit = (k) => {
+      const b = kit && kit.botoes[k];
+      if (!b) return '';
+      return `<div class="flex" style="gap:7px;align-items:baseline;margin-bottom:4px">
+        <span class="tag" style="font-size:.56rem;min-width:22px;text-align:center">${k === 'pass' ? 'P' : (H.getHud()[k] || {}).curto || k}</span>
+        <span class="mini" style="color:var(--txt);font-weight:700">${U.esc(b.nome)}</span>
+        <span class="xs ${b.confianca === 'alta' ? '' : 'warn'}" style="opacity:.75">${CONF_ROT[b.confianca] || ''}${
+          b.disputa ? ' · nome em disputa entre as buscas' : ''}</span>
+      </div>`;
+    };
+
+    return `
+      <div class="painel">
+        <h2>Sua Jing</h2>
+        ${kit ? `<div style="margin-top:4px">${['pass', 's1', 's2', 's3'].map(linhaKit).join('')}</div>
+          <div class="xs" style="margin-top:2px">Nomes vindos de duas buscas cruzadas (aba Heróis, ficha da Jing).
+          O botão continua sendo o número — é o que o polegar aperta — e o nome vem ao lado.</div>`
+        : `<div class="mini">O kit da Jing não está no banco deste aparelho.</div>`}
+
+        <div class="sep"></div>
+        <div class="flex" style="gap:10px;align-items:flex-start">
+          <div style="flex:1;min-width:0">
+            <div class="mini"><b>Quebra do Espelho</b> — o reset da passiva: quando as duas marcas quebram, a 1 e
+              a 2 voltam na hora, e depois a passiva trava por 5 s.
+              ${rtMed != null ? `Seu tempo até soltar depois da quebra: <b>${rtMed} ms</b> (${hist.length} resets).`
+                : 'Ainda sem resets medidos.'}</div>
+          </div>
+          <button class="btn" style="flex:none" data-jing="espelho">Treinar o reset</button>
+        </div>
+
+        <div class="sep"></div>
+        <div class="mini"><b>Rotas treinadas agora</b>
+          <span class="xs">— as três primeiras da lista são as que Rota, Ritmo, Andando, Carga e Freio praticam</span></div>
+        <div class="pilha" style="gap:5px;margin-top:6px">
+          ${ativas.map(r => `<div class="flex" style="gap:7px;align-items:center">
+            <span class="xs" style="width:14px;opacity:.5">${r.prio}</span>
+            <span class="mini" style="font-weight:700;min-width:84px">${U.esc(r.nome)}</span>
+            <span class="xs" style="flex:1">${r.seq.map(k => {
+              const n = rotuloKit(k, kit);
+              return `<b>${(H.getHud()[k] || {}).curto || k}</b>${n ? ` <span style="opacity:.6">${U.esc(n)}</span>` : ''}`;
+            }).join(' › ')}</span>
+            <span class="tag ${r.origem === 'sua' ? 'ok' : ''}" style="font-size:.52rem">${r.origem === 'sua' ? 'sua' : 'exemplo do app'}</span>
+          </div>`).join('')}
+        </div>
+        <div class="flex" style="gap:8px;margin-top:9px;align-items:center">
+          <button class="btn sec sm" data-jing="rotas">Editar rotas</button>
+          <span class="xs" style="flex:1">${suas
+            ? `${suas} rota${suas > 1 ? 's' : ''} sua${suas > 1 ? 's' : ''}.`
+            : 'Todas são exemplo do app, montadas a partir da descrição do kit. Troque pelo combo que você usa de verdade — o treino inteiro de mecânica passa a ser sobre ele.'}</span>
+        </div>
+      </div>`;
+  }
+
+  /* ---------- lista de rotas: ordem, criar, apagar ---------- */
+  function abrirRotas() {
+    const kit = U.HE && U.HE.kitDoTreino ? U.HE.kitDoTreino('jing') : null;
+    const rotas = CO.getRotas('jing');
+    rotas.sort((a, b) => a.prio - b.prio);
+    rotas.forEach((r, i) => { r.prio = i + 1; });
+    modal(`
+      <h2 style="margin:0 0 4px">Rotas da Jing</h2>
+      <div class="mini" style="margin-bottom:8px">A ordem decide o que é treinado: as três primeiras são as que
+        Rota, Ritmo, Andando, Carga e Freio praticam. A rota <b>Marca</b> é a de referência das medidas — pode subir ou descer na
+        lista, mas mudar a sequência dela reinicia a comparação histórica.</div>
+      <div class="pilha" style="gap:6px">
+        ${rotas.map((r, i) => `<div class="item" style="cursor:default">
+          <div class="flex" style="flex-direction:column;gap:2px">
+            <button class="btn sec sm" style="min-height:24px;padding:0 8px" data-sobe="${r.id}" ${i ? '' : 'disabled'}>▲</button>
+            <button class="btn sec sm" style="min-height:24px;padding:0 8px" data-desce="${r.id}" ${i < rotas.length - 1 ? '' : 'disabled'}>▼</button>
+          </div>
+          <div class="txt"><b>${i + 1}. ${U.esc(r.nome)} — ${r.seq.map(k => (H.getHud()[k] || {}).curto || k).join(' › ')}</b>
+            <span>${r.seq.map(k => rotuloKit(k, kit) || '').filter(Boolean).map(U.esc).join(' › ') || U.esc(r.porque || '')}</span></div>
+          <span class="tag ${r.origem === 'sua' ? 'ok' : ''}" style="font-size:.52rem">${r.origem === 'sua' ? 'sua' : 'exemplo'}</span>
+          <button class="btn sm" data-edita="${r.id}">editar</button>
+          ${r.origem === 'sua' && r.id !== 'marca' ? `<button class="btn sec sm" data-apaga="${r.id}">apagar</button>` : ''}
+        </div>`).join('')}
+      </div>
+      <div class="flex" style="margin-top:12px;gap:8px">
+        <button class="btn sec full sm" data-fecha>Fechar</button>
+        <button class="btn full sm" id="rota-nova">+ Nova rota</button>
+      </div>`,
+      (cx) => {
+        const mover = (id, d) => {
+          const i = rotas.findIndex(r => r.id === id), j = i + d;
+          if (j < 0 || j >= rotas.length) return;
+          [rotas[i].prio, rotas[j].prio] = [rotas[j].prio, rotas[i].prio];
+          U.DB.save(); abrirRotas();
+        };
+        cx.querySelectorAll('[data-sobe]').forEach(b => b.addEventListener('click', () => mover(b.dataset.sobe, -1)));
+        cx.querySelectorAll('[data-desce]').forEach(b => b.addEventListener('click', () => mover(b.dataset.desce, 1)));
+        cx.querySelectorAll('[data-edita]').forEach(b => b.addEventListener('click', () => editarRota(b.dataset.edita, abrirRotas)));
+        cx.querySelectorAll('[data-apaga]').forEach(b => b.addEventListener('click', () => {
+          const i = rotas.findIndex(r => r.id === b.dataset.apaga);
+          if (i >= 0) { rotas.splice(i, 1); U.DB.save(); toast('Rota apagada'); abrirRotas(); }
+        }));
+        cx.querySelector('#rota-nova').addEventListener('click', () => {
+          const nova = { id: 'r' + Date.now().toString(36), nome: 'Nova rota', seq: ['s1', 'aa'],
+                         prio: rotas.length + 1, porque: 'Rota sua.', origem: 'sua' };
+          rotas.push(nova); U.DB.save();
+          editarRota(nova.id, abrirRotas);
+        });
+      });
+  }
+
   function depoisAgora() {
     desenharMedidores($('#tela-agora'));
+    $$('#tela-agora [data-jing]').forEach(b => b.addEventListener('click', () => {
+      if (b.dataset.jing === 'rotas') return abrirRotas();
+      const dr = D.porId(b.dataset.jing);
+      if (dr) U.T.abrirBloco(dr, CT.estado(dr.id).dif);
+    }));
     $$('#tela-agora [data-mapa]').forEach(b => b.addEventListener('click', () => {
       const dr = D.porId(b.dataset.mapa);
       if (dr) U.T.abrirBloco(dr, CT.estado(dr.id).dif);
@@ -1505,7 +1645,7 @@
         com argumento.</div>
         <div class="pilha" style="gap:3px;margin-top:7px">
           ${DS.REGRAS.map((r, i) => `<div class="mini"><span class="xs" style="color:var(--dim2)">${i + 1}.</span>
-            <code>${r.id}</code> — ${r.titulo}</div>`).join('')}
+            ${r.titulo}</div>`).join('')}
         </div>
       </div>
     </div>`;
@@ -1566,20 +1706,28 @@
     });
   }
 
-  function editarRota(id) {
+  function editarRota(id, depois) {
     const rota = CO.rotaPorId(id);
     if (!rota) return;
+    const kit = U.HE && U.HE.kitDoTreino ? U.HE.kitDoTreino('jing') : null;
+    const rot = (k) => {
+      const n = rotuloKit(k, kit);
+      return `${(H.getHud()[k] || {}).curto || k}${n ? `<span style="display:block;font-size:.55rem;opacity:.7;font-weight:600">${U.esc(n)}</span>` : ''}`;
+    };
     let seq = rota.seq.slice();
     const botoes = ['s1', 's2', 's3', 'aa', 'flash', 'it1', 'it2'];
     const desenha = (cx) => {
       cx.querySelector('#seq').innerHTML = seq.length
-        ? seq.map((k, i) => `<button class="btn sec sm" data-rm="${i}">${(H.getHud()[k] || {}).curto || k} ✕</button>`).join('')
+        ? seq.map((k, i) => `<button class="btn sec sm" data-rm="${i}">${rot(k)} ✕</button>`).join('')
         : '<span class="mini">vazia</span>';
       cx.querySelectorAll('[data-rm]').forEach(b => b.addEventListener('click', () => { seq.splice(+b.dataset.rm, 1); desenha(cx); }));
     };
     modal(`
-      <h2 style="margin:0 0 4px">${rota.nome}</h2>
-      <div class="mini" style="margin-bottom:8px">${rota.porque}</div>
+      <h2 style="margin:0 0 4px">Editar rota</h2>
+      <input id="rota-nome" class="entrada" maxlength="24" value="${U.esc(rota.nome)}"
+        style="width:100%;margin:2px 0 6px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg2);color:var(--txt);font-weight:700">
+      <div class="mini" style="margin-bottom:8px">${U.esc(rota.porque || '')}
+        ${rota.origem !== 'sua' ? '<br><span class="xs">Esta rota veio com o app, montada a partir da descrição do kit. Ao salvar, ela passa a ser sua.</span>' : ''}</div>
       ${id === 'marca' ? `<div class="aviso bad">Esta é a rota de referência das medidas. Mudar a sequência
         torna as medidas antigas incomparáveis com as novas — o sistema vai avisar, mas a série anterior
         perde o sentido.</div>` : ''}
@@ -1587,7 +1735,7 @@
       <div class="flex wrap" id="seq" style="gap:6px;margin:6px 0 10px;min-height:44px"></div>
       <div class="mini"><b>Adicionar</b></div>
       <div class="flex wrap" style="gap:6px;margin-top:6px">
-        ${botoes.map(k => `<button class="btn sm" data-add="${k}">${(H.getHud()[k] || {}).curto || k}</button>`).join('')}
+        ${botoes.map(k => `<button class="btn sm" data-add="${k}">${rot(k)}</button>`).join('')}
       </div>
       <div class="flex" style="margin-top:12px;gap:8px">
         <button class="btn sec full sm" data-fecha>Cancelar</button>
@@ -1600,7 +1748,12 @@
         }));
         cx.querySelector('#salvar-rota').addEventListener('click', () => {
           if (!seq.length) return toast('Precisa de ao menos um toque');
-          rota.seq = seq; U.DB.save(); fecharModal(); toast('Rota salva', 'ok'); render('config');
+          const nome = (cx.querySelector('#rota-nome').value || '').trim();
+          if (nome) rota.nome = nome;
+          rota.seq = seq; rota.origem = 'sua'; U.DB.save();
+          toast('Rota salva', 'ok');
+          if (depois) return depois();
+          fecharModal(); render();
         });
       });
   }

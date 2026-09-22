@@ -145,6 +145,32 @@
       this.variante = cfg.variante ? (cfg.varianteProb ?? 0.4) : 0;
       this.trocaProb = cfg.troca || 0;
 
+      /* ------------------------------------------------------------
+         ESCADA VIVA — adaptação DENTRO do bloco (ver js/escada.js).
+
+         Só em treino: prova e retenção são condição fixa por definição.
+         E só fora da Reconexão: lá o alvo é 92%, e a simulação mostrou
+         a escada quebrando nesse alvo (viés de +90 a +150 ms, limiar em
+         menos de metade dos blocos) — com erro tão raro quase não há
+         vales. Além disso a Reconexão existe para você errar pouco
+         enquanto reencontra a rota, e uma escada vive de erro. Lá quem
+         adapta é o controlador entre blocos, que mira 92% sem problema.
+         ------------------------------------------------------------ */
+      this.escadaViva = null;
+      this.escadaOrigem = null;
+      if (cfg.escadaViva && U.ES && this.mo === 'treino' && U.CT.fase() !== 'reconexao') {
+        const ev = cfg.escadaViva;
+        const salvo = U.ES.inicioSalvo(cfg.drillId);
+        const recente = salvo ? null : this.inicioPelosTempos(cfg.drillId);
+        const inicio = salvo ? salvo.valor : recente != null ? recente : ev.inicio;
+        this.escadaOrigem = salvo ? 'escada' : recente != null ? 'tempos' : 'configuracao';
+        this.escadaViva = new U.ES.EscadaPonderada({
+          inicio, passo: ev.passo ?? 25, passoFino: ev.passoFino ?? 12,
+          min: ev.min, max: ev.max, dificilE: 'menor',
+          alvo: U.clamp(U.CT.alvoAtual(), 0.80, 0.85),
+        });
+      }
+
       if (cfg.dispersao) {
         const ids = [...new Set(this.rotas.flat())];
         this.hud.nuvem = null;
@@ -190,11 +216,14 @@
         const vis = this.ocultarUltimo ? this.rota.slice(0, -1).concat(['?']) : this.rota;
         this.hud.setOverlay({
           texto: vis.map(k => k === '?' ? '?' : ((H.getHud()[k] || {}).curto || k)).join(' › '),
-          sub: c.mostrarRota === 'antes' ? 'memorize — vai sumir' : 'execute nesta ordem',
+          sub: (c.mostrarRota === 'antes' ? 'memorize — vai sumir' : 'execute nesta ordem')
+               + (this.escadaViva ? ` · limite ${this.alvoTentativa()} ms` : ''),
           tam: 0.15, cor: '#c4b5fd',
         });
       } else if (this.i === 1) {
-        this.hud.setOverlay({ texto: 'DE MEMÓRIA', sub: 'a rota não vai mais aparecer', tam: 0.12, cor: '#ffd479' });
+        this.hud.setOverlay({ texto: 'DE MEMÓRIA',
+          sub: 'a rota não vai mais aparecer' + (this.escadaViva ? ` · limite ${this.alvoTentativa()} ms` : ''),
+          tam: 0.12, cor: '#ffd479' });
       }
       this.estado = 'preparo';
       this.T.after(mostra ? (c.tempoLeitura || 1000) : (this.i === 1 ? 1600 : 350), () => this.armar());
@@ -253,7 +282,7 @@
       }
 
       if (c.dupla) {
-        this.T.after(U.rnd(180, Math.max(400, (c.alvoMs || 1200) * 0.7)), () => {
+        this.T.after(U.rnd(180, Math.max(400, (this.alvoTentativa() || 1200) * 0.7)), () => {
           if (this.estado !== 'executando') return;
           this.secEsperado = U.ri(0, 3); this.secT = U.now();
           this.hud.quadAceso = this.secEsperado; U.Sfx.tick();
@@ -306,7 +335,7 @@
         this.trocaNoPasso = U.ri(1, this.rota.length - 2);
       } else this.trocaNoPasso = -1;
 
-      const lim = (c.deadline || (c.modo === 'compasso'
+      const lim = (this.prazoTentativa() || (c.modo === 'compasso'
         ? (this.rota.length + 1.6) * c.beat : 900 + this.rota.length * 900)) * this.deadlineExtra;
       this.T.after(lim, () => {
         if (this.estado !== 'executando') return;
@@ -340,8 +369,39 @@
 
     ikiEstimado() {
       if (this.ikisSet.length >= 4) return U.median(this.ikisSet);
-      if (this.cfg.alvoMs && this.rota) return this.cfg.alvoMs / Math.max(1, this.rota.length);
+      const alvo = this.alvoTentativa();
+      if (alvo && this.rota) return alvo / Math.max(1, this.rota.length);
       return 320;
+    }
+
+    /* Tempo-alvo e prazo DESTA tentativa. Com a escada viva eles saem
+       do nível atual dela, em ms por passo, vezes o tamanho da rota
+       sorteada — rotas de tamanhos diferentes no mesmo bloco pedem o
+       mesmo ritmo, não o mesmo total. Sem escada, valem os do bloco. */
+    alvoTentativa() {
+      if (this.escadaViva && this.rota) return Math.round(this.escadaViva.valor * this.rota.length);
+      return this.cfg.alvoMs;
+    }
+    prazoTentativa() {
+      if (this.escadaViva && this.rota) return Math.round(this.escadaViva.valor * this.rota.length * 1.7 + 500);
+      return this.cfg.deadline;
+    }
+
+    /**
+     * Onde a escada começa quando não há escada anterior salva: um pouco
+     * acima dos seus tempos reais recentes. Na simulação, partir dos seus
+     * tempos (mesmo com 20% de erro) deixou o limiar existir em 69% dos
+     * blocos, contra 48% partindo do nível configurado — que não sabe
+     * nada de você.
+     */
+    inicioPelosTempos(drillId) {
+      const pega = (f) => MD.filtrar({ k: 'rota', dias: 21 })
+        .filter(x => x.ok && x.tot && x.x && x.x.passos >= 2 && f(x))
+        .map(x => x.tot / x.x.passos);
+      let a = pega(x => x.d === drillId);
+      if (a.length < 8) a = pega(x => x.d === 'rota' || x.d === 'trajeto');
+      if (a.length < 8) return null;
+      return U.median(a) * 1.15;
     }
 
     destacar() {
@@ -462,7 +522,8 @@
           this.regParada(false); this.semSinal = true;
         }
         const total = t - this.t0;
-        if (this.cfg.alvoMs && total > this.cfg.alvoMs) return this.encerrar(false, 'lento', { total });
+        const alvoT = this.alvoTentativa();
+        if (alvoT && total > alvoT) return this.encerrar(false, 'lento', { total });
         return this.encerrar(true, null, { total });
       }
       this.destacar();
@@ -524,8 +585,22 @@
           vr: this.vrAtual,
           sw: this.trocaNoPasso > 0 ? (this.trocaFeita ? 1 : 0) : undefined,
           lat: this.latTroca != null ? Math.round(this.latTroca) : undefined,
+          /* o nível da escada NESTA tentativa, em ms por passo: sem ele não
+             dá para reconstruir depois a trilha nem conferir o limiar */
+          esc: this.escadaViva ? Math.round(this.escadaViva.valor) : undefined,
         },
       });
+
+      /* Só entra na escada o que testou o seu ritmo. Toque no botão colado
+         testou o layout; tentativa perturbada ou com botões trocados testou
+         outra coisa de propósito; tentativa de parada testou o freio.
+         Deixar qualquer uma delas mover a escada culparia o tempo por um
+         erro que não é dele. */
+      if (this.escadaViva) {
+        const conta = this.pertAtual === 'nenhuma' && this.vrAtual === 'base'
+                      && e2 !== 'layout' && !tipoParada;
+        if (conta) this.escadaViva.registrar(okF);
+      }
 
       const msg = okF
         ? (this.cfg.modo === 'compasso' ? 'no compasso' : total ? `${Math.round(total)}ms` : 'certo')
@@ -566,6 +641,10 @@
         };
       }
       if (this.desviosSet) o.compasso = U.mean(this.desviosSet);
+      if (this.escadaViva) {
+        o.escadaViva = { ...this.escadaViva.limiar(), origem: this.escadaOrigem,
+                         faixa: (this.cfg.escadaViva || {}).faixa || null };
+      }
       return o;
     }
   }

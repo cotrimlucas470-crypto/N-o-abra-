@@ -514,6 +514,16 @@
       o_que: 'Botão errado e longe do pretendido: a ordem ainda não está gravada.',
       acao: 'Rota mais curta e ritmo marcado. Acelerar agora multiplica o erro.',
     },
+    reset: {
+      nome: 'Perdeu o reset', cor: 'atencao',
+      o_que: 'O espelho quebrou e a 1 e a 2 voltaram, mas você não soltou nenhuma a tempo.',
+      acao: 'Deixe o polegar já em cima da 1 quando as marcas estiverem as duas no alvo. O reset não espera: a luta segue sem ele.',
+    },
+    recarga: {
+      nome: 'Passiva travada', cor: 'serie1',
+      o_que: 'Você apertou a 1 ou a 2 com a passiva travada — nada quebrou, a habilidade estava em recarga, o toque foi perdido.',
+      acao: 'Nos 5 s depois de uma quebra não existe reset. Olhe o botão P antes de decidir: a trava está desenhada nele.',
+    },
     posicao: {
       nome: 'Lugar', cor: 'serie1',
       o_que: 'Você leu o sinal certo mas apontou na área errada do mapa.',

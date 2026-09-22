@@ -1052,19 +1052,33 @@
         c.shadowBlur = 0;
       }
 
-      // recarga
+      /* recarga — como no jogo: o botão inteiro escurece e a fatia que
+         falta gira por cima. Só a fatia, num corpo que já é escuro, some
+         na tela do celular; o botão apagado é o que o olho pega de relance. */
       if (st.cd > 0) {
-        c.globalAlpha = 0.62; c.fillStyle = '#05070c';
+        c.globalAlpha = 0.38; c.fillStyle = '#05070c';
+        c.beginPath(); c.arc(p.x, p.y, r, 0, 6.2832); c.fill();
+        c.globalAlpha = 0.72;
         c.beginPath(); c.moveTo(p.x, p.y);
         c.arc(p.x, p.y, r, -Math.PI / 2, -Math.PI / 2 + 6.2832 * st.cd);
         c.closePath(); c.fill(); c.globalAlpha = 1;
+        if (st.cdCor) {
+          c.strokeStyle = st.cdCor; c.lineWidth = 4;
+          c.beginPath(); c.arc(p.x, p.y, r + 2, -Math.PI / 2, -Math.PI / 2 + 6.2832 * st.cd); c.stroke();
+        }
       }
 
-      // rótulo
-      c.fillStyle = bloq ? '#4a5566' : (destaque ? '#ffffff' : '#c9d6ec');
-      c.font = `800 ${Math.round(r * 0.78)}px ui-rounded, system-ui, sans-serif`;
+      // rótulo — com contagem, o número toma o lugar do nome
       c.textAlign = 'center'; c.textBaseline = 'middle';
-      c.fillText(st.rotulo || b.curto, p.x, p.y + r * 0.02);
+      if (st.cd > 0 && st.cdTxt) {
+        c.fillStyle = st.cdCor || '#ffffff';
+        c.font = `800 ${Math.round(r * 0.66)}px ui-rounded, system-ui, sans-serif`;
+        c.fillText(st.cdTxt, p.x, p.y + r * 0.02);
+      } else {
+        c.fillStyle = bloq ? '#4a5566' : (destaque ? '#ffffff' : (st.cd > 0 ? '#7d8aa3' : '#c9d6ec'));
+        c.font = `800 ${Math.round(r * 0.78)}px ui-rounded, system-ui, sans-serif`;
+        c.fillText(st.rotulo || b.curto, p.x, p.y + r * 0.02);
+      }
 
       c.restore();
     }

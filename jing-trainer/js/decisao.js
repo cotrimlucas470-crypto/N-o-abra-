@@ -368,6 +368,16 @@
     };
   }
 
-  U.DS = { PISO, REGRAS, contexto, decidir, plano, situacao };
+  /* O identificador interno da regra não vai para a tela. O que interessa
+     a quem treina é ONDE ela está na fila: as regras são lidas em ordem e
+     a primeira que dispara decide, então "nº 5 de 19" diz que as quatro
+     de cima não se aplicavam agora. */
+  function rotuloRegra(id) {
+    const i = REGRAS.findIndex(r => r.id === id);
+    if (i >= 0) return `nº ${i + 1} de ${REGRAS.length}`;
+    return ({ final_cego: 'da última tentativa', rodizio: 'do rodízio' })[id] || '—';
+  }
+
+  U.DS = { PISO, REGRAS, contexto, decidir, plano, situacao, rotuloRegra };
 
 })(window.U);

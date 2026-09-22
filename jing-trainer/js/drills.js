@@ -80,11 +80,12 @@
         const rotas = (pr && pr.ok && pr.rotas.length) ? pr.rotas
                     : [['s1', 'aa'], ['aa', 's2'], ['s2', 's3']];
         return {
-          tentativas: 18, modo: 'livre', mostrarRota: d < 5 ? 'sempre' : 'antes',
+          tentativas: 24, modo: 'livre', mostrarRota: d < 5 ? 'sempre' : 'antes',
           rotas, esquema: d < 4 ? 'bloco' : 'serial',
           tempoLeitura: Math.round(escala(d, 900, 380)),
           deadline: Math.round(escala(d, 1600, 700)),
           alvoMs: Math.round(escala(d, 900, 380)),
+          escadaViva: { inicio: escala(d, 450, 190), passo: 25, passoFino: 12, min: 100, max: 600, faixa: [450, 190] },
           isiMin: 320, isiMax: Math.round(escala(d, 800, 1300)),
         };
       },
@@ -136,9 +137,10 @@
       id: 'rota', nome: 'Rota', motor: 'sequencia', mede: 'execucao', categoria: 'mecanica',
       objetivo: 'Encontrar o tempo de rota que você sustenta — e empurrá-lo.',
       comoFunciona: [
-        'Execute a rota mostrada dentro do tempo limite.',
+        'Execute a rota mostrada dentro do tempo limite. O limite aparece junto da rota, em ms.',
+        'Ele se ajusta <b>a cada tentativa</b>: acertou, ele fecha um pouco; errou, ele abre bem mais. A diferença entre os dois passos é o que faz ele parar exatamente no ponto em que você acerta 85%.',
         'O limite não é um recorde: é o tempo que você precisa <b>repetir</b> sem quebrar.',
-        'Conforme você acerta, ele fecha. Se a taxa de erro sobe, ele volta sozinho.',
+        'O bloco começa um pouco acima de onde o último terminou — as primeiras tentativas são para aquecer, não para errar.',
         'Acima da dificuldade 6 o botão para de acender e a rota some antes do VAI.',
       ],
       porque: 'É a tarefa de referência do sistema. O número que ela produz — o tempo sustentado a 85% de acerto — é a medida de execução, e é ele que aparece no painel. O acerto em si não mede nada aqui: ele é mantido constante pelo controlador de propósito.',
@@ -147,10 +149,15 @@
         const passos = U.mean(rotas.map(r => r.length)) || 3;
         const porPasso = escala(d, 520, 190);
         return {
-          tentativas: 16, modo: 'livre', mostrarRota: ajudaPor(d),
+          /* 24 e não 16: na simulação, com 16 tentativas a escada quase
+             nunca oscila o bastante para achar dois vales */
+          tentativas: 24, modo: 'livre', mostrarRota: ajudaPor(d),
           rotas, esquema: d < 3 ? 'bloco' : d < 5 ? 'serial' : 'aleatorio',
           alvoMs: Math.round(porPasso * passos),
           deadline: Math.round(porPasso * passos * 1.7 + 500),
+          /* faixa = ms por passo na dificuldade 1 e na 10: é por ela que o
+             limiar medido volta a ser uma dificuldade entre blocos */
+          escadaViva: { inicio: porPasso, passo: 25, passoFino: 12, min: 120, max: 650, faixa: [520, 190] },
           tempoLeitura: Math.round(escala(d, 950, 450)),
           /* variante e perturbação entram sozinhas na parte alta da escala:
              sem elas não dá para separar habilidade de padrão decorado */
@@ -304,6 +311,36 @@
         velMax: +escala(d, 0.10, 0.16).toFixed(3),
         voo: +escala(d, 0.30, 0.42).toFixed(2),
         heroiX: 0.34, heroiY: 0.52,
+      }),
+    },
+    /* ============================================================
+       QUEBRA DO ESPELHO — o reset da Jing
+
+       O único exercício do catálogo que só faz sentido para ela. A
+       mecânica vem do kit cruzado em dados/herois/_habilidades.js,
+       passiva com confiança alta: a quebra das duas marcas zera a 1 e
+       a 2, e a passiva trava por 5 s. Ver js/motor-reset.js para o que
+       é do jogo e o que é ilustrativo nesta tela.
+       ============================================================ */
+    {
+      id: 'espelho', nome: 'Quebra do Espelho', motor: 'reset', mede: null, categoria: 'reflexo',
+      objetivo: 'Pegar o reset da Jing na hora — e não apertar quando a passiva está travada.',
+      comoFunciona: [
+        'Abra com <b>1 › AA</b>: o avanço e o ataque duplo. As duas marcas aparecem no alvo — ◆ a sua, ◇ a da imagem.',
+        'Quando as marcas <b>quebram</b>, a recarga da 1 e da 2 some. Aperte uma das duas o mais rápido que der: é o reset, e o tempo é medido.',
+        'Depois da quebra a passiva <b>trava por 5 s</b> — o botão P mostra a trava correndo. Se as marcas fecharem de novo dentro desse tempo, <b>nada quebra</b>.',
+        'Apertar a 1 ou a 2 com a passiva travada é toque perdido: a habilidade está em recarga e o jogo ignora. Aqui isso conta como erro.',
+        'Olhe o P. Quem acompanha a trava sabe se o próximo reset vem — e já deixa a mão pronta.',
+        'Da dificuldade 6 em diante o segundo fechamento de marcas cai perto dos 5 s, que é onde a decisão é difícil de verdade.',
+      ],
+      porque: 'É o reset que faz da Jing um herói de explosão: quem solta a 1 e a 2 de novo na hora da quebra dobra o dano da troca; quem demora joga com metade. E o erro simétrico custa o mesmo — apertar com a passiva travada gasta o momento num toque que o jogo ignora. As duas coisas são percepção e resposta com o sinal que o próprio jogo dá, e por isso dá para treinar fora dele. O que este exercício NÃO simula é qual golpe completa a segunda marca: as buscas não deixam isso claro, e o treino não finge saber.',
+      cfg: (d) => ({
+        tentativas: 12,
+        janela: Math.round(escala(d, 1300, 550)),
+        estilhacos: Math.round(escala(d, 16, 4)),
+        fronteira: d >= 6,
+        esperaMin: 250, esperaMax: Math.round(escala(d, 900, 1500)),
+        limiteAbertura: 4500,
       }),
     },
     /* ============================================================

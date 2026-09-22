@@ -74,7 +74,7 @@
    * Ajusta a dificuldade de um exercício a partir do resultado do set.
    * Devolve o que mudou E por quê — a explicação é parte do produto.
    */
-  function ajustar(drillId, { acertos, n, erros = {}, cvRitmo = null, alvo = null }) {
+  function ajustar(drillId, { acertos, n, erros = {}, cvRitmo = null, alvo = null, difAlvo = null }) {
     const e = estado(drillId);
     const antes = e.dif;
     const meta = alvo != null ? alvo : alvoAtual();
@@ -96,7 +96,26 @@
     let delta = passo * (taxa - meta) * 10;
     let motivo;
 
-    if (w.lo > meta) motivo = 'acerto acima do alvo com folga — sobe';
+    if (difAlvo != null) {
+      /* ------------------------------------------------------------
+         COM ESCADA VIVA, O ACERTO NÃO DIZ NADA — o limiar diz.
+
+         A escada segura o acerto perto de 85% por construção, então a
+         regra de sempre ("acertou mais que o alvo, sobe") nunca mais
+         dispararia, e a dificuldade ficaria parada para sempre. Junto
+         com ela ficariam paradas a ajuda visual, o esquema de rotas, a
+         variante e a perturbação, que dependem desse mesmo número.
+
+         Então o controlador passa a seguir o LIMIAR medido: ele diz qual
+         dificuldade corresponde ao ritmo que você de fato sustenta, e o
+         nível anda até lá — 60% do caminho por bloco, para um bloco
+         esquisito não arrastar tudo.
+         ------------------------------------------------------------ */
+      delta = (difAlvo - antes) * 0.6;
+      motivo = `a escada mediu o seu limiar e ele corresponde à dificuldade ${difAlvo.toFixed(1)}`
+             + (Math.abs(delta) < 0.1 ? ' — você já está nela' : ' — o nível anda até lá');
+    }
+    else if (w.lo > meta) motivo = 'acerto acima do alvo com folga — sobe';
     else if (w.hi < meta) motivo = 'acerto abaixo do alvo com folga — desce';
     else { delta *= 0.45; motivo = 'acerto dentro da margem do alvo — ajuste fino'; }
 
@@ -174,6 +193,43 @@
     if (d.limiar.length > 80) d.limiar = d.limiar.slice(-80);
     const e = estado(drillId);
     if (e.melhorLimiar == null || alvoMs < e.melhorLimiar) e.melhorLimiar = Math.round(alvoMs);
+    U.DB.save();
+    return reg;
+  }
+
+  /* ------------------------------------------------------------
+     LIMIAR DA ESCADA — um por sessão, refinado a cada bloco.
+
+     O caminho antigo só registrava limiar depois de quatro blocos com
+     a dificuldade parada. A escada mede um em cada sessão. Blocos da
+     mesma sessão NÃO viram entradas separadas: eles continuam a mesma
+     escada, e contá-los como medidas independentes faria a medida de
+     Execução declarar uma confiança que não tem. Então a entrada da
+     sessão é substituída a cada bloco pela conta com todos os vales.
+
+     O valor é guardado em ms para uma rota de três passos, a mesma
+     régua das entradas antigas, para as duas séries serem comparáveis.
+     ------------------------------------------------------------ */
+  function registrarLimiarEscada(drillId, ses, passosRef = 3) {
+    if (!ses || !ses.ok) return null;
+    const d = U.DB.load();
+    if (!d.limiar) d.limiar = [];
+    const reg = {
+      t: Date.now(), drill: drillId, fonte: 'escada',
+      ms: Math.round(ses.v * passosRef),
+      lo: ses.lo != null ? Math.round(ses.lo * passosRef) : null,
+      hi: ses.hi != null ? Math.round(ses.hi * passosRef) : null,
+      vales: ses.n, blocos: ses.blocos, sessao: ses.t0,
+    };
+    const ult = d.limiar[d.limiar.length - 1];
+    if (ult && ult.fonte === 'escada' && ult.drill === drillId && ult.sessao === ses.t0) {
+      d.limiar[d.limiar.length - 1] = reg;
+    } else {
+      d.limiar.push(reg);
+    }
+    if (d.limiar.length > 80) d.limiar = d.limiar.slice(-80);
+    const e = estado(drillId);
+    if (e.melhorLimiar == null || reg.ms < e.melhorLimiar) e.melhorLimiar = reg.ms;
     U.DB.save();
     return reg;
   }
@@ -260,7 +316,7 @@
     return d.baseRecuperacao;
   }
 
-  U.CT = { FASES, LIM, estado, fase, alvoAtual, ajustar, estavel,
+  U.CT = { FASES, LIM, estado, fase, alvoAtual, ajustar, estavel, registrarLimiarEscada,
            registrarLimiar, avaliarFase, recuperacao, definirBase };
 
 })(window.U);

@@ -1,5 +1,5 @@
 ================================================================
-ESPELHO v16 — Mira, e a nuvem do polegar à vista
+ESPELHO v17 — A escada viva, e a Quebra do Espelho
 Honor of Kings · Poco X7 Pro · HTML/CSS/JS, sem dependências
 ================================================================
 
@@ -14,6 +14,174 @@ todo número daqui sai de toques sobre a réplica. Se ela não bate com o seu
 jogo, tudo o que vier depois mede a coisa errada.
 
 Seus dados da v1 e da v2 continuam lá. Nada é apagado.
+
+
+================================================================
+PARTE -11 — V17: A ESCADA VIVA E A QUEBRA DO ESPELHO
+================================================================
+
+O QUE VOCÊ PEDIU
+
+   Adaptação de dificuldade, treinos focados no Honor of Kings e na
+   Jing, e melhoria geral. Três coisas mudaram de verdade.
+
+----------------------------------------------------------------
+1. A DIFICULDADE AGORA SE AJUSTA DENTRO DO BLOCO
+----------------------------------------------------------------
+
+O PROBLEMA
+
+   Até a v16 a dificuldade só mudava ENTRE blocos. Um bloco inteiro
+   rodava num nível só — e se o nível estava errado, a maior parte
+   das tentativas era fácil demais (repetição) ou difícil demais
+   (erro em série). E o limiar só era registrado depois de quatro
+   blocos seguidos com a dificuldade parada.
+
+O QUE ENTROU: A ESCADA PONDERADA (Kaernbach, 1991)
+
+   Na Rota e no Trajeto, cada acerto deixa o limite de tempo um passo
+   mais curto; cada erro deixa ele mais longo por um passo 5,7 vezes
+   MAIOR. Essa razão (85 ÷ 15) faz a escada assentar exatamente no
+   ponto em que você acerta 85%: ela não precisa saber o seu nível,
+   ela o encontra. O passo começa grosso (25 ms) e fica fino (12 ms)
+   depois das duas primeiras viradas.
+
+   Na tela, o limite aparece no alto ("limite 870 ms"), e errar por
+   tempo nessa escada é O ESPERADO: é assim que ela acha o seu teto.
+
+O NÚMERO QUE SAI — ESCOLHIDO POR SIMULAÇÃO
+
+   Antes de ligar a escada, ela foi rodada contra jogadores simulados
+   de limiar conhecido, milhares de blocos cada:
+
+   · a média clássica das viradas errou 35 a 55 ms para o lado fácil,
+     e o intervalo dela cobria a verdade em só 61 a 91% das vezes;
+   · a média dos VALES (onde você errou depois de acertos) foi a de
+     menor erro — e é a que ficou;
+   · com meio passo fino somado de volta (a geometria da escada põe
+     o erro, em média, meio passo além do limiar), o pior viés em
+     sete jogadores diferentes caiu de 8,5% para 6,2%;
+   · o intervalo é alargado 1,5× porque os vales não são
+     independentes; assim ele cobre a verdade em 90 a 98% das vezes,
+     em vez de 81 a 89%;
+   · 24 tentativas por bloco e não 16 (com 16 a escada quase nunca
+     chegava à fase fina), e dois vales bastam (exigir três derrubou a
+     disponibilidade de 70% para 16% dos blocos sem melhorar o erro).
+
+   Os vales de todos os blocos da mesma sessão (6 horas) somam: o
+   segundo bloco retoma a escada de onde o primeiro parou (com 12% de
+   folga para o lado fácil), então juntar os vales é o mesmo que ter
+   rodado uma escada mais longa.
+
+O QUE A ESCADA SE RECUSA A DIZER
+
+   · Menos de dois vales: não há limiar, há um valor provisório.
+   · Bateu no limite difícil do exercício: o número é um PISO, não
+     uma medida — você está além do que o exercício consegue pedir.
+   · Bateu no limite fácil: o problema não é velocidade.
+
+ONDE ELA NÃO ENTRA, DE PROPÓSITO
+
+   Visão de mapa e Leitura (lá o espalhamento dos níveis É a medida),
+   Freio (já tem a escada certa, a 50%), Ritmo, Carga e Andando (o
+   erro neles não é só de tempo), Mira (cada tiro já dá um número
+   contínuo em graus) e a fase de Reconexão (a 92% de acerto a escada
+   fica instável demais para medir).
+
+ENTRE BLOCOS
+
+   Com a escada segurando o acerto em 85%, a regra antiga ("acertou
+   mais que o alvo, sobe") nunca mais dispararia. Então o nível passa
+   a seguir o LIMIAR medido: ele anda 60% do caminho até a
+   dificuldade que corresponde ao ritmo que você sustenta. E o limiar
+   da sessão entra nas Medidas como limiar de execução, marcado como
+   vindo da escada.
+
+NO RESULTADO
+
+   Um gráfico da trilha do bloco: cada tentativa (verde acertou,
+   vermelho errou), os vales em dourado, a linha tracejada do limiar
+   com a faixa de incerteza e o ponto onde o passo ficou fino.
+
+----------------------------------------------------------------
+2. QUEBRA DO ESPELHO — O TREINO DA MECÂNICA DA JING
+----------------------------------------------------------------
+
+DE ONDE VEM
+
+   Do kit da Jing no banco (dados/herois/_habilidades.js), passiva
+   com confiança ALTA: a Jing e a imagem aplicam marcas diferentes;
+   com as duas no alvo elas quebram, dão dano e ZERAM a recarga da
+   Habilidade 1 (Reflective Assault) e da 2 (Shattered Illusions).
+   Depois disso a passiva (Lethal Reflections) fica travada por 5 s.
+
+O QUE É TREINADO
+
+   1. Pegar o reset: abra com 1 › AA; quando o espelho quebra, solte
+      a 1 ou a 2 o mais rápido possível. O tempo é medido.
+   2. Não apertar sem reset: nos 5 s de trava as marcas podem fechar
+      de novo e NADA quebra. Apertar aí é toque perdido. O botão P
+      mostra a trava em vermelho, com a contagem em segundos.
+
+   Metade dos segundos fechamentos é real e metade cai na trava,
+   sempre embaralhado — chutar não compensa. Da dificuldade 6 em
+   diante eles caem perto dos 5 s, onde a decisão é difícil. A
+   janela para soltar vai de 1,3 s (dif 1) a 0,55 s (dif 10).
+
+O QUE É ILUSTRATIVO
+
+   A duração da recarga da 1 e da 2 (o banco não tem esse número),
+   o boneco e o desenho das marcas. Também NÃO é simulado qual golpe
+   completa a segunda marca — as buscas não deixam isso claro, e o
+   treino não finge saber.
+
+O RESULTADO
+
+   Tempo mediano até soltar depois da quebra (com intervalo), resets
+   pegos e perdidos, toques com a passiva travada, toques em recarga
+   antes do sinal, e o acerto perto dos 5 s — que diz se você está
+   acompanhando a trava ou adivinhando pelo tempo.
+
+----------------------------------------------------------------
+3. "SUA JING" NA TELA AGORA, E AS ROTAS EDITÁVEIS
+----------------------------------------------------------------
+
+   · O kit da Jing com a confiança de cada habilidade.
+   · Um atalho para a Quebra do Espelho, com o seu último resultado.
+   · As rotas ativas, em ordem, com os nomes das habilidades do jogo
+     e a origem marcada: EXEMPLO (veio com o app, montada a partir da
+     descrição do kit) ou SUA.
+   · "Editar rotas": mudar a ordem (▲▼ — as três primeiras são as que
+     Rota, Ritmo, Andando, Carga e Freio praticam), renomear, montar
+     a sequência, criar e apagar as suas.
+
+----------------------------------------------------------------
+4. O QUE MAIS MUDOU
+----------------------------------------------------------------
+
+   · Recarga no HUD como no jogo: o botão inteiro escurece e a fatia
+     que falta gira por cima. Antes era só a fatia, quase invisível
+     no corpo escuro do botão.
+   · A porcentagem no alto da tela usava "tentativa − 1" como
+     denominador; na Quebra do Espelho isso mostrava 73% quando o
+     certo era 67%. Agora usa o que já foi anotado.
+   · Os chips do alto da tela repetiam os do primeiro bloco em todos
+     os seguintes. Corrigido.
+   · Fechar um bloco durante o 3-2-1 e abrir outro logo em seguida
+     deixava a contagem antiga viva — ela dava a largada no bloco
+     novo antes da hora. Agora cada contagem só larga o próprio
+     motor.
+   · Os identificadores internos das regras (ex.: prova_inicial)
+     saíram da tela. A regra aparece pela posição na fila: "regra nº
+     5 de 18" — as de cima não se aplicavam agora.
+
+TESTES
+
+   55 verificações novas (escada: mecânica, convergência em 300
+   escadas simuladas, sessão, retomada, controlador; Quebra do
+   Espelho com quatro jogadores simulados; painel e editor de rotas;
+   nenhum identificador de código na tela), além de toda a bateria
+   anterior.
 
 
 ================================================================
