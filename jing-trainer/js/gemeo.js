@@ -365,7 +365,32 @@
              principal: ativos.length ? ativos[0] : null };
   }
 
-  U.GM = { PERTURBACOES, PISO, tradeoff, acertoInstavel, dependenciaDica, viesDecisao,
+  /* ============================================================
+     NOME DE CADA ACHADO, EM PORTUGUÊS
+
+     Os ids aqui são de código — `tradeoff`, `instavel`, `vies` — e
+     nunca deveriam chegar à tela. Chegavam: a lista de achados SEM
+     amostra suficiente imprimia o id cru, então o Estado dizia
+     "faltam tentativas para: tradeoff (6), instavel (20)" para
+     quem não tem como saber o que é nenhum dos dois.
+
+     O nome fica aqui, junto de quem define os achados, e não na
+     tela — assim um achado novo não tem como nascer sem nome.
+     ============================================================ */
+  const NOMES = {
+    tradeoff:    'Troca velocidade × precisão',
+    instavel:    'Acertos instáveis',
+    dica:        'Dependência da dica visual',
+    vies:        'Viés de decisão',
+    perturbacao: 'Perturbação que derruba',
+    decorado:    'Padrão decorado',
+    troca:       'Custo de trocar de plano',
+    confianca:   'Confiança descalibrada',
+  };
+  const nomeAchado = (id) => NOMES[id] || id;
+
+  U.GM = { PERTURBACOES, PISO, NOMES, nomeAchado,
+           tradeoff, acertoInstavel, dependenciaDica, viesDecisao,
            sensibilidade, padraoDecorado, trocaPlano, confianca, achados };
 
 })(window.U);

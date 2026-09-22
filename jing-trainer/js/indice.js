@@ -36,7 +36,7 @@
   }
 
   /* ============================================================
-     OS DEZ EIXOS
+     OS EIXOS
      k = peso do passado no encolhimento. Vem da amostra mínima do
      tipo de medida: quanto mais ruidosa a medida, maior o k.
      ============================================================ */
@@ -239,6 +239,34 @@
         return { v: U.clamp(pV / pB, 0, 1.2) * 100, n: vari.length,
                  nef: Math.min(vari.length, base.length), ic: [null, null],
                  fonte: `${vari.length} variantes contra ${base.length} treinadas` };
+      },
+    },
+    /* ------------------------------------------------------------
+       VISÃO DE MAPA
+
+       O único eixo cuja unidade é SEGUNDOS de memória, e não tempo
+       de reação. Ele não pergunta se você acerta: pergunta por
+       quanto tempo a informação sobrevive antes de você errar.
+
+       nef é o número de TEMPOS DE ESPERA distintos que sustentam o
+       ajuste, não o número de tentativas. Uma curva é um ajuste
+       sobre níveis; contar tentativas aqui declararia confiabilidade
+       de duzentas observações onde existem cinco pontos, que é o
+       mesmo erro que o eixo de Mecânica documenta logo acima.
+       ------------------------------------------------------------ */
+    {
+      id: 'visao', nome: 'Visão de mapa', k: 5, tipo: 'tempo',
+      pergunta: 'Por quantos segundos a informação do minimapa sobrevive na sua cabeça?',
+      ancora: [2, 12], unidade: 's', melhorE: 'maior',
+      ancoraNota: 'Segundos até o acerto de área cair a 70%. 2 s vale 0, 12 s vale 100 — a faixa vai do olhar que não codifica nada à memória que atravessa uma rotação inteira.',
+      medir() {
+        const m = MD.visaoMapa({ dias: 90 });
+        if (!m.ok || m.janela70 == null || !(m.janela70 > 0)) return null;
+        return {
+          v: U.clamp(m.janela70, 0, 20), n: m.n, nef: m.niveis,
+          ic: [null, null],
+          fonte: `ajuste sobre ${m.niveis} tempos de espera, ${m.n} sinais`,
+        };
       },
     },
   ];
@@ -558,8 +586,8 @@
     pontos.forEach((pt, i) => (pt.t < corte ? antigos : recentes).push(vals[i]));
     if (antigos.length < 2 || recentes.length < 2) return null;
     const ref = U.mean(antigos), agora = U.mean(recentes);
-    /* dez eixos aparecem juntos na tela de Estado; o selo de "real" de
-       cada um precisa aguentar o fato de eu estar olhando os dez. */
+    /* todos os eixos aparecem juntos na tela de Estado; o selo de "real" de
+       cada um precisa aguentar o fato de eu estar olhando todos. */
     const mr = S.mudancaReal(vals, agora - ref,
                              { n1: antigos.length, n2: recentes.length,
                                z: S.zParaMuitas(EIXOS.length) });
@@ -583,7 +611,7 @@
   }
 
   /* ============================================================
-     LIMITE DE PERFORMANCE
+     LIMITE DE DESEMPENHO
      Ajusta acerto(dificuldade) e devolve três níveis: onde você é
      consistente, onde começa a oscilar e onde quebra. Com taxa de
      lapso, porque falhas sem relação com a dificuldade enviesam

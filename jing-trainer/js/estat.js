@@ -358,7 +358,7 @@
     const e1 = amostraEfetiva(n1, ro), e2 = amostraEfetiva(n2, ro);
     /* O erro típico sozinho é um limiar de TRIAGEM, não um veredicto:
        exigir só "maior que o erro típico" deixa passar cerca de um terço
-       das comparações de puro ruído. Numa tela que mostra dez eixos com
+       das comparações de puro ruído. Numa tela que mostra vários eixos com
        selo de "real", isso vira várias mentiras por visita. O limiar é o
        erro da comparação multiplicado por z. */
     const ruido = z * et * Math.sqrt(1 / e1 + 1 / e2);

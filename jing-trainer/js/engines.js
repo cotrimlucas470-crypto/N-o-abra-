@@ -4,7 +4,7 @@
    ------------------------------------------------------------
    Mudanças de fundo em relação à V1:
 
-   · Feedback desvanecido REMOVIDO. A meta-análise de 2022 sobre
+   · Retorno desvanecido REMOVIDO. A meta-análise de 2022 sobre
      frequência reduzida de retorno não sustenta a hipótese da
      orientação. Manter um mecanismo que confunde a leitura do
      jogador sem evidência a favor é custo sem benefício.

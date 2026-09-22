@@ -283,6 +283,114 @@
   }
 
   /** CUSTO DA DECISÃO — derivada, exige muito mais dados. */
+  /* ============================================================
+     VISÃO DE MAPA — a janela de memória, em SEGUNDOS
+
+     O exercício de mapa sorteia de propósito o tempo entre o sinal
+     e a pergunta. Isso dá, para cada tempo, uma taxa de acerto — e
+     um conjunto de pares (tempo, acerto) é exatamente a entrada do
+     ajuste psicométrico que já existe neste arquivo para outra
+     coisa. A curva desce em vez de subir, o que não muda nada: o
+     ajuste procura onde ela cruza uma taxa alvo.
+
+     O resultado é a única frase que importa aqui: POR QUANTOS
+     SEGUNDOS a informação do mapa sobrevive na sua cabeça. Um "%
+     de acerto" não responde isso, porque mistura tentativas de 2
+     segundos com tentativas de 10.
+
+     Por que o segundo inteiro e não o meio segundo: os tempos
+     exatos mudam com a dificuldade, então agrupar pelo valor cru
+     faria dezenas de níveis com duas tentativas cada — e o ajuste
+     exige níveis com amostra, não níveis.
+     ============================================================ */
+  function visaoMapa({ dias = 0, drill = null } = {}) {
+    const t = filtrar({ k: 'mapa', dias, drill }).filter(x => x.x && x.x.ret != null);
+    const base = { id: 'visaoMapa', n: t.length };
+    if (!t.length) return { ...base, ok: false, motivo: 'Nenhum bloco de visão de mapa ainda.', falta: 60 };
+
+    /* agregados que existem com qualquer amostra */
+    const erros = t.filter(x => x.x.e != null).map(x => x.x.e);
+    const porZona = {}, porObjetivo = {};
+    for (const x of t) {
+      if (x.x.z) {
+        const e = porZona[x.x.z] || (porZona[x.x.z] = { ok: 0, n: 0 });
+        e.n++; e.ok += x.x.zo ? 1 : 0;
+      }
+      if (x.x.o) {
+        const e = porObjetivo[x.x.o] || (porObjetivo[x.x.o] = { ok: 0, n: 0 });
+        e.n++; e.ok += x.x.zo ? 1 : 0;
+      }
+    }
+    const agreg = {
+      erro: erros.length ? U.median(erros) : null,
+      zona: t.filter(x => x.x.zo).length / t.length,
+      leitura: t.filter(x => x.x.lo).length / t.length,
+      porZona, porObjetivo,
+      pontos: (() => {
+        const cx = {};
+        for (const x of t) {
+          const s = Math.max(1, Math.round(x.x.ret / 1000));
+          const e = cx[s] || (cx[s] = { x: s, k: 0, n: 0 });
+          e.n++; e.k += x.x.zo ? 1 : 0;
+        }
+        return Object.values(cx).sort((a, b) => a.x - b.x).map(p => ({ ...p, acc: p.k / p.n }));
+      })(),
+    };
+
+    const fit = S.ajustePsicometrico(agreg.pontos);
+    if (!fit.ok) {
+      return { ...base, ...agreg, ok: false, fit,
+               motivo: `Para a janela de memória existir eu preciso de ${fit.motivo}. Ela é um ajuste sobre acerto × tempo de espera, e não uma média — por isso exige espalhamento e não só volume.` };
+    }
+
+    /* ------------------------------------------------------------
+       NENHUMA JANELA PODE SAIR DE FORA DO QUE FOI TESTADO.
+
+       O ajuste é uma curva contínua e responde qualquer pergunta que
+       eu fizer, inclusive as que os dados não sustentam: com esperas
+       de 2 a 10 segundos ele devolve alegremente onde você cruzaria
+       70% aos -0,1 s ou aos 40 s. Os dois são invenção — o primeiro
+       nem existe como grandeza.
+
+       Então uma janela só é relatada se ela cair ENTRE a espera mais
+       curta e a mais longa que você de fato treinou. Fora disso o
+       painel diz o que sabe: que você já está abaixo (ou ainda
+       acima) daquela taxa na ponta que foi testada. Isso não é menos
+       informação que um número — é a informação que existe.
+       ------------------------------------------------------------ */
+    const xs = agreg.pontos.map(p => p.x);
+    const xMin = Math.min(...xs), xMax = Math.max(...xs);
+    const teto = 1 - fit.lambda;
+
+    const janela = (v, alvo) => {
+      if (teto < alvo) {
+        return { v: null, estado: 'teto',
+                 txt: `Mesmo na espera mais curta que você treinou (${xMin} s) o seu acerto não chega a ${Math.round(alvo * 100)}% — o teto da sua curva está em ${Math.round(teto * 100)}%. Isso não é memória curta, é sinal que não chegou a entrar.` };
+      }
+      if (v == null || !isFinite(v)) return { v: null, estado: 'semCruzamento', txt: null };
+      if (v < xMin) {
+        return { v: null, estado: 'abaixo',
+                 txt: `Você já está abaixo de ${Math.round(alvo * 100)}% na espera mais curta que treinou (${xMin} s).` };
+      }
+      if (v > xMax) {
+        return { v: null, estado: 'acima',
+                 txt: `Na espera mais longa que você treinou (${xMax} s) ainda está acima de ${Math.round(alvo * 100)}% — a janela real é maior que isso, e para medi-la eu preciso de esperas mais longas (sobe a dificuldade).` };
+      }
+      return { v, estado: 'ok', txt: null };
+    };
+
+    const j90 = janela(fit.consistente, 0.90);
+    const j70 = janela(fit.oscila, 0.70);
+    const j50 = janela(fit.quebra, 0.50);
+
+    return {
+      ...base, ...agreg, ok: true, fit, teto, xMin, xMax,
+      j90, j70, j50,
+      janela90: j90.v, janela70: j70.v, janela50: j50.v,
+      niveis: fit.niveis,
+    };
+  }
+
   function custoDecisao() {
     const iso = filtrar({ k: 'rota', dias: 45, ref: true });
     const jun = filtrar({ k: 'integra', dias: 45 });
@@ -447,7 +555,7 @@
   U.MD = {
     REF, MEDIDAS, DERIVADAS, ERROS,
     gravar, filtrar, tentativas,
-    execucao, estabilidade, leitura, curvaLeitura, aborto, retencao, custoDecisao,
+    execucao, estabilidade, leitura, curvaLeitura, aborto, retencao, custoDecisao, visaoMapa,
     painel, perfilErros, fadiga,
   };
 

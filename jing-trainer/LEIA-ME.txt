@@ -1,5 +1,5 @@
 ================================================================
-ESPELHO v14 — Visão de mapa
+ESPELHO v15 — A janela de memória e os pontos cegos
 Honor of Kings · Poco X7 Pro · HTML/CSS/JS, sem dependências
 ================================================================
 
@@ -14,6 +14,85 @@ todo número daqui sai de toques sobre a réplica. Se ela não bate com o seu
 jogo, tudo o que vier depois mede a coisa errada.
 
 Seus dados da v1 e da v2 continuam lá. Nada é apagado.
+
+
+================================================================
+PARTE -9 — V15: A JANELA, OS PONTOS CEGOS E O PORTUGUÊS
+================================================================
+
+A JANELA DE MEMÓRIA, EM SEGUNDOS
+
+   O treino de mapa já sorteava o tempo entre o sinal e a pergunta.
+   Faltava a conta que isso permite: pares de (tempo de espera,
+   taxa de acerto) são exatamente a entrada do ajuste psicométrico
+   que o app já tinha para outra coisa.
+
+   O resultado é a frase que interessa: POR QUANTOS SEGUNDOS a
+   informação do minimapa sobrevive na sua cabeça. Um "% de acerto"
+   não responde isso — ele mistura tentativas de 2 segundos com
+   tentativas de 10.
+
+   Vira o 11º eixo do Estado, o único medido em segundos de
+   memória e não em tempo de reação.
+
+   NENHUM NÚMERO SAI DE FORA DO QUE VOCÊ TREINOU. O ajuste é uma
+   curva contínua e responde qualquer pergunta, inclusive as que os
+   dados não sustentam: com esperas de 2 a 10 segundos ele devolvia
+   alegremente uma janela de -0,1 s. Agora uma janela só é relatada
+   se cair ENTRE a espera mais curta e a mais longa que você de
+   fato treinou. Fora disso o painel diz o que sabe:
+
+   · "você já está abaixo de 70% na espera mais curta que treinou";
+   · "na espera mais longa você ainda está acima — a janela é maior
+     que isto, e para medi-la eu preciso que a dificuldade suba".
+
+   E quando o TETO da curva fica baixo, o painel separa duas coisas
+   que pareciam uma: se você erra mesmo na espera mais curta, o
+   problema não é memória curta, é sinal que não chegou a ser
+   codificado. Um melhora com espera menor; o outro só melhora
+   olhando mais vezes.
+
+O MAPA DE PONTOS CEGOS
+
+   O mesmo minimapa, pintado pelo SEU acerto em cada região. É a
+   única forma de resposta que mostra o problema onde ele acontece:
+   "72% de acerto de área" não é acionável, mas um canto vermelho
+   no mapa diz que você não olha para aquele canto.
+
+   Região com menos de 4 sinais sai em cinza com "?" — falta de
+   amostra não é ponto cego, e pintar de vermelho um lugar onde
+   você respondeu duas vezes seria inventar um.
+
+   A cor nunca responde sozinha: o número vem junto sempre, porque
+   a rampa usa justamente o eixo vermelho-verde.
+
+NADA DE CÓDIGO NA TELA
+
+   O Estado dizia, em negrito: "faltam tentativas para: tradeoff
+   (6), instavel (20), vies (20)". São identificadores de código, e
+   quem lê não tem como saber o que é nenhum dos três. Agora cada
+   achado tem nome em português, guardado junto de quem o define —
+   assim um achado novo não nasce sem nome.
+
+   O mesmo valia para os exercícios e ajustes que um achado dispara
+   ("vira o exercício `rota` com ajuste `segurar_tempo`"), que agora
+   saem por extenso e com o que o ajuste muda.
+
+   Os ids das REGRAS de decisão continuam aparecendo: eles são
+   trilha de auditoria de propósito, e a tela Config lista todos com
+   o título ao lado.
+
+   Também: "Seu limite de performance" virou "de desempenho", e
+   "Feedback desvanecido" virou "Retorno desvanecido". Os títulos
+   dos artigos citados continuam no original — título traduzido é
+   título que ninguém acha.
+
+UM BUG QUE SÓ APARECIA DE MADRUGADA
+
+   A bateria de testes semeava "três sessões hoje" como "agora menos
+   10, 20 e 30 minutos". Rodando 00:19, duas dessas caem em ontem —
+   e o teste acusava o app de não recomendar parar quando o app
+   estava certo. Agora as sessões são ancoradas no início do dia.
 
 
 ================================================================

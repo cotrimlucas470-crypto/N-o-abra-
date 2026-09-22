@@ -422,11 +422,15 @@
       c.beginPath(); c.moveTo(ml, y); c.lineTo(w - mr, y); c.stroke();
       txt(c, (k * 25) + '%', ml - 4, y, { cor: T.tintaMuda, tam: 8, al: 'right' });
     }
-    /* faixas: consistente / oscila / quebra */
+    /* Faixas das três taxas de acerto. Os rótulos são parâmetro porque
+       a mesma curva serve a duas perguntas diferentes: em dificuldade,
+       o eixo diz onde você "oscila"; em tempo de espera, ele diz
+       quantos segundos a memória dura — e "oscila" não descreve isso. */
+    const rots = opts.faixas || ['consistente', 'oscila', 'quebra'];
     const faixas = [
-      { v: f.consistente, cor: T.bom, rot: 'consistente' },
-      { v: f.oscila, cor: T.atencao, rot: 'oscila' },
-      { v: f.quebra, cor: T.critico, rot: 'quebra' },
+      { v: f.consistente, cor: T.bom, rot: rots[0] },
+      { v: f.oscila, cor: T.atencao, rot: rots[1] },
+      { v: f.quebra, cor: T.critico, rot: rots[2] },
     ].filter(z => z.v != null && z.v >= x0 && z.v <= x1);
     for (const z of faixas) {
       c.save(); c.setLineDash([4, 4]); c.globalAlpha = .75;
@@ -456,9 +460,9 @@
       c.beginPath(); c.arc(x, y, r, 0, 6.2832);
       c.fillStyle = T.serie[0] + 'bb'; c.fill();
       c.lineWidth = 1.6; c.strokeStyle = T.superficie; c.stroke();
-      marcar(cv, x, y, `dificuldade ${p.x}<br>acerto <b>${Math.round(p.k / p.n * 100)}%</b><br>${p.n} tentativas`, 20);
+      marcar(cv, x, y, `${opts.nomeX || 'dificuldade'} ${p.x}${opts.unidadeX || ''}<br>acerto <b>${Math.round(p.k / p.n * 100)}%</b><br>${p.n} tentativas`, 20);
     }
-    txt(c, 'dificuldade →', ml + gw / 2, mt + gh + 20, { cor: T.tintaMuda, tam: 8, al: 'center' });
+    txt(c, opts.rotuloX || 'dificuldade →', ml + gw / 2, mt + gh + 20, { cor: T.tintaMuda, tam: 8, al: 'center' });
   }
 
 

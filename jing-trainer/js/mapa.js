@@ -569,6 +569,95 @@
   }
 
   /* ============================================================
+     MAPA DE PONTOS CEGOS
+
+     O mesmo minimapa, pintado pelo SEU acerto em cada região. É a
+     única forma de resposta que mostra o problema onde ele acontece:
+     "72% de acerto de área" não diz nada acionável, mas um canto
+     vermelho no mapa diz que você não olha para aquele canto.
+
+     Duas decisões de leitura:
+
+     · REGIÃO SEM AMOSTRA NÃO É REGIÃO RUIM. Abaixo de 4 sinais a
+       região sai em cinza hachurado, com "?" no lugar da
+       porcentagem. Pintar de vermelho um lugar onde você respondeu
+       duas vezes seria inventar um ponto cego.
+     · A cor vai de vermelho a verde passando por âmbar, e o número
+       vem junto SEMPRE. Cor sozinha exclui quem não distingue
+       vermelho de verde, e é justamente o eixo que essa rampa usa.
+     ============================================================ */
+  const CALOR = ['#ff5470', '#ff8a5b', '#ffd479', '#9fd66a', '#3ddc97'];
+
+  function corCalor(t) {
+    const x = U.clamp(t, 0, 1) * (CALOR.length - 1);
+    const i = Math.min(CALOR.length - 2, Math.floor(x)), f = x - i;
+    const a = hex3(CALOR[i]), b = hex3(CALOR[i + 1]);
+    return `rgb(${Math.round(a[0] + (b[0] - a[0]) * f)},${Math.round(a[1] + (b[1] - a[1]) * f)},${Math.round(a[2] + (b[2] - a[2]) * f)})`;
+  }
+  const hex3 = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+
+  const MIN_CALOR = 4;
+
+  /**
+   * @param {object} porObjetivo  {idDoObjetivo: {ok, n}}
+   */
+  function desenharCalor(c, r, porObjetivo, opts = {}) {
+    const dados = porObjetivo || {};
+    desenhar(c, r, { rotulos: false });
+
+    const X = (u) => r.x + u * r.s, Y = (v) => r.y + v * r.s, S = (u) => u * r.s;
+    c.save();
+    caminhoArred(c, r.x, r.y, r.s, r.s, S(0.06));
+    c.clip();
+    /* véu: o terreno vira referência, o calor vira o dado */
+    c.fillStyle = 'rgba(6,10,16,.66)';
+    c.fillRect(r.x, r.y, r.s, r.s);
+
+    for (const o of OBJETIVOS) {
+      const e = dados[o.id];
+      const n = e ? e.n : 0;
+      const acc = n ? e.ok / n : null;
+      const bom = n >= MIN_CALOR;
+      const cor = bom ? corCalor(acc) : '#5b708f';
+
+      c.save();
+      c.globalAlpha = bom ? 0.52 : 0.22;
+      c.fillStyle = cor; c.strokeStyle = cor;
+      if (o.forma === 'rota') {
+        const a = aoLongo(ROTAS[o.rota], 0.32), m = aoLongo(ROTAS[o.rota], 0.50), z = aoLongo(ROTAS[o.rota], 0.68);
+        c.lineWidth = S(0.085); c.lineCap = 'round'; c.lineJoin = 'round';
+        c.beginPath(); c.moveTo(X(a.x), Y(a.y)); c.lineTo(X(m.x), Y(m.y)); c.lineTo(X(z.x), Y(z.y)); c.stroke();
+      } else {
+        c.beginPath(); c.arc(X(o.x), Y(o.y), S(Math.max(o.r, 0.055)), 0, 6.2832); c.fill();
+      }
+      c.restore();
+
+      /* contorno nítido e número — a cor nunca responde sozinha */
+      c.save();
+      c.globalAlpha = bom ? 0.95 : 0.5;
+      c.strokeStyle = cor; c.lineWidth = Math.max(1.2, S(0.007));
+      if (o.forma !== 'rota') {
+        c.beginPath(); c.arc(X(o.x), Y(o.y), S(Math.max(o.r, 0.055)), 0, 6.2832); c.stroke();
+      }
+      const rot = bom ? Math.round(acc * 100) + '%' : '?';
+      c.font = `900 ${Math.max(8, Math.round(S(0.058)))}px system-ui`;
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      const meia = c.measureText(rot).width / 2 + S(0.015);
+      const tx = U.clamp(X(o.x), r.x + meia, r.x + r.s - meia);
+      c.globalAlpha = 1;
+      c.strokeStyle = 'rgba(4,8,14,.92)'; c.lineWidth = Math.max(3, S(0.014));
+      c.strokeText(rot, tx, Y(o.y));
+      c.fillStyle = bom ? '#f2f7ff' : '#8fa3c4';
+      c.fillText(rot, tx, Y(o.y));
+      c.restore();
+    }
+    c.restore();
+
+    caminhoArred(c, r.x, r.y, r.s, r.s, S(0.06));
+    c.strokeStyle = 'rgba(120,150,190,.5)'; c.lineWidth = 1.5; c.stroke();
+  }
+
+  /* ============================================================
      PAINEL LATERAL
 
      A pergunta, o relógio e o retorno ficam ao LADO do mapa, nunca
@@ -697,7 +786,7 @@
     BASE_ALIADA, BASE_INIMIGA, PESOS, TOLERANCIA,
     porId, daZona, classificar, distAte, distPolilinha, aoLongo, pontoEm,
     sortearSinal, ladoDe, desenhar, desenharPainel, desenharPlacar,
-    pontosPosicao, bandaErro,
+    desenharCalor, corCalor, MIN_CALOR, pontosPosicao, bandaErro,
   };
 
 })(window.U);

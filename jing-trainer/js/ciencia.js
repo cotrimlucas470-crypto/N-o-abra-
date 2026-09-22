@@ -26,7 +26,7 @@
       porque: 'Rotulava uma rota de "perdida" ou "automática" a partir de 3 tentativas. Era a pseudoprecisão mais grave do sistema.' },
     { alvo: 'SSRT em milissegundos', veredito: 'rebaixado',
       porque: 'O modelo que sustenta o SSRT assume independência de contexto, premissa violada com frequência e gravidade — e a tarefa aqui é sequencial, com taxa de sinais alta, o que induz lentidão proativa. O treino ficou; o número virou descritivo e o sistema avisa quando a medida não é interpretável.' },
-    { alvo: 'Feedback desvanecido (2 de cada 3)', veredito: 'removido',
+    { alvo: 'Retorno desvanecido (2 de cada 3)', veredito: 'removido',
       porque: 'A meta-análise de 2022 sobre frequência reduzida de retorno não sustenta a hipótese da orientação. Mecanismo que confunde a leitura sem evidência a favor é custo sem benefício.' },
     { alvo: '19 exercícios', veredito: 'reduzido a 8',
       porque: 'Vários eram a mesma tarefa com um parâmetro trocado, cada um com sua própria curva de dificuldade. Isso espalhava a amostra e impedia qualquer medida de sair do provisório. O que era exercício virou nível de dificuldade.' },
@@ -256,7 +256,7 @@
     },
     {
       id: 'feedback',
-      titulo: 'Feedback desvanecido: removido',
+      titulo: 'Retorno desvanecido: removido',
       forca: 'contra', novo: true, removido: true,
       achado: `A hipótese da orientação diz que retorno em toda tentativa vira muleta. A
         meta-análise de 2022 sobre frequência reduzida de retorno NÃO sustenta essa hipótese.`,

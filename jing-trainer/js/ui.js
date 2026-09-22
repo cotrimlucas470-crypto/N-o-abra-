@@ -125,7 +125,7 @@
       <h1>◈ ESPELHO</h1>
       <span class="tag vio">${fase.nome}</span>
       <div class="espaco"></div>
-      <span class="sub">${d.legado ? 'v14 · dados anteriores preservados' : 'v14'}</span>
+      <span class="sub">${d.legado ? 'v15 · dados anteriores preservados' : 'v15'}</span>
     </div>
     <div class="rolagem pilha">
 
@@ -337,6 +337,8 @@
         </div>
       </div>
 
+      ${blocoVisaoMapa()}
+
       <div class="painel">
         <h2>Onde os erros caem</h2>
         <div class="mini" style="margin-bottom:6px">Últimos 30 dias. A barra fina é o intervalo: com poucos erros
@@ -412,8 +414,123 @@
     return { antes: mA, depois: mB, nAntes: a.length, nDepois: b.length, distinguivel: dist };
   }
 
+  /* ============================================================
+     VISÃO DE MAPA NO PROGRESSO
+
+     O resultado de um bloco some quando você fecha a tela. O que
+     este exercício produz — por quantos segundos a informação
+     sobrevive, e em que canto do mapa você é cego — só vale
+     acumulado, então precisa de lugar fixo.
+
+     Duas respostas, e são de naturezas diferentes:
+
+     · A JANELA, em segundos, é um ajuste sobre acerto × espera.
+       Ela exige espalhamento (vários tempos distintos) e não só
+       volume, e por isso demora mais a existir que uma média. Até
+       lá o painel diz o que falta em vez de mostrar meia curva.
+     · O MAPA DE PONTOS CEGOS existe desde o primeiro bloco, porque
+       é contagem e não ajuste. Região com menos de 4 sinais sai em
+       cinza com "?": ausência de amostra não é ponto cego.
+     ============================================================ */
+  function blocoVisaoMapa() {
+    const m = MD.visaoMapa({ dias: 90 });
+    if (!m.n) return '';
+    const seg = (v) => (v == null ? '—' : v.toFixed(1).replace('.', ',') + ' s');
+    const pct = (v) => (v == null ? '—' : Math.round(v * 100) + '%');
+
+    const cegos = Object.entries(m.porObjetivo || {})
+      .filter(([, e]) => e.n >= U.MP.MIN_CALOR)
+      .sort((a, b) => (a[1].ok / a[1].n) - (b[1].ok / b[1].n));
+    const pior = cegos[0], melhorZ = cegos[cegos.length - 1];
+
+    return `
+      <div class="painel">
+        <h2>Visão de mapa</h2>
+
+        ${m.ok ? `
+          <div class="flex" style="gap:14px;align-items:flex-start;margin-bottom:8px">
+            <div style="flex:none;max-width:210px">
+              ${m.janela70 != null
+                ? `<div class="numero" style="color:var(--gold)">${seg(m.janela70)}</div>
+                   <div class="xs">é por quanto tempo a informação do mapa sobrevive na sua cabeça</div>`
+                : m.j70.estado === 'acima'
+                  ? `<div class="numero" style="color:var(--ok)">+${m.xMax} s</div>
+                     <div class="xs">a informação sobrevive mais do que este treino consegue medir</div>`
+                  : `<div class="numero" style="color:var(--bad)">—</div>
+                     <div class="xs">a janela de 70% não cai dentro do que você treinou</div>`}
+            </div>
+            <div class="mini" style="flex:1;min-width:0">
+              ${m.janela70 != null
+                ? `A janela é o tempo de espera em que o seu acerto de área cai a 70%.`
+                : U.esc(m.j70.txt || 'A curva não cruza 70% dentro das esperas que você treinou.')}
+              ${[[m.j90, 90], [m.j50, 50]].map(([j, alvo]) => j.v != null
+                  ? `<br>Aos <b>${seg(j.v)}</b> você está em ${alvo}%${alvo === 50 ? ' — metade do mapa já sumiu' : ''}.`
+                  : j.txt ? `<br><span class="xs">${U.esc(j.txt)}</span>` : '').join('')}
+              <div class="xs" style="margin-top:4px">Ajuste sobre ${m.niveis} tempos de espera entre
+              ${m.xMin} e ${m.xMax} s, ${m.n} sinais. Não é uma média de acerto: é onde a curva cruza
+              cada taxa — e nenhum número aqui sai de fora dessa faixa.</div>
+            </div>
+          </div>
+          <canvas class="graf" id="g-mapa-curva" data-h="165"></canvas>
+          ${m.teto < 0.88 ? `<div class="aviso" style="margin-top:7px">
+            <b>O teto da sua curva está em ${Math.round(m.teto * 100)}%.</b> Isso quer dizer que mesmo na
+            espera mais curta você deixa passar cerca de ${Math.round((1 - m.teto) * 100)} de cada 100 sinais.
+            Esse pedaço não é memória — é sinal que não chegou a ser codificado, e ele não melhora com
+            espera mais curta. Quem melhora isso é olhar mais vezes, não lembrar melhor.</div>` : ''}
+        ` : `<div class="aviso">${U.esc(m.motivo)}
+            <div class="xs" style="margin-top:5px">Enquanto isso, o mapa abaixo já funciona — ele é
+            contagem por região, e contagem não precisa de curva.</div></div>`}
+
+        <div class="sep"></div>
+        <div class="flex" style="gap:14px;align-items:flex-start">
+          <div style="flex:none">
+            <canvas class="graf" id="g-mapa-calor" data-h="210" style="width:210px"></canvas>
+          </div>
+          <div style="flex:1;min-width:0">
+            <div class="mini"><b>Onde você é cego</b></div>
+            <div class="xs" style="margin-top:3px">Cada região pintada pelo seu acerto de área nela.
+            Cinza com "?" quer dizer menos de ${U.MP.MIN_CALOR} sinais ali — falta de amostra não é
+            ponto cego, e pintar de vermelho um lugar onde você respondeu duas vezes seria inventar um.</div>
+            ${pior && melhorZ && pior[0] !== melhorZ[0] ? `<div class="mini" style="margin-top:7px">
+              O seu pior canto é <b style="color:var(--bad)">${U.esc(U.MP.porId(pior[0]).nome)}</b>
+              (${Math.round(pior[1].ok / pior[1].n * 100)}% em ${pior[1].n} sinais) e o melhor é
+              <b style="color:var(--ok)">${U.esc(U.MP.porId(melhorZ[0]).nome)}</b>
+              (${Math.round(melhorZ[1].ok / melhorZ[1].n * 100)}%).
+              ${pior[1].n >= 10
+                ? 'Diferença com amostra para ser levada a sério: numa partida, é desse lado que a informação passa sem você ver.'
+                : 'Com esta amostra ainda pode ser sorteio — a diferença só vira achado com 10 sinais na região.'}</div>` : ''}
+            <div class="flex wrap" style="gap:5px;margin-top:8px">
+              <span class="tag">${pct(m.zona)} de área</span>
+              <span class="tag">${pct(m.leitura)} de leitura</span>
+              ${m.erro != null ? `<span class="tag">erro mediano ${Math.round(m.erro * 100)}% da largura</span>` : ''}
+              <span class="tag">${m.n} sinais</span>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }
+
   function depoisProgresso() {
     const d = U.DB.load();
+    if ($('#g-mapa-curva')) {
+      const m = MD.visaoMapa({ dias: 90 });
+      G.psicometrica($('#g-mapa-curva'), m.fit, {
+        rotuloX: 'segundos de espera →', nomeX: 'espera de', unidadeX: ' s',
+        faixas: ['90% certo', '70% certo', '50% certo'],
+      });
+    }
+    if ($('#g-mapa-calor')) {
+      const m = MD.visaoMapa({ dias: 90 });
+      const cv = $('#g-mapa-calor');
+      const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+      const lado = Math.max(120, Math.min(cv.clientWidth || 210, 210));
+      cv.width = Math.round(lado * dpr); cv.height = Math.round(lado * dpr);
+      cv.style.height = lado + 'px';
+      const c = cv.getContext('2d');
+      c.setTransform(dpr, 0, 0, dpr, 0, 0);
+      c.clearRect(0, 0, lado, lado);
+      U.MP.desenharCalor(c, { x: 2, y: 2, s: lado - 4 }, m.porObjetivo);
+    }
     if ($('#g-ret')) {
       const ret = MD.retencao();
       const pts = (ret.serie || []).map(x => {
@@ -939,12 +1056,13 @@
         traz a amostra que o sustenta — sem amostra, fica listado como suspeita e não dispara exercício.</div>
         <div class="pilha" style="gap:7px">
           ${ach.ativos.map(a => `<div class="aviso ${a.id === 'tradeoff' || a.id === 'decorado' ? 'bad' : ''}">
-            <b>${{ tradeoff: 'Troca velocidade × precisão', instavel: 'Acertos instáveis',
-                   dica: 'Dependência da dica visual', vies: 'Viés de decisão',
-                   perturbacao: 'Perturbação que derruba', decorado: 'Padrão decorado',
-                   troca: 'Custo de trocar de plano', confianca: 'Confiança descalibrada' }[a.id] || a.id}</b><br>
+            <b>${U.GM.nomeAchado(a.id)}</b><br>
             ${a.texto}
-            <div class="xs" style="margin-top:3px">${a.n} tentativas${a.alvo ? ` · vira o exercício <code>${a.alvo.drill}</code> com ajuste <code>${a.alvo.ajuste}</code>` : ''}</div>
+            <div class="xs" style="margin-top:3px">${a.n} tentativas${a.alvo ? (() => {
+              const dr = D.porId(a.alvo.drill), aj = D.AJUSTES[a.alvo.ajuste];
+              return ` · vira o exercício <b>${dr ? U.esc(dr.nome) : a.alvo.drill}</b>${
+                aj ? `, montado com <b>${U.esc(aj.nome)}</b> — ${U.esc(aj.o_que)}` : ''}`;
+            })() : ''}</div>
           </div>`).join('')}
         </div>
         ${(() => { const sp = ach.lista.find(x => x.id === 'perturbacao');
@@ -952,13 +1070,18 @@
       </div>` : `<div class="painel">
         <h2>O que o sistema encontrou em você</h2>
         <div class="mini">Nenhum padrão com amostra suficiente ainda.
-        ${ach.suspeitas.length ? `Faltam tentativas para: ${ach.suspeitas.map(x => `<b>${x.id}</b> (${x.falta})`).join(', ')}.` : ''}</div>
+        ${ach.suspeitas.length ? `<div style="margin-top:6px">Ainda faltam tentativas para o sistema
+          poder olhar cada um destes:</div>
+          <div class="pilha" style="gap:3px;margin-top:5px">
+            ${ach.suspeitas.map(x => `<div class="xs">• <b>${U.GM.nomeAchado(x.id)}</b> —
+              faltam ${x.falta} tentativa${x.falta === 1 ? '' : 's'}</div>`).join('')}
+          </div>` : ''}</div>
         ${(() => { const sp = ach.lista.find(x => x.id === 'perturbacao');
           return sp && sp.poder ? `<div class="xs" style="margin-top:8px"><b>E o que eu não consigo ver mesmo com dados:</b> ${sp.poder}</div>` : ''; })()}
       </div>`}
 
       <div class="painel">
-        <h2>Os dez eixos</h2>
+        <h2>Os ${U.IX.EIXOS.length} eixos</h2>
         <div class="mini" style="margin-bottom:8px">A nota 0-100 é uma <b>convenção de leitura</b>. O dado é o número
         com unidade embaixo dela. Toda nota nova é puxada na direção da anterior com peso proporcional à amostra —
         é isso que impede uma sessão excepcional de distorcer o nível.</div>
@@ -997,7 +1120,7 @@
         linha seria ruído desenhado com capricho.</div></div>`}
 
       <div class="painel">
-        <h2>Seu limite de performance</h2>
+        <h2>Seu limite de desempenho</h2>
         <div class="mini" style="margin-bottom:6px">Onde você é consistente, onde começa a oscilar e onde quebra —
         estimado ajustando acerto contra dificuldade. O ajuste inclui uma <b>taxa de lapso</b>: sem ela, um punhado
         de falhas sem relação com a dificuldade envieza os três números.</div>
