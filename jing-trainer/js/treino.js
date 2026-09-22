@@ -14,7 +14,7 @@
 
   const MOTORES = { sequencia: U.E.MotorSequencia, leitura: U.E.MotorLeitura,
                     decisao: U.E.MotorDecisao, mapa: U.E.MotorMapa, mira: U.E.MotorMira,
-                    reset: U.E.MotorReset };
+                    reset: U.E.MotorReset, punir: U.E.MotorPunir };
 
   const St = {
     surf: null, motor: null, drill: null, cfg: null, aberto: false,
@@ -201,12 +201,22 @@
 
   function rodar() {
     pararMotor();
+    U.Sfx.zerarSerie();
+    if (St.surf) St.surf.setSerie(0);
     St.surf.resize();
     if (St.cfg.mo === 'prova' || St.cfg.mo === 'retencao') U.Musica.tocar('foco');
     else U.Musica.paraExercicio(St.drill, St.cfg);
 
     const api = {
       info: ({ i, n, ok, total }) => {
+        /* acertos seguidos até agora — o contador do canto da tela.
+           Só em treino: na Prova e na retenção não há retorno nenhum. */
+        if (St.surf && St.motor && St.cfg.mo === 'treino' && !St.cfg.semRetorno) {
+          const reg = St.motor.reg || [];
+          let seq = 0;
+          for (let k = reg.length - 1; k >= 0 && reg[k].ok; k--) seq++;
+          St.surf.setSerie(seq);
+        }
         const base = $('#tf-chips').dataset.base || $('#tf-chips').innerHTML;
         $('#tf-chips').dataset.base = base;
         /* o denominador é o que já foi anotado — e não "i − 1", que só vale
@@ -235,7 +245,7 @@
     const surf = St.surf;
     const passo = () => {
       if (!St.surf || St.surf !== surf) return;
-      if (k === 0) { St.surf.setOverlay(null); return depois(); }
+      if (k === 0) { St.surf.setOverlay(null); U.Sfx.largada(); return depois(); }
       St.surf.setOverlay({ texto: String(k), tam: 0.3, cor: '#c4b5fd', fundo: 'rgba(5,8,14,.45)' });
       U.Sfx.tick(); k--;
       setTimeout(passo, 560);
@@ -373,6 +383,7 @@
       ${(r.extras || {}).mapa ? mapaTexto(r) : ''}
       ${(r.extras || {}).mira ? miraTexto(r) : ''}
       ${(r.extras || {}).reset && r.extras.reset.n ? resetTexto(r.extras.reset) : ''}
+      ${(r.extras || {}).punir && r.extras.punir.n ? punirTexto(r.extras.punir) : ''}
 
       ${erros.length ? `<div class="sep"></div>
         <div class="mini"><b>Onde os erros caíram</b></div>
@@ -667,6 +678,44 @@
      · os toques com a passiva travada — que é o erro de quem
        não olha o P e aperta no chute.
      ============================================================ */
+  /* ============================================================
+     RESULTADO DO PUNIR
+
+     O número principal é o tempo entre a vida caber no dano e o
+     Punir sair — é o que decide disputa. Os erros vêm separados por
+     lado, porque a correção é oposta: quem erra CEDO precisa esperar
+     a comparação; quem é ROUBADO precisa deixar o polegar pronto.
+     ============================================================ */
+  function punirTexto(m) {
+    const d = m.disputas;
+    const lado = m.cedo > m.roubados + m.tarde ? 'cedo'
+               : (m.roubados + m.tarde) > m.cedo ? 'tarde' : null;
+    return `
+      <div class="sep"></div>
+      <div class="flex" style="gap:16px;align-items:flex-start">
+        <div>
+          <div class="numero" style="color:var(--gold)">${m.lat != null ? Math.round(m.lat) : '—'}</div>
+          <div class="xs">ms entre a vida<br>caber e o Punir</div>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div class="mini">Objetivos garantidos: <b>${m.garantidos} de ${m.n}</b>
+            ${m.latIC && m.latIC.lo != null ? `<span class="xs">(tempo mediano, intervalo
+              ${Math.round(m.latIC.lo)}–${Math.round(m.latIC.hi)} ms)</span>` : ''}.</div>
+          <div class="mini" style="margin-top:4px">
+            Cedo: <b>${m.cedo}</b>${m.sobraRel != null ? ` <span class="xs">(faltava em média ${Math.round(m.sobraRel * 100)}% do seu dano)</span>` : ''} ·
+            roubados: <b>${m.roubados}</b> · sem Punir: <b>${m.tarde}</b></div>
+          ${d ? `<div class="mini" style="margin-top:4px">Com caçador inimigo: <b>${d.ok} de ${d.n}</b>
+            ${d.reacao ? `<span class="xs">— ele levava ~${Math.round(d.reacao)} ms para apertar</span>` : ''}.</div>` : ''}
+        </div>
+      </div>
+      ${lado ? `<div class="aviso" style="margin-top:8px">${lado === 'cedo'
+        ? '<b>O seu erro é de pressa.</b> A mão sai antes de o olho comparar a vida com o dano. Espere a barra passar do número — com a linha ligada, espere ela cruzar a linha roxa.'
+        : '<b>O seu erro é de atraso.</b> A leitura está certa e a mão chega depois. Deixe o polegar parado em cima do PU quando a vida estiver perto do dano; o tempo que você tem é só o do olho.'}</div>` : ''}
+      ${m.linha ? `<div class="xs" style="margin-top:6px">A linha roxa na barra é ajuda de dificuldade baixa: no jogo ela
+        não existe. A partir da dificuldade 5 ela some, e o número da vida some a partir da 8.</div>` : ''}
+    `;
+  }
+
   function resetTexto(m) {
     const pct = (a, b) => (b ? Math.round(a / b * 100) + '%' : '—');
     const perdidos = m.reais - m.pegos;
@@ -891,6 +940,40 @@
       `<div class="sep"></div>
        <div class="mini">A ordem não é uma lista fixa: depois de cada bloco o sistema recalcula. Se uma medida
        mudar no meio da sessão, o resto do plano muda junto.</div>`,
+      () => executarBloco(0), 'Começar');
+  }
+
+  /* ============================================================
+     SESSÃO DA JING — as quatro coisas que a Jing faz numa luta,
+     INTERCALADAS, e não em blocos repetidos do mesmo exercício.
+
+     Intercalar custa desempenho na hora e rende retenção depois:
+     é o efeito de interferência contextual (Shea & Morgan, 1979),
+     um dos achados mais repetidos de aprendizagem motora. Repetir
+     o mesmo exercício dez vezes seguidas parece render mais, e é
+     justamente essa sensação que engana.
+
+     Cada bloco entra na dificuldade que o controlador já mediu
+     para ele — a sessão não inventa nível nenhum.
+     ============================================================ */
+  function sessaoJing() {
+    const blocos = [
+      ['rota', 'Rota', 'a sequência de referência, com a escada achando o seu ritmo'],
+      ['espelho', 'Quebra do Espelho', 'o reset da passiva, e não apertar com ela travada'],
+      ['punir', 'Punir no Tirano', 'garantir objetivo: nem cedo, nem depois do caçador inimigo'],
+      ['mira', 'Mira', 'as habilidades apontadas, em graus'],
+    ].filter(([id]) => D.porId(id));
+    St.plano = blocos.map(([id, titulo, porque]) => ({
+      titulo, porque, acao: { tipo: 'bloco', drill: id, dif: CT.estado(id).dif },
+    }));
+    St.idx = 0;
+    abrirPalco();
+    brief('Sessão da Jing', `${St.plano.length} blocos intercalados · cerca de 12 minutos`,
+      St.plano.map(b => `<b>${b.titulo}</b> — ${b.porque}`),
+      `<div class="sep"></div>
+       <div class="mini">Um exercício de cada, em vez de repetir o mesmo. Na hora rende um pouco menos — e
+       fica mais no dia seguinte: é o efeito de interferência contextual, um dos resultados mais repetidos
+       de aprendizagem motora.</div>`,
       () => executarBloco(0), 'Começar');
   }
 
@@ -1144,7 +1227,7 @@
   });
   $('#brief-volta').addEventListener('click', () => { St.prova = null; St.plano = null; fecharPalco(); });
 
-  U.T = { abrirBloco, sessaoGuiada, iniciarProva, iniciarRetencao, iniciarCego,
+  U.T = { abrirBloco, sessaoGuiada, sessaoJing, iniciarProva, iniciarRetencao, iniciarCego,
           mostrarPainelMedidas, mostrarRelatorio, fecharPalco, _St: St };
 
 })(window.U);

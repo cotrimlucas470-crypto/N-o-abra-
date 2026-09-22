@@ -166,9 +166,17 @@
       this.calibrando = false;
       this.arrastando = null;
 
+      this.tempo = 0;                   // ms desde a criação — anima fundo e mira
+      this.tremor = 0;                  // 0..1, tremor curto da tela no erro
+      this.serie = 0; this.seriePop = 0;// acertos seguidos e o "pulo" do contador
+      this.overlayT = 0;                // quando o texto atual entrou (anima a entrada)
+      this.poeira = [];                 // partículas de ambiente
+      this.silenciarBotoes = false;
+      this.cena = null;                 // desenho próprio de um exercício (monstro, etc.)
+
       this._bind();
       this.resize();
-      this.ticker = new U.Ticker(() => this.draw());
+      this.ticker = new U.Ticker((dt) => this.draw(dt));
       this.ticker.start();
     }
 
@@ -190,6 +198,71 @@
       if (bh > h) { bh = h; bw = h * alvo; }
       this.box = { x: (w - bw) / 2, y: (h - bh) / 2, w: bw, h: bh };
       this.vw = w; this.vh = h;
+      this.fundo = this.pintarFundo();
+    }
+
+    /* ------------------------------------------------------------
+       FUNDO — pintado UMA vez por tamanho de tela, num canvas à parte.
+       Pedra escura de arena com luz no centro, lajotas em losango
+       (o chão do Honor of Kings é de lajota, não grade reta), cacos
+       de espelho quase invisíveis (o tema do app) e vinheta nas
+       bordas para o olho ficar no meio. Custo por quadro: um
+       drawImage.
+       ------------------------------------------------------------ */
+    pintarFundo() {
+      const cv = document.createElement('canvas');
+      cv.width = Math.max(1, Math.round(this.vw * this.dpr));
+      cv.height = Math.max(1, Math.round(this.vh * this.dpr));
+      const c = cv.getContext('2d');
+      c.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+      const B = this.box;
+      c.fillStyle = '#04060b'; c.fillRect(0, 0, this.vw, this.vh);
+
+      const cx = B.x + B.w * 0.46, cy = B.y + B.h * 0.44;
+      const luz = c.createRadialGradient(cx, cy, B.h * 0.05, cx, cy, B.w * 0.62);
+      luz.addColorStop(0, '#1a2743'); luz.addColorStop(0.45, '#0f1830'); luz.addColorStop(1, '#070b15');
+      c.fillStyle = luz; c.fillRect(B.x, B.y, B.w, B.h);
+
+      c.save();
+      c.beginPath(); c.rect(B.x, B.y, B.w, B.h); c.clip();
+      /* lajotas em losango, com junta clara e sombra: relevo sem textura */
+      const L = B.h * 0.16;
+      c.lineWidth = 1;
+      for (let k = -12; k < 30; k++) {
+        const x0 = B.x + k * L;
+        c.strokeStyle = 'rgba(70,95,140,.10)';
+        c.beginPath(); c.moveTo(x0, B.y); c.lineTo(x0 + B.h * 1.1, B.y + B.h); c.stroke();
+        c.beginPath(); c.moveTo(x0 + B.h * 1.1, B.y); c.lineTo(x0, B.y + B.h); c.stroke();
+        c.strokeStyle = 'rgba(0,0,0,.18)';
+        c.beginPath(); c.moveTo(x0 + 1.5, B.y); c.lineTo(x0 + 1.5 + B.h * 1.1, B.y + B.h); c.stroke();
+      }
+      /* cacos de espelho: polígonos com brilho em gradiente, muito leves */
+      let semente = 7;
+      const aleat = () => { semente = (semente * 16807) % 2147483647; return semente / 2147483647; };
+      for (let i = 0; i < 9; i++) {
+        const x = B.x + aleat() * B.w, y = B.y + aleat() * B.h * 0.8, t = B.h * (0.08 + aleat() * 0.16);
+        const gr = c.createLinearGradient(x - t, y - t, x + t, y + t);
+        gr.addColorStop(0, 'rgba(196,181,253,.00)'); gr.addColorStop(0.5, 'rgba(196,181,253,.06)');
+        gr.addColorStop(1, 'rgba(127,212,255,.00)');
+        c.fillStyle = gr;
+        c.beginPath();
+        c.moveTo(x, y - t); c.lineTo(x + t * (0.5 + aleat()), y - t * 0.1);
+        c.lineTo(x + t * 0.2, y + t); c.lineTo(x - t * (0.4 + aleat() * 0.5), y + t * 0.2);
+        c.closePath(); c.fill();
+      }
+      /* faixa do HUD: o polegar trabalha em cima de chão mais escuro */
+      const faixa = c.createLinearGradient(0, B.y + B.h * 0.55, 0, B.y + B.h);
+      faixa.addColorStop(0, 'rgba(0,0,0,0)'); faixa.addColorStop(1, 'rgba(0,0,0,.35)');
+      c.fillStyle = faixa; c.fillRect(B.x, B.y, B.w, B.h);
+      /* vinheta */
+      const v = c.createRadialGradient(cx, cy, B.h * 0.45, cx, cy, B.w * 0.68);
+      v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.62)');
+      c.fillStyle = v; c.fillRect(B.x, B.y, B.w, B.h);
+      c.restore();
+
+      c.strokeStyle = 'rgba(120,140,190,.12)'; c.lineWidth = 1;
+      c.strokeRect(B.x + 0.5, B.y + 0.5, B.w - 1, B.h - 1);
+      return cv;
     }
 
     px(b) { return { x: this.box.x + b.x * this.box.w, y: this.box.y + b.y * this.box.h, r: b.r * this.box.w }; }
@@ -340,6 +413,7 @@
         this.arrastoMira = { pid: ev.pointerId, id: hit.id, x0: q.x, y0: q.y,
                              x: p.x, y: p.y, t0: t, moveu: false };
         this.pulsar(hit.id);
+        U.Sfx.botao(this.hud[hit.id].tipo);
         U.Haptic.tap();
         this.opts.onMiraInicio?.({ id: hit.id, t });
         return;
@@ -347,7 +421,9 @@
 
       if (hit.id) {
         this.pulsar(hit.id);
+        this.brilho(hit.id);
         U.Haptic.tap();
+        if (!this.silenciarBotoes) U.Sfx.botao(this.hud[hit.id].tipo);
       } else {
         this.caco(p.x, p.y, '#6b7a91', 5);
       }
@@ -452,51 +528,79 @@
     marcar(id, opt = {}) { this.estado[id] = { ...(this.estado[id] || {}), ...opt }; }
     limparMarcas() { this.estado = {}; }
     pulsar(id) { const s = this.estado[id] || (this.estado[id] = {}); s.pulso = 1; }
+    /** Clarão no botão tocado: o polegar vê que o toque entrou. */
+    brilho(id) { const s = this.estado[id] || (this.estado[id] = {}); s.brilho = 1; }
     acerto(id) {
       const p = this.px(this.hud[id] || this.hud.aa);
       this.efeitos.push({ t: 0, tipo: 'anel', x: p.x, y: p.y, r: p.r, cor: '#6ee7a8' });
-      this.caco(p.x, p.y, '#9df5c4', 8);
+      this.efeitos.push({ t: 0, tipo: 'onda', x: p.x, y: p.y, r: p.r, cor: '#6ee7a8' });
+      this.faisca(p.x, p.y, '#b8ffd9', 10);
+      this.caco(p.x, p.y, '#9df5c4', 6);
     }
     erro(id) {
       const b = this.hud[id];
       const p = b ? this.px(b) : { x: this.box.x + this.box.w * 0.8, y: this.box.y + this.box.h * 0.75, r: 30 };
       this.efeitos.push({ t: 0, tipo: 'anel', x: p.x, y: p.y, r: p.r, cor: '#ff5470' });
-      this.caco(p.x, p.y, '#ff8fa3', 12);
+      this.caco(p.x, p.y, '#ff8fa3', 10);
+      this.tremor = 1;
     }
     caco(x, y, cor, n = 8) {
-      if (U.DB.load().opts.fx === 'baixo') n = Math.min(n, 3);
+      if (!this.fxCompletos()) n = Math.min(n, 3);
       for (let i = 0; i < n; i++) {
         const a = U.rnd(0, Math.PI * 2), v = U.rnd(0.6, 3.2);
         this.efeitos.push({ t: 0, tipo: 'caco', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
                             rot: U.rnd(0, 6.28), vr: U.rnd(-0.2, 0.2), s: U.rnd(3, 9), cor });
       }
     }
-    setOverlay(o) { this.overlay = o; }
+    /** Faíscas: riscos curtos com brilho somado (modo "lighter"). */
+    faisca(x, y, cor, n = 10) {
+      if (!this.fxCompletos()) return;
+      for (let i = 0; i < n; i++) {
+        const a = U.rnd(0, Math.PI * 2), v = U.rnd(2.5, 6.5);
+        this.efeitos.push({ t: 0, tipo: 'faisca', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, cor });
+      }
+    }
+    /** Texto que sobe e some — número de dano, "+1", "PEGOU". */
+    flutuar(x, y, texto, cor = '#ffffff', tam = 0.05) {
+      this.efeitos.push({ t: 0, tipo: 'texto', x, y, texto: String(texto), cor, tam });
+    }
+    setOverlay(o) {
+      if (o && (!this.overlay || this.overlay.texto !== o.texto)) this.overlayT = this.tempo;
+      this.overlay = o;
+    }
     setAlvo(a) { this.alvoVisual = a; }
 
     /* ---------- desenho ---------- */
-    draw() {
+    fxCompletos() { return U.DB.load().opts.fx !== 'baixo'; }
+
+    draw(dt = 16.7) {
       const c = this.ctx, B = this.box;
+      dt = U.clamp(dt || 16.7, 0, 50);
+      this.dt = dt;
+      this.tempo += dt;
+      const completo = this.fxCompletos();
+
+      c.save();
       c.clearRect(0, 0, this.vw, this.vh);
-
-      // campo
-      const g = c.createLinearGradient(B.x, B.y, B.x + B.w, B.y + B.h);
-      g.addColorStop(0, '#0b1220'); g.addColorStop(0.5, '#0d1524'); g.addColorStop(1, '#0a0f1b');
-      c.fillStyle = g; c.fillRect(B.x, B.y, B.w, B.h);
-
-      // grade sutil de espelho
-      c.save(); c.globalAlpha = 0.16; c.strokeStyle = '#2a3c5c'; c.lineWidth = 1;
-      for (let i = 1; i < 10; i++) {
-        const x = B.x + B.w * i / 10;
-        c.beginPath(); c.moveTo(x, B.y); c.lineTo(x - B.h * 0.18, B.y + B.h); c.stroke();
+      /* tremor do erro: curto (≈180 ms) e pequeno — sinal, não castigo */
+      if (this.tremor > 0) {
+        if (completo) {
+          const a = this.tremor * B.h * 0.009;
+          c.translate(U.rnd(-a, a), U.rnd(-a, a));
+        }
+        this.tremor = Math.max(0, this.tremor - dt / 180);
       }
-      c.restore();
+
+      if (this.fundo) c.drawImage(this.fundo, 0, 0, this.vw, this.vh);
+      else { c.fillStyle = '#0b1220'; c.fillRect(B.x, B.y, B.w, B.h); }
+      if (completo) this.drawAmbiente(dt);
 
       if (this.quadrantes) this.drawQuadrantes();
       if (this.trilhas.length) this.drawTrilhas();
       if (this.campo.length) this.drawCampo();
       if (this.mira) this.drawMira();
       if (this.alvoVisual) this.drawAlvo();
+      if (this.cena) this.cena(c, B);
 
       // botões
       if (!this.ocultarBotoes) {
@@ -519,12 +623,71 @@
       // ficar por cima do véu que apaga o resto da tela
       if (this.mapa) this.drawMapa();
 
+      if (this.serie >= 3 && !this.mapa) this.drawSerie(dt);
+
       if (this.calibrando) {
         c.save();
         c.fillStyle = 'rgba(126,200,255,.85)'; c.font = '600 13px system-ui'; c.textAlign = 'center';
         c.fillText('Arraste os botões até baterem com o seu HUD real', B.x + B.w / 2, B.y + 22);
         c.restore();
       }
+      c.restore();
+    }
+
+    /* Luz de espelho que atravessa a tela devagar, e poeira no ar.
+       As duas somem com "efeitos reduzidos". */
+    drawAmbiente(dt) {
+      const c = this.ctx, B = this.box;
+      const ciclo = (this.tempo % 9000) / 9000;
+      if (ciclo < 0.35) {
+        const k = ciclo / 0.35, x = B.x - B.w * 0.3 + k * B.w * 1.6;
+        const g = c.createLinearGradient(x - B.w * 0.12, 0, x + B.w * 0.12, 0);
+        g.addColorStop(0, 'rgba(196,181,253,0)'); g.addColorStop(0.5, 'rgba(196,181,253,.045)');
+        g.addColorStop(1, 'rgba(196,181,253,0)');
+        c.save(); c.beginPath(); c.rect(B.x, B.y, B.w, B.h); c.clip();
+        c.fillStyle = g; c.transform(1, 0, -0.35, 1, B.h * 0.2, 0);
+        c.fillRect(x - B.w * 0.12, B.y, B.w * 0.24, B.h); c.restore();
+      }
+      while (this.poeira.length < 16) {
+        this.poeira.push({ x: Math.random(), y: Math.random(), v: U.rnd(0.004, 0.012),
+                           s: U.rnd(0.6, 1.8), f: U.rnd(0, 6.28) });
+      }
+      c.save();
+      for (const p of this.poeira) {
+        p.y -= p.v * dt / 1000; p.f += dt / 900;
+        if (p.y < -0.02) { p.y = 1.02; p.x = Math.random(); }
+        c.globalAlpha = 0.18 + 0.14 * Math.sin(p.f);
+        c.fillStyle = '#9fb6ff';
+        c.beginPath();
+        c.arc(B.x + (p.x + Math.sin(p.f * 0.7) * 0.004) * B.w, B.y + p.y * B.h, p.s, 0, 6.2832);
+        c.fill();
+      }
+      c.restore();
+    }
+
+    /** Acertos seguidos, no canto de cima. Dá um pulo a cada acerto. */
+    setSerie(n) {
+      if (n > this.serie) this.seriePop = 1;
+      this.serie = n;
+    }
+    drawSerie(dt) {
+      const c = this.ctx, B = this.box;
+      this.seriePop = Math.max(0, this.seriePop - dt / 260);
+      const e = 1 + this.seriePop * 0.35;
+      const x = B.x + B.w * 0.965, y = B.y + B.h * 0.1;
+      const cor = this.serie >= 10 ? '#ffd479' : this.serie >= 5 ? '#c4b5fd' : '#9fb6d4';
+      c.save();
+      c.translate(x, y); c.scale(e, e);
+      c.textAlign = 'right'; c.textBaseline = 'alphabetic';
+      c.font = `900 ${Math.round(B.h * 0.075)}px ui-rounded, system-ui, sans-serif`;
+      c.shadowColor = cor; c.shadowBlur = 10 + this.seriePop * 16;
+      c.fillStyle = cor;
+      c.fillText(`${this.serie}×`, 0, 0);
+      c.shadowBlur = 0;
+      c.font = `800 ${Math.round(B.h * 0.026)}px system-ui, sans-serif`;
+      c.fillStyle = 'rgba(200,214,236,.75)';
+      c.fillText('EM SEQUÊNCIA', 0, B.h * 0.034);
+      c.restore();
     }
 
     cartaPx(c) {
@@ -558,7 +721,7 @@
       const c = this.ctx, B = this.box;
       for (let i = this.trilhas.length - 1; i >= 0; i--) {
         const r = this.trilhas[i];
-        r.t += 1;
+        r.t += (this.dt || 16.7) / 16.67;
         const k = r.t / r.vida;
         if (k >= 1) { this.trilhas.splice(i, 1); continue; }
         c.save();
@@ -575,7 +738,7 @@
       const c = this.ctx;
       for (const cta of this.campo) {
         const q = this.cartaPx(cta);
-        if (cta.pulso) cta.pulso = Math.max(0, cta.pulso - 0.06);
+        if (cta.pulso) cta.pulso = Math.max(0, cta.pulso - 0.06 * (this.dt || 16.7) / 16.67);
         c.save();
         const sel = cta.selecionado, mk = cta.marca;
         c.globalAlpha = 0.95;
@@ -662,14 +825,29 @@
       }
     }
 
+    /* Alvo no campo: sombra no chão, corpo com volume e uma mira
+       girando em volta — como o indicador de alvo travado do jogo. */
     drawAlvo() {
       const c = this.ctx, B = this.box, a = this.alvoVisual;
       const x = B.x + a.x * B.w, y = B.y + a.y * B.h, r = (a.r || 0.035) * B.w;
+      const cor = a.cor || '#ff5470';
       c.save();
-      c.globalAlpha = 0.9;
-      c.strokeStyle = a.cor || '#ff5470'; c.lineWidth = 2.5;
+      c.fillStyle = 'rgba(0,0,0,.35)';
+      c.beginPath(); c.ellipse(x, y + r * 0.95, r * 0.9, r * 0.25, 0, 0, 6.2832); c.fill();
+      const g = c.createRadialGradient(x - r * 0.3, y - r * 0.35, r * 0.1, x, y, r);
+      g.addColorStop(0, this.mix(cor, 0.42)); g.addColorStop(1, this.mix(cor, 0.10));
+      c.fillStyle = g; c.beginPath(); c.arc(x, y, r, 0, 6.2832); c.fill();
+      c.globalAlpha = 0.95; c.strokeStyle = cor; c.lineWidth = 2.5;
+      c.shadowColor = cor; c.shadowBlur = 10;
       c.beginPath(); c.arc(x, y, r, 0, 6.2832); c.stroke();
-      c.globalAlpha = 0.18; c.fillStyle = a.cor || '#ff5470'; c.fill();
+      c.shadowBlur = 0;
+      /* mira girando: quatro arcos */
+      const giro = this.tempo / 900;
+      c.globalAlpha = 0.55; c.lineWidth = 1.8;
+      for (let k = 0; k < 4; k++) {
+        const a0 = giro + k * Math.PI / 2;
+        c.beginPath(); c.arc(x, y, r * 1.28, a0, a0 + 0.8); c.stroke();
+      }
       c.globalAlpha = 1;
       if (a.rotulo) {
         c.fillStyle = '#e8eefc'; c.font = `700 ${Math.round(r * 0.62)}px system-ui`;
@@ -1002,10 +1180,21 @@
     drawJoy(b, id) {
       const c = this.ctx, p = this.px(b), st = this.estado[id] || {};
       c.save();
-      c.strokeStyle = st.destaque ? '#7fd4ff' : 'rgba(150,180,220,.35)';
+      /* base: disco de vidro escuro com anéis concêntricos, como no jogo */
+      const g = c.createRadialGradient(p.x, p.y, p.r * 0.2, p.x, p.y, p.r * 1.05);
+      g.addColorStop(0, 'rgba(60,90,140,.10)'); g.addColorStop(1, 'rgba(20,30,50,.42)');
+      c.fillStyle = g; c.beginPath(); c.arc(p.x, p.y, p.r, 0, 6.2832); c.fill();
+      c.strokeStyle = st.destaque ? '#7fd4ff' : 'rgba(150,180,220,.38)';
       c.lineWidth = st.destaque ? 3 : 2;
       c.beginPath(); c.arc(p.x, p.y, p.r, 0, 6.2832); c.stroke();
-      c.globalAlpha = 0.12; c.fillStyle = '#7fd4ff'; c.fill(); c.globalAlpha = 1;
+      c.strokeStyle = 'rgba(150,180,220,.10)'; c.lineWidth = 1;
+      c.beginPath(); c.arc(p.x, p.y, p.r * 0.62, 0, 6.2832); c.stroke();
+      /* arco aceso para o lado que o polegar empurra */
+      if (this.joy.ativo && this.joy.mag > 0.2) {
+        c.strokeStyle = '#7fd4ff'; c.lineWidth = 4; c.shadowColor = '#7fd4ff'; c.shadowBlur = 12;
+        c.beginPath(); c.arc(p.x, p.y, p.r, this.joy.ang - 0.5, this.joy.ang + 0.5); c.stroke();
+        c.shadowBlur = 0;
+      }
       // seta-alvo (direção pedida pelo exercício)
       if (st.dirAlvo != null) {
         const a = st.dirAlvo * Math.PI / 4;
@@ -1016,40 +1205,131 @@
         c.stroke(); c.globalAlpha = 1;
       }
       // manete
-      const hx = p.x + this.joy.dx, hy = p.y + this.joy.dy;
-      c.fillStyle = this.joy.ativo ? '#bfe6ff' : 'rgba(200,225,255,.55)';
-      c.beginPath(); c.arc(hx, hy, p.r * 0.42, 0, 6.2832); c.fill();
+      const hx = p.x + this.joy.dx, hy = p.y + this.joy.dy, hr = p.r * 0.42;
+      const m = c.createRadialGradient(hx - hr * 0.3, hy - hr * 0.35, hr * 0.1, hx, hy, hr);
+      m.addColorStop(0, this.joy.ativo ? '#e6f5ff' : 'rgba(220,235,255,.8)');
+      m.addColorStop(1, this.joy.ativo ? '#7fb8e6' : 'rgba(120,150,190,.55)');
+      c.shadowColor = 'rgba(0,0,0,.5)'; c.shadowBlur = 8; c.shadowOffsetY = 2;
+      c.fillStyle = m; c.beginPath(); c.arc(hx, hy, hr, 0, 6.2832); c.fill();
       c.restore();
+    }
+
+    /* ------------------------------------------------------------
+       ÍCONE de cada botão, desenhado em traço (nada de imagem):
+       fica ATRÁS do número, apagado, só para o botão ter cara de
+       habilidade. O número continua sendo o que se lê.
+         1 = avanço (seta em arrancada)   2 = estilhaços
+         3 = espelho (losango duplo)      AA = lâmina
+         FL = raio   REC = cruz   RET = casa   itens = gema
+       ------------------------------------------------------------ */
+    icone(id, tipo, x, y, r) {
+      const c = this.ctx;
+      c.beginPath();
+      if (id === 's1') {
+        c.moveTo(x - r * 0.55, y + r * 0.35); c.lineTo(x + r * 0.35, y - r * 0.45);
+        c.moveTo(x + r * 0.35, y - r * 0.45); c.lineTo(x + r * 0.02, y - r * 0.42);
+        c.moveTo(x + r * 0.35, y - r * 0.45); c.lineTo(x + r * 0.32, y - r * 0.12);
+        c.moveTo(x - r * 0.55, y + r * 0.05); c.lineTo(x - r * 0.2, y - r * 0.28);
+        c.moveTo(x - r * 0.3, y + r * 0.55); c.lineTo(x + r * 0.05, y + r * 0.22);
+      } else if (id === 's2') {
+        for (let k = 0; k < 5; k++) {
+          const a = k * 1.2566 - 1.2, d = r * 0.45;
+          c.moveTo(x + Math.cos(a) * d * 0.35, y + Math.sin(a) * d * 0.35);
+          c.lineTo(x + Math.cos(a) * d, y + Math.sin(a) * d);
+          c.lineTo(x + Math.cos(a + 0.35) * d * 0.7, y + Math.sin(a + 0.35) * d * 0.7);
+        }
+      } else if (id === 's3') {
+        c.moveTo(x, y - r * 0.6); c.lineTo(x + r * 0.42, y); c.lineTo(x, y + r * 0.6); c.lineTo(x - r * 0.42, y); c.closePath();
+        c.moveTo(x, y - r * 0.32); c.lineTo(x + r * 0.22, y); c.lineTo(x, y + r * 0.32); c.lineTo(x - r * 0.22, y); c.closePath();
+      } else if (id === 'aa') {
+        c.moveTo(x - r * 0.5, y + r * 0.5); c.lineTo(x + r * 0.5, y - r * 0.5);
+        c.moveTo(x - r * 0.25, y + r * 0.05); c.lineTo(x - r * 0.05, y + r * 0.25);
+        c.moveTo(x + r * 0.5, y + r * 0.5); c.lineTo(x - r * 0.5, y - r * 0.5);
+      } else if (id === 'flash') {
+        c.moveTo(x + r * 0.12, y - r * 0.6); c.lineTo(x - r * 0.25, y + r * 0.05); c.lineTo(x + r * 0.08, y + r * 0.05);
+        c.lineTo(x - r * 0.12, y + r * 0.6);
+      } else if (id === 'cura') {
+        c.moveTo(x, y - r * 0.45); c.lineTo(x, y + r * 0.45); c.moveTo(x - r * 0.45, y); c.lineTo(x + r * 0.45, y);
+      } else if (id === 'volta') {
+        c.moveTo(x - r * 0.45, y); c.lineTo(x, y - r * 0.45); c.lineTo(x + r * 0.45, y);
+        c.moveTo(x - r * 0.3, y - r * 0.12); c.lineTo(x - r * 0.3, y + r * 0.42); c.lineTo(x + r * 0.3, y + r * 0.42); c.lineTo(x + r * 0.3, y - r * 0.12);
+      } else if (tipo === 'item') {
+        c.moveTo(x, y - r * 0.45); c.lineTo(x + r * 0.38, y - r * 0.08); c.lineTo(x, y + r * 0.45); c.lineTo(x - r * 0.38, y - r * 0.08); c.closePath();
+      } else return;
+      c.stroke();
     }
 
     drawBtn(b, id) {
       const c = this.ctx, p = this.px(b), st = this.estado[id] || {};
       const destaque = !!st.destaque;
       const bloq = !!st.bloqueado;
+      const dt = this.dt || 16.7;
+      const habil = b.tipo === 'hab' || b.tipo === 'ult';
       c.save();
 
-      if (st.pulso) { st.pulso = Math.max(0, st.pulso - 0.06); }
+      if (st.pulso) { st.pulso = Math.max(0, st.pulso - 0.06 * dt / 16.67); }
+      if (st.brilho) { st.brilho = Math.max(0, st.brilho - dt / 220); }
       const esc = 1 + (st.pulso || 0) * 0.10;
       const r = p.r * esc;
 
-      // corpo
-      const g = c.createRadialGradient(p.x, p.y - r * 0.3, r * 0.1, p.x, p.y, r);
+      /* sombra no chão: o botão "flutua" sobre a arena */
+      c.shadowColor = 'rgba(0,0,0,.55)'; c.shadowBlur = r * 0.35; c.shadowOffsetY = r * 0.08;
+
+      // corpo: vidro escuro com o tom do botão no miolo
+      const g = c.createRadialGradient(p.x, p.y - r * 0.35, r * 0.08, p.x, p.y, r);
       if (bloq) { g.addColorStop(0, '#1a1f2b'); g.addColorStop(1, '#0d1118'); }
-      else if (destaque) { g.addColorStop(0, this.mix(b.cor, 0.55)); g.addColorStop(1, this.mix(b.cor, 0.12)); }
-      else { g.addColorStop(0, 'rgba(40,52,74,.95)'); g.addColorStop(1, 'rgba(18,25,38,.95)'); }
+      else if (destaque) { g.addColorStop(0, this.mix(b.cor, 0.62)); g.addColorStop(0.6, this.mix(b.cor, 0.28)); g.addColorStop(1, 'rgba(14,18,30,.95)'); }
+      else { g.addColorStop(0, this.mix(b.cor, 0.20)); g.addColorStop(0.55, 'rgba(26,34,52,.94)'); g.addColorStop(1, 'rgba(10,14,24,.96)'); }
       c.fillStyle = g;
       c.beginPath(); c.arc(p.x, p.y, r, 0, 6.2832); c.fill();
+      c.shadowColor = 'transparent'; c.shadowBlur = 0; c.shadowOffsetY = 0;
 
-      // aro
-      const aro = b.tipo === 'hab' || b.tipo === 'ult' ? '#e8c46a' : '#5b708f';
-      c.lineWidth = destaque ? 3.4 : (b.tipo === 'hab' || b.tipo === 'ult' ? 2.4 : 1.6);
-      c.strokeStyle = destaque ? (st.cor || '#fff1c9') : (bloq ? '#2a3240' : aro);
+      // ícone apagado atrás do número
+      if (!bloq && r > 9) {
+        c.save();
+        c.strokeStyle = destaque ? 'rgba(255,255,255,.34)' : this.mix(b.cor, 0.30);
+        c.lineWidth = Math.max(1.2, r * 0.07); c.lineCap = 'round'; c.lineJoin = 'round';
+        this.icone(id, b.tipo, p.x, p.y, r);
+        c.restore();
+      }
+
+      // reflexo de vidro no alto
+      const rf = c.createLinearGradient(0, p.y - r, 0, p.y);
+      rf.addColorStop(0, 'rgba(255,255,255,.16)'); rf.addColorStop(1, 'rgba(255,255,255,0)');
+      c.fillStyle = rf;
+      c.beginPath(); c.ellipse(p.x, p.y - r * 0.42, r * 0.72, r * 0.42, 0, Math.PI, 0); c.fill();
+
+      // aro: ouro envelhecido nas habilidades, aço no resto
+      const aro = c.createLinearGradient(p.x, p.y - r, p.x, p.y + r);
+      if (bloq) { aro.addColorStop(0, '#2a3240'); aro.addColorStop(1, '#1a2030'); }
+      else if (habil) { aro.addColorStop(0, '#fff0c2'); aro.addColorStop(0.45, '#d9b25a'); aro.addColorStop(1, '#6e5019'); }
+      else { aro.addColorStop(0, '#c3d0e2'); aro.addColorStop(0.5, '#6b7d98'); aro.addColorStop(1, '#2d3a50'); }
+      c.lineWidth = destaque ? Math.max(3.4, r * 0.1) : (habil ? Math.max(2.2, r * 0.075) : Math.max(1.4, r * 0.06));
+      c.strokeStyle = destaque ? (st.cor || '#fff1c9') : aro;
       c.beginPath(); c.arc(p.x, p.y, r, 0, 6.2832); c.stroke();
+      if (b.tipo === 'ult' && !bloq) {
+        c.strokeStyle = 'rgba(232,196,106,.35)'; c.lineWidth = 1.2;
+        c.beginPath(); c.arc(p.x, p.y, r * 1.12, 0, 6.2832); c.stroke();
+        for (let k = 0; k < 4; k++) {
+          const a = k * Math.PI / 2 + Math.PI / 4;
+          c.beginPath(); c.moveTo(p.x + Math.cos(a) * r * 1.05, p.y + Math.sin(a) * r * 1.05);
+          c.lineTo(p.x + Math.cos(a) * r * 1.2, p.y + Math.sin(a) * r * 1.2); c.stroke();
+        }
+      }
 
       if (destaque) {
-        c.shadowColor = st.cor || b.cor; c.shadowBlur = 18;
+        const pul = 0.75 + 0.25 * Math.sin(this.tempo / 160);
+        c.shadowColor = st.cor || b.cor; c.shadowBlur = 18 * pul;
         c.beginPath(); c.arc(p.x, p.y, r, 0, 6.2832); c.stroke();
         c.shadowBlur = 0;
+      }
+
+      // clarão do toque
+      if (st.brilho > 0) {
+        const fl = c.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 1.25);
+        fl.addColorStop(0, `rgba(255,255,255,${0.55 * st.brilho})`); fl.addColorStop(1, 'rgba(255,255,255,0)');
+        c.save(); c.globalCompositeOperation = 'lighter';
+        c.fillStyle = fl; c.beginPath(); c.arc(p.x, p.y, r * 1.25, 0, 6.2832); c.fill(); c.restore();
       }
 
       /* recarga — como no jogo: o botão inteiro escurece e a fatia que
@@ -1070,12 +1350,13 @@
 
       // rótulo — com contagem, o número toma o lugar do nome
       c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.shadowColor = 'rgba(0,0,0,.7)'; c.shadowBlur = 4; c.shadowOffsetY = 1;
       if (st.cd > 0 && st.cdTxt) {
         c.fillStyle = st.cdCor || '#ffffff';
         c.font = `800 ${Math.round(r * 0.66)}px ui-rounded, system-ui, sans-serif`;
         c.fillText(st.cdTxt, p.x, p.y + r * 0.02);
       } else {
-        c.fillStyle = bloq ? '#4a5566' : (destaque ? '#ffffff' : (st.cd > 0 ? '#7d8aa3' : '#c9d6ec'));
+        c.fillStyle = bloq ? '#4a5566' : (destaque ? '#ffffff' : (st.cd > 0 ? '#7d8aa3' : '#dde6f5'));
         c.font = `800 ${Math.round(r * 0.78)}px ui-rounded, system-ui, sans-serif`;
         c.fillText(st.rotulo || b.curto, p.x, p.y + r * 0.02);
       }
@@ -1084,26 +1365,64 @@
     }
 
     mix(hex, a) {
-      const n = parseInt(hex.slice(1), 16);
+      if (typeof hex !== 'string' || hex[0] !== '#') return `rgba(160,170,190,${a})`;
+      if (hex.length === 4) hex = '#' + hex.slice(1).split('').map(x => x + x).join('');
+      const n = parseInt(hex.slice(1, 7), 16);
       return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
     }
 
+    /* Efeitos medidos em TEMPO, não em quadros: num celular de 120 Hz
+       a versão antiga tocava tudo na metade do tempo. `q` = quadros de
+       60 Hz que passaram, para as velocidades continuarem as mesmas. */
     drawFx() {
-      const c = this.ctx;
+      const c = this.ctx, dt = this.dt || 16.7, q = dt / 16.67;
       for (let i = this.efeitos.length - 1; i >= 0; i--) {
         const f = this.efeitos[i];
-        f.t += 1;
+        f.t += dt;
         if (f.tipo === 'anel') {
-          const k = f.t / 22;
+          const k = f.t / 370;
           if (k >= 1) { this.efeitos.splice(i, 1); continue; }
-          c.save(); c.globalAlpha = (1 - k) * 0.9; c.strokeStyle = f.cor; c.lineWidth = 3 * (1 - k) + 1;
-          c.beginPath(); c.arc(f.x, f.y, f.r * (1 + k * 1.1), 0, 6.2832); c.stroke(); c.restore();
+          const e = 1 - Math.pow(1 - k, 3);
+          c.save(); c.globalAlpha = (1 - k) * 0.9; c.strokeStyle = f.cor; c.lineWidth = 3.4 * (1 - k) + 1;
+          c.shadowColor = f.cor; c.shadowBlur = 12 * (1 - k);
+          c.beginPath(); c.arc(f.x, f.y, f.r * (1 + e * 1.1), 0, 6.2832); c.stroke(); c.restore();
+        } else if (f.tipo === 'onda') {
+          const k = f.t / 300;
+          if (k >= 1) { this.efeitos.splice(i, 1); continue; }
+          const r = f.r * (0.6 + k * 1.2);
+          const g = c.createRadialGradient(f.x, f.y, r * 0.2, f.x, f.y, r);
+          g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(1, f.cor);
+          c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = (1 - k) * 0.35;
+          c.fillStyle = g; c.beginPath(); c.arc(f.x, f.y, r, 0, 6.2832); c.fill(); c.restore();
+        } else if (f.tipo === 'faisca') {
+          const k = f.t / 340;
+          if (k >= 1) { this.efeitos.splice(i, 1); continue; }
+          f.x += f.vx * q; f.y += f.vy * q; f.vx *= Math.pow(0.9, q); f.vy *= Math.pow(0.9, q);
+          c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 1 - k;
+          c.strokeStyle = f.cor; c.lineWidth = 2; c.lineCap = 'round';
+          c.beginPath(); c.moveTo(f.x, f.y); c.lineTo(f.x - f.vx * 2.4, f.y - f.vy * 2.4); c.stroke();
+          c.restore();
+        } else if (f.tipo === 'texto') {
+          const k = f.t / 900;
+          if (k >= 1) { this.efeitos.splice(i, 1); continue; }
+          const B = this.box, sobe = B.h * 0.08 * (1 - Math.pow(1 - k, 2));
+          const e = k < 0.12 ? 0.6 + (k / 0.12) * 0.55 : 1.15 - Math.min(0.15, (k - 0.12) * 0.6);
+          c.save(); c.translate(f.x, f.y - sobe); c.scale(e, e);
+          c.globalAlpha = k > 0.65 ? (1 - k) / 0.35 : 1;
+          c.font = `900 ${Math.round(B.h * f.tam)}px ui-rounded, system-ui, sans-serif`;
+          c.textAlign = 'center'; c.textBaseline = 'middle';
+          c.lineWidth = Math.max(2, B.h * f.tam * 0.14); c.strokeStyle = 'rgba(4,6,12,.85)';
+          c.strokeText(f.texto, 0, 0);
+          c.fillStyle = f.cor; c.shadowColor = f.cor; c.shadowBlur = 10;
+          c.fillText(f.texto, 0, 0); c.restore();
         } else {
-          const k = f.t / 34;
+          const k = f.t / 570;
           if (k >= 1) { this.efeitos.splice(i, 1); continue; }
-          f.x += f.vx; f.y += f.vy; f.vy += 0.09; f.rot += f.vr;
+          f.x += f.vx * q; f.y += f.vy * q; f.vy += 0.09 * q; f.rot += f.vr * q;
           c.save(); c.globalAlpha = (1 - k); c.translate(f.x, f.y); c.rotate(f.rot);
-          c.fillStyle = f.cor;
+          const g = c.createLinearGradient(-f.s, -f.s, f.s, f.s);
+          g.addColorStop(0, '#ffffff'); g.addColorStop(0.35, f.cor); g.addColorStop(1, f.cor);
+          c.fillStyle = g;
           c.beginPath(); c.moveTo(0, -f.s); c.lineTo(f.s * 0.5, 0); c.lineTo(0, f.s * 0.8); c.lineTo(-f.s * 0.42, 0);
           c.closePath(); c.fill(); c.restore();
         }
@@ -1117,15 +1436,27 @@
       c.textAlign = 'center'; c.textBaseline = 'middle';
       const cx = B.x + B.w * (o.cx ?? 0.42), cy = B.y + B.h * (o.cy ?? 0.42);
       if (o.texto) {
-        c.fillStyle = o.cor || '#e8eefc';
-        c.font = `900 ${Math.round(B.h * (o.tam || 0.16))}px ui-rounded, system-ui, sans-serif`;
+        /* entra com um pulo curto (160 ms): o olho pega a mudança */
+        const k = U.clamp((this.tempo - this.overlayT) / 160, 0, 1);
+        const e = 0.82 + 0.18 * (1 - Math.pow(1 - k, 3)) + (k < 1 ? 0 : 0);
+        const tam = Math.round(B.h * (o.tam || 0.16));
+        c.save(); c.translate(cx, cy); c.scale(e, e); c.globalAlpha = 0.4 + 0.6 * k;
+        c.font = `900 ${tam}px ui-rounded, system-ui, sans-serif`;
+        c.lineJoin = 'round'; c.lineWidth = Math.max(3, tam * 0.08); c.strokeStyle = 'rgba(4,6,12,.75)';
+        c.strokeText(o.texto, 0, 0);
+        const cor = o.cor || '#e8eefc';
+        const g = c.createLinearGradient(0, -tam * 0.5, 0, tam * 0.5);
+        g.addColorStop(0, '#ffffff'); g.addColorStop(0.45, cor); g.addColorStop(1, cor);
+        c.fillStyle = g;
         c.shadowColor = o.cor || '#8b6cf0'; c.shadowBlur = 24;
-        c.fillText(o.texto, cx, cy);
-        c.shadowBlur = 0;
+        c.fillText(o.texto, 0, 0);
+        c.restore();
       }
       if (o.sub) {
-        c.fillStyle = o.subCor || 'rgba(200,214,236,.9)';
-        c.font = `600 ${Math.round(B.h * 0.055)}px system-ui, sans-serif`;
+        c.font = `700 ${Math.round(B.h * 0.055)}px system-ui, sans-serif`;
+        c.lineJoin = 'round'; c.lineWidth = 4; c.strokeStyle = 'rgba(4,6,12,.7)';
+        c.strokeText(o.sub, cx, cy + B.h * (o.tam || 0.16) * 0.72);
+        c.fillStyle = o.subCor || 'rgba(214,226,246,.95)';
         c.fillText(o.sub, cx, cy + B.h * (o.tam || 0.16) * 0.72);
       }
       c.restore();

@@ -524,6 +524,21 @@
       o_que: 'Você apertou a 1 ou a 2 com a passiva travada — nada quebrou, a habilidade estava em recarga, o toque foi perdido.',
       acao: 'Nos 5 s depois de uma quebra não existe reset. Olhe o botão P antes de decidir: a trava está desenhada nele.',
     },
+    cedo: {
+      nome: 'Punir cedo', cor: 'atencao',
+      o_que: 'Você apertou o Punir com a vida do monstro ainda maior que o dano dele: saiu, não matou, e entrou em recarga.',
+      acao: 'Compare a barra com o SEU dano antes de apertar — não com a vontade de apertar. Punir cedo entrega o objetivo de graça ao caçador inimigo.',
+    },
+    roubado: {
+      nome: 'Roubado', cor: 'critico',
+      o_que: 'A vida já cabia no seu Punir e o caçador inimigo apertou antes de você.',
+      acao: 'O polegar tem que estar EM CIMA do Punir quando a vida se aproxima do dano, e não vindo de outro botão. O tempo que sobra é o do olho, não o da mão.',
+    },
+    tarde: {
+      nome: 'Sem Punir', cor: 'serie1',
+      o_que: 'A vida coube no dano e a equipe matou sem o seu Punir sair.',
+      acao: 'Sem inimigo por perto o abate ainda é seu — mas é o mesmo atraso que, com inimigo, vira roubo.',
+    },
     posicao: {
       nome: 'Lugar', cor: 'serie1',
       o_que: 'Você leu o sinal certo mas apontou na área errada do mapa.',

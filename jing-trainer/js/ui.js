@@ -125,7 +125,7 @@
       <h1>◈ ESPELHO</h1>
       <span class="tag vio">${fase.nome}</span>
       <div class="espaco"></div>
-      <span class="sub">${d.legado ? 'v17 · dados anteriores preservados' : 'v17'}</span>
+      <span class="sub">${d.legado ? 'v18 · dados anteriores preservados' : 'v18'}</span>
     </div>
     <div class="rolagem pilha">
 
@@ -270,6 +270,8 @@
     const ativas = rotas.slice().sort((a, b) => a.prio - b.prio).slice(0, 3);
     const hist = MD.filtrar({ k: 'reset' }).filter(x => x.x && x.x.r1 === 'ok' && x.rt);
     const rtMed = hist.length >= 6 ? Math.round(U.median(hist.map(x => x.rt))) : null;
+    const histP = MD.filtrar({ k: 'punir' }).filter(x => x.ok && x.rt);
+    const latPunir = histP.length >= 5 ? Math.round(U.median(histP.map(x => x.rt))) : null;
     const suas = rotas.filter(r => r.origem === 'sua').length;
 
     const linhaKit = (k) => {
@@ -300,6 +302,20 @@
                 : 'Ainda sem resets medidos.'}</div>
           </div>
           <button class="btn" style="flex:none" data-jing="espelho">Treinar o reset</button>
+        </div>
+        <div class="flex" style="gap:10px;align-items:center;margin-top:10px">
+          <div class="mini" style="flex:1;min-width:0"><b>Sessão da Jing</b> — Rota, Quebra do Espelho, Punir e Mira,
+            intercalados, cada um na dificuldade medida para você.</div>
+          <button class="btn gold" style="flex:none" data-jing="sessao">Sessão da Jing</button>
+        </div>
+        <div class="flex" style="gap:10px;align-items:flex-start;margin-top:8px">
+          <div style="flex:1;min-width:0">
+            <div class="mini"><b>Punir no Tirano</b> — a Jing joga na selva com Punir. Garantir o objetivo:
+              nem antes da vida caber no dano, nem depois do caçador inimigo.
+              ${latPunir != null ? `Seu tempo entre a vida caber e o Punir: <b>${latPunir} ms</b> (${histP.length} objetivos).`
+                : 'Ainda sem objetivos medidos.'}</div>
+          </div>
+          <button class="btn" style="flex:none" data-jing="punir">Treinar o Punir</button>
         </div>
 
         <div class="sep"></div>
@@ -380,6 +396,7 @@
     desenharMedidores($('#tela-agora'));
     $$('#tela-agora [data-jing]').forEach(b => b.addEventListener('click', () => {
       if (b.dataset.jing === 'rotas') return abrirRotas();
+      if (b.dataset.jing === 'sessao') return U.T.sessaoJing();
       const dr = D.porId(b.dataset.jing);
       if (dr) U.T.abrirBloco(dr, CT.estado(dr.id).dif);
     }));
@@ -1563,6 +1580,10 @@
           <button class="btn ${o.vibra ? '' : 'sec'} sm" id="o-vibra">Vibração ${o.vibra ? 'ligada' : 'desligada'}</button>
           <button class="btn ${o.fx === 'alto' ? '' : 'sec'} sm" id="o-fx">Efeitos visuais ${o.fx === 'alto' ? 'completos' : 'reduzidos'}</button>
         </div>
+        <div class="grade g2" style="margin-top:8px">
+          <button class="btn ${o.somToque !== false ? '' : 'sec'} sm" id="o-somtoque">Som dos botões ${o.somToque !== false ? 'ligado' : 'desligado'}</button>
+          <button class="btn sec sm" id="o-ouvir">Ouvir os sons</button>
+        </div>
         <div class="xs" style="margin-top:6px">Na Prova a trilha fica mínima de propósito: medir com trilha cheia
         acrescenta variação que não tem nada a ver com você.</div>
       </div>
@@ -1658,6 +1679,16 @@
     $('#o-som')?.addEventListener('click', () => { alt('som', !d.opts.som); U.Sfx.unlock(); U.Sfx.hit(); });
     $('#o-vibra')?.addEventListener('click', () => { alt('vibra', !d.opts.vibra); U.Haptic.good(); });
     $('#o-fx')?.addEventListener('click', () => alt('fx', d.opts.fx === 'alto' ? 'baixo' : 'alto'));
+    $('#o-somtoque')?.addEventListener('click', () => { alt('somToque', d.opts.somToque === false); U.Sfx.unlock(); U.Sfx.botao('hab'); });
+    $('#o-ouvir')?.addEventListener('click', () => {
+      /* amostra de toda a paleta, na ordem em que aparece num treino */
+      U.Sfx.unlock(); U.Sfx.zerarSerie();
+      const seq = [() => U.Sfx.tick(), () => U.Sfx.tick(), () => U.Sfx.largada(), () => U.Sfx.botao('hab'),
+        () => U.Sfx.botao('aa'), () => U.Sfx.botao('ult'), () => U.Sfx.perfect(), () => U.Sfx.perfect(),
+        () => U.Sfx.perfect(), () => U.Sfx.vidro(), () => U.Sfx.bloqueado(), () => U.Sfx.miss(),
+        () => U.Sfx.punir(), () => U.Sfx.abate(), () => U.Sfx.done()];
+      seq.forEach((f, i) => setTimeout(f, i * 420));
+    });
     $('#o-musica')?.addEventListener('click', () => {
       d.opts.musica = d.opts.musica === false; U.DB.save(); U.Sfx.unlock();
       d.opts.musica ? U.Musica.tocar('espelho') : U.Musica.parar();

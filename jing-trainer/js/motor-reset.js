@@ -190,7 +190,7 @@
       if (this.estado === 'segunda' && hab) {
         this.rt2 = agora - this.tSegunda;
         this.r2 = this.tipo2 === 'real' ? 'ok' : 'recarga';
-        if (this.tipo2 === 'real') this.usar(id); else { this.hud.erro(id); }
+        if (this.tipo2 === 'real') this.usar(id); else { this.hud.erro(id); U.Sfx.bloqueado(); }
         return this.fechar();
       }
 
@@ -199,6 +199,7 @@
       if ((this.estado === 'intervalo' || this.estado === 'espera1') && hab && this.emRecarga(id)) {
         this.antecipou++;
         this.hud.erro(id);
+        U.Sfx.bloqueado();
         U.Haptic.bad();
       }
     }
@@ -241,7 +242,7 @@
         this.hud.efeitos.push({ t: 0, tipo: 'anel', x: q.x, y: q.y, r: q.r, cor: '#ffd479' });
       }
       this.mostrarMarcas(false, false);
-      U.Sfx.hit();
+      U.Sfx.vidro();
     }
 
     /* ---------- a janela da trava ---------- */

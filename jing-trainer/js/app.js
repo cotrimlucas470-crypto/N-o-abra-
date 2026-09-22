@@ -71,13 +71,21 @@
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 
+  /* clique de interface: só nos botões do app, nunca no palco de treino
+     (lá cada botão do HUD tem o som dele) */
+  document.addEventListener('pointerdown', (e) => {
+    const b = e.target.closest && e.target.closest('.btn, .railbtn, .item, .tag.liga');
+    if (!b || e.target.closest('#treino')) return;
+    U.Sfx.unlock(); U.Sfx.ui();
+  }, { passive: true });
+
   window.addEventListener('resize', () => {
     clearTimeout(window.__rz);
     U.G.esconderDica();
     window.__rz = setTimeout(() => { if (!$('#treino').classList.contains('on')) U.UI.render(); }, 260);
   });
 
-  console.log('ESPELHO v17 ·', U.D.DRILLS.length, 'exercícios em',
+  console.log('ESPELHO v18 ·', U.D.DRILLS.length, 'exercícios em',
     Object.keys(U.D.CATEGORIAS).length, 'categorias ·',
     U.DS.REGRAS.length, 'regras ·', U.CI.PRINCIPIOS.length, 'princípios ·',
     Object.keys((U.HE.BUILDS || { porHeroi: {} }).porHeroi).length, 'heróis com itens ·',

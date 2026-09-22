@@ -343,6 +343,30 @@
         limiteAbertura: 4500,
       }),
     },
+    {
+      id: 'punir', nome: 'Punir no Tirano', motor: 'punir', mede: null, categoria: 'reflexo',
+      objetivo: 'Garantir Tirano e Soberano com o Punir: nem antes da vida caber no dano, nem depois do caçador inimigo.',
+      comoFunciona: [
+        'A equipe bate no monstro e a vida desce. Embaixo da barra está quanto o <b>seu Punir</b> tira — o número muda a cada tentativa.',
+        'Aperte o botão <b>PU</b> (o do feitiço) quando a vida couber no dano. Antes disso o Punir sai, não mata, e é erro.',
+        'Quando aparece o <b>caçador inimigo</b>, ele também está esperando a vida caber: quem aperta primeiro leva.',
+        'Até a dificuldade 4 a barra mostra a linha do Punir; até a 7, o número da vida. Depois, só a barra, como no jogo.',
+        'Golpes dourados são o pico de dano (o combo entrando): a vida pula de uma vez, às vezes por cima da linha.',
+      ],
+      porque: 'A Jing joga na selva com Punir — as duas buscas da build concordam. Objetivo no rio se decide num instante, e os dois erros custam o mesmo: cedo entrega o Punir, tarde entrega o monstro. É leitura de barra, comparação com um número e tempo de resposta sob pressão — dá para treinar fora da partida. Os números (vida e dano) são ilustrativos: no jogo eles mudam com o nível e com o tempo de partida, e por isso aqui o dano muda a cada tentativa.',
+      cfg: (d) => ({
+        tentativas: 12,
+        ritmo: Math.round(escala(d, 540, 260)),
+        danoMedio: Math.round(escala(d, 260, 520)),
+        variacao: +escala(d, 0.2, 0.65).toFixed(2),
+        pico: d >= 4 ? 0.15 : 0,
+        fracInimigo: d < 3 ? 0 : d < 6 ? 0.5 : 0.75,
+        reacaoInimigo: Math.round(escala(d, 1100, 420)),
+        linha: d < 5,
+        numeroHp: d < 8,
+        soberano: d >= 3,
+      }),
+    },
     /* ============================================================
        VISÃO DE MAPA
 

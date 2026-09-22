@@ -1,5 +1,5 @@
 ================================================================
-ESPELHO v17 — A escada viva, e a Quebra do Espelho
+ESPELHO v18 — Punir no Tirano, som e gráficos novos
 Honor of Kings · Poco X7 Pro · HTML/CSS/JS, sem dependências
 ================================================================
 
@@ -14,6 +14,130 @@ todo número daqui sai de toques sobre a réplica. Se ela não bate com o seu
 jogo, tudo o que vier depois mede a coisa errada.
 
 Seus dados da v1 e da v2 continuam lá. Nada é apagado.
+
+
+================================================================
+PARTE -12 — V18: PUNIR NO TIRANO, SOM E GRÁFICOS NOVOS
+================================================================
+
+O QUE VOCÊ PEDIU
+
+   Qualidade gráfica, efeitos sonoros e treinos muito melhores.
+
+----------------------------------------------------------------
+1. TREINO NOVO: PUNIR NO TIRANO
+----------------------------------------------------------------
+
+POR QUE
+
+   A Jing joga na selva, e o feitiço dela é o Punir (Smite) — as duas
+   buscas da build deram o mesmo, confiança ALTA. Tirano e Soberano
+   se decidem num instante, e os dois erros custam o objetivo:
+   · CEDO: a vida ainda não cabe no dano. O Punir sai, não mata e
+     entra em recarga — o caçador inimigo leva de graça.
+   · TARDE: a vida já cabia e você não apertou. O inimigo aperta antes.
+
+COMO FUNCIONA
+
+   A equipe bate no monstro e a vida desce, com os números de dano
+   subindo (os dourados são o pico: o combo entrando, que às vezes
+   pula a vida por cima do limite). Acima da barra está quanto o SEU
+   Punir tira — e esse número muda a cada tentativa. O botão do
+   feitiço vira PU. Aperte quando a vida couber no dano.
+
+   Quando aparece o "caçador inimigo", ele também está esperando: quem
+   aperta primeiro leva. Ele nunca deixa a sua equipe matar o monstro
+   de graça — se o próximo golpe mata, ele aperta antes, como na
+   partida.
+
+A DIFICULDADE MEXE EM QUATRO COISAS
+   · ritmo e tamanho dos golpes (a janela encurta);
+   · variação dos golpes (a vida pula o limite);
+   · o caçador inimigo: nenhum até a dif 2, metade das tentativas até
+     a 5, três em quatro daí para cima — e mais rápido: de ~1,1 s
+     (distraído) a ~0,4 s (dedo em cima do botão);
+   · a ajuda: linha roxa do Punir na barra até a dif 4, número da vida
+     até a 7. Depois, só a barra, como no jogo.
+
+O QUE É ILUSTRATIVO
+   Os números. No jogo o dano do Punir sobe com o nível e a vida dos
+   monstros com o tempo de partida — o banco não tem esses valores.
+   Por isso o dano muda a cada tentativa: o que se treina é comparar a
+   vida com o seu dano e reagir, não decorar um número.
+
+O RESULTADO
+   O tempo entre a vida caber e o Punir sair (com intervalo), quantos
+   objetivos você garantiu, cedo / roubados / sem Punir separados, o
+   seu desempenho nas disputas — e o diagnóstico do lado do erro:
+   "pressa" (a mão sai antes do olho comparar) ou "atraso" (a leitura
+   está certa e a mão chega depois). A correção é oposta, por isso o
+   app diz qual é o seu.
+
+----------------------------------------------------------------
+2. SESSÃO DA JING
+----------------------------------------------------------------
+
+   Um botão no painel "Sua Jing": Rota, Quebra do Espelho, Punir e
+   Mira, INTERCALADOS, cada um na dificuldade já medida para você.
+   Intercalar rende um pouco menos na hora e fica mais no dia
+   seguinte — é o efeito de interferência contextual (Shea & Morgan,
+   1979), um dos resultados mais repetidos de aprendizagem motora.
+
+----------------------------------------------------------------
+3. SOM NOVO
+----------------------------------------------------------------
+
+   Continua sem nenhum arquivo de áudio: tudo é sintetizado na hora.
+   Mas cada som agora tem camadas, como em jogo — um ataque curto
+   (ruído filtrado), um corpo tonal e às vezes uma cauda de sino —, e
+   tudo passa por um compressor (nada estoura quando vários caem
+   juntos) e por uma sala curta gerada na hora.
+
+   · Cada botão do HUD soa diferente: habilidade (sopro curto),
+     ultimate (mais grave), ataque (corte seco), resto (clique).
+   · ACERTO: sino agudo. A SÉRIE de acertos sobe de tom pela escala
+     pentatônica — você ouve a sequência sem olhar número.
+   · ERRO: grave e abafado, nunca estridente. Erro estridente vira
+     punição, e punição piora aprendizado motor.
+   · Espelho quebrando (estilhaços + baque), Punir (descarga
+     elétrica), monstro abatido, objetivo roubado, habilidade em
+     recarga (estalo seco), contagem 3-2-1 e a largada.
+   · Config → Som: "Som dos botões" liga/desliga os toques e "Ouvir
+     os sons" toca a paleta inteira.
+
+----------------------------------------------------------------
+4. GRÁFICOS NOVOS
+----------------------------------------------------------------
+
+   · Arena: chão de lajotas em losango, luz no centro, vinheta,
+     cacos de espelho quase invisíveis, poeira no ar e uma luz de
+     espelho que atravessa a tela devagar. O fundo é pintado uma vez
+     só por tamanho de tela — custo quase zero por quadro.
+   · Botões no estilo do jogo: vidro escuro com o tom do botão, aro
+     de ouro envelhecido nas habilidades e de aço no resto, reflexo
+     no alto, sombra no chão, ícone apagado atrás do número (avanço,
+     estilhaços, espelho, lâmina, raio…) e clarão quando o dedo toca.
+   · Analógico com arco aceso para o lado que você empurra.
+   · Acerto com anel, onda de luz e faíscas; erro com um tremor
+     curto da tela (≈180 ms — sinal, não castigo).
+   · Números de dano que sobem e somem; contador "N× EM SEQUÊNCIA"
+     no canto, que dá um pulo a cada acerto (só em treino — na Prova
+     não há retorno nenhum).
+   · Texto de retorno com contorno e entrada animada.
+   · Alvo com sombra, volume e mira girando.
+   · Os efeitos agora contam TEMPO e não quadros: num celular de
+     120 Hz a versão antiga tocava tudo na metade do tempo.
+   · Telas do app: painéis entram em cascata e o botão principal tem
+     um brilho que passa devagar. Com "reduzir movimento" ligado no
+     sistema, nada disso anima; com "efeitos reduzidos" no app, somem
+     faíscas, poeira, luz e tremor.
+
+TESTES
+
+   32 verificações novas (Punir: dificuldade, disputa balanceada,
+   três jogadores simulados — o que aperta certo, o apressado e o que
+   não aperta; gráficos medidos em tempo; todos os sons; Sessão da
+   Jing), além de toda a bateria anterior.
 
 
 ================================================================
