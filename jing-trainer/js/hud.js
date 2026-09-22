@@ -39,6 +39,14 @@
     return out.length ? out : [''];
   }
 
+  /** Direção de um vetor de tela em palavras. y cresce para BAIXO. */
+  function direcaoPt(dx, dy) {
+    const nomes = ['a direita', 'baixo-direita', 'baixo', 'baixo-esquerda',
+                   'a esquerda', 'cima-esquerda', 'cima', 'cima-direita'];
+    const k = ((Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) % 8) + 8) % 8;
+    return nomes[k];
+  }
+
   /* Botões que contam como entrada de combate */
   const ACIONAVEIS = ['s1', 's2', 's3', 'aa', 'flash', 'it1', 'it2'];
   /* Botões que, se tocados sem querer, são erro de HUD e não de memória */
@@ -151,6 +159,9 @@
       this.trilhas = [];                // ruído visual
       this.quadAceso = -1;              // quadrante piscando agora
       this.mapa = null;                 // minimapa do treino de visão de mapa
+      this.mira = null;                 // cena do treino de mira: herói, alvo, guia
+      this.arrastoMira = null;          // arrasto em curso a partir de um botão
+      this.nuvem = null;                // dispersão do polegar, desenhada ao vivo
       this.ocultarBotoes = false;       // exercício que não usa o HUD de combate
       this.calibrando = false;
       this.arrastando = null;
@@ -309,6 +320,31 @@
 
       const hit = this.acertou(p.x, p.y);
       this.ponteiros.set(ev.pointerId, { id: hit.id, t });
+
+      /* ------------------------------------------------------------
+         ARRASTO DE MIRA
+
+         No Honor of Kings quase toda habilidade de dano é apontada
+         segurando o botão dela e arrastando: a direção do arrasto vira
+         a direção do tiro. Até aqui o HudSurface só sabia arrastar o
+         analógico — soltar um botão devolvia a duração e mais nada —
+         então a habilidade mecânica mais usada do jogo não tinha como
+         ser medida.
+
+         O arrasto só é capturado quando o exercício pede (this.mira
+         ligado). Fora disso o botão continua sendo um toque simples,
+         que é o que os outros exercícios esperam.
+         ------------------------------------------------------------ */
+      if (this.mira && hit.id && (this.mira.botoes || ['s1', 's2', 's3']).includes(hit.id)) {
+        const q = this.px(this.hud[hit.id]);
+        this.arrastoMira = { pid: ev.pointerId, id: hit.id, x0: q.x, y0: q.y,
+                             x: p.x, y: p.y, t0: t, moveu: false };
+        this.pulsar(hit.id);
+        U.Haptic.tap();
+        this.opts.onMiraInicio?.({ id: hit.id, t });
+        return;
+      }
+
       if (hit.id) {
         this.pulsar(hit.id);
         U.Haptic.tap();
@@ -340,6 +376,15 @@
         b.y = U.clamp((p.y - this.box.y) / this.box.h, 0.04, 0.97);
         return;
       }
+      if (this.arrastoMira && this.arrastoMira.pid === ev.pointerId) {
+        ev.preventDefault();
+        const p = this.local(ev);
+        this.arrastoMira.x = p.x; this.arrastoMira.y = p.y;
+        const a = this.miraInfo();
+        if (a.mag > 0.12) this.arrastoMira.moveu = true;
+        this.opts.onMiraMove?.(a);
+        return;
+      }
       if (this.joy.ativo && this.joy.pid === ev.pointerId) {
         ev.preventDefault();
         this.updJoy(this.local(ev));
@@ -347,7 +392,28 @@
       }
     }
 
+    /**
+     * Estado do arrasto de mira.
+     * `ang` em radianos no referencial da tela (0 = direita, cresce para baixo).
+     * `mag` em fração do raio do botão — passa de 1 quando o dedo sai dele,
+     * que é o normal: o alcance do arrasto não é limitado pelo botão.
+     */
+    miraInfo() {
+      const a = this.arrastoMira;
+      if (!a) return { ativo: false, ang: null, mag: 0, id: null, moveu: false };
+      const r = this.px(this.hud[a.id]).r || 1;
+      const dx = a.x - a.x0, dy = a.y - a.y0;
+      return { ativo: true, id: a.id, dx, dy, ang: Math.atan2(dy, dx),
+               mag: Math.hypot(dx, dy) / r, moveu: a.moveu, t0: a.t0 };
+    }
+
     onUp(ev) {
+      if (this.arrastoMira && this.arrastoMira.pid === ev.pointerId) {
+        const a = this.miraInfo();
+        this.arrastoMira = null;
+        this.opts.onMiraSolta?.({ ...a, dur: U.now() - a.t0 });
+        return;
+      }
       if (this.calibrando && this.arrastando && this.arrastando.pid === ev.pointerId) {
         this.arrastando = null; U.DB.save(); this.opts.onCalibrado?.(); return;
       }
@@ -429,6 +495,7 @@
       if (this.quadrantes) this.drawQuadrantes();
       if (this.trilhas.length) this.drawTrilhas();
       if (this.campo.length) this.drawCampo();
+      if (this.mira) this.drawMira();
       if (this.alvoVisual) this.drawAlvo();
 
       // botões
@@ -439,6 +506,8 @@
           else this.drawBtn(b, id);
         }
       }
+
+      if (this.nuvem) this.drawNuvem();
 
       // efeitos
       this.drawFx();
@@ -635,6 +704,299 @@
         const pw = esquerda ? folgaEsq - B.w * 0.022 : (B.x + B.w * 0.970) - px;
         if (pw > B.w * 0.10) U.MP.desenharPainel(c, px, B.y + B.h * 0.085, pw, B.h * 0.82, m.painel);
       }
+    }
+
+    /* ------------------------------------------------------------
+       NUVEM DO POLEGAR, AO VIVO
+
+       Cada toque do bloco vira um ponto DENTRO do botão, na fração do
+       raio em que caiu. Com cinco pontos ou mais entram também a média
+       (onde o seu dedo cai em média) e a elipse que cobre 95% deles.
+
+       A elipse é a mesma conta que o app já fazia no histórico de 90
+       dias — só que aqui é a do bloco de agora, que é o que dá para
+       corrigir enquanto você ainda está treinando. O último toque sai
+       destacado para você ligar o ponto ao movimento que acabou de
+       fazer; sem isso a nuvem vira decoração.
+       ------------------------------------------------------------ */
+    anotarNuvem(id, dx, dy, hist) {
+      if (!this.nuvem) this.nuvem = { botoes: {}, ultimo: null };
+      const a = this.nuvem.botoes[id] || (this.nuvem.botoes[id] = []);
+      a.push({ dx, dy, hist: !!hist });
+      if (a.length > 60) a.shift();
+      if (!hist) this.nuvem.ultimo = { id, dx, dy, t: U.now() };
+    }
+
+    /**
+     * Semeia a nuvem com os toques já guardados daquele botão.
+     *
+     * Sem isto a elipse quase nunca aparecia: o exercício de precisão
+     * espalha os toques por onze botões de propósito, então um bloco de
+     * vinte tentativas deixa três ou quatro pontos em cada um — menos do
+     * que qualquer elipse honesta precisa. Com o histórico no fundo, a
+     * nuvem já existe quando o bloco começa e os toques de hoje caem
+     * DENTRO dela, que é a comparação que interessa: hoje está igual ao
+     * que você vinha fazendo, ou saiu do lugar?
+     */
+    semearNuvem(ids, limite = 40) {
+      const guardados = (U.DB.load().toques) || {};
+      for (const id of ids) {
+        const a = guardados[id];
+        if (!a || !a.length) continue;
+        for (const t of a.slice(-limite)) {
+          if (t.dx == null || t.dy == null) continue;
+          this.anotarNuvem(id, t.dx, t.dy, true);
+        }
+      }
+    }
+
+    drawNuvem() {
+      const c = this.ctx, N = this.nuvem;
+      for (const id in N.botoes) {
+        const b = this.hud[id]; if (!b) continue;
+        const pts = N.botoes[id]; if (!pts.length) continue;
+        const p = this.px(b);
+
+        c.save();
+        c.beginPath(); c.arc(p.x, p.y, p.r * 1.35, 0, 6.2832); c.clip();
+
+        /* pontos: os antigos apagados, o mais novo aceso */
+        for (let i = 0; i < pts.length; i++) {
+          const t = pts[i];
+          const novo = N.ultimo && N.ultimo.id === id && i === pts.length - 1;
+          c.globalAlpha = novo ? 1 : t.hist ? 0.28 : 0.85;
+          c.fillStyle = novo ? '#ffd479' : t.hist ? '#5b708f' : '#7fd4ff';
+          c.beginPath();
+          c.arc(p.x + t.dx * p.r, p.y + t.dy * p.r, novo ? 3.6 : t.hist ? 1.8 : 2.6, 0, 6.2832);
+          c.fill();
+        }
+        c.globalAlpha = 1;
+
+        if (pts.length >= 5) {
+          const n = pts.length;
+          const mx = pts.reduce((s, t) => s + t.dx, 0) / n;
+          const my = pts.reduce((s, t) => s + t.dy, 0) / n;
+          let sxx = 0, syy = 0, sxy = 0;
+          for (const t of pts) {
+            const a = t.dx - mx, o = t.dy - my;
+            sxx += a * a; syy += o * o; sxy += a * o;
+          }
+          sxx /= (n - 1); syy /= (n - 1); sxy /= (n - 1);
+          /* mesma decomposição que o histórico usa, emprestada de
+             js/toque.js para as duas elipses não divergirem */
+          const eg = U.TQ.eigen2(sxx, sxy, syy);
+          const K = 2.4477;                       // √χ²(2, 0.95)
+
+          c.strokeStyle = 'rgba(196,181,253,.85)'; c.lineWidth = 1.6;
+          c.beginPath();
+          c.ellipse(p.x + mx * p.r, p.y + my * p.r,
+                    Math.max(1, K * Math.sqrt(Math.max(eg.l1, 0)) * p.r),
+                    Math.max(1, K * Math.sqrt(Math.max(eg.l2, 0)) * p.r),
+                    eg.ang, 0, 6.2832);
+          c.stroke();
+
+          /* seta do miolo até a média: o viés, se houver */
+          const mm = Math.hypot(mx, my);
+          if (mm > 0.06) {
+            c.strokeStyle = '#ff8fa3'; c.lineWidth = 2;
+            c.beginPath(); c.moveTo(p.x, p.y);
+            c.lineTo(p.x + mx * p.r, p.y + my * p.r); c.stroke();
+            c.fillStyle = '#ff8fa3';
+            c.beginPath(); c.arc(p.x + mx * p.r, p.y + my * p.r, 3, 0, 6.2832); c.fill();
+          }
+        }
+
+        /* miolo do botão: o alvo */
+        c.strokeStyle = 'rgba(255,255,255,.55)'; c.lineWidth = 1;
+        c.beginPath(); c.moveTo(p.x - 5, p.y); c.lineTo(p.x + 5, p.y);
+        c.moveTo(p.x, p.y - 5); c.lineTo(p.x, p.y + 5); c.stroke();
+        c.restore();
+      }
+      this.drawLupa();
+    }
+
+    /* ------------------------------------------------------------
+       LUPA
+
+       Sobre o botão, a nuvem mede uns sessenta pixels: dá para ver que
+       existe e não dá para aprender nada com ela. A lupa mostra a mesma
+       nuvem do último botão tocado, ampliada, na metade esquerda da
+       tela — que neste exercício está vazia.
+
+       E traz os números em MILÍMETROS, não em fração do raio. Milímetro
+       é a unidade em que a correção acontece: "o seu dedo cai 2,1 mm
+       abaixo do miolo" é uma frase que vira um ajuste de mão; "0,31 do
+       raio" não é.
+       ------------------------------------------------------------ */
+    drawLupa() {
+      const N = this.nuvem, B = this.box;
+      if (!N) return;
+      let id = N.ultimo && N.ultimo.id;
+      if (!id || !N.botoes[id]) {
+        id = Object.keys(N.botoes).sort((a, b) => N.botoes[b].length - N.botoes[a].length)[0];
+      }
+      const pts = id && N.botoes[id];
+      if (!pts || pts.length < 3) return;
+      const b = this.hud[id]; if (!b) return;
+
+      const c = this.ctx;
+      const cx = B.x + B.w * 0.300, cy = B.y + B.h * 0.395;
+      const R = B.w * 0.092;
+      const raioMm = b.r * TELA_MM.w;
+
+      c.save();
+      c.fillStyle = 'rgba(10,15,24,.88)';
+      c.beginPath(); c.arc(cx, cy, R * 1.12, 0, 6.2832); c.fill();
+      c.strokeStyle = 'rgba(120,150,190,.35)'; c.lineWidth = 1.4;
+      c.beginPath(); c.arc(cx, cy, R * 1.12, 0, 6.2832); c.stroke();
+
+      /* borda do botão, em escala */
+      c.strokeStyle = (b.cor || '#9fb6d4') + '77'; c.lineWidth = 2;
+      c.beginPath(); c.arc(cx, cy, R, 0, 6.2832); c.stroke();
+
+      const hoje = pts.filter(t => !t.hist), n = pts.length;
+      const mx = pts.reduce((s, t) => s + t.dx, 0) / n;
+      const my = pts.reduce((s, t) => s + t.dy, 0) / n;
+
+      for (let i = 0; i < pts.length; i++) {
+        const t = pts[i];
+        const novo = N.ultimo && N.ultimo.id === id && i === pts.length - 1 && !t.hist;
+        c.globalAlpha = novo ? 1 : t.hist ? 0.30 : 0.9;
+        c.fillStyle = novo ? '#ffd479' : t.hist ? '#5b708f' : '#7fd4ff';
+        c.beginPath();
+        c.arc(cx + t.dx * R, cy + t.dy * R, novo ? 5 : t.hist ? 2.4 : 3.4, 0, 6.2832);
+        c.fill();
+      }
+      c.globalAlpha = 1;
+
+      if (n >= 5) {
+        let sxx = 0, syy = 0, sxy = 0;
+        for (const t of pts) {
+          const a = t.dx - mx, o = t.dy - my;
+          sxx += a * a; syy += o * o; sxy += a * o;
+        }
+        sxx /= (n - 1); syy /= (n - 1); sxy /= (n - 1);
+        const eg = U.TQ.eigen2(sxx, sxy, syy);
+        const K = 2.4477;
+        c.strokeStyle = 'rgba(196,181,253,.9)'; c.lineWidth = 2;
+        c.beginPath();
+        c.ellipse(cx + mx * R, cy + my * R,
+                  Math.max(1, K * Math.sqrt(Math.max(eg.l1, 0)) * R),
+                  Math.max(1, K * Math.sqrt(Math.max(eg.l2, 0)) * R),
+                  eg.ang, 0, 6.2832);
+        c.stroke();
+      }
+
+      /* miolo e seta do viés */
+      c.strokeStyle = 'rgba(255,255,255,.7)'; c.lineWidth = 1.4;
+      c.beginPath(); c.moveTo(cx - 8, cy); c.lineTo(cx + 8, cy);
+      c.moveTo(cx, cy - 8); c.lineTo(cx, cy + 8); c.stroke();
+
+      const mm = Math.hypot(mx, my) * raioMm;
+      if (mm > 0.4) {
+        c.strokeStyle = '#ff8fa3'; c.lineWidth = 2.4;
+        c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + mx * R, cy + my * R); c.stroke();
+      }
+
+      c.textAlign = 'center'; c.textBaseline = 'top';
+      const T = Math.max(9, Math.round(B.h * 0.048));
+      c.fillStyle = '#b9c8e4';
+      c.font = `800 ${T}px system-ui`;
+      c.fillText(NOMES[id] || id, cx, cy + R * 1.12 + T * 0.5);
+      c.font = `600 ${Math.round(T * 0.84)}px system-ui`;
+      c.fillStyle = mm > 1.8 ? '#ff8fa3' : '#8fa3c4';
+      c.fillText(mm > 0.4 ? `puxa ${mm.toFixed(1).replace('.', ',')} mm · ${direcaoPt(mx, my)}` : 'sem viés',
+                 cx, cy + R * 1.12 + T * 1.7);
+      c.fillStyle = '#66748f';
+      c.font = `600 ${Math.round(T * 0.76)}px system-ui`;
+      c.fillText(`${hoje.length} de hoje · ${n - hoje.length} antes`, cx, cy + R * 1.12 + T * 2.8);
+      c.restore();
+    }
+
+    /* ------------------------------------------------------------
+       CENA DE MIRA
+
+       O herói fica parado no campo e o alvo aparece em volta dele. O
+       guia do tiro sai DO HERÓI, e não do botão — é assim no jogo, e
+       é essa a associação que o exercício está ensinando: o polegar
+       arrasta num canto da tela e a consequência acontece no outro.
+       Desenhar o guia a partir do dedo ensinaria o mapeamento errado.
+       ------------------------------------------------------------ */
+    drawMira() {
+      const c = this.ctx, B = this.box, m = this.mira;
+      const X = (u) => B.x + u * B.w, Y = (v) => B.y + v * B.h;
+      const esc = B.w;                       // alcances são fração da LARGURA
+      const hx = X(m.heroi.x), hy = Y(m.heroi.y);
+
+      c.save();
+
+      if (m.alcance) {
+        c.strokeStyle = 'rgba(126,200,255,.16)'; c.lineWidth = 1.5;
+        c.setLineDash([5, 6]);
+        c.beginPath(); c.arc(hx, hy, m.alcance * esc, 0, 6.2832); c.stroke();
+        c.setLineDash([]);
+      }
+
+      /* guia do arrasto: cone com a tolerância do exercício, para você
+         ver o quanto de erro angular ainda conta como acerto */
+      const a = this.arrastoMira ? this.miraInfo() : null;
+      if (a && a.moveu) {
+        const alc = (m.alcance || 0.30) * esc;
+        const tol = m.tolerancia || 0;
+        if (tol > 0) {
+          c.fillStyle = 'rgba(126,200,255,.10)';
+          c.beginPath(); c.moveTo(hx, hy);
+          c.arc(hx, hy, alc, a.ang - tol, a.ang + tol); c.closePath(); c.fill();
+        }
+        c.strokeStyle = '#7fd4ff'; c.lineWidth = 2.6; c.lineCap = 'round';
+        c.beginPath(); c.moveTo(hx, hy);
+        c.lineTo(hx + Math.cos(a.ang) * alc, hy + Math.sin(a.ang) * alc); c.stroke();
+        c.fillStyle = '#7fd4ff';
+        c.beginPath();
+        c.arc(hx + Math.cos(a.ang) * alc, hy + Math.sin(a.ang) * alc, 5, 0, 6.2832); c.fill();
+      }
+
+      /* retorno: a direção que era certa, e a que você soltou */
+      if (m.certo != null) {
+        const alc = (m.alcance || 0.30) * esc;
+        c.strokeStyle = '#6ee7a8'; c.lineWidth = 2.2; c.setLineDash([7, 5]);
+        c.beginPath(); c.moveTo(hx, hy);
+        c.lineTo(hx + Math.cos(m.certo) * alc, hy + Math.sin(m.certo) * alc); c.stroke();
+        c.setLineDash([]);
+      }
+      if (m.solto != null) {
+        const alc = (m.alcance || 0.30) * esc;
+        c.strokeStyle = '#ff8fa3'; c.lineWidth = 2.2;
+        c.beginPath(); c.moveTo(hx, hy);
+        c.lineTo(hx + Math.cos(m.solto) * alc, hy + Math.sin(m.solto) * alc); c.stroke();
+      }
+
+      /* alvo */
+      if (m.alvo) {
+        const ax = X(m.alvo.x), ay = Y(m.alvo.y), ar = (m.alvo.r || 0.026) * esc;
+        c.globalAlpha = 0.9;
+        c.strokeStyle = m.alvo.cor || '#ff5470'; c.lineWidth = 2.4;
+        c.beginPath(); c.arc(ax, ay, ar, 0, 6.2832); c.stroke();
+        c.globalAlpha = 0.22; c.fillStyle = m.alvo.cor || '#ff5470'; c.fill();
+        c.globalAlpha = 1;
+        c.strokeStyle = m.alvo.cor || '#ff5470'; c.lineWidth = 1.6;
+        c.beginPath();
+        c.moveTo(ax - ar * 1.5, ay); c.lineTo(ax - ar * 0.55, ay);
+        c.moveTo(ax + ar * 0.55, ay); c.lineTo(ax + ar * 1.5, ay);
+        c.moveTo(ax, ay - ar * 1.5); c.lineTo(ax, ay - ar * 0.55);
+        c.moveTo(ax, ay + ar * 0.55); c.lineTo(ax, ay + ar * 1.5);
+        c.stroke();
+      }
+
+      /* herói */
+      c.fillStyle = 'rgba(8,14,22,.9)';
+      c.beginPath(); c.arc(hx, hy, esc * 0.024, 0, 6.2832); c.fill();
+      c.strokeStyle = '#c4b5fd'; c.lineWidth = 2.2;
+      c.beginPath(); c.arc(hx, hy, esc * 0.024, 0, 6.2832); c.stroke();
+      c.fillStyle = '#c4b5fd';
+      c.beginPath(); c.arc(hx, hy, esc * 0.009, 0, 6.2832); c.fill();
+
+      c.restore();
     }
 
     drawJoy(b, id) {

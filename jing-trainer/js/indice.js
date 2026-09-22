@@ -255,6 +255,23 @@
        mesmo erro que o eixo de Mecânica documenta logo acima.
        ------------------------------------------------------------ */
     {
+      id: 'mira', nome: 'Mira', k: 10, tipo: 'tempo',
+      pergunta: 'Quantos graus a sua habilidade sai da direção certa?',
+      ancora: [34, 5], unidade: '°', melhorE: 'menor',
+      ancoraNota: 'Mediana do erro angular: 34° vale 0, 5° vale 100. A faixa vai do arrasto que só acerta o lado ao tiro que passa raspando o alvo.',
+      medir() {
+        const m = MD.mira({ dias: 60 });
+        if (!m.ok || m.v == null) return null;
+        /* nef é o número de DIAS com tiros, não de tiros. Dezesseis
+           tiros do mesmo bloco compartilham mão, postura e aquecimento:
+           contá-los como observações independentes declararia uma
+           confiabilidade que a medida não tem. */
+        return { v: m.v, n: m.n, nef: m.dias, ic: [m.lo, m.hi],
+                 viva: m.serie.length >= 4 ? m.serie.map(p => p.v) : null,
+                 fonte: `${m.n} tiros em ${m.dias} dia${m.dias === 1 ? '' : 's'}` };
+      },
+    },
+    {
       id: 'visao', nome: 'Visão de mapa', k: 5, tipo: 'tempo',
       pergunta: 'Por quantos segundos a informação do minimapa sobrevive na sua cabeça?',
       ancora: [2, 12], unidade: 's', melhorE: 'maior',

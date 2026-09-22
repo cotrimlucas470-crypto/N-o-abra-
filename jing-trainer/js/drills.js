@@ -60,6 +60,7 @@
     pressao: { nome: 'Controle sob pressão', descricao: 'Quanto do seu nível sobrevive com a atenção dividida.' },
     movimentacao: { nome: 'Movimentação', descricao: 'Executar andando. Combo parado é combo que só existe em treino.' },
     visao: { nome: 'Visão de mapa', descricao: 'Codificar o minimapa numa relanceada e ainda ter aquilo na cabeça segundos depois.' },
+    mira: { nome: 'Mira', descricao: 'Arrastar o polegar num canto da tela e a habilidade sair na direção certa no outro.' },
   };
 
   const DRILLS = [
@@ -94,12 +95,14 @@
       comoFunciona: [
         'Aparece o nome de um botão. Some. Quando surgir VAI, acerte esse botão.',
         'Mire o <b>miolo</b> do círculo. O alvo é o botão, não a sua mão — não fique acompanhando o dedo.',
-        'Cada toque é gravado com a posição exata dentro do botão.',
+        'Cada toque vira um <b>ponto dentro do botão</b>, exatamente onde o seu dedo caiu. O último fica dourado.',
+        'A partir do quinto toque aparecem também a <b>elipse</b> que cobre 95% deles e, se houver, a <b>seta do viés</b>: a direção para onde o seu dedo puxa sem você perceber.',
         'É daqui que sai a dispersão do seu toque e a sua reta de tempo por trajeto, na aba HUD.',
       ],
-      porque: 'Instruções que apontam o alvo (foco externo) produzem movimento mais automático do que instruções que apontam o próprio corpo. E os toques daqui são o único jeito de separar limite de layout de limite de treino.',
+      porque: 'Repetir um toque sem ver ONDE ele caiu não corrige nada: o que ajusta um movimento é saber o erro dele, e "acertou o botão" não é o erro, é o resultado. O app já media essa nuvem no histórico; agora ela aparece enquanto você treina, que é quando dá para fazer alguma coisa com ela. Instruções que apontam o alvo (foco externo) também produzem movimento mais automático do que instruções que apontam o próprio corpo — por isso o retorno é desenhado no botão e não no seu dedo.',
       cfg: (d, ctx) => ({
         tentativas: 20, modo: 'livre', mostrarRota: 'antes',
+        dispersao: true,
         tempoLeitura: Math.round(escala(d, 1100, 420)),
         rotas: [['s1'], ['s2'], ['s3'], ['aa'], ['flash'],
                 ['s1', 'aa'], ['aa', 's1'], ['s1', 's3'], ['s3', 'aa'], ['s2', 's3'], ['aa', 'flash']],
@@ -261,6 +264,46 @@
         janelaFreio: Math.round(escala(d, 1000, 650)),
         explicaNaHora: d < 6,
         confianca: d >= 4, tempoConfianca: 2000,
+      }),
+    },
+    /* ============================================================
+       MIRA
+
+       A habilidade mecânica mais usada do jogo e a última grande que
+       faltava aqui. Ela não é um caso da Rota: rota é SEQUÊNCIA (a
+       ordem certa no tempo certo), mira é MAPEAMENTO (o polegar anda
+       milímetros num canto e a consequência acontece no outro, num
+       referencial que não é o do dedo). Treinar uma não melhora a
+       outra, e por isso ela é exercício e categoria próprios.
+       ============================================================ */
+    {
+      id: 'mira', nome: 'Mira', motor: 'mira', mede: null, categoria: 'mira',
+      objetivo: 'Soltar a habilidade na direção certa — medido em graus, não em acertou/errou.',
+      comoFunciona: [
+        'O seu herói fica parado no meio do campo. O botão que você vai usar acende <b>antes</b> do alvo aparecer.',
+        'Quando o alvo surgir, <b>segure esse botão e arraste</b> na direção dele. Solte para atirar.',
+        'A linha azul é para onde você está mirando e o cone é a tolerância — o quanto de erro ainda conta como acerto.',
+        'Errou? Aparece a linha <b>verde</b>, que era a direção certa, ao lado da sua. Ver as duas juntas é o que corrige a mira; um "errou" sozinho não corrige nada.',
+        'Da dificuldade 8 em diante <b>o alvo anda</b>. Aí a direção certa deixa de ser onde ele está e passa a ser onde ele vai estar quando o tiro chegar.',
+        'Arrasto curto demais não conta como direção: o exercício avisa em vez de inventar um ângulo a partir de três pixels.',
+      ],
+      porque: 'Um tiro que passa 4° do alvo e um que passa 40° são a mesma coisa para um placar de acertou/errou, e coisas completamente diferentes para quem quer melhorar. Por isso a medida daqui é o erro angular em graus, contínuo. O exercício também guarda o erro COM SINAL por direção: arrasto de polegar tem desvio sistemático, porque a mão pivota e as direções que exigem abrir a mão saem curtas. Isso é anatomia, não desatenção — e dá para corrigir de propósito, mas só depois que alguém disser em que direção acontece.',
+      cfg: (d) => ({
+        tentativas: 16,
+        botoes: ['s1', 's2', 's3'],
+        tolerancia: Math.round(escala(d, 22, 7)),
+        limite: Math.round(escala(d, 3200, 1500)),
+        tempoLeitura: Math.round(escala(d, 1100, 500)),
+        alcance: 0.26,
+        distMin: +escala(d, 0.20, 0.15).toFixed(3),
+        distMax: +escala(d, 0.26, 0.32).toFixed(3),
+        raioAlvo: +escala(d, 0.030, 0.018).toFixed(3),
+        magMin: 0.35,
+        movimento: d >= 8,
+        velMin: +escala(d, 0.05, 0.09).toFixed(3),
+        velMax: +escala(d, 0.10, 0.16).toFixed(3),
+        voo: +escala(d, 0.30, 0.42).toFixed(2),
+        heroiX: 0.34, heroiY: 0.52,
       }),
     },
     /* ============================================================

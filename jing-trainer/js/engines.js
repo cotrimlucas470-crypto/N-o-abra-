@@ -41,6 +41,7 @@
       this.hud.limparMarcas(); this.hud.setOverlay(null); this.hud.setAlvo(null);
       this.hud.quadrantes = false; this.hud.quadAceso = -1;
       this.hud.campo = []; this.hud.trilhas = [];
+      this.hud.nuvem = null;
     }
     concluir() { this.parar(); this.api.fim(this.resumo()); }
     placar() { this.api.info({ i: this.i, n: this.n, ok: this.acertos, total: this.reg.length }); }
@@ -143,6 +144,12 @@
       this.pertProb = cfg.pertProb ?? 0.4;
       this.variante = cfg.variante ? (cfg.varianteProb ?? 0.4) : 0;
       this.trocaProb = cfg.troca || 0;
+
+      if (cfg.dispersao) {
+        const ids = [...new Set(this.rotas.flat())];
+        this.hud.nuvem = null;
+        this.hud.semearNuvem(ids);
+      }
     }
 
     proxima() {
@@ -393,7 +400,22 @@
 
       const esperado = this.rota[this.passo];
       const iki = t - this.tUltimo;
-      if (e.dx != null) this.toques.push({ id: e.id, dx: e.dx, dy: e.dy });
+      if (e.dx != null) {
+        this.toques.push({ id: e.id, dx: e.dx, dy: e.dy });
+        /* ------------------------------------------------------------
+           A NUVEM AO VIVO
+
+           O app já media a dispersão do polegar com elipse, viés e teste
+           de significância — e nunca mostrava nada disso enquanto você
+           treinava. Repetir um toque sem ver ONDE ele caiu não corrige
+           nada: o que ajusta um movimento é saber o erro dele, e "acertou
+           o botão" não é o erro, é o resultado.
+
+           Só o exercício de precisão liga isso. Nos outros, a nuvem
+           dividiria a atenção com a tarefa que eles estão medindo.
+           ------------------------------------------------------------ */
+        if (this.cfg.dispersao) this.hud.anotarNuvem(e.id, e.dx, e.dy);
+      }
 
       if (e.id !== esperado) {
         this.hud.erro(e.id); U.Sfx.miss(); U.Haptic.bad();

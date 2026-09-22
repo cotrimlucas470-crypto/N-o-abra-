@@ -125,7 +125,7 @@
       <h1>◈ ESPELHO</h1>
       <span class="tag vio">${fase.nome}</span>
       <div class="espaco"></div>
-      <span class="sub">${d.legado ? 'v15 · dados anteriores preservados' : 'v15'}</span>
+      <span class="sub">${d.legado ? 'v16 · dados anteriores preservados' : 'v16'}</span>
     </div>
     <div class="rolagem pilha">
 

@@ -1,5 +1,5 @@
 ================================================================
-ESPELHO v15 — A janela de memória e os pontos cegos
+ESPELHO v16 — Mira, e a nuvem do polegar à vista
 Honor of Kings · Poco X7 Pro · HTML/CSS/JS, sem dependências
 ================================================================
 
@@ -14,6 +14,106 @@ todo número daqui sai de toques sobre a réplica. Se ela não bate com o seu
 jogo, tudo o que vier depois mede a coisa errada.
 
 Seus dados da v1 e da v2 continuam lá. Nada é apagado.
+
+
+================================================================
+PARTE -10 — V16: MIRA E A NUVEM DO POLEGAR
+================================================================
+
+O EXERCÍCIO QUE FALTAVA
+
+   No Honor of Kings quase toda habilidade de dano é apontada
+   segurando o botão dela e arrastando: a direção do arrasto vira a
+   direção do tiro. É a habilidade mecânica mais usada do jogo, e
+   era a última grande que este app não treinava nem media — o HUD
+   nem registrava arrasto a partir de um botão; soltar devolvia a
+   duração e mais nada.
+
+   Mira NÃO é um caso da Rota. Rota é SEQUÊNCIA: a ordem certa no
+   tempo certo. Mira é MAPEAMENTO: o polegar anda milímetros num
+   canto da tela e a consequência acontece a trinta centímetros
+   dali, num referencial que não é o do dedo. Treinar uma não
+   melhora a outra, e por isso ela é exercício e categoria próprios.
+
+COMO FUNCIONA
+
+   O herói fica parado no campo. O botão que você vai usar acende
+   ANTES do alvo aparecer — como no jogo, onde você já sabe qual
+   habilidade vai soltar. Quando o alvo surge, você segura o botão
+   e arrasta. A linha azul é a sua mira e o cone é a tolerância.
+
+   Errou? Aparece a linha VERDE (o certo) ao lado da vermelha (o
+   seu tiro). Ver as duas juntas é o que corrige a mira; um "errou"
+   sozinho não corrige nada. Por isso o texto do retorno vai para o
+   alto da tela e sem escurecer o campo: escurecer esconderia
+   exatamente a comparação que ensina.
+
+   Da dificuldade 8 em diante o alvo ANDA, e a direção certa deixa
+   de ser onde ele está e passa a ser onde ele vai estar quando o
+   tiro chegar.
+
+A MEDIDA: GRAUS, COM SINAL
+
+   Um tiro que passa 4° do alvo e um que passa 40° são a mesma
+   coisa para um placar de acertou/errou, e coisas completamente
+   diferentes para quem quer melhorar. Por isso a medida é o ERRO
+   ANGULAR EM GRAUS, contínuo — e vira o 12º eixo do Estado.
+
+   Mas o número que mais vale é o SINAL. Erro grande com sinal
+   alternado é tremor; erro grande com sinal constante é a mão
+   pivotando sempre para o mesmo lado. O polegar gira em torno da
+   base, então as direções que pedem para abrir a mão saem curtas.
+   Isso é anatomia, não desatenção — e não some repetindo: some
+   compensando de propósito, mas só depois que alguém diz para que
+   lado acontece.
+
+   O painel dá as duas leituras, com limiares diferentes de
+   propósito:
+
+   · O VIÉS DA MÃO INTEIRA cabe num bloco de dezesseis tiros. Ele é
+     declarado quando o intervalo da mediana (por reamostragem) NÃO
+     inclui o zero — sem isso, qualquer bloco com ruído assimétrico
+     viraria "você puxa para a direita".
+   · O DESVIO POR DIREÇÃO pede cinco tiros em cada setor, o que
+     com oito setores são quarenta tiros e portanto três blocos. O
+     painel espera, em vez de afirmar a partir de dois.
+
+A NUVEM DO POLEGAR, AGORA À VISTA
+
+   O app já media a dispersão de cada botão com elipse, viés e
+   teste de significância — e nunca mostrava nada disso enquanto
+   você treinava. Repetir um toque sem ver ONDE ele caiu não
+   corrige nada: o que ajusta um movimento é saber o erro dele, e
+   "acertou o botão" não é o erro, é o resultado.
+
+   No exercício de precisão cada toque agora vira um ponto dentro
+   do botão, na fração do raio em que caiu. O último fica dourado.
+   A partir do quinto entram a elipse que cobre 95% deles e a seta
+   do viés.
+
+   E existe uma LUPA na metade esquerda da tela, que neste
+   exercício está vazia: a mesma nuvem, ampliada, com os números em
+   MILÍMETROS. Milímetro é a unidade em que a correção acontece —
+   "o seu dedo cai 1,8 mm abaixo do miolo" vira um ajuste de mão;
+   "0,31 do raio" não vira.
+
+   A nuvem é semeada com o seu histórico guardado. Sem isso a
+   elipse quase nunca aparecia: o exercício espalha os toques por
+   onze botões de propósito, então vinte tentativas deixam três ou
+   quatro em cada um. Com o histórico no fundo em cinza, os toques
+   de hoje caem DENTRO dele — e a pergunta vira a certa: hoje está
+   igual ao que você vinha fazendo, ou saiu do lugar?
+
+DOIS BUGS ANTIGOS, ENCONTRADOS PELO CAMINHO
+
+   · O RODÍZIO PULAVA DOIS EXERCÍCIOS. A regra olhava para os 4
+     últimos blocos com uma lista de 7 candidatos: ao chegar no
+     quinto, o primeiro já havia saído da janela e voltava a ser
+     escolhido. O rodízio girava entre cinco e deixava dois
+     envelhecendo para sempre — o contrário do que a regra existe
+     para fazer. A janela agora é do tamanho da lista menos um, e
+     cobre os sete.
+   · O tempo mediano do bloco saía como "63.699999999953434ms".
 
 
 ================================================================

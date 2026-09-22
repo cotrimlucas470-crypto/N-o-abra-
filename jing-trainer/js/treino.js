@@ -13,7 +13,7 @@
   const MD = U.MD, CT = U.CT, DS = U.DS, D = U.D, H = U.HUD, S = U.S;
 
   const MOTORES = { sequencia: U.E.MotorSequencia, leitura: U.E.MotorLeitura,
-                    decisao: U.E.MotorDecisao, mapa: U.E.MotorMapa };
+                    decisao: U.E.MotorDecisao, mapa: U.E.MotorMapa, mira: U.E.MotorMira };
 
   const St = {
     surf: null, motor: null, drill: null, cfg: null, aberto: false,
@@ -34,6 +34,8 @@
         onCampo: (e) => St.motor && St.motor.campo(e),
         onMapa: (e) => St.motor && St.motor.mapaTocado && St.motor.mapaTocado(e),
         onAlvo: () => St.motor && St.motor.alvoTocado && St.motor.alvoTocado(),
+        onMiraInicio: (e) => St.motor && St.motor.miraInicio && St.motor.miraInicio(e),
+        onMiraSolta: (e) => St.motor && St.motor.miraSolta && St.motor.miraSolta(e),
       });
     }
     St.surf.hud = H.getHud();
@@ -303,7 +305,7 @@
           <div class="mini">acerto <b>${Math.round(r.acc * 100)}%</b> ·
             intervalo <b>${Math.round(w.lo * 100)}–${Math.round(w.hi * 100)}%</b>
             <span class="xs">(${S.rotuloNivel(w.nivel)})</span></div>
-          ${r.medTempo ? `<div class="mini">tempo mediano <b>${r.medTempo}ms</b>${r.cv != null ? ` · variação <b>${Math.round(r.cv * 100)}%</b>` : ''}</div>` : ''}
+          ${r.medTempo ? `<div class="mini">tempo mediano <b>${Math.round(r.medTempo)}ms</b>${r.cv != null ? ` · variação <b>${Math.round(r.cv * 100)}%</b>` : ''}</div>` : ''}
         </div>
       </div>
 
@@ -330,6 +332,7 @@
         </div>` : ''}
 
       ${(r.extras || {}).mapa ? mapaTexto(r) : ''}
+      ${(r.extras || {}).mira ? miraTexto(r) : ''}
 
       ${erros.length ? `<div class="sep"></div>
         <div class="mini"><b>Onde os erros caíram</b></div>
@@ -491,6 +494,102 @@
       <div class="sep"></div>
       ${viesTxt}
       ${secTxt}
+    `;
+  }
+
+  /* ============================================================
+     RESULTADO DO BLOCO DE MIRA
+
+     Duas coisas separadas, porque melhoram por caminhos diferentes:
+
+     · O TAMANHO do erro (mediana em graus) é precisão. Melhora
+       repetindo devagar até o movimento ficar reproduzível.
+     · A DIREÇÃO do erro (viés por setor) é desvio sistemático.
+       Não melhora repetindo: melhora corrigindo de propósito, e
+       só depois que alguém diz para que lado ele acontece.
+
+     Juntar os dois num "% de acerto" apagaria justamente a
+     diferença que diz o que fazer amanhã.
+     ============================================================ */
+  function miraTexto(r) {
+    const m = r.extras.mira;
+    if (!m || !m.n) return '';
+    const g = (v) => (v == null ? '—' : Math.round(v) + '°');
+    const hist = MD.mira({ dias: 60 });
+
+    const setores = Object.entries(m.porSetor || {})
+      .sort((a, b) => Math.abs(b[1].vies) - Math.abs(a[1].vies));
+
+    /* roseta em texto: cada direção com o seu desvio e para que lado */
+    const linhas = setores.map(([, e]) => {
+      const forte = e.n >= 3 && Math.abs(e.vies) >= 6;
+      const lado = e.vies > 0 ? 'horário' : 'anti-horário';
+      return `<div class="flex" style="gap:6px;align-items:center;margin-bottom:3px">
+        <span class="xs" style="width:104px;color:var(--dim2)">${U.esc(e.nome)}</span>
+        <div style="flex:1;height:6px;background:rgba(255,255,255,.08);border-radius:3px;position:relative">
+          <div style="position:absolute;left:50%;top:-2px;width:1px;height:10px;background:rgba(255,255,255,.28)"></div>
+          <div style="position:absolute;top:0;height:6px;border-radius:3px;background:${forte ? 'var(--bad)' : 'var(--dim2)'};
+            ${e.vies > 0 ? 'left:50%' : 'right:50%'};width:${Math.min(50, Math.abs(e.vies) / 45 * 50)}%"></div>
+        </div>
+        <b class="xs" style="width:62px;text-align:right;${forte ? 'color:var(--bad)' : ''}">${
+          Math.abs(e.vies) < 1 ? '0°' : `${Math.abs(Math.round(e.vies))}° ${lado === 'horário' ? '↻' : '↺'}`}</b>
+        <span class="xs" style="width:26px;opacity:.5">${e.n}</span>
+      </div>`;
+    }).join('');
+
+    return `
+      <div class="sep"></div>
+      <div class="flex" style="gap:16px;align-items:flex-start">
+        <div>
+          <div class="numero" style="color:var(--gold)">${g(m.erro)}</div>
+          <div class="xs">erro mediano<br>${m.pontos} pontos</div>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div class="mini">Metade dos seus tiros errou menos que <b>${g(m.erro)}</b>.
+            ${Math.round(m.dentro * 100)}% ficaram dentro dos ${m.tolerancia}° que o bloco aceitava${
+            m.rt ? `, em <b>${Math.round(m.rt)} ms</b>` : ''}.</div>
+          ${m.erroParado != null && m.erroMovel != null ? `<div class="mini" style="margin-top:4px">
+            Alvo parado <b>${g(m.erroParado)}</b> · alvo em movimento <b>${g(m.erroMovel)}</b>.
+            ${m.erroMovel > m.erroParado * 1.4
+              ? 'A diferença é antecipação, não mira: você aponta para onde ele <b>está</b>, não para onde ele vai estar.'
+              : 'Você mantém a mira com o alvo andando — é aí que ela vale numa partida.'}</div>` : ''}
+          ${m.semTiro ? `<div class="xs" style="margin-top:4px">${m.semTiro} tentativa${m.semTiro === 1 ? '' : 's'} sem tiro (botão errado, arrasto curto ou tempo esgotado).</div>` : ''}
+        </div>
+      </div>
+
+      ${linhas ? `<div class="sep"></div>
+        <div class="mini"><b>Para que lado você erra, por direção</b>
+          <span class="xs">— barra para a direita é desvio no sentido horário; o número é a mediana do erro com sinal, e a última coluna é quantos tiros</span></div>
+        <div style="margin-top:7px">${linhas}</div>` : ''}
+
+      ${m.viesReal ? `<div class="aviso ${Math.abs(m.viesGeral) >= 10 ? 'bad' : ''}" style="margin-top:8px">
+        <b>A sua mão inteira gira ${Math.abs(Math.round(m.viesGeral))}° no sentido
+        ${m.viesGeral > 0 ? 'horário' : 'anti-horário'}</b>
+        <span class="xs">(intervalo ${Math.round(m.viesLo)}° a ${Math.round(m.viesHi)}°, e ele não inclui o zero)</span><br>
+        Não é em uma direção: é em todas. O polegar gira em torno da base da mão, então o arrasto sai torcido
+        para o mesmo lado o tempo todo. Isso é anatomia, não desatenção, e não some repetindo — some
+        compensando de propósito, mirando um tanto para ${m.viesGeral > 0 ? 'o anti-horário' : 'o horário'}
+        até virar automático. É a correção com o melhor retorno deste exercício, porque conserta todos os
+        tiros de uma vez.</div>` : ''}
+
+      ${m.sistematico ? `<div class="aviso ${Math.abs(m.sistematico.vies) >= 10 ? 'bad' : ''}" style="margin-top:8px">
+        <b>Desvio sistemático mirando para ${U.esc(m.sistematico.nome)}: ${Math.abs(Math.round(m.sistematico.vies))}°
+        no sentido ${m.sistematico.vies > 0 ? 'horário' : 'anti-horário'}</b>
+        <span class="xs">(${m.sistematico.n} tiros)</span><br>
+        Erro com sinal constante não é tremor, é a mão pivotando sempre para o mesmo lado — o polegar gira em
+        torno da base e as direções que pedem para abrir a mão saem curtas. Isso é anatomia, não desatenção, e
+        não some repetindo: some compensando de propósito, mirando um pouco para
+        ${m.sistematico.vies > 0 ? 'o lado anti-horário' : 'o lado horário'} nessa direção até virar automático.</div>`
+      : `<div class="xs" style="margin-top:7px">Nenhuma direção com desvio sistemático neste bloco — o que sobrou
+         é imprecisão espalhada, e essa melhora repetindo.</div>`}
+
+      ${hist.ok && hist.n > m.n ? `<div class="sep"></div>
+        <div class="mini">Acumulado de ${hist.n} tiros em ${hist.dias} dia${hist.dias === 1 ? '' : 's'}:
+          erro mediano <b>${g(hist.v)}</b>
+          <span class="xs">(intervalo ${g(hist.lo)}–${g(hist.hi)}, ${S.rotuloNivel(hist.nivel)})</span>.
+          ${hist.sistematico
+            ? `O desvio para <b>${U.esc(hist.sistematico.nome)}</b> aparece no histórico também, com ${hist.sistematico.n} tiros — não é coisa de hoje.`
+            : 'Nenhum desvio sistemático sobrevive ao histórico inteiro.'}</div>` : ''}
     `;
   }
 

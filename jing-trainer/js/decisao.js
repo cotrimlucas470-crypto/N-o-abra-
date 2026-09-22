@@ -258,8 +258,14 @@
       titulo: 'Rodízio',
       quando: () => true,
       acao: (c) => {
-        const cands = ['rota', 'ritmo', 'ler', 'frear', 'movimento', 'carga'];
-        const ultimos = (c.d.sets || []).slice(-4).map(x => x.drill);
+        const cands = ['rota', 'ritmo', 'ler', 'frear', 'movimento', 'carga', 'mira'];
+        /* A janela olha para trás TODOS os candidatos menos um. Com uma
+           janela fixa de 4 e sete exercícios, os dois últimos da lista
+           nunca saíam sorteados: ao chegar no quinto, o primeiro já
+           havia saído da janela e voltava a ser escolhido. O rodízio
+           girava entre cinco e deixava dois envelhecendo para sempre —
+           exatamente o contrário do que esta regra existe para fazer. */
+        const ultimos = (c.d.sets || []).slice(-(cands.length - 1)).map(x => x.drill);
         const livre = cands.filter(x => !ultimos.includes(x));
         return { tipo: 'treino', drill: livre[0] || cands[0] };
       },
@@ -333,7 +339,7 @@
   }
 
   function alternativa(c, vistos) {
-    const cands = ['rota', 'ritmo', 'ler', 'frear', 'movimento', 'carga'];
+    const cands = ['rota', 'ritmo', 'ler', 'frear', 'movimento', 'carga', 'mira'];
     const feitos = new Set((c.__feitos || []).concat([...vistos].map(x => x.split(':')[1])));
     const livre = cands.find(x => !feitos.has(x));
     if (!livre) return null;

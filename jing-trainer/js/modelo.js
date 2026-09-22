@@ -391,6 +391,77 @@
     };
   }
 
+  /* ============================================================
+     MIRA — erro angular, em graus
+
+     O número principal é a MEDIANA DO ERRO ABSOLUTO: metade dos seus
+     tiros erra menos que isso. Mediana e não média porque um tiro
+     solto em pânico a 170° de distância não deve mover a medida do
+     resto — e move muito, numa média.
+
+     O viés por setor usa o erro COM SINAL. É a diferença entre
+     imprecisão e desvio: erro grande com sinal alternado é tremor,
+     erro grande com sinal constante é a mão pivotando sempre para o
+     mesmo lado — e só o segundo dá para corrigir de propósito.
+
+     Um setor só vira achado com 5 tiros e desvio de pelo menos 6°.
+     Abaixo disso a mediana de três tiros diria qualquer coisa.
+     ============================================================ */
+  function mira({ dias = 60 } = {}) {
+    const t = filtrar({ k: 'mira', dias }).filter(x => x.x && x.x.e != null);
+    const base = { id: 'mira', n: t.length };
+    if (t.length < S.MIN.tempo.explorar) {
+      return { ...base, ok: false, falta: S.MIN.tempo.explorar - t.length,
+               motivo: `Faltam ${S.MIN.tempo.explorar - t.length} tiros para a primeira estimativa.` };
+    }
+    const erros = t.map(x => x.x.e);
+    const b = S.bootMediana(erros);
+
+    const porSetor = {};
+    for (const x of t) {
+      const st = x.x.st; if (!st) continue;
+      const e = porSetor[st] || (porSetor[st] = { difs: [], n: 0, ok: 0 });
+      e.difs.push(x.x.d); e.n++; e.ok += x.ok ? 1 : 0;
+    }
+    for (const k in porSetor) {
+      const e = porSetor[k];
+      e.vies = U.median(e.difs);
+      e.erro = U.median(e.difs.map(Math.abs));
+      e.nome = (U.E.MIRA.SETORES.find(s => s.id === k) || {}).nome || k;
+    }
+    const sistem = Object.entries(porSetor)
+      .filter(([, e]) => e.n >= 5 && Math.abs(e.vies) >= 6)
+      .sort((a, b2) => Math.abs(b2[1].vies) - Math.abs(a[1].vies));
+
+    /* uma série por dia, para tendência sobre pontos independentes */
+    const porDia = {};
+    for (const x of t) {
+      const d0 = new Date(x.t).setHours(0, 0, 0, 0);
+      (porDia[d0] || (porDia[d0] = [])).push(x.x.e);
+    }
+    const dias_ = Object.keys(porDia).sort();
+
+    return {
+      ...base, ok: true, v: b.v, lo: b.lo, hi: b.hi,
+      dentro: t.filter(x => x.ok).length / t.length,
+      /* ver o comentário em motor-mira.js: o desvio da mão inteira é o
+         que cabe numa amostra pequena, e só é afirmado quando o
+         intervalo da mediana não inclui o zero */
+      ...(() => {
+        const bg = S.bootMediana(t.map(x => x.x.d));
+        return { viesGeral: bg.v, viesLo: bg.lo, viesHi: bg.hi,
+                 viesReal: bg.lo > 0 || bg.hi < 0 };
+      })(),
+      parado: (() => { const a = t.filter(x => !x.x.mv).map(x => x.x.e); return a.length >= 6 ? U.median(a) : null; })(),
+      movel: (() => { const a = t.filter(x => x.x.mv).map(x => x.x.e); return a.length >= 6 ? U.median(a) : null; })(),
+      porSetor,
+      sistematico: sistem.length ? { setor: sistem[0][0], ...sistem[0][1] } : null,
+      dias: dias_.length,
+      serie: dias_.map(k => ({ t: +k, v: U.median(porDia[k]), n: porDia[k].length })),
+      nivel: S.nivelDado(dias_.length, 'tempo'),
+    };
+  }
+
   function custoDecisao() {
     const iso = filtrar({ k: 'rota', dias: 45, ref: true });
     const jun = filtrar({ k: 'integra', dias: 45 });
@@ -555,7 +626,7 @@
   U.MD = {
     REF, MEDIDAS, DERIVADAS, ERROS,
     gravar, filtrar, tentativas,
-    execucao, estabilidade, leitura, curvaLeitura, aborto, retencao, custoDecisao, visaoMapa,
+    execucao, estabilidade, leitura, curvaLeitura, aborto, retencao, custoDecisao, visaoMapa, mira,
     painel, perfilErros, fadiga,
   };
 
