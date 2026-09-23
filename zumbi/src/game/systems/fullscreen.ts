@@ -1,36 +1,60 @@
 /**
  * Tela cheia + travar na horizontal (Android/Chrome). Precisa ser chamado
- * dentro de um toque do usuário. Onde não for permitido (iPhone, iframe,
- * PC) simplesmente não acontece — o jogo continua normal.
+ * dentro de um toque do usuário.
+ *
+ * Usa a API do navegador diretamente (e não scale.startFullscreen do Phaser)
+ * porque o pedido devolve uma Promise que pode ser RECUSADA — dentro de um
+ * iframe sem permissão (visualizador do Claude, por exemplo) ou no iPhone.
+ * O Phaser descarta essa Promise e a recusa virava "erro" na tela.
+ * Aqui toda recusa é tratada: o jogo só continua sem tela cheia.
+ *
+ * O Phaser continua acompanhando o estado pelo evento `fullscreenchange`.
  */
-import type Phaser from 'phaser';
 
-export function requestFullscreenLandscape(scene: Phaser.Scene): void {
-  const scale = scene.scale;
+/** O navegador PERMITE tela cheia nesta página? (false em iframes sem permissão e no iPhone) */
+export function canFullscreen(): boolean {
   try {
-    if (!scale.isFullscreen && scene.sys.game.device.fullscreen.available) {
-      scale.startFullscreen({ navigationUI: 'hide' });
+    return document.fullscreenEnabled === true && typeof document.documentElement.requestFullscreen === 'function';
+  } catch {
+    return false;
+  }
+}
+
+export function isFullscreen(): boolean {
+  return !!document.fullscreenElement;
+}
+
+export function requestFullscreenLandscape(): void {
+  if (!canFullscreen() || isFullscreen()) {
+    lockLandscape();
+    return;
+  }
+  const target = document.getElementById('game') ?? document.documentElement;
+  try {
+    target.requestFullscreen({ navigationUI: 'hide' }).then(lockLandscape, () => undefined);
+  } catch {
+    /* navegador antigo sem Promise: ignora */
+  }
+}
+
+export function toggleFullscreen(): void {
+  if (isFullscreen()) {
+    try {
+      document.exitFullscreen().catch(() => undefined);
+    } catch {
+      /* ignora */
     }
-  } catch {
-    /* sem permissão: ignora */
-  }
-  lockLandscape();
-}
-
-export function toggleFullscreen(scene: Phaser.Scene): void {
-  try {
-    if (scene.scale.isFullscreen) scene.scale.stopFullscreen();
-    else requestFullscreenLandscape(scene);
-  } catch {
-    /* ignora */
+  } else {
+    requestFullscreenLandscape();
   }
 }
 
+/** Trava a orientação na horizontal (só funciona em tela cheia no Android). */
 function lockLandscape(): void {
-  const o = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> };
-  if (!o?.lock) return;
-  // O lock só funciona em tela cheia; tenta de novo quando ela entrar.
-  const attempt = () => o.lock?.('landscape').catch(() => undefined);
-  attempt();
-  document.addEventListener('fullscreenchange', attempt, { once: true });
+  try {
+    const o = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> };
+    o?.lock?.('landscape').catch(() => undefined);
+  } catch {
+    /* sem suporte: ignora */
+  }
 }

@@ -78,6 +78,8 @@
         color: #fff;
         font: 12px/1.45 ui-monospace, Menlo, monospace;
         white-space: pre-wrap;
+        max-height: 45vh;
+        overflow: auto;
         z-index: 10;
         display: none;
         user-select: text;
@@ -91,17 +93,31 @@
     <div id="erro"></div>
     <script>
       // Mostra erros na própria tela: no celular não há console para olhar.
+      // Toque no aviso para fechar. Recusas "normais" do navegador (tela cheia,
+      // travar orientação) não são erro do jogo e não aparecem.
       (function () {
         var box = document.getElementById('erro');
-        function show(msg) {
+        var BENIGN = /fullscreen|screen orientation|permissions check failed|permissions policy|NotAllowedError|NotSupportedError|AbortError|play\(\) request/i;
+        box.addEventListener('click', function () {
+          box.style.display = 'none';
+        });
+        function show(msg, stack) {
+          var text = String(msg || 'erro desconhecido');
+          if (BENIGN.test(text)) {
+            console.warn('[ignorado]', text);
+            return;
+          }
+          var lines = String(stack || '').split('\n').slice(0, 6).join('\n');
           box.style.display = 'block';
-          box.textContent = 'Erro: ' + msg + '\n(tire um print e mande para o desenvolvedor)';
+          box.textContent =
+            'Erro: ' + text + (lines ? '\n' + lines : '') + '\n\n(tire um print e mande para o desenvolvedor · toque aqui para fechar)';
         }
         window.addEventListener('error', function (e) {
-          show((e && e.message) || String(e));
+          show(e && e.message, e && e.error && e.error.stack);
         });
         window.addEventListener('unhandledrejection', function (e) {
-          show((e && e.reason && (e.reason.stack || e.reason.message)) || String(e && e.reason));
+          var r = e && e.reason;
+          show(r && ((r.name ? r.name + ': ' : '') + (r.message || r)), r && r.stack);
         });
       })();
     </script>

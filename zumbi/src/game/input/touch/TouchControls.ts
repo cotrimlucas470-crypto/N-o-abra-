@@ -11,6 +11,7 @@
  */
 import Phaser from 'phaser';
 import { DEBUG } from '../../core/Debug';
+import { canFullscreen, isFullscreen } from '../../systems/fullscreen';
 import type { GameServices } from '../../core/Services';
 import { iconCrosshair, iconFullscreen, iconPause, iconRun } from '../../ui/icons';
 import { UI } from '../../ui/theme';
@@ -50,7 +51,7 @@ export class TouchControls {
     this.pause = new TouchButton(scene, iconPause, DEPTH + 1, { accent: UI.accentNum, hitScale: 1.5, subtle: true });
     this.fullscreen = new TouchButton(
       scene,
-      (g, x, y, r, c, a) => iconFullscreen(g, x, y, r, c, scene.scale.isFullscreen, a),
+      (g, x, y, r, c, a) => iconFullscreen(g, x, y, r, c, isFullscreen(), a),
       DEPTH + 1,
       { accent: UI.accentNum, hitScale: 1.5, subtle: true },
     );
@@ -119,7 +120,8 @@ export class TouchControls {
     this.aim.setVisible(t);
     this.sprint.setVisible(t);
     this.pause.setVisible(true);
-    this.fullscreen.setVisible(this.scene.sys.game.device.fullscreen.available);
+    // Só mostra o botão onde o navegador realmente permite tela cheia.
+    this.fullscreen.setVisible(canFullscreen());
   }
 
   private toUi(p: Phaser.Input.Pointer): { x: number; y: number } {

@@ -49,7 +49,7 @@ export class HudScene extends Phaser.Scene {
 
     this.controls = new TouchControls(this, s, {
       onPause: () => this.setPaused(true, 'button'),
-      onFullscreen: () => toggleFullscreen(this),
+      onFullscreen: () => toggleFullscreen(),
     });
 
     this.keyboardHint = this.add

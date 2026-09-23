@@ -42,7 +42,7 @@ export class TitleScene extends Phaser.Scene {
     const version = this.add.text(0, 0, `v${GAME_VERSION} · ${GAME_STAGE}`, textStyle(11, '#6f6d67', '600')).setOrigin(1, 1).setResolution(dpr);
 
     const play = new UiButton(this, 'JOGAR', 200, 52, () => {
-      if (touch) requestFullscreenLandscape(this);
+      if (touch) requestFullscreenLandscape();
       this.scene.start(SCENES.game);
     }, true, dpr);
 

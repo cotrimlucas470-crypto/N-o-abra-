@@ -196,6 +196,36 @@ try {
     await ctx.close();
   }
 
+  // ---------------------------------------------------------------- dentro de um iframe (como o visualizador do Claude)
+  {
+    // iframe SEM permissão de tela cheia: o navegador recusa o pedido.
+    // Antes isso virava "erro" na tela ao tocar em JOGAR.
+    const { ctx, page, errors, touch } = await mobilePage(844, 390);
+    await page.setContent(
+      `<body style="margin:0;background:#000"><iframe id="f" src="${BASE}?debug" style="border:0;width:844px;height:390px;display:block"></iframe></body>`,
+    );
+    const frame = await (await page.$('#f')).contentFrame();
+    await frame.waitForFunction(() => document.querySelector('canvas'), null, { timeout: 20000 });
+    await sleep(2500);
+    await touch('touchStart', [{ x: 422, y: 242, id: 1 }]);
+    await sleep(80);
+    await touch('touchEnd', []);
+    await frame.waitForFunction(() => !!window.__TDR__, null, { timeout: 20000 });
+    await sleep(1200);
+    await touch('touchStart', [{ x: 130, y: 250, id: 2 }]);
+    await touch('touchMove', [{ x: 130, y: 300, id: 2 }]);
+    await sleep(600);
+    await touch('touchEnd', []);
+    await sleep(300);
+    const erroVisivel = await frame.evaluate(() => getComputedStyle(document.getElementById('erro')).display !== 'none');
+    const fsPermitido = await frame.evaluate(() => document.fullscreenEnabled);
+    await page.screenshot({ path: OUT + '13-iframe.png' });
+    check(!fsPermitido, 'iframe de teste realmente proíbe tela cheia');
+    check(!erroVisivel, 'tocar em JOGAR sem permissão de tela cheia não mostra erro');
+    check(errors.length === 0, `iframe sem erros no console (${errors.length}) ${errors.slice(0, 3).join(' | ')}`);
+    await ctx.close();
+  }
+
   // ---------------------------------------------------------------- celular em pé
   {
     const { ctx, page, errors } = await mobilePage(390, 844);
