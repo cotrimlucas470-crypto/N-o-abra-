@@ -367,6 +367,27 @@
         soberano: d >= 3,
       }),
     },
+    {
+      id: 'antecipar', nome: 'Leitura do Inimigo', motor: 'antecipa', mede: null, categoria: 'percepcao',
+      objetivo: 'Ler a preparação do inimigo — o giro, a arma, o agachar — e decidir antes de o golpe sair.',
+      comoFunciona: [
+        'O inimigo se prepara com o corpo. <b>Tiro</b>: gira e mira um pouco acima ou abaixo de você — desvie para o lado OPOSTO (analógico para cima ou para baixo).',
+        '<b>Salto</b>: gira para você e agacha — recue (analógico para trás). <b>Fuga</b>: vira as costas — persiga com a <b>1</b>.',
+        '<b>Finta</b> (da dificuldade 4 em diante): começa igual ao tiro e desiste — não faça nada.',
+        'A tela <b>apaga antes do golpe sair</b>. Decida com o que viu — pode responder antes do corte, se já leu.',
+        'Depois de cada decisão a jogada é <b>reprisada inteira, sem corte</b>. Olhe a reprise: é ela que corrige a sua leitura.',
+      ],
+      porque: 'Oclusão temporal — ver a preparação, cortar antes do desfecho e decidir — é a técnica de treino perceptivo com melhor sustentação no esporte, e o ganho aparece também fora da tela. O que se treina é ler o CORPO do adversário. O exercício de Leitura mostra um ícone; este mostra movimento, que é o que os estudos usam. A reprise depois da decisão é o retorno de desfecho, parte do método. O boneco é ilustrativo: não é a animação de um herói real.',
+      cfg: (d) => ({
+        tentativas: 16,
+        janelas: d <= 2 ? [0, -150, null] : d <= 5 ? [0, -150, -300] : d <= 8 ? [-150, -300, -400] : [-150, -300, -450],
+        preparo: Math.round(escala(d, 720, 480)),
+        desvio: Math.round(escala(d, 18, 9)),
+        finta: d >= 4,
+        dica: d <= 3,
+        limite: Math.round(escala(d, 900, 550)),
+      }),
+    },
     /* ============================================================
        VISÃO DE MAPA
 

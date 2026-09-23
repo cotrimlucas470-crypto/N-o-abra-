@@ -85,7 +85,7 @@
     window.__rz = setTimeout(() => { if (!$('#treino').classList.contains('on')) U.UI.render(); }, 260);
   });
 
-  console.log('ESPELHO v18 ·', U.D.DRILLS.length, 'exercícios em',
+  console.log('ESPELHO v19 ·', U.D.DRILLS.length, 'exercícios em',
     Object.keys(U.D.CATEGORIAS).length, 'categorias ·',
     U.DS.REGRAS.length, 'regras ·', U.CI.PRINCIPIOS.length, 'princípios ·',
     Object.keys((U.HE.BUILDS || { porHeroi: {} }).porHeroi).length, 'heróis com itens ·',

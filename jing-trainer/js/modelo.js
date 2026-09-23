@@ -524,6 +524,16 @@
       o_que: 'Você apertou a 1 ou a 2 com a passiva travada — nada quebrou, a habilidade estava em recarga, o toque foi perdido.',
       acao: 'Nos 5 s depois de uma quebra não existe reset. Olhe o botão P antes de decidir: a trava está desenhada nele.',
     },
+    finta: {
+      nome: 'Caiu na finta', cor: 'atencao',
+      o_que: 'O inimigo começou um golpe e desistiu, e você respondeu mesmo assim.',
+      acao: 'A finta começa idêntica ao tiro e se entrega quando a arma AFROUXA e o brilho some. Quem responde só ao começo do movimento cai; quem espera o compromisso do corpo, não. É a diferença entre reagir e ler.',
+    },
+    lado: {
+      nome: 'Lado errado', cor: 'serie1',
+      o_que: 'Você leu que era tiro, mas desviou para o lado da mira.',
+      acao: 'A mira vem com antecedência: o tiro vai um pouco acima ou abaixo de você, para onde ele acha que você vai. Olhe a ponta da arma no fim do giro e vá para o lado contrário.',
+    },
     cedo: {
       nome: 'Punir cedo', cor: 'atencao',
       o_que: 'Você apertou o Punir com a vida do monstro ainda maior que o dano dele: saiu, não matou, e entrou em recarga.',

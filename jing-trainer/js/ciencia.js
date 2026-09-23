@@ -151,10 +151,15 @@
       aplico: `Virou o exercício de Leitura e a terceira medida do painel. Uma das janelas é
         sempre 300 ms, fixa: sem um ponto de referência constante não dá para comparar com a
         semana passada. As outras janelas variam para desenhar a curva de quanta informação
-        você ainda precisa.`,
+        você ainda precisa. Na v19 ganhou a versão fiel ao método: a Leitura do Inimigo, em que
+        o que se lê é MOVIMENTO (o giro, a arma recuando, o agachar, as costas virando, a finta),
+        a tela corta antes do golpe e a jogada é reprisada inteira depois — o retorno de desfecho
+        dos estudos. A dica de onde olhar aponta a região do corpo, não a regra (descoberta
+        guiada), e some da dificuldade 4 em diante.`,
       fontes: [
         { t: 'Accelerating visual anticipation through temporal occlusion: meta-analysis (Sports Med, 2024)', u: 'https://link.springer.com/article/10.1007/s40279-024-02073-6' },
         { t: 'Perceptual-cognitive training in team sports: meta-analysis (2024)', u: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC11505547/' },
+        { t: 'Instructional approaches in developing anticipation skill (Smeeton et al., 2005)', u: 'https://scholar.google.com/scholar?q=The%20relative%20effectiveness%20of%20various%20instructional%20approaches%20in%20developing%20anticipation%20skill' },
       ],
     },
     {
@@ -248,7 +253,9 @@
         quase nulo fora do laboratório.`,
       aplico: `Continua — é barato e não faz mal — mas deixou de ser tratado como pilar. O
         esquema escalona de bloco para aleatório conforme a dificuldade sobe, e isso agora é um
-        parâmetro do exercício e não um sistema à parte.`,
+        parâmetro do exercício e não um sistema à parte. A Sessão da Jing aplica o mesmo entre
+        exercícios: um de cada, intercalados, em vez de repetir o mesmo — e diz na tela que rende
+        menos na hora.`,
       fontes: [
         { t: 'High contextual interference improves retention (Sci Rep, 2024)', u: 'https://www.nature.com/articles/s41598-024-65753-3' },
         { t: 'The myth of contextual interference benefit in sports practice (2023)', u: 'https://www.sciencedirect.com/science/article/abs/pii/S1747938X23000301' },
@@ -306,6 +313,105 @@
         fez disparar, para você poder discordar com argumento.`,
       fontes: [
         { t: 'Reporting bias exaggerated self-controlled practice benefits (Int Rev Sport Exerc Psychol, 2023)', u: 'https://www.tandfonline.com/doi/full/10.1080/1750984X.2023.2207255' },
+      ],
+    },
+    {
+      id: 'recuperacao',
+      titulo: 'Tentar lembrar ensina mais do que reler',
+      forca: 'forte', novo: true,
+      achado: `A revisão que avaliou dez técnicas de estudo contra centenas de estudos só deu "alta
+        utilidade" a duas: praticar RECUPERANDO (tentar lembrar a resposta) e ESPAÇAR as revisões.
+        Tentar lembrar retém mais do que estudar de novo pelo mesmo tempo, e o efeito cresce quando a
+        resposta certa vem logo depois. Espaçar com intervalos crescentes retém muito mais do que
+        concentrar. Juntas, errar → reaprender na hora → rever em dias espaçados (reaprendizagem
+        sucessiva) é o desenho com melhor retenção por minuto gasto. Ressalva honesta: o efeito é
+        sobre memória. Que saber o kit do inimigo melhore a decisão na partida é plausível, não testado.`,
+      aplico: `Virou as cartas "Conheça o inimigo": perguntas geradas só do que o banco tem com
+        confiança alta ou média (kits de 25 heróis, 58 itens, cinco fatos da Jing). Cada carta mora
+        numa caixa: acertou sobe (1, 3, 7, 14, 30, 60 dias), errou volta para a caixa 1 e reaparece na
+        mesma sessão até sair certa. A carta NÃO aparece antes de vencer — revisar cedo rende menos. A
+        medida é a retenção de verdade: acerto em cartas que ficaram 3 dias ou mais sem ser vistas.`,
+      fontes: [
+        { t: 'Improving students’ learning with effective learning techniques (Dunlosky et al., Psychol Sci Public Interest, 2013)', u: 'https://doi.org/10.1177/1529100612453266' },
+        { t: 'Test-enhanced learning: taking memory tests improves long-term retention (Roediger & Karpicke, Psychol Sci, 2006)', u: 'https://doi.org/10.1111/j.1467-9280.2006.01693.x' },
+        { t: 'Distributed practice in verbal recall tasks: review and quantitative synthesis (Cepeda et al., Psychol Bull, 2006)', u: 'https://doi.org/10.1037/0033-2909.132.3.354' },
+        { t: 'Optimizing schedules of retrieval practice: how much is enough? (Rawson & Dunlosky, 2011)', u: 'https://scholar.google.com/scholar?q=Optimizing%20schedules%20of%20retrieval%20practice%20for%20durable%20and%20efficient%20learning%3A%20How%20much%20is%20enough' },
+        { t: 'Feedback enhances the positive effects of multiple-choice testing (Butler & Roediger, 2008)', u: 'https://scholar.google.com/scholar?q=Feedback%20enhances%20the%20positive%20effects%20and%20reduces%20the%20negative%20effects%20of%20multiple-choice%20testing' },
+      ],
+    },
+    {
+      id: 'pressao',
+      titulo: 'Quem só treina sem nada em jogo, só joga bem sem nada em jogo',
+      forca: 'moderada', novo: true,
+      achado: `Treinar com pressão induzida — consequência de verdade, avaliação, tempo — melhorou o
+        desempenho sob pressão real em relação a treinar sem ela, na meta-análise de treino sob pressão
+        em esporte, polícia e medicina. O trabalho clássico com atletas de elite mostrou o mesmo com
+        ansiedade leve: quem treinou ansioso não caiu quando a pressão veio. Ressalvas: os estudos são
+        pequenos, a pressão precisa ser sentida (não basta chamar de "decisivo") e a medida é o
+        desempenho sob pressão, não o aprendizado da habilidade.`,
+      aplico: `Virou a Série decisiva: três falhas encerram (consequência), o recorde fica registrado
+        e aparece antes de começar (avaliação), a trilha muda para a tensa e a cada falha o coração
+        bate. A dificuldade fica parada e o resultado não mexe nela. O número principal é o CUSTO da
+        pressão: o acerto na série contra o acerto no treino normal do mesmo exercício — com a correção
+        para a série que para na 3ª falha, que senão subestima o acerto.`,
+      fontes: [
+        { t: 'Pressure training for performance domains: a meta-analysis (Low et al., Sport Exerc Perform Psychol, 2021)', u: 'https://scholar.google.com/scholar?q=Pressure%20training%20for%20performance%20domains%3A%20A%20meta-analysis' },
+        { t: 'Training with anxiety has a positive effect on expert perceptual-motor performance under pressure (Oudejans & Pijpers, 2009)', u: 'https://scholar.google.com/scholar?q=Training%20with%20anxiety%20has%20a%20positive%20effect%20on%20expert%20perceptual-motor%20performance%20under%20pressure' },
+      ],
+    },
+    {
+      id: 'imagetica',
+      titulo: 'Imaginar o movimento treina — menos que fazer, mais que parar',
+      forca: 'moderada', novo: true,
+      achado: `A meta-análise clássica de prática mental encontrou efeito positivo e moderado sobre o
+        desempenho — menor que o da prática física, e que decai com o tempo sem prática real. As
+        revisões de imagética no esporte confirmam efeito moderado, maior quando combinada com prática
+        física e quando a imagem é na primeira pessoa e no ritmo real. Observar a ação enquanto se
+        imagina (ver e imaginar juntos) ativa o sistema motor mais do que cada um sozinho.`,
+      aplico: `Virou a Prática mental de cerca de 35 segundos: a SUA rota, no SEU ritmo (o da escada da Rota).
+        Três repetições vendo os botões acenderem (observar + imaginar), quatro só com o som, três só
+        na cabeça. É oferecida como descanso ativo depois de exercícios de sequência e entra na Sessão da
+        Jing entre a Rota e o resto. Não substitui treino: ocupa o descanso.`,
+      fontes: [
+        { t: 'Does mental practice enhance performance? (Driskell, Copper & Moran, J Appl Psychol, 1994)', u: 'https://scholar.google.com/scholar?q=Does%20mental%20practice%20enhance%20performance%20Driskell%20Copper%20Moran' },
+        { t: 'The effects of imagery interventions in sports: a meta-analysis (Simonsmeier et al., 2021)', u: 'https://scholar.google.com/scholar?q=The%20effects%20of%20imagery%20interventions%20in%20sports%3A%20a%20meta-analysis' },
+        { t: 'Combined action observation and motor imagery: meta-analyses', u: 'https://scholar.google.com/scholar?q=combined%20action%20observation%20and%20motor%20imagery%20meta-analysis' },
+      ],
+    },
+    {
+      id: 'aquecimento',
+      titulo: 'As primeiras tentativas depois de uma pausa saem piores',
+      forca: 'moderada', novo: true,
+      achado: `O decremento de aquecimento é um dos achados mais antigos da aprendizagem motora: depois
+        de um intervalo, o desempenho das primeiras tentativas fica abaixo do nível já aprendido, e
+        volta com poucas repetições da própria tarefa. A explicação mais aceita é perder o "ajuste" da
+        tarefa (o set), não esquecer a habilidade. Ressalva: os estudos são de laboratório e esporte;
+        nenhum mediu isso em jogo de celular.`,
+      aplico: `Virou o Aquecimento pré-partida: quatro blocos curtos (Rota, Espelho, Leitura, Punir), um
+        pouco abaixo do seu nível, uns três minutos. Não entra nas medidas nem mexe na dificuldade — não
+        é treino, é tirar de cima da partida a perda das primeiras tentativas. Termina pedindo o plano
+        "se… então…" para a partida.`,
+      fontes: [
+        { t: 'The second facet of forgetting: a review of warm-up decrement (Adams, Psychol Bull, 1961)', u: 'https://scholar.google.com/scholar?q=The%20second%20facet%20of%20forgetting%3A%20a%20review%20of%20warm-up%20decrement' },
+        { t: 'Why professional athletes need a prolonged period of warm-up (Ajemian et al., 2010)', u: 'https://scholar.google.com/scholar?q=Why%20professional%20athletes%20need%20a%20prolonged%20period%20of%20warm-up%20and%20other%20peculiarities%20of%20human%20motor%20learning' },
+      ],
+    },
+    {
+      id: 'intencao',
+      titulo: '"Se isto acontecer, faço aquilo" leva a intenção até a partida',
+      forca: 'moderada', novo: true,
+      achado: `Intenção de implementação é um plano com gatilho concreto: "se [situação], então
+        [ação]". A meta-análise de 94 estudos encontrou efeito médio a grande sobre cumprir o que se
+        pretendia, porque a situação passa a disparar a ação sem precisar lembrar dela na hora. No
+        esporte o efeito existe e é menor. É a coisa mais próxima de uma ponte entre treino e partida
+        que a literatura oferece — e a transferência é justamente o que nenhum treino fora do jogo
+        consegue garantir.`,
+      aplico: `Virou o Plano para a partida: o app sugere planos a partir dos SEUS erros medidos (reset
+        perdido, Punir cedo, finta…), você escolhe um só, e o registro de partida pergunta se você
+        cumpriu. A taxa de cumprimento aparece em Progresso — e ela diz mais sobre o treino chegar na
+        partida do que vitória, que depende de outras nove pessoas.`,
+      fontes: [
+        { t: 'Implementation intentions and goal achievement: a meta-analysis (Gollwitzer & Sheeran, 2006)', u: 'https://scholar.google.com/scholar?q=Implementation%20intentions%20and%20goal%20achievement%3A%20A%20meta-analysis%20of%20effects%20and%20processes' },
       ],
     },
   ];

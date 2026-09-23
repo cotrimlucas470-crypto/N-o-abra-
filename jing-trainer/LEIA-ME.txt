@@ -1,5 +1,5 @@
 ================================================================
-ESPELHO v18 — Punir no Tirano, som e gráficos novos
+ESPELHO v19 — Treinos com método: o que a ciência sustenta
 Honor of Kings · Poco X7 Pro · HTML/CSS/JS, sem dependências
 ================================================================
 
@@ -14,6 +14,163 @@ todo número daqui sai de toques sobre a réplica. Se ela não bate com o seu
 jogo, tudo o que vier depois mede a coisa errada.
 
 Seus dados da v1 e da v2 continuam lá. Nada é apagado.
+
+
+================================================================
+PARTE -13 — V19: TREINOS COM MÉTODO
+================================================================
+
+O QUE VOCÊ PEDIU
+
+   "Não quero só aumento de dificuldade. Quero algo que realmente me
+   treine, que seja cientificamente comprovado."
+
+O PONTO DE PARTIDA HONESTO
+
+   O app já aplicava vários achados sólidos: dificuldade no ponto de
+   desafio (a escada), espaçamento entre dias, teste de retenção,
+   prática aleatória, foco externo. E já tinha REMOVIDO o que não se
+   sustentou (retorno desvanecido, prática autocontrolada). A v19 não
+   repete isso: ela acrescenta o que faltava, e cada coisa nova vem
+   com a força da evidência escrita ao lado — inclusive quando é só
+   moderada. Nada disto foi testado em Honor of Kings; o que o app faz
+   é medir em você se está funcionando.
+
+   Tudo fica num painel novo na tela Agora: "Treinos com método". O
+   "?" de cada linha abre o princípio, com as fontes.
+
+----------------------------------------------------------------
+1. CONHEÇA O INIMIGO — cartas com recuperação espaçada
+   Evidência: FORTE (para memória)
+----------------------------------------------------------------
+
+   A revisão mais citada sobre técnicas de estudo (Dunlosky et al.,
+   2013) avaliou dez técnicas e só deu "alta utilidade" a duas:
+   TENTAR LEMBRAR (em vez de reler) e ESPAÇAR as revisões. As cartas
+   são as duas juntas:
+
+   · 286 cartas geradas do banco: "de quem é esta habilidade?", "o
+     que faz a 2 de X?", "qual é o ultimate de X?", "que item faz
+     isto?" e cinco fatos da Jing. Só dado de confiança alta ou média
+     — e a carta avisa quando é média.
+   · Caixas com intervalos crescentes: 1, 3, 7, 14, 30, 60 dias.
+     Acertou, sobe; errou, volta para a caixa 1.
+   · Errou? A carta volta NA MESMA SESSÃO até sair certa uma vez
+     (reaprendizagem sucessiva) — e a resposta certa aparece logo
+     depois de cada resposta.
+   · A carta NÃO aparece antes de vencer. Revisar cedo rende menos:
+     o esquecimento parcial é o que faz a próxima lembrança fixar.
+   · A medida é a RETENÇÃO DE VERDADE: acerto em cartas que ficaram
+     3 dias ou mais sem ser vistas. Acerto logo depois de aprender é
+     desempenho, não memória.
+   · Com 10 ou mais vencidas, a recomendação "O que fazer agora"
+     manda revisar.
+
+   O que não prometo: o efeito é sobre memória. Que saber o kit do
+   inimigo melhore a decisão na partida é plausível, não testado.
+
+----------------------------------------------------------------
+2. LEITURA DO INIMIGO — oclusão de MOVIMENTO
+   Evidência: FORTE (antecipação no esporte)
+----------------------------------------------------------------
+
+   Oclusão temporal é a técnica de treino perceptivo com melhor
+   sustentação. Mas o que ela treina é ler o CORPO do adversário. A
+   Leitura antiga mostrava um ícone; esta mostra movimento:
+
+   · TIRO: o inimigo gira e mira um pouco acima ou abaixo de você —
+     desvie para o lado oposto (analógico cima/baixo).
+   · SALTO: gira para você e agacha — recue (analógico para trás).
+   · FUGA: vira as costas — persiga com a 1.
+   · FINTA (dif 4+): começa igual ao tiro e desiste — não faça nada.
+
+   A tela APAGA antes do golpe sair (0, 150, 300, 400 ou 450 ms
+   antes, conforme a dificuldade — a de 150 ms existe em todas, como
+   régua fixa). Você decide com o que viu. Depois a jogada é
+   REPRISADA inteira, sem corte, com o desfecho: é a reprise que
+   corrige a leitura.
+
+   A dica "olhe a arma e o giro do corpo" (até a dif 3) aponta onde
+   olhar, não a regra — descoberta guiada, que nos estudos de
+   instrução para antecipação se manteve melhor sob pressão.
+
+   A medida é a CURVA: acerto por ponto de corte, e a partir de
+   quantos ms antes do golpe você acerta 3 de 4.
+
+----------------------------------------------------------------
+3. SÉRIE DECISIVA — treino sob pressão
+   Evidência: MODERADA
+----------------------------------------------------------------
+
+   A meta-análise de treino sob pressão (Low et al., 2021) encontrou
+   que praticar com pressão induzida melhora o desempenho quando a
+   pressão é real. As manipulações que funcionam: CONSEQUÊNCIA e
+   AVALIAÇÃO. Então:
+   · 3 vidas — a terceira falha encerra a série;
+   · o recorde fica registrado e aparece antes de começar;
+   · trilha tensa, e o coração bate a cada falha.
+   A dificuldade fica parada e o resultado não mexe nela. O número
+   principal é o CUSTO DA PRESSÃO: acerto na série contra acerto no
+   treino normal do mesmo exercício. (Detalhe técnico: a série para
+   na 3ª falha, e a conta ingênua subestima o acerto; o app usa o
+   estimador sem viés, que tira uma falha do denominador.)
+   Disponível para Rota, Quebra do Espelho, Punir e Leitura.
+
+----------------------------------------------------------------
+4. PRÁTICA MENTAL — ~35 s sem tocar
+   Evidência: MODERADA
+----------------------------------------------------------------
+
+   Imaginar o movimento melhora o desempenho — menos que praticar,
+   mais que parar. A SUA rota, no SEU ritmo (o da escada): três vezes
+   vendo os botões acenderem, quatro só com o som, três só na cabeça.
+   Aparece como descanso ativo depois de exercícios de sequência e
+   entra na Sessão da Jing.
+
+----------------------------------------------------------------
+5. AQUECIMENTO PRÉ-PARTIDA — 3 minutos
+   Evidência: MODERADA
+----------------------------------------------------------------
+
+   Depois de uma pausa as primeiras tentativas saem piores que o seu
+   nível (decremento de aquecimento). Quatro blocos curtos, um pouco
+   abaixo do seu nível, antes da fila. Não mede nada, não mexe na
+   dificuldade, e termina pedindo o plano da partida.
+
+----------------------------------------------------------------
+6. PLANO PARA A PARTIDA — "se… então…"
+   Evidência: MODERADA no esporte (forte em geral)
+----------------------------------------------------------------
+
+   Intenção de implementação: um plano com gatilho concreto aumenta
+   muito a chance de a intenção virar ação. O app sugere planos a
+   partir dos SEUS erros (reset perdido, Punir cedo, finta…), você
+   escolhe UM, e o registro de partida pergunta se cumpriu. A taxa de
+   cumprimento aparece em Progresso. É a ponte entre treino e partida
+   — que é exatamente o que nenhum treino fora do jogo garante.
+
+   A ordem das sugestões usa o limite inferior do intervalo do seu
+   erro, não a taxa crua: 3 erros em 3 tentativas não passam na
+   frente de 10 em 10.
+
+----------------------------------------------------------------
+7. A SESSÃO DA JING FICOU COMPLETA
+----------------------------------------------------------------
+
+   Rota → prática mental → Quebra do Espelho → Leitura do Inimigo →
+   Punir → Mira → cartas vencidas. Intercalados (interferência
+   contextual: rende menos na hora, retém mais). ~15 minutos.
+
+TESTES
+
+   53 verificações novas: o baralho (nenhuma carta entrega a resposta
+   no texto), a agenda das caixas, a reaprendizagem na mesma sessão,
+   a regra de cartas vencidas; a geometria do tiro (a resposta certa
+   é sempre o lado oposto da mira), o campo realmente preto depois do
+   corte, três jogadores simulados na Leitura; a série que acaba na
+   3ª falha sem mexer na dificuldade e o estimador sem viés do custo;
+   a prática mental no seu ritmo; o aquecimento fora das medidas; o
+   plano escolhido pelos seus erros e cobrado no registro de partida.
 
 
 ================================================================

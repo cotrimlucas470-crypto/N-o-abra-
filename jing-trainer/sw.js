@@ -1,12 +1,12 @@
-const CACHE = 'espelho-v21';
+const CACHE = 'espelho-v22';
 const ARQS = [
   './', './index.html', './css/app.css', './manifest.json', './icone.svg',
   './js/util.js', './js/estat.js', './js/ciencia.js', './js/musica.js', './js/hud.js',
   './js/toque.js', './js/otimiza.js', './js/conteudo.js', './js/modelo.js', './js/controlador.js',
   './js/gemeo.js', './js/evolucao.js', './js/indice.js', './js/escada.js', './js/engines.js',
-  './js/mapa.js', './js/motor-mapa.js', './js/motor-mira.js', './js/motor-reset.js', './js/motor-punir.js',
+  './js/mapa.js', './js/motor-mapa.js', './js/motor-mira.js', './js/motor-reset.js', './js/motor-punir.js', './js/motor-antecipa.js',
   './js/emblema.js', './js/herois.js', './dados/herois/_roster.js', './dados/herois/jing.js', './dados/herois/_funcoes.js', './dados/herois/_tier.js', './dados/herois/_stats.js', './dados/herois/_habilidades.js', './dados/herois/_builds.js', './dados/itens/_catalogo.js', './js/pratica.js', './js/drills.js', './js/decisao.js', './js/graf.js', './js/ui.js',
-  './js/treino.js', './js/app.js',
+  './js/cartas.js', './js/treino.js', './js/app.js',
 ];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ARQS)).then(() => self.skipWaiting()));

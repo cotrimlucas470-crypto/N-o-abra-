@@ -449,6 +449,13 @@ const Sfx = {
       this.voz(1800, { dur: 0.025, ganho: 0.12, tipo: 'triangle' });
     }
   },
+  /** Batida de coração: a cada falha na Série decisiva, mais forte. */
+  coracao(n = 1) {
+    const g = 0.3 + 0.12 * Math.min(3, n);
+    this.voz(62, { dur: 0.12, ganho: g, deslize: -12 });
+    this.voz(58, { dur: 0.14, ganho: g * 0.8, deslize: -10, atraso: 0.17 });
+    this.sopro({ dur: 0.05, ganho: 0.08 * n, tipo: 'lowpass', freq: 180 });
+  },
   /** Clique de interface (fora do treino): quase inaudível, só confirma. */
   ui() {
     if (DB.load().opts.somToque === false) return;

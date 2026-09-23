@@ -14,7 +14,7 @@
 
   const MOTORES = { sequencia: U.E.MotorSequencia, leitura: U.E.MotorLeitura,
                     decisao: U.E.MotorDecisao, mapa: U.E.MotorMapa, mira: U.E.MotorMira,
-                    reset: U.E.MotorReset, punir: U.E.MotorPunir };
+                    reset: U.E.MotorReset, punir: U.E.MotorPunir, antecipa: U.E.MotorAntecipa };
 
   const St = {
     surf: null, motor: null, drill: null, cfg: null, aberto: false,
@@ -51,7 +51,7 @@
     $('#treino').classList.remove('on');
     document.body.classList.remove('treinando');
     $('#brief').classList.remove('on'); $('#res').classList.remove('on');
-    St.aberto = false; St.plano = null; St.prova = null; St.provaRes = [];
+    St.aberto = false; St.plano = null; St.prova = null; St.provaRes = []; St.aoFimPlano = null;
     U.UI.render();
   }
   function pararMotor() { if (St.motor) { St.motor.parar(); St.motor = null; } }
@@ -161,6 +161,8 @@
       modo === 'prova' ? '<span class="chip aviso">PROVA · sem retorno</span>'
       : modo === 'retencao' ? '<span class="chip aviso">RETENÇÃO · sem ajuda</span>'
       : modo === 'cego' ? '<span class="chip aviso">CEGO · inédito</span>'
+      : modo === 'pressao' ? `<span class="chip aviso">SÉRIE DECISIVA · ${VIDAS} vidas</span><span class="chip">dif ${dif.toFixed(1)}</span>`
+      : modo === 'aquecimento' ? `<span class="chip">AQUECIMENTO</span>`
       : `<span class="chip">dif ${dif.toFixed(1)}</span>`,
       cat ? `<span class="chip">${cat.nome}</span>` : '',
       aj ? `<span class="chip">${aj.nome}</span>` : '',
@@ -172,9 +174,13 @@
       ? [...new Set(St.cfg.rotas.map(r => r.map(k => (H.getHud()[k] || {}).curto || k).join(' › ')))].slice(0, 3).join('   ·   ')
       : null;
     const alvo = CT.alvoAtual();
+    St.derrota = false; St.falhasVistas = 0;
+    /* aquecimento e blocos encadeados não param para explicar de novo */
+    if (opts.semBrief) return rodar();
 
     brief(drill.nome, drill.objetivo, drill.comoFunciona,
-      `<div class="sep"></div>
+      `${modo === 'pressao' ? briefPressao(drill) : ''}
+       <div class="sep"></div>
        ${cat ? `<div class="mini"><b>Categoria:</b> <span style="color:var(--gold);font-weight:800">${cat.nome}</span>
          <span style="color:var(--dim2)"> — ${cat.descricao}</span></div>` : ''}
        ${rotasTxt ? `<div class="mini"><b>Rotas:</b> <span style="color:var(--gold);font-weight:800">${rotasTxt}</span></div>` : ''}
@@ -205,13 +211,14 @@
     if (St.surf) St.surf.setSerie(0);
     St.surf.resize();
     if (St.cfg.mo === 'prova' || St.cfg.mo === 'retencao') U.Musica.tocar('foco');
+    else if (St.cfg.mo === 'pressao') U.Musica.tocar('tensao');
     else U.Musica.paraExercicio(St.drill, St.cfg);
 
     const api = {
       info: ({ i, n, ok, total }) => {
         /* acertos seguidos até agora — o contador do canto da tela.
            Só em treino: na Prova e na retenção não há retorno nenhum. */
-        if (St.surf && St.motor && St.cfg.mo === 'treino' && !St.cfg.semRetorno) {
+        if (St.surf && St.motor && (St.cfg.mo === 'treino' || St.cfg.mo === 'pressao') && !St.cfg.semRetorno) {
           const reg = St.motor.reg || [];
           let seq = 0;
           for (let k = reg.length - 1; k >= 0 && reg[k].ok; k--) seq++;
@@ -223,9 +230,22 @@
            para motor que atualiza o placar no começo da tentativa */
         const feitas = total != null ? total : i - 1;
         const pct = feitas > 0 ? Math.round(ok / feitas * 100) : null;
+        let vidasHtml = '';
+        if (St.cfg.mo === 'pressao') {
+          /* a consequência que faz ser pressão: a terceira falha encerra */
+          const falhas = feitas - ok;
+          const vidas = Math.max(0, VIDAS - falhas);
+          vidasHtml = `<span class="chip ${vidas <= 1 ? 'bad' : ''}" style="letter-spacing:.1em">${'♥'.repeat(vidas)}${'♡'.repeat(VIDAS - vidas)}</span>`;
+          if (falhas > (St.falhasVistas || 0)) { St.falhasVistas = falhas; U.Sfx.coracao(falhas); }
+          if (falhas >= VIDAS && !St.derrota) {
+            St.derrota = true;
+            const m = St.motor;
+            setTimeout(() => { if (m && m.ativo && St.motor === m) m.concluir(); }, 950);
+          }
+        }
         $('#tf-chips').innerHTML = base +
-          `<span class="chip">${i}/${n}</span>` +
-          (pct != null && St.cfg.mo === 'treino'
+          `<span class="chip">${i}/${n}</span>` + vidasHtml +
+          (pct != null && (St.cfg.mo === 'treino' || St.cfg.mo === 'pressao')
             ? `<span class="chip ${pct >= 75 ? 'ok' : pct >= 50 ? '' : 'bad'}">${pct}%</span>` : '');
       },
       mensagem,
@@ -337,6 +357,7 @@
     if (St.prova) return proximoBlocoProva(r);
 
     const { rec, ctrl, escadaSes } = aplicarResultado(St.drill, r);
+    const pres = r.mo === 'pressao' ? registrarPressao(St.drill, r) : null;
     r.mo === 'treino' && r.acc >= 0.8 ? U.Sfx.done() : U.Sfx.cue();
 
     const eh = r.mo;
@@ -366,6 +387,7 @@
         </div>` : ''}
 
       ${eh === 'retencao' ? retencaoTexto() : ''}
+      ${pres ? pressaoTexto(St.drill, r, pres) : ''}
       ${eh === 'cego' ? cegoTexto(r) : ''}
 
       ${ab ? `<div class="sep"></div>
@@ -384,6 +406,7 @@
       ${(r.extras || {}).mira ? miraTexto(r) : ''}
       ${(r.extras || {}).reset && r.extras.reset.n ? resetTexto(r.extras.reset) : ''}
       ${(r.extras || {}).punir && r.extras.punir.n ? punirTexto(r.extras.punir) : ''}
+      ${(r.extras || {}).antecipa && r.extras.antecipa.n ? antecipaTexto(r.extras.antecipa) : ''}
 
       ${erros.length ? `<div class="sep"></div>
         <div class="mini"><b>Onde os erros caíram</b></div>
@@ -686,6 +709,47 @@
      lado, porque a correção é oposta: quem erra CEDO precisa esperar
      a comparação; quem é ROUBADO precisa deixar o polegar pronto.
      ============================================================ */
+  /* ============================================================
+     RESULTADO DA LEITURA DO INIMIGO
+
+     A medida é a CURVA: acerto por janela de corte. Um número só
+     ("acertou 70%") mistura janelas fáceis e difíceis e não diz
+     nada. A curva diz quanto antes do golpe você já sabe o que vem.
+     ============================================================ */
+  function antecipaTexto(m) {
+    const J = Object.entries(m.porJanela)
+      .sort((a, b) => (a[0] === 'sem' ? 1 : b[0] === 'sem' ? -1 : (+a[0]) - (+b[0])));
+    const barra = ([k, e]) => {
+      const p = e.n ? e.ok / e.n : 0;
+      const rot = k === 'sem' ? 'sem corte' : `${Math.abs(+k)} ms antes`;
+      return `<div class="flex" style="gap:8px;align-items:center;margin:3px 0">
+        <span class="xs" style="width:88px;text-align:right">${rot}${k === '-150' ? ' ◆' : ''}</span>
+        <div style="flex:1;height:12px;border-radius:6px;background:rgba(40,52,74,.7);overflow:hidden">
+          <div style="width:${Math.round(p * 100)}%;height:100%;background:${p >= 0.75 ? '#3ddc97' : p >= 0.5 ? '#ffd479' : '#ff5470'}"></div></div>
+        <span class="mini" style="width:74px"><b>${e.ok}/${e.n}</b> (${Math.round(p * 100)}%)</span></div>`;
+    };
+    const A = U.E.ANTECIPA.ROTULO;
+    const pior = Object.entries(m.porAcao).filter(([, e]) => e.n >= 2)
+      .sort((a, b) => a[1].ok / a[1].n - b[1].ok / b[1].n)[0];
+    const erroPior = pior && Object.entries(pior[1].erros).sort((a, b) => b[1] - a[1])[0];
+    return `
+      <div class="sep"></div>
+      <div class="mini"><b>Quanto antes você lê</b> <span class="xs">— acerto por ponto de corte; ◆ é a régua fixa
+        de 150 ms, igual em toda dificuldade, para comparar semanas</span></div>
+      <div style="margin-top:5px">${J.map(barra).join('')}</div>
+      <div class="mini" style="margin-top:6px">${m.leCedo != null && m.leCedo < 0
+        ? `Você lê com segurança (3 de 4 ou mais) a partir de <b>${Math.abs(m.leCedo)} ms antes</b> do golpe.`
+        : m.leCedo === 0 ? 'Você lê com segurança <b>só no instante em que o golpe sai</b> — ainda não antes dele. É daí que a curva começa a andar.'
+        : 'Ainda nenhuma janela com 3 de 4 acertos e amostra suficiente — é normal no começo.'}
+        ${m.rel != null ? ` Nas certas, você decidiu em mediana <b>${m.rel <= 0 ? `${-m.rel} ms antes` : `${m.rel} ms depois`}</b> do golpe.` : ''}</div>
+      ${pior && pior[1].ok < pior[1].n ? `<div class="aviso" style="margin-top:8px"><b>O que mais escapa: ${A[pior[0]]}</b>
+        (${pior[1].ok}/${pior[1].n})${erroPior ? ` — ${U.MD.ERROS && U.MD.ERROS[erroPior[0]] ? U.MD.ERROS[erroPior[0]].nome.toLowerCase() : erroPior[0]}` : ''}.
+        Na próxima reprise desse tipo, olhe ${pior[0] === 'tiro' ? 'a ponta da arma no fim do giro' : pior[0] === 'finta' ? 'a arma afrouxando e o brilho sumindo'
+          : pior[0] === 'avanco' ? 'o corpo abaixando antes do salto' : 'o corpo virando de costas'}.</div>` : ''}
+      ${m.dica ? '<div class="xs" style="margin-top:6px">A dica "olhe a arma e o giro" aparece até a dificuldade 3 e depois some — ela aponta onde olhar, não a regra.</div>' : ''}
+    `;
+  }
+
   function punirTexto(m) {
     const d = m.disputas;
     const lado = m.cedo > m.roubados + m.tarde ? 'cedo'
@@ -894,8 +958,14 @@
 
   function botoesFim(prox) {
     const bs = [];
-    if (St.plano && St.idx + 1 < St.plano.length) {
-      bs.push({ txt: 'Próximo bloco', cls: 'full', fn: () => avancarPlano() });
+    /* prática mental como descanso ativo, depois de exercício de sequência */
+    if (St.drill && ['rota', 'ritmo', 'trajeto', 'movimento', 'carga'].includes(St.drill.id) && St.cfg.mo === 'treino') {
+      bs.push({ txt: 'Prática mental · 35 s', cls: 'sec sm', fn: () => praticaMental(() => {
+        if (St.plano && St.idx + 1 < St.plano.length) avancarPlano(); else encerrar();
+      }) });
+    }
+    if (St.plano && (St.idx + 1 < St.plano.length || St.aoFimPlano)) {
+      bs.push({ txt: St.idx + 1 < St.plano.length ? 'Próximo bloco' : 'Concluir', cls: 'full', fn: () => avancarPlano() });
     } else if (prox && prox.acao.tipo === 'treino') {
       bs.push({ txt: 'Continuar', cls: 'full', fn: () => {
         $('#res').classList.remove('on');
@@ -944,6 +1014,237 @@
   }
 
   /* ============================================================
+     SÉRIE DECISIVA — treino sob pressão
+
+     Treinar sempre sem nada em jogo prepara para jogar sem nada em
+     jogo. A meta-análise de treino sob pressão (Low et al., 2021)
+     encontrou que praticar com pressão induzida melhora o desempenho
+     quando a pressão é real, comparado a praticar sem ela; o trabalho
+     clássico (Oudejans & Pijpers, 2009) mostrou o mesmo com ansiedade
+     leve em tarefas de mira. As manipulações que funcionam são as que
+     o estudo chama de CONSEQUÊNCIA e AVALIAÇÃO:
+     · consequência — três falhas e a série acaba, sem segunda chance;
+     · avaliação — o recorde fica registrado e aparece antes de começar.
+
+     Duas regras para não estragar o resto do sistema:
+     · a série NÃO mexe na dificuldade (é medida de outra coisa) e
+       roda sem a escada, em condição fixa;
+     · o número que importa não é o recorde, é o CUSTO da pressão:
+       quanto do seu acerto normal sobrevive quando vale alguma coisa.
+     ============================================================ */
+  const VIDAS = 3;
+
+  function recordePressao(id) {
+    const L = ((U.DB.load().pressao || {})[id]) || [];
+    return L.length ? Math.max(...L.map(x => x.acertos)) : null;
+  }
+
+  function briefPressao(drill) {
+    const rec = recordePressao(drill.id);
+    return `<div class="aviso bad" style="margin-bottom:8px"><b>Série decisiva — valendo.</b>
+      ${VIDAS} falhas encerram a série. ${rec != null ? `Seu recorde neste exercício: <b>${rec} acertos</b>.` : 'Ainda não há recorde: este vai ser o primeiro.'}
+      A dificuldade fica parada no seu nível atual e o resultado não mexe nela — o que se mede aqui é quanto do
+      seu desempenho sobrevive quando alguma coisa está em jogo.</div>`;
+  }
+
+  function serieDecisiva(drillId) {
+    const dr = D.porId(drillId);
+    if (!dr) return;
+    abrirBloco(dr, CT.estado(dr.id).dif, { mo: 'pressao' });
+  }
+
+  function registrarPressao(drill, r) {
+    const d = U.DB.load();
+    if (!d.pressao) d.pressao = {};
+    const L = d.pressao[drill.id] || (d.pressao[drill.id] = []);
+    const recAntes = L.length ? Math.max(...L.map(x => x.acertos)) : null;
+    const falhas = r.n - r.ok;
+    const reg = { t: Date.now(), acertos: r.ok, n: r.n, acc: r.acc, derrota: falhas >= VIDAS ? 1 : 0,
+                  med: r.medTempo ? Math.round(r.medTempo) : null };
+    L.push(reg);
+    if (L.length > 60) d.pressao[drill.id] = L.slice(-60);
+    U.DB.save();
+    return { reg, recAntes, novoRecorde: recAntes == null || r.ok > recAntes };
+  }
+
+  /* O custo da pressão: acerto nas séries decisivas contra o acerto no
+     treino normal do mesmo exercício (21 dias). A série para na 3ª falha
+     — amostragem binomial negativa — e aí a conta ingênua acertos/total
+     subestima o acerto; o estimador sem viés tira uma falha do
+     denominador das séries que terminaram em derrota. */
+  function custoPressao(id) {
+    const d = U.DB.load();
+    const P = ((d.pressao || {})[id] || []).slice(-10);
+    if (!P.length) return null;
+    const kP = P.reduce((s, x) => s + x.acertos, 0);
+    const nP = P.reduce((s, x) => s + x.n - (x.derrota ? 1 : 0), 0);
+    const N = d.sets.filter(s => s.drill === id && s.mo === 'treino' && Date.now() - s.t < 21 * U.DAY);
+    const kN = N.reduce((s, x) => s + x.ok, 0), nN = N.reduce((s, x) => s + x.n, 0);
+    const medP = U.median(P.map(x => x.med).filter(Boolean));
+    const medN = U.median(N.map(x => x.medTempo).filter(Boolean));
+    return {
+      series: P.length,
+      accP: nP ? kP / nP : null, wP: nP ? S.wilson(kP, nP) : null, nP,
+      accN: nN ? kN / nN : null, wN: nN ? S.wilson(kN, nN) : null, nN,
+      medP: medP || null, medN: medN || null,
+    };
+  }
+
+  function pressaoTexto(drill, r, pres) {
+    const c = custoPressao(drill.id);
+    const pct = (v) => Math.round(v * 100) + '%';
+    const falhas = r.n - r.ok;
+    let custo = '';
+    if (c && c.accP != null && c.accN != null) {
+      const dif = Math.round((c.accN - c.accP) * 100);
+      const separa = c.wP && c.wN && (c.wP.hi < c.wN.lo || c.wN.hi < c.wP.lo);
+      custo = `<div class="mini" style="margin-top:6px">Nas últimas ${c.series} série${c.series > 1 ? 's' : ''} decisiva${c.series > 1 ? 's' : ''}:
+        <b>${pct(c.accP)}</b> de acerto <span class="xs">(${pct(c.wP.lo)}–${pct(c.wP.hi)})</span> · no treino normal deste
+        exercício: <b>${pct(c.accN)}</b> <span class="xs">(${pct(c.wN.lo)}–${pct(c.wN.hi)})</span>.
+        ${c.series < 3 ? 'Com menos de três séries o custo ainda não dá para ler.'
+          : !separa ? `A diferença (${dif > 0 ? dif + ' pontos a menos sob pressão' : dif < 0 ? -dif + ' pontos a MAIS sob pressão' : 'nenhuma'}) ainda cabe no ruído.`
+          : dif > 0 ? `<b>O custo da pressão é de ${dif} pontos</b> — é isso que a série treina para diminuir.`
+          : `<b>Sob pressão você acerta mais que no treino normal.</b> Não é raro: pressão leve também concentra.`}
+        ${c.medP && c.medN ? ` Tempo mediano: ${c.medP} ms sob pressão contra ${c.medN} ms normal.` : ''}</div>`;
+    }
+    return `<div class="sep"></div>
+      <div class="aviso ${pres.novoRecorde ? 'ok' : ''}">
+        <b>${falhas >= VIDAS ? `Série encerrada na ${VIDAS}ª falha: ${r.ok} acertos.` : `Série completa: ${r.ok} acertos em ${r.n}, ${falhas} falha${falhas === 1 ? '' : 's'}.`}</b>
+        ${pres.novoRecorde ? (pres.recAntes == null ? ' Primeiro recorde registrado.' : ` <b>Novo recorde</b> (antes: ${pres.recAntes}).`)
+          : ` Recorde: ${pres.recAntes}.`}
+        ${custo}
+        <div class="xs" style="margin-top:5px">A série não mexeu na dificuldade. <button class="btn sec sm" style="min-height:28px"
+          data-princ="pressao">por que treinar sob pressão</button></div>
+      </div>`;
+  }
+
+  /* ============================================================
+     PRÁTICA MENTAL — ~35 s sem tocar
+
+     Imaginar o movimento melhora o desempenho — menos do que praticar
+     de verdade, e mais do que não fazer nada (meta-análises de
+     prática mental e de imagética no esporte). Combinada com
+     observação da ação (ver e imaginar ao mesmo tempo), ela ativa o
+     sistema motor mais do que cada uma sozinha. O uso honesto aqui é
+     como DESCANSO ATIVO: entre blocos o polegar descansa e a rota
+     continua sendo ensaiada.
+
+     O ritmo é o SEU: sai da escada da Rota (ou dos seus tempos). As
+     três primeiras repetições mostram os botões acendendo (observar +
+     imaginar); nas quatro seguintes só o som marca o ritmo; nas três
+     últimas nem o som — só a imagem na cabeça.
+     ============================================================ */
+  function ritmoProprio() {
+    const e = CT.estado('rota');
+    if (e.escada && e.escada.valor) return U.clamp(e.escada.valor, 150, 700);
+    const a = MD.filtrar({ k: 'rota', mo: 'treino', dias: 21 }).filter(x => x.ok && x.tot);
+    if (a.length >= 6) return U.clamp(U.median(a.map(x => x.tot)) / 3, 150, 700);
+    return 380;
+  }
+
+  function praticaMental(aoFim) {
+    abrirPalco();
+    pararMotor();
+    const drill = D.porId('rota');
+    const ids = rotasAtivas(drill) || [];
+    const rota = ((ids[0] && U.CO.rotaPorId(ids[0])) || {}).seq || ['s1', 'aa', 's2'];
+    const passo = Math.round(ritmoProprio());
+    const nomeR = ((ids[0] && U.CO.rotaPorId(ids[0])) || {}).nome || 'rota';
+    const T = new U.Timers();
+    const REPS = 10, PAUSA = 1800;
+    let ativo = true;
+    faixa('Prática mental', `<span class="chip">sem tocar</span><span class="chip">${passo} ms por toque</span>`);
+    const surf = St.surf;
+    const fase = (r) => r < 3 ? 'ver' : r < 7 ? 'som' : 'mente';
+    const texto = {
+      ver: ['VEJA E IMAGINE', 'o seu polegar fazendo exatamente isto, neste ritmo'],
+      som: ['SÓ IMAGINE', 'os botões não acendem mais — o som marca o seu ritmo'],
+      mente: ['SEM SOM', 'imagine a rota inteira no mesmo ritmo, do primeiro ao último toque'],
+    };
+    St.motor = {
+      ativo: true,
+      parar() { ativo = false; this.ativo = false; T.clear(); if (surf) { surf.limparMarcas(); surf.setOverlay(null); surf.travado = false; } },
+      press() { mensagem('só imagine — sem tocar', 'erro'); },
+      joy() {}, campo() {},
+    };
+    const rep = (r) => {
+      if (!ativo) return;
+      if (r >= REPS) return terminar();
+      const f = fase(r);
+      surf.setOverlay({ texto: texto[f][0], sub: `${texto[f][1]} · ${r + 1} de ${REPS}`, cx: 0.42, cy: 0.16,
+                        tam: 0.08, cor: f === 'ver' ? '#c4b5fd' : f === 'som' ? '#7fd4ff' : '#e8eefc', fundo: false });
+      rota.forEach((id, k) => T.after(PAUSA * 0.4 + k * passo, () => {
+        if (!ativo) return;
+        if (f === 'ver') { surf.marcar(id, { destaque: true, cor: '#c4b5fd' }); surf.pulsar(id);
+                           T.after(Math.min(260, passo * 0.8), () => surf.marcar(id, { destaque: false })); }
+        if (f !== 'mente') U.Sfx.beat();
+      }));
+      T.after(PAUSA * 0.4 + rota.length * passo + PAUSA, () => rep(r + 1));
+    };
+    const terminar = () => {
+      if (!ativo) return;
+      St.motor.parar(); St.motor = null;
+      U.Sfx.cue();
+      painel(`
+        <h2 style="margin:0 0 4px">Prática mental feita</h2>
+        <div class="mini">${REPS} repetições de <b>${U.esc(nomeR)}</b> (${rota.map(k => (H.getHud()[k] || {}).curto || k).join(' › ')})
+          a ${passo} ms por toque — o seu ritmo atual.</div>
+        <div class="aviso" style="margin-top:8px">Imaginar rende menos que praticar de verdade, e mais que parar. O jeito de
+          aproveitar é este: no descanso entre blocos, em vez de nada. E imaginar na primeira pessoa, no mesmo ritmo, com o
+          mesmo polegar — imagem vaga ou em câmera lenta rende menos.</div>
+        <button class="btn sec sm" style="margin-top:8px" data-princ="imagetica">de onde vem isso</button>`,
+        [{ txt: 'Continuar', cls: 'full', fn: () => { $('#res').classList.remove('on'); aoFim ? aoFim() : fecharPalco(); } },
+         { txt: 'Encerrar', cls: 'sec sm', fn: () => encerrar() }]);
+    };
+    brief('Prática mental', `cerca de 35 segundos · sem tocar · no seu ritmo (${passo} ms por toque)`, [
+      'Solte o celular na posição de jogo, com os polegares no lugar — mas <b>não toque</b>.',
+      'Nas três primeiras vezes os botões acendem no seu ritmo: <b>veja e imagine</b> o seu polegar fazendo aquilo.',
+      'Nas quatro seguintes só o som marca o ritmo. Nas três últimas, nem o som: a rota inteira, só na cabeça.',
+      'Imagine na <b>primeira pessoa</b>, no ritmo de verdade — não em câmera lenta.',
+    ], `<div class="sep"></div><div class="mini">Rota: <b style="color:var(--gold)">${U.esc(nomeR)} —
+      ${rota.map(k => (H.getHud()[k] || {}).curto || k).join(' › ')}</b></div>`,
+      () => { surf.limparMarcas(); T.after(400, () => rep(0)); }, 'Começar');
+  }
+
+  /* ============================================================
+     AQUECIMENTO PRÉ-PARTIDA — 3 minutos
+
+     Depois de um intervalo, as primeiras tentativas saem piores do que
+     o nível da pessoa: é o decremento de aquecimento, um dos achados
+     mais antigos da aprendizagem motora. Ele some rápido com algumas
+     repetições da própria tarefa. O aquecimento serve para isso e só
+     para isso: não mede, não ensina, não mexe na dificuldade. Blocos
+     curtos, um pouco abaixo do seu nível, das coisas que você vai
+     fazer na partida — e termina com o plano para a partida.
+     ============================================================ */
+  function aquecimento() {
+    const bl = [
+      ['rota', 'Rota', 8, -1.5], ['espelho', 'Quebra do Espelho', 4, -1],
+      ['antecipar', 'Leitura do Inimigo', 6, -1], ['punir', 'Punir no Tirano', 4, -1],
+    ].filter(([id]) => D.porId(id));
+    St.plano = bl.map(([id, titulo, n, dd]) => ({
+      titulo, porque: `${n} tentativas, um pouco abaixo do seu nível`,
+      acao: { tipo: 'aquec', drill: id, n, dif: U.clamp(CT.estado(id).dif + dd, 1, 10) },
+    }));
+    St.idx = 0;
+    St.aoFimPlano = () => {
+      painel(`
+        <h2 style="margin:0 0 4px">Aquecido</h2>
+        <div class="mini">Pronto para a partida. O aquecimento não entrou nas medidas nem mexeu na dificuldade.</div>
+        <div class="aviso" style="margin-top:8px"><b>Uma coisa só para a partida.</b> Escolha um plano "se… então…" —
+          uma situação e o que você vai fazer nela. Plano com gatilho concreto é o que mais aumenta a chance de a
+          intenção virar ação (intenções de implementação).</div>`,
+        [{ txt: 'Escolher o plano', cls: 'full', fn: () => { fecharPalco(); U.UI.formPlano(); } },
+         { txt: 'Fechar', cls: 'sec sm', fn: () => fecharPalco() }]);
+    };
+    abrirPalco();
+    brief('Aquecimento pré-partida', '4 blocos curtos · cerca de 3 minutos · não mede nada', St.plano.map(b => `<b>${b.titulo}</b> — ${b.porque}`),
+      `<div class="sep"></div><div class="mini">Faça até uns 10 minutos antes de entrar na fila. As primeiras tentativas
+       depois de uma pausa saem piores do que o seu nível — o aquecimento tira essa perda de cima da partida.</div>`,
+      () => executarBloco(0), 'Aquecer');
+  }
+
+  /* ============================================================
      SESSÃO DA JING — as quatro coisas que a Jing faz numa luta,
      INTERCALADAS, e não em blocos repetidos do mesmo exercício.
 
@@ -959,16 +1260,24 @@
   function sessaoJing() {
     const blocos = [
       ['rota', 'Rota', 'a sequência de referência, com a escada achando o seu ritmo'],
+      ['imagem', 'Prática mental', '35 s sem tocar, imaginando a rota no seu ritmo — descanso que ainda treina'],
       ['espelho', 'Quebra do Espelho', 'o reset da passiva, e não apertar com ela travada'],
+      ['antecipar', 'Leitura do Inimigo', 'ler a preparação do golpe antes de ele sair'],
       ['punir', 'Punir no Tirano', 'garantir objetivo: nem cedo, nem depois do caçador inimigo'],
       ['mira', 'Mira', 'as habilidades apontadas, em graus'],
-    ].filter(([id]) => D.porId(id));
+    ].filter(([id]) => id === 'imagem' || D.porId(id));
     St.plano = blocos.map(([id, titulo, porque]) => ({
-      titulo, porque, acao: { tipo: 'bloco', drill: id, dif: CT.estado(id).dif },
+      titulo, porque, acao: id === 'imagem' ? { tipo: 'imagem' } : { tipo: 'bloco', drill: id, dif: CT.estado(id).dif },
     }));
+    /* as cartas fecham a sessão — só entram se alguma venceu ou se ainda
+       há carta nova para ver */
+    if (U.CA && (U.CA.vencidas().length || U.CA.novasDisponiveis().length)) {
+      St.plano.push({ titulo: 'Conheça o inimigo', porque: 'cartas vencidas de kits e itens: recuperar, não reler',
+                      acao: { tipo: 'cartas' } });
+    }
     St.idx = 0;
     abrirPalco();
-    brief('Sessão da Jing', `${St.plano.length} blocos intercalados · cerca de 12 minutos`,
+    brief('Sessão da Jing', `${St.plano.length} blocos intercalados · cerca de 15 minutos`,
       St.plano.map(b => `<b>${b.titulo}</b> — ${b.porque}`),
       `<div class="sep"></div>
        <div class="mini">Um exercício de cada, em vez de repetir o mesmo. Na hora rende um pouco menos — e
@@ -980,12 +1289,26 @@
   function executarBloco(i) {
     const b = St.plano[i];
     St.idx = i;
-    if (!b) return encerrar();
+    if (!b) {
+      if (St.aoFimPlano) { const f = St.aoFimPlano; St.aoFimPlano = null; return f(); }
+      return encerrar();
+    }
+    if (b.acao.tipo === 'imagem') return praticaMental(() => executarBloco(i + 1));
+    if (b.acao.tipo === 'aquec') {
+      return abrirBloco(D.porId(b.acao.drill), b.acao.dif, { mo: 'aquecimento', semBrief: true, cfg: { tentativas: b.acao.n } });
+    }
     if (b.acao.tipo === 'parar') return mostrarParada(b);
     if (b.acao.tipo === 'hud') { fecharPalco(); return U.UI.ir('hud'); }
     if (b.acao.tipo === 'prova') return iniciarProva();
     if (b.acao.tipo === 'retencao') return iniciarRetencao();
     if (b.acao.tipo === 'cego') return iniciarCego();
+    if (b.acao.tipo === 'cartas') {
+      /* sem carta vencida o bloco é pulado — revisar antes da hora é
+         justamente o que o espaçamento proíbe */
+      const foi = U.CA.iniciar(() => executarBloco(i + 1));
+      if (!foi) return executarBloco(i + 1);
+      return;
+    }
     abrirBloco(D.porId(b.acao.drill), b.acao.dif, { ajuste: b.acao.ajuste });
   }
   function avancarPlano() {
@@ -1227,7 +1550,11 @@
   });
   $('#brief-volta').addEventListener('click', () => { St.prova = null; St.plano = null; fecharPalco(); });
 
-  U.T = { abrirBloco, sessaoGuiada, sessaoJing, iniciarProva, iniciarRetencao, iniciarCego,
+  /* o palco para quem não é motor de canvas (as cartas, por exemplo) */
+  const palco = { abrir: abrirPalco, painel, faixa, fechar: fecharPalco };
+
+  U.T = { palco, abrirBloco, sessaoGuiada, sessaoJing, serieDecisiva, praticaMental, aquecimento,
+          custoPressao, recordePressao, iniciarProva, iniciarRetencao, iniciarCego,
           mostrarPainelMedidas, mostrarRelatorio, fecharPalco, _St: St };
 
 })(window.U);

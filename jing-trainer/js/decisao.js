@@ -113,6 +113,17 @@
       confianca: () => 'certa',
     },
     {
+      id: 'cartas_vencidas',
+      titulo: 'Revisar as cartas',
+      quando: (c) => U.CA && U.CA.vencidas().length >= 10,
+      acao: () => ({ tipo: 'cartas' }),
+      porque: () => {
+        const m = U.CA.medidas();
+        return `${m.vencidas} cartas de kits e itens venceram. O espaçamento só funciona se a revisão acontece perto do dia em que você ia esquecer — atrasar muito vira reaprender do zero. São uns 5 minutos.${m.retencao ? ` Sua retenção depois de 3 dias ou mais está em ${Math.round(m.retencao.p * 100)}%.` : ''}`;
+      },
+      confianca: () => 'razoavel',
+    },
+    {
       id: 'prova_vencida',
       titulo: 'Prova',
       quando: (c) => c.diasUltProva > PISO.provaValidaDias ||
@@ -258,7 +269,7 @@
       titulo: 'Rodízio',
       quando: () => true,
       acao: (c) => {
-        const cands = ['rota', 'ritmo', 'ler', 'frear', 'movimento', 'carga', 'mira'];
+        const cands = ['rota', 'ritmo', 'ler', 'antecipar', 'frear', 'espelho', 'movimento', 'punir', 'carga', 'mira'];
         /* A janela olha para trás TODOS os candidatos menos um. Com uma
            janela fixa de 4 e sete exercícios, os dois últimos da lista
            nunca saíam sorteados: ao chegar no quinto, o primeiro já

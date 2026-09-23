@@ -125,7 +125,7 @@
       <h1>◈ ESPELHO</h1>
       <span class="tag vio">${fase.nome}</span>
       <div class="espaco"></div>
-      <span class="sub">${d.legado ? 'v18 · dados anteriores preservados' : 'v18'}</span>
+      <span class="sub">${d.legado ? 'v19 · dados anteriores preservados' : 'v19'}</span>
     </div>
     <div class="rolagem pilha">
 
@@ -173,6 +173,7 @@
         <div><button class="btn sec sm" style="margin-top:7px;min-height:34px" data-princ="espacamento">por quê</button></div>
       </div>` : ''}
 
+      ${painelMetodoTreino()}
       ${painelJing()}
 
       ${painelVisaoMapa(d)}
@@ -303,11 +304,6 @@
           </div>
           <button class="btn" style="flex:none" data-jing="espelho">Treinar o reset</button>
         </div>
-        <div class="flex" style="gap:10px;align-items:center;margin-top:10px">
-          <div class="mini" style="flex:1;min-width:0"><b>Sessão da Jing</b> — Rota, Quebra do Espelho, Punir e Mira,
-            intercalados, cada um na dificuldade medida para você.</div>
-          <button class="btn gold" style="flex:none" data-jing="sessao">Sessão da Jing</button>
-        </div>
         <div class="flex" style="gap:10px;align-items:flex-start;margin-top:8px">
           <div style="flex:1;min-width:0">
             <div class="mini"><b>Punir no Tirano</b> — a Jing joga na selva com Punir. Garantir o objetivo:
@@ -339,6 +335,139 @@
             : 'Todas são exemplo do app, montadas a partir da descrição do kit. Troque pelo combo que você usa de verdade — o treino inteiro de mecânica passa a ser sobre ele.'}</span>
         </div>
       </div>`;
+  }
+
+  /* ============================================================
+     TREINOS COM MÉTODO
+     Cada linha é um achado de aprendizagem virado exercício, com a
+     força da evidência ao lado — inclusive quando ela é só moderada,
+     e inclusive dizendo o que não foi testado em jogo.
+     ============================================================ */
+  function painelMetodoTreino() {
+    const F = U.CI.FORCA;
+    const cm = U.CA ? U.CA.medidas() : null;
+    const plano = (U.DB.load().planoPartida) || null;
+    const linha = (o) => `<div class="metl">
+        <div style="flex:1;min-width:0">
+          <div class="mini"><b>${o.nome}</b> <span class="tag ${o.forca === 'forte' ? 'ok' : o.forca === 'mista' ? 'warn' : ''}"
+            style="font-size:.5rem">${F[o.forca].nome}</span>
+            <button class="metq" data-princ="${o.princ}" title="de onde vem">?</button></div>
+          <div class="xs" style="margin-top:2px">${o.desc}</div>
+        </div>
+        <button class="btn ${o.cls || 'sec'} sm" style="flex:none" data-jing="${o.acao}">${o.botao}</button>
+      </div>`;
+    return `<div class="painel">
+      <h2>Treinos com método</h2>
+      <div class="mini">Cada um vem de um achado de aprendizagem, com a força da evidência ao lado. Nenhum foi testado
+        em Honor of Kings — o que o app faz é medir, em você, se está funcionando.</div>
+      <div class="pilha" style="gap:7px;margin-top:8px">
+        ${linha({ nome: 'Sessão da Jing', forca: 'mista', princ: 'ci', acao: 'sessao', botao: 'Começar', cls: 'gold',
+          desc: 'Rota, prática mental, Espelho, Leitura, Punir, Mira e cartas — intercalados. Rende menos na hora e fica mais no dia seguinte.' })}
+        ${linha({ nome: 'Conheça o inimigo', forca: 'forte', princ: 'recuperacao', acao: 'cartas', botao: cm && cm.vencidas ? `Revisar ${cm.vencidas}` : 'Cartas',
+          cls: cm && cm.vencidas ? '' : 'sec',
+          desc: `Kits e itens em cartas: você tenta lembrar, e cada uma volta no dia em que ia esquecer.${cm ? ` ${cm.vistas}/${cm.total} vistas · ${cm.dominadas} dominadas${cm.retencao ? ` · retenção após 3+ dias: <b>${Math.round(cm.retencao.p * 100)}%</b>` : ''}.` : ''}` })}
+        ${linha({ nome: 'Leitura do Inimigo', forca: 'forte', princ: 'oclusao', acao: 'antecipar', botao: 'Treinar',
+          desc: 'O inimigo se prepara, a tela apaga antes do golpe, você decide — e vê a reprise. Oclusão de movimento, como nos estudos.' })}
+        ${linha({ nome: 'Série decisiva', forca: 'moderada', princ: 'pressao', acao: 'pressao', botao: 'Valendo',
+          desc: 'Três vidas e recorde registrado. Mede quanto do seu acerto sobrevive quando vale alguma coisa.' })}
+        ${linha({ nome: 'Prática mental', forca: 'moderada', princ: 'imagetica', acao: 'imagem', botao: '35 s',
+          desc: 'A sua rota, no seu ritmo, sem tocar: primeiro vendo, depois só imaginando. Descanso que ainda treina.' })}
+        ${linha({ nome: 'Aquecimento pré-partida', forca: 'moderada', princ: 'aquecimento', acao: 'aquecimento', botao: '3 min',
+          desc: 'Quatro blocos curtos antes da fila. Tira de cima da partida a perda das primeiras tentativas.' })}
+        ${linha({ nome: 'Plano para a partida', forca: 'moderada', princ: 'intencao', acao: 'plano', botao: plano ? 'Trocar' : 'Escolher',
+          desc: plano ? `<b>Agora:</b> se ${U.esc(plano.se)}, então ${U.esc(plano.entao)}.` : 'Um "se… então…" escolhido pelos seus erros. É a ponte entre o treino e a partida.' })}
+      </div>
+    </div>`;
+  }
+
+  function escolherSerie() {
+    const ops = [['rota', 'Rota'], ['espelho', 'Quebra do Espelho'], ['punir', 'Punir no Tirano'], ['antecipar', 'Leitura do Inimigo']]
+      .filter(([id]) => D.porId(id));
+    modal(`
+      <h2 style="margin:0 0 4px">Série decisiva</h2>
+      <div class="mini" style="margin-bottom:8px">Três falhas encerram. O recorde fica registrado. A dificuldade não muda.</div>
+      <div class="pilha" style="gap:6px">
+        ${ops.map(([id, nome]) => {
+          const rec = U.T.recordePressao(id), c = U.T.custoPressao(id);
+          return `<button class="item" data-serie="${id}" style="text-align:left">
+            <div class="txt"><b>${nome}</b><span>${rec != null ? `recorde ${rec}` : 'sem recorde ainda'}${c && c.series >= 3 && c.accP != null && c.accN != null
+              ? ` · custo da pressão: ${Math.round((c.accN - c.accP) * 100)} pontos` : ''}</span></div></button>`;
+        }).join('')}
+      </div>
+      <button class="btn sec full sm" style="margin-top:10px" data-fecha>Fechar</button>`,
+      (cx) => cx.querySelectorAll('[data-serie]').forEach(b => b.addEventListener('click', () => {
+        fecharModal(); U.T.serieDecisiva(b.dataset.serie);
+      })));
+  }
+
+  /* ============================================================
+     PLANO PARA A PARTIDA — intenção de implementação
+     "Se [situação], então [ação]". A meta-análise de intenções de
+     implementação encontrou efeito médio a grande sobre cumprir o que
+     se pretendia; o gatilho concreto é o que faz a diferença. As
+     sugestões saem dos SEUS erros medidos, e o registro de partida
+     pergunta depois se o plano foi cumprido.
+     ============================================================ */
+  function sugerirPlanos() {
+    const cont = (k) => {
+      const t = MD.filtrar({ k, dias: 21 });
+      const e = {}; for (const x of t) if (!x.ok && x.err) e[x.err] = (e[x.err] || 0) + 1;
+      return { n: t.length, e };
+    };
+    const R = cont('reset'), P = cont('punir'), A = cont('antecipa'), M = cont('mapa');
+    /* peso = limite INFERIOR do intervalo (Wilson), não a taxa crua:
+       3 erros em 3 tentativas não podem passar na frente de 10 em 10 */
+    const taxa = (c, ...ks) => {
+      if (!c.n) return 0;
+      const x = ks.reduce((s, k) => s + (c.e[k] || 0), 0);
+      return U.S.wilson(x, c.n).lo;
+    };
+    const cm = U.CA ? U.CA.medidas() : null;
+    const L = [
+      { id: 'reset', se: 'as duas marcas estiverem no alvo', entao: 'deixo o polegar em cima da 1 para soltar o reset na hora',
+        peso: taxa(R, 'reset'), base: 'Quebra do Espelho: resets perdidos' },
+      { id: 'trava', se: 'o P estiver vermelho (passiva travada)', entao: 'não aperto a 1 nem a 2 esperando reset',
+        peso: taxa(R, 'recarga'), base: 'Quebra do Espelho: toques com a passiva travada' },
+      { id: 'punir-cedo', se: 'a vida do Tirano ou do Soberano chegar perto do meu Punir', entao: 'espero ela passar do número antes de apertar',
+        peso: taxa(P, 'cedo'), base: 'Punir: apertos cedo' },
+      { id: 'punir-tarde', se: 'a vida do objetivo estiver a dois golpes do meu Punir', entao: 'paro o polegar em cima do Punir',
+        peso: taxa(P, 'roubado', 'tarde'), base: 'Punir: roubados e sem Punir' },
+      { id: 'finta', se: 'o inimigo começar a mirar em mim', entao: 'espero a arma recuar antes de desviar',
+        peso: taxa(A, 'finta', 'pressa'), base: 'Leitura do Inimigo: fintas e chutes' },
+      { id: 'lado', se: 'um tiro vier na minha direção', entao: 'olho a ponta da arma e desvio para o lado contrário da mira',
+        peso: taxa(A, 'lado'), base: 'Leitura do Inimigo: lado errado' },
+      { id: 'mapa', se: 'eu terminar uma troca ou um acampamento', entao: 'olho o minimapa antes de decidir o próximo passo',
+        peso: taxa(M, 'posicao', 'sentido', 'perdeu'), base: 'Visão de mapa: erros de memória do mapa' },
+      { id: 'kit', se: 'aparecer na seleção um herói que eu não conheço', entao: 'abro a ficha dele na aba Heróis antes da partida',
+        peso: cm && cm.vistas < 40 ? 0.15 : 0.02,
+        nota: cm ? `você viu ${cm.vistas} das ${cm.total} cartas de kits e itens` : null },
+    ];
+    return L.sort((a, b) => b.peso - a.peso);
+  }
+
+  function formPlano() {
+    const L = sugerirPlanos();
+    const atual = U.DB.load().planoPartida;
+    modal(`
+      <h2 style="margin:0 0 4px">Plano para a próxima partida</h2>
+      <div class="mini" style="margin-bottom:8px">Escolha <b>um</b>. Um plano com gatilho concreto — "se isto acontecer,
+        faço aquilo" — é o que mais aumenta a chance de a intenção virar ação; vários ao mesmo tempo diluem. Os de cima
+        são os que os seus erros medidos apontam.</div>
+      <div class="pilha" style="gap:6px">
+        ${L.map((p, i) => `<button class="item" data-plano="${p.id}" style="text-align:left${atual && atual.id === p.id ? ';border-color:var(--gold)' : ''}">
+          <div class="txt"><b>Se ${U.esc(p.se)}, então ${U.esc(p.entao)}.</b>
+          <span>${p.nota ? U.esc(p.nota) : p.peso > 0.02 ? `${U.esc(p.base)} — pelo menos ${Math.round(p.peso * 100)}% das tentativas recentes` : 'ainda sem dado seu que aponte este'}${i === 0 && p.peso > 0.02 ? ' · o mais indicado agora' : ''}</span></div>
+        </button>`).join('')}
+      </div>
+      <div class="xs" style="margin-top:8px">Diga o plano em voz alta uma vez antes da fila. Depois da partida, o registro
+        pergunta se você cumpriu.</div>
+      <button class="btn sec full sm" style="margin-top:10px" data-fecha>Fechar</button>`,
+      (cx) => cx.querySelectorAll('[data-plano]').forEach(b => b.addEventListener('click', () => {
+        const p = L.find(x => x.id === b.dataset.plano);
+        const d = U.DB.load();
+        d.planoPartida = { id: p.id, se: p.se, entao: p.entao, t: Date.now() };
+        U.DB.save(); fecharModal(); toast('Plano escolhido', 'ok'); render();
+      })));
   }
 
   /* ---------- lista de rotas: ordem, criar, apagar ---------- */
@@ -397,6 +526,11 @@
     $$('#tela-agora [data-jing]').forEach(b => b.addEventListener('click', () => {
       if (b.dataset.jing === 'rotas') return abrirRotas();
       if (b.dataset.jing === 'sessao') return U.T.sessaoJing();
+      if (b.dataset.jing === 'cartas') return U.CA.iniciar();
+      if (b.dataset.jing === 'pressao') return escolherSerie();
+      if (b.dataset.jing === 'aquecimento') return U.T.aquecimento();
+      if (b.dataset.jing === 'plano') return formPlano();
+      if (b.dataset.jing === 'imagem') return U.T.praticaMental();
       const dr = D.porId(b.dataset.jing);
       if (dr) U.T.abrirBloco(dr, CT.estado(dr.id).dif);
     }));
@@ -413,6 +547,7 @@
       if (a.tipo === 'parar') return toast('Recomendação registrada');
       if (a.tipo === 'prova') return U.T.iniciarProva();
       if (a.tipo === 'retencao') return U.T.iniciarRetencao();
+      if (a.tipo === 'cartas') return U.CA.iniciar();
       const dr = D.porId(a.drill); if (dr) U.T.abrirBloco(dr, a.dif);
     });
     $('#ir-sessao')?.addEventListener('click', () => U.T.sessaoGuiada());
@@ -545,6 +680,14 @@
       aconteceu e o próprio sistema comparar, avisando que é observação sua e não experimento.
       <div><button class="btn sec sm" style="margin-top:7px;min-height:34px" data-princ="transferencia">o que a literatura diz</button></div></div>
       <button class="btn sec sm full" id="add-partida" style="margin-top:9px">Registrar uma partida</button>
+      ${(() => {
+        const comPlano = ps.filter(x => x.plano && x.plano.cumpriu !== 'nsa');
+        if (!comPlano.length) return '';
+        const sim = comPlano.filter(x => x.plano.cumpriu === 'sim').length, parte = comPlano.filter(x => x.plano.cumpriu === 'parte').length;
+        return `<div class="mini" style="margin-top:7px"><b>Plano "se… então…":</b> cumprido em <b>${sim}</b> de ${comPlano.length}
+          partidas em que a situação apareceu${parte ? `, em parte em ${parte}` : ''}. É esse número que diz se o treino está
+          chegando na partida — muito mais do que vitória, que depende de outras nove pessoas.</div>`;
+      })()}
       ${ps.length ? `<div class="sep"></div>
         <div class="mini"><b>${ps.length} partidas registradas</b></div>
         ${cortes ? `<div class="aviso ${cortes.distinguivel ? 'ok' : ''}" style="margin-top:6px">
@@ -730,6 +873,7 @@
   }
 
   function formPartida() {
+    const planoAtual = U.DB.load().planoPartida || null;
     const nota = (id, lbl) => `<div class="mini" style="margin-top:8px"><b>${lbl}</b></div>
       <div class="flex" style="gap:5px;margin-top:4px">
         ${[1, 2, 3, 4, 5].map(v => `<button class="btn sec sm nota" data-g="${id}" data-v="${v}" style="flex:1">${v}</button>`).join('')}
@@ -743,6 +887,14 @@
         <button class="btn sec sm nota" data-g="res" data-v="v" style="flex:1">Vitória</button>
         <button class="btn sec sm nota" data-g="res" data-v="d" style="flex:1">Derrota</button>
       </div>
+      ${planoAtual ? `<div class="mini" style="margin-top:9px"><b>Você cumpriu o plano?</b>
+        <span class="xs">se ${U.esc(planoAtual.se)}, então ${U.esc(planoAtual.entao)}</span></div>
+      <div class="flex" style="gap:6px;margin-top:4px">
+        <button class="btn sec sm nota" data-g="plano" data-v="sim" style="flex:1">Sim</button>
+        <button class="btn sec sm nota" data-g="plano" data-v="parte" style="flex:1">Em parte</button>
+        <button class="btn sec sm nota" data-g="plano" data-v="nao" style="flex:1">Não</button>
+        <button class="btn sec sm nota" data-g="plano" data-v="nsa" style="flex:1">Não aconteceu</button>
+      </div>` : ''}
       ${nota('exec', 'Execução: os combos saíram como você queria? (1 a 5)')}
       ${nota('dec', 'Decisão: você entrou e saiu na hora certa? (1 a 5)')}
       <div class="mini" style="margin-top:9px"><b>O que mais te atrapalhou</b> (opcional)</div>
@@ -752,7 +904,7 @@
         <button class="btn full sm" id="salvar-partida">Salvar</button>
       </div>`,
       (cx) => {
-        const sel = { res: null, exec: null, dec: null };
+        const sel = { res: null, exec: null, dec: null, plano: null };
         cx.querySelectorAll('.nota').forEach(b => b.addEventListener('click', () => {
           const g = b.dataset.g;
           sel[g] = b.dataset.v;
@@ -762,7 +914,8 @@
           if (!sel.res || !sel.exec || !sel.dec) return toast('Faltou preencher');
           const d = U.DB.load();
           d.partidas.push({ t: Date.now(), res: sel.res, exec: +sel.exec, dec: +sel.dec,
-                            obs: (cx.querySelector('#p-obs').value || '').slice(0, 60) });
+                            obs: (cx.querySelector('#p-obs').value || '').slice(0, 60),
+                            plano: planoAtual && sel.plano ? { id: planoAtual.id, cumpriu: sel.plano } : undefined });
           if (d.partidas.length > 300) d.partidas = d.partidas.slice(-300);
           U.DB.save(); fecharModal(); toast('Partida registrada', 'ok'); render('progresso');
         });
@@ -2973,7 +3126,7 @@
     depois && depois();
   }
 
-  U.UI = { ir, render, toast, modal, fecharModal, verPrincipio, cartoesMedidas, desenharMedidores,
+  U.UI = { ir, render, toast, modal, fecharModal, verPrincipio, cartoesMedidas, desenharMedidores, formPlano,
            abrirEixo, abrirPonto,
            get telaAtual() { return telaAtual; } };
 
