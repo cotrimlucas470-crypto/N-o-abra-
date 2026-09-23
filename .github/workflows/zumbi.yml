@@ -1,0 +1,32 @@
+# Verifica o jogo "Toque de Recolher" (pasta zumbi/) a cada push:
+# tipos, testes e build. O build fica disponível para baixar na aba Actions.
+name: zumbi
+
+on:
+  push:
+    paths: ['zumbi/**', '.github/workflows/zumbi.yml']
+  pull_request:
+    paths: ['zumbi/**', '.github/workflows/zumbi.yml']
+  workflow_dispatch:
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: zumbi
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: zumbi/package-lock.json
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: toque-de-recolher-web
+          path: zumbi/dist

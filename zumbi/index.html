@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#101114" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="description" content="Sobrevivência zumbi 2D top-down para celular." />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" type="image/png" href="./icons/icon-192.png" />
+    <title>Toque de Recolher</title>
+    <style>
+      :root {
+        --bg: #101114;
+        --fg: #ecebe6;
+        --dim: #a9a79f;
+        --accent: #e0a84a;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme='light']) {
+          --bg: #101114;
+        }
+      }
+      :root[data-theme='dark'] {
+        --bg: #101114;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: var(--bg);
+        color: var(--fg);
+        overflow: hidden;
+        overscroll-behavior: none;
+        touch-action: none;
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+        -webkit-tap-highlight-color: transparent;
+        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      }
+      #game {
+        position: fixed;
+        inset: 0;
+        background: var(--bg);
+      }
+      /* O canvas tem a resolução real do aparelho; aqui ele é mostrado no tamanho da tela. */
+      #game canvas {
+        display: block;
+        width: 100% !important;
+        height: 100% !important;
+        touch-action: none;
+      }
+      #boot {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        color: var(--dim);
+        font-size: 14px;
+        letter-spacing: 0.04em;
+      }
+      #erro {
+        position: fixed;
+        left: 12px;
+        right: 12px;
+        bottom: 12px;
+        padding: 12px 14px;
+        border-radius: 10px;
+        background: rgba(120, 24, 20, 0.92);
+        color: #fff;
+        font: 12px/1.45 ui-monospace, Menlo, monospace;
+        white-space: pre-wrap;
+        z-index: 10;
+        display: none;
+        user-select: text;
+        -webkit-user-select: text;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="game"></div>
+    <div id="boot">Carregando…</div>
+    <div id="erro"></div>
+    <script>
+      // Mostra erros na própria tela: no celular não há console para olhar.
+      (function () {
+        var box = document.getElementById('erro');
+        function show(msg) {
+          box.style.display = 'block';
+          box.textContent = 'Erro: ' + msg + '\n(tire um print e mande para o desenvolvedor)';
+        }
+        window.addEventListener('error', function (e) {
+          show((e && e.message) || String(e));
+        });
+        window.addEventListener('unhandledrejection', function (e) {
+          show((e && e.reason && (e.reason.stack || e.reason.message)) || String(e && e.reason));
+        });
+      })();
+    </script>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "_leia": "Troque a arte sem mexer no código. Chaves que começam com _ são ignoradas. Guia: docs/ASSETS.md",
+  "sprites": {
+    "_exemplo": "assets/sprites/carro_vermelho.png",
+    "_exemplo_animado": { "file": "assets/sprites/tronco.png", "frameWidth": 128, "frameHeight": 128 }
+  },
+  "patterns": {}
+}
