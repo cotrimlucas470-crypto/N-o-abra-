@@ -18,7 +18,8 @@ import { hashString } from '../core/Random';
 import { itemDef } from '../items/ItemCatalog';
 import { normalizeState, type ItemState } from '../items/condition';
 import { doorGapRect } from '../world/doors';
-import type { DoorPlacement, PropPlacement } from '../world/MapTypes';
+import type { DoorPlacement, PropPlacement, WallPiece } from '../world/MapTypes';
+import { propSolids } from '../world/collision';
 import type { WorldModel } from '../world/WorldModel';
 import { CHUNK_PX, chunkKey, chunkKeyAt, chunkOf } from './ChunkGrid';
 import { DEFAULT_LOOT, type LootSettings } from '../loot/generate';
@@ -29,6 +30,8 @@ import { DEFAULT_NATURE, NatureState, type NatureSave, type NatureSettings } fro
 export interface DoorState {
   open: boolean;
   locked: boolean;
+  /** Arrombada/quebrada: fica aberta para sempre (sem folha). */
+  broken?: boolean;
 }
 
 export interface WorldItem {
@@ -45,7 +48,10 @@ export type WorldChange =
   | { type: 'door'; door: DoorPlacement; state: Readonly<DoorState> }
   | { type: 'items'; chunk: number }
   | { type: 'container'; id: string }
-  | { type: 'nature'; id: string };
+  | { type: 'nature'; id: string }
+  /** Objeto do mapa danificado ou removido (quebrado, desmontado, cortado). */
+  | { type: 'prop'; id: string; removed: boolean; x: number; y: number }
+  | { type: 'window'; id: string; x: number; y: number };
 
 export interface WorldStateOptions {
   loot?: LootSettings;
@@ -55,8 +61,14 @@ export interface WorldStateOptions {
 export interface WorldStateSave {
   /** 1 = só portas e itens; 2 = + recipientes (loot). Save antigo continua valendo. */
   version: 1 | 2;
-  /** Portas que diferem do estado inicial: id → [aberta, trancada]. */
-  doors: Record<string, [0 | 1, 0 | 1]>;
+  /** Portas que diferem do estado inicial: id → [aberta, trancada, quebrada?]. */
+  doors: Record<string, [0 | 1, 0 | 1] | [0 | 1, 0 | 1, 0 | 1]>;
+  /** Objetos do mapa removidos e os danificados (id → resistência que sobrou). */
+  props?: { removed: string[]; hp: Record<string, number> };
+  /** Janelas quebradas (id) e as que tiveram os cacos tirados. */
+  windows?: { broken: string[]; cleared: string[] };
+  /** Resistência que sobrou nas portas atacadas. */
+  doorHp?: Record<string, number>;
   /** Itens do mapa que mudaram: id → quantidade que sobrou (0 = pego). */
   mapItems: Record<string, number>;
   /** Itens que não vieram do mapa (largados pelo jogador etc.). */
@@ -83,6 +95,12 @@ export class WorldState {
   readonly nature: NatureState;
   private readonly listeners = new Set<(c: WorldChange) => void>();
   private nextItem = 1;
+  private readonly removedProps = new Set<string>();
+  private readonly propHp = new Map<string, number>();
+  private propIndex: Map<string, number> | null = null;
+  private readonly doorHp = new Map<string, number>();
+  private readonly brokenWindows = new Set<string>();
+  private readonly clearedWindows = new Set<string>();
 
   constructor(
     readonly model: WorldModel,
@@ -90,7 +108,11 @@ export class WorldState {
   ) {
     const map = model.map;
     const kindOf = new Map(map.buildings.map((b) => [b.id, b.kind]));
-    this.defaults = map.doors.map((d) => ({ open: startsOpen(d, map.seed, d.buildingId ? kindOf.get(d.buildingId) : undefined), locked: false }));
+    this.defaults = map.doors.map((d) => {
+      const kind = d.buildingId ? kindOf.get(d.buildingId) : undefined;
+      const open = startsOpen(d, map.seed, kind);
+      return { open, locked: !open && startsLocked(d, map.seed, kind) };
+    });
     this.doors = this.defaults.map((s) => ({ ...s }));
     map.doors.forEach((d, i) => {
       this.doorIndex.set(d.id, i);
@@ -140,12 +162,104 @@ export class WorldState {
       for (let dx = -span; dx <= span; dx++) {
         for (const i of this.model.index.get(chunkKey(cx + dx, cy + dy))?.props ?? []) {
           const p = map.props[i]!;
+          if (this.removedProps.has(p.id)) continue;
           const d = Math.hypot(p.x - x, p.y - y);
           if (d <= r) out.push({ prop: p, distance: d });
         }
       }
     }
     return out;
+  }
+
+  propById(id: string): PropPlacement | null {
+    if (!this.propIndex) {
+      this.propIndex = new Map();
+      this.model.map.props.forEach((p, i) => this.propIndex!.set(p.id, i));
+    }
+    const i = this.propIndex.get(id);
+    return i === undefined ? null : this.model.map.props[i]!;
+  }
+
+  isPropRemoved(id: string): boolean {
+    return this.removedProps.has(id);
+  }
+
+  /** Resistência atual (ou `max` se nunca apanhou). */
+  propHealth(id: string, max: number): number {
+    return this.propHp.get(id) ?? max;
+  }
+
+  /** Bate no objeto. Devolve a resistência que sobrou (≤0 = quebrou; quem chama remove). */
+  damageProp(id: string, amount: number, max: number): number {
+    const hp = this.propHealth(id, max) - amount;
+    this.propHp.set(id, hp);
+    const p = this.propById(id);
+    if (p) this.emit({ type: 'prop', id, removed: false, x: p.x, y: p.y });
+    return hp;
+  }
+
+  /**
+   * Tira o objeto do mundo (quebrado, desmontado, cortado, carregado).
+   * Sai da navegação; o conteúdo dos recipientes dele é devolvido (quem chama larga no chão).
+   */
+  removeProp(id: string): { defId: string; count: number; st?: ItemState }[] {
+    const p = this.propById(id);
+    if (!p || this.removedProps.has(id)) return [];
+    this.removedProps.add(id);
+    this.propHp.delete(id);
+    for (const s of propSolids(p)) this.model.nav.removeSolid(s);
+    const contents = this.loot.removeForProp(id);
+    this.emit({ type: 'prop', id, removed: true, x: p.x, y: p.y });
+    return contents;
+  }
+
+  // ---------------------------------------------------------------- janelas
+
+  /** Id estável de uma janela (peça de parede do tipo janela): centro. */
+  static windowId(w: WallPiece): string {
+    return `janela@${Math.round(w.x + w.w / 2)},${Math.round(w.y + w.h / 2)}`;
+  }
+
+  /** Janelas a até `r` px (borda). */
+  windowsNear(x: number, y: number, r: number): { wall: WallPiece; id: string; distance: number }[] {
+    const out: { wall: WallPiece; id: string; distance: number }[] = [];
+    const map = this.model.map;
+    for (const key of this.model.index.chunksAround(x, y)) {
+      for (const i of this.model.index.get(key)?.walls ?? []) {
+        const w = map.walls[i]!;
+        if (w.kind !== 'window') continue;
+        const d = Math.hypot(Math.max(w.x - x, 0, x - (w.x + w.w)), Math.max(w.y - y, 0, y - (w.y + w.h)));
+        if (d <= r) out.push({ wall: w, id: WorldState.windowId(w), distance: d });
+      }
+    }
+    return out;
+  }
+
+  isWindowBroken(id: string): boolean {
+    return this.brokenWindows.has(id);
+  }
+
+  /** Quebrou: vira passagem para quem pula (com cuidado) e espalha cacos dos dois lados. */
+  breakWindow(w: WallPiece): boolean {
+    const id = WorldState.windowId(w);
+    if (this.brokenWindows.has(id)) return false;
+    this.brokenWindows.add(id);
+    const cx = w.x + w.w / 2;
+    const cy = w.y + w.h / 2;
+    const vertical = w.h > w.w;
+    this.addGlass(cx + (vertical ? 20 : 0), cy + (vertical ? 0 : 20));
+    this.addGlass(cx - (vertical ? 20 : 0), cy - (vertical ? 0 : 20));
+    this.emit({ type: 'window', id, x: cx, y: cy });
+    return true;
+  }
+
+  /** Cacos presos no batente: pular corta. Tirar os cacos deixa seguro. */
+  windowHasShards(id: string): boolean {
+    return this.brokenWindows.has(id) && !this.clearedWindows.has(id);
+  }
+
+  clearWindowShards(id: string): void {
+    if (this.brokenWindows.has(id)) this.clearedWindows.add(id);
   }
 
   // ---------------------------------------------------------------- cacos de vidro
@@ -200,12 +314,52 @@ export class WorldState {
     const i = this.doorIndex.get(id);
     if (i === undefined) return false;
     const s = this.doors[i]!;
+    if (s.broken) return false;
     if (s.open === open || (open && s.locked)) return false;
     s.open = open;
     const d = this.model.map.doors[i]!;
     this.applyClosed(d, !open);
     this.emit({ type: 'door', door: d, state: s });
     return true;
+  }
+
+  /** Resistência da porta (madeira aguenta menos que metal; vidro, quase nada). */
+  doorHealth(id: string): number {
+    const d = this.doorById(id);
+    const max = d ? (d.material === 'glass' ? 25 : d.material === 'metal' ? 260 : d.style === 'double' ? 110 : 80) : 0;
+    return this.doorHp.get(id) ?? max;
+  }
+
+  /** Bate na porta fechada. Chegou a zero: quebra (fica aberta para sempre). */
+  damageDoor(id: string, amount: number): number {
+    const i = this.doorIndex.get(id);
+    if (i === undefined) return 0;
+    const s = this.doors[i]!;
+    if (s.broken || s.open) return this.doorHealth(id);
+    const hp = this.doorHealth(id) - amount;
+    this.doorHp.set(id, hp);
+    if (hp <= 0) this.breakDoor(id);
+    return hp;
+  }
+
+  /** Arrombada ou quebrada: destranca, abre e não fecha mais. */
+  breakDoor(id: string): void {
+    const i = this.doorIndex.get(id);
+    if (i === undefined) return;
+    const s = this.doors[i]!;
+    if (s.broken) return;
+    const d = this.model.map.doors[i]!;
+    if (!s.open) this.applyClosed(d, false);
+    s.open = true;
+    s.locked = false;
+    s.broken = true;
+    if (d.material === 'glass') this.addGlass(d.x, d.y);
+    this.emit({ type: 'door', door: d, state: s });
+  }
+
+  /** Destranca (chave, pé de cabra). */
+  unlockDoor(id: string): boolean {
+    return this.setDoorLocked(id, false);
   }
 
   /** Trancar só vale para porta fechada. */
@@ -346,7 +500,8 @@ export class WorldState {
     this.model.map.doors.forEach((d, i) => {
       const s = this.doors[i]!;
       const def = this.defaults[i]!;
-      if (s.open !== def.open || s.locked !== def.locked) doors[d.id] = [s.open ? 1 : 0, s.locked ? 1 : 0];
+      if (s.broken) doors[d.id] = [1, 0, 1];
+      else if (s.open !== def.open || s.locked !== def.locked) doors[d.id] = [s.open ? 1 : 0, s.locked ? 1 : 0];
     });
     const mapItems: WorldStateSave['mapItems'] = {};
     for (const [id, base] of this.baseCount) {
@@ -357,6 +512,9 @@ export class WorldState {
     for (const m of this.items.values()) for (const it of m.values()) if (!this.mapItemCount.has(it.id)) items.push({ ...it });
     const out: WorldStateSave = { version: 2, doors, mapItems, items, nextItem: this.nextItem, loot: this.loot.serialize(), nature: this.nature.serialize() };
     if (this.glassSpots.length || this.clearedGlass.size) out.glass = { spots: this.glassSpots.map((g) => ({ ...g })), cleared: [...this.clearedGlass] };
+    if (this.removedProps.size || this.propHp.size) out.props = { removed: [...this.removedProps], hp: Object.fromEntries(this.propHp) };
+    if (this.brokenWindows.size) out.windows = { broken: [...this.brokenWindows], cleared: [...this.clearedWindows] };
+    if (this.doorHp.size) out.doorHp = Object.fromEntries(this.doorHp);
     return out;
   }
 
@@ -368,13 +526,29 @@ export class WorldState {
     if (!save || (save.version !== 1 && save.version !== 2)) return;
     this.loot.restore(save.loot);
     this.nature.restore(save.nature);
-    for (const [id, [open, locked]] of Object.entries(save.doors ?? {})) {
+    for (const [id, [open, locked, broken]] of Object.entries(save.doors ?? {})) {
       const i = this.doorIndex.get(id);
       if (i === undefined) continue;
+      if (broken === 1) {
+        this.breakDoor(id);
+        continue;
+      }
       this.setDoorLocked(id, false);
       this.setDoorOpen(id, open === 1);
       if (locked === 1) this.setDoorLocked(id, true);
     }
+    for (const [id, hp] of Object.entries(save.doorHp ?? {})) if (this.doorIndex.has(id) && Number.isFinite(hp)) this.doorHp.set(id, hp);
+    // Objetos removidos: tira da navegação e dos recipientes (o conteúdo já está nos itens soltos salvos).
+    for (const id of save.props?.removed ?? []) {
+      const p = this.propById(id);
+      if (!p || this.removedProps.has(id)) continue;
+      this.removedProps.add(id);
+      for (const sd of propSolids(p)) this.model.nav.removeSolid(sd);
+      this.loot.removeForProp(id, false);
+    }
+    for (const [id, hp] of Object.entries(save.props?.hp ?? {})) if (this.propById(id) && Number.isFinite(hp)) this.propHp.set(id, hp);
+    for (const id of save.windows?.broken ?? []) this.brokenWindows.add(id);
+    for (const id of save.windows?.cleared ?? []) this.clearedWindows.add(id);
     for (const [id, count] of Object.entries(save.mapItems ?? {})) {
       const it = this.itemById(id);
       if (!it) continue;
@@ -411,6 +585,13 @@ function segmentHitsRect(ax: number, ay: number, bx: number, by: number, r: { x:
     return true;
   };
   return clip(-dx, ax - r.x) && clip(dx, r.x + r.w - ax) && clip(-dy, ay - r.y) && clip(dy, r.y + r.h - ay) && t0 <= t1;
+}
+
+/** Porta da rua fechada começa trancada? (nunca a base do jogador nem porta interna). */
+function startsLocked(d: DoorPlacement, seed: number, kind: string | undefined): boolean {
+  if (!d.exterior || !kind || DOOR_TUNING.alwaysClosedKinds.includes(kind)) return false;
+  const chance = DOOR_TUNING.startLockedChance[kind] ?? 0;
+  return hashString(`${seed}:tranca:${d.id}`) / 4294967296 < chance;
 }
 
 /** Estado inicial de uma porta: sorteio determinístico por semente + id. */

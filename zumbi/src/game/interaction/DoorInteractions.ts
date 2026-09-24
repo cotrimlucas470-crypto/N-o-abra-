@@ -8,7 +8,7 @@ import { chunkKey, chunkOf } from '../sim/ChunkGrid';
 import type { WorldState } from '../sim/WorldState';
 import { doorGapRect, doorLabel, distToRect } from '../world/doors';
 import type { DoorPlacement, Rect } from '../world/MapTypes';
-import type { InteractionCandidate, InteractionProvider, Interactor } from './InteractionSystem';
+import type { InteractionCandidate, InteractionOption, InteractionProvider, Interactor } from './InteractionSystem';
 
 /** Um corpo que pode estar no meio do vão (jogador; depois zumbis, NPCs). */
 export interface Body {
@@ -23,6 +23,8 @@ export class DoorInteractions implements InteractionProvider {
     private readonly bus: EventBus,
     /** Corpos que impedem a porta de fechar. */
     private readonly bodies: () => Body[],
+    /** Outras ações da porta (chave, pé de cabra, trancar por dentro). */
+    private readonly extras?: (d: DoorPlacement, who: Interactor) => InteractionOption[],
   ) {}
 
   collect(who: Interactor, out: InteractionCandidate[]): void {
@@ -37,10 +39,13 @@ export class DoorInteractions implements InteractionProvider {
         if (!content) continue;
         for (const i of content.doors) {
           const d = map.doors[i]!;
+          if (this.state.doorState(d.id)?.broken) continue;
           const rect = doorGapRect(d);
           const dist = distToRect(who.x, who.y, rect) - who.radius;
           if (dist > reach) continue;
-          out.push(this.candidate(d, rect, dist));
+          const c = this.candidate(d, rect, dist);
+          if (this.extras) c.more = () => this.extras!(d, who);
+          out.push(c);
         }
       }
     }

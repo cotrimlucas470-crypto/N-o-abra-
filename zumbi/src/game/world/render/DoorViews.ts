@@ -141,6 +141,13 @@ export class DoorViews {
   }
 
   private pose(v: DoorView): void {
+    // Quebrada: a folha foi ao chão (só sobra o vão).
+    if (this.state.doorState(v.door.id)?.broken) {
+      for (const { obj } of v.leaves) obj.setVisible(false);
+      v.shutter?.setVisible(false);
+      v.housing?.setAlpha(0.3);
+      return;
+    }
     const e = easeOutCubic(v.t);
     for (const { leaf, obj } of v.leaves) obj.setAngle(leaf.closedAngle + (leaf.openAngle - leaf.closedAngle) * e);
     if (v.shutter) v.shutter.setAlpha(1 - v.t).setVisible(v.t < 0.999);

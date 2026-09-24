@@ -11,6 +11,11 @@ export const DOOR_TUNING = {
    * mesmas portas abertas até o jogador mexer nelas.
    */
   startOpenChance: { exterior: 0.25, interior: 0.55, rolling: 0.3 },
+  /**
+   * Chance de uma porta da rua FECHADA começar trancada, por tipo de construção.
+   * Dá para entrar com a chave certa, arrombando, derrubando ou pela janela.
+   */
+  startLockedChance: { house: 0.22, store: 0.35, pharmacy: 0.45, restaurant: 0.3, clothing: 0.35, garage: 0.3, warehouse: 0.4 } as Readonly<Record<string, number>>,
   /** Construções que começam com todas as portas fechadas (a base do jogador). */
   alwaysClosedKinds: ['shelter'] as readonly string[],
   /** Tempo da animação de abrir/fechar (s). */

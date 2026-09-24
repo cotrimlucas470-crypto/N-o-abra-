@@ -59,6 +59,16 @@ export interface ItemHooks {
   drop(defId: string, count: number, st: ItemState | undefined): void;
   /** Abrir uma tela (mapa, leitura) — a interface decide como. */
   show?(kind: string, data?: unknown): void;
+  /** Recarregar/destravar a arma da mão (ação com tempo ou motivo de não dar). */
+  reload?(): TimedActionSpec | string;
+  unjam?(): TimedActionSpec | string;
+  /** Luz em volta do jogador (0 = breu, 1 = dia claro), para ler. */
+  light?(): number;
+  /** Ouviu o rádio no dia: libera a previsão. */
+  radioHeard?(): void;
+  /** Hora do jogo (minuto do dia) e dia. */
+  time?(): { minuteOfDay: number; day: number };
+  rng?(): number;
 }
 
 export interface ItemActionDef {

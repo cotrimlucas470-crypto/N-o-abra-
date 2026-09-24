@@ -65,6 +65,11 @@ export class InteractionSystem {
 
   constructor(private readonly providers: InteractionProvider[]) {}
 
+  /** Provedor novo (etapas seguintes). */
+  add(p: InteractionProvider): void {
+    this.providers.push(p);
+  }
+
   get current(): InteractionTarget | null {
     return this.best?.target ?? null;
   }

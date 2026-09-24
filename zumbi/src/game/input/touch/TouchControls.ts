@@ -13,7 +13,7 @@ import Phaser from 'phaser';
 import { DEBUG } from '../../core/Debug';
 import { canFullscreen, isFullscreen } from '../../systems/fullscreen';
 import type { GameServices } from '../../core/Services';
-import { iconBag, iconCrosshair, iconDots, iconFullscreen, iconHand, iconPause, iconRun } from '../../ui/icons';
+import { iconAttack, iconBag, iconCrosshair, iconDots, iconFullscreen, iconHand, iconPause, iconReload, iconRun } from '../../ui/icons';
 import { UI } from '../../ui/theme';
 import { loadLayout, placementFor, resolvePlacement, uiScaleFor, type ControlId, type ControlsLayoutData } from './ControlsLayout';
 import { TouchButton } from './TouchButton';
@@ -24,6 +24,8 @@ export interface TouchControlsCallbacks {
   onFullscreen: () => void;
   onInteract: () => void;
   onOptions: () => void;
+  onAttack: () => void;
+  onReload: () => void;
   onInventory: () => void;
 }
 
@@ -35,7 +37,11 @@ export class TouchControls {
   readonly sprint: TouchButton;
   readonly interact: TouchButton;
   readonly options: TouchButton;
+  readonly attack: TouchButton;
+  readonly reload: TouchButton;
   readonly inventory: TouchButton;
+  /** Mostra o botão de recarregar (arma de fogo na mão). */
+  private showReload = false;
   readonly pause: TouchButton;
   readonly fullscreen: TouchButton;
   private layoutData: ControlsLayoutData = loadLayout();
@@ -58,6 +64,8 @@ export class TouchControls {
     this.sprint = new TouchButton(scene, iconRun, DEPTH + 1, { accent: UI.accentNum });
     this.interact = new TouchButton(scene, iconHand, DEPTH + 1, { accent: UI.accentNum });
     this.options = new TouchButton(scene, iconDots, DEPTH + 1, { accent: UI.accentNum, hitScale: 1.35 });
+    this.attack = new TouchButton(scene, iconAttack, DEPTH + 1, { accent: UI.accentNum, hitScale: 1.2 });
+    this.reload = new TouchButton(scene, iconReload, DEPTH + 1, { accent: UI.accentNum, hitScale: 1.4 });
     this.inventory = new TouchButton(scene, iconBag, DEPTH + 1, { accent: UI.accentNum, hitScale: 1.4 });
     this.pause = new TouchButton(scene, iconPause, DEPTH + 1, { accent: UI.accentNum, hitScale: 1.5, subtle: true });
     this.fullscreen = new TouchButton(
@@ -106,6 +114,10 @@ export class TouchControls {
     this.interact.setLayout(it.x, it.y, it.radius);
     const op = at('options');
     this.options.setLayout(op.x, op.y, op.radius);
+    const atk = at('attack');
+    this.attack.setLayout(atk.x, atk.y, atk.radius);
+    const rl = at('reload');
+    this.reload.setLayout(rl.x, rl.y, rl.radius);
     const inv = at('inventory');
     this.inventory.setLayout(inv.x, inv.y, inv.radius);
     const p = at('pause');
@@ -131,6 +143,8 @@ export class TouchControls {
     this.sprint.release();
     this.interact.release();
     this.options.release();
+    this.attack.release();
+    this.reload.release();
     this.inventory.release();
     this.pause.release();
     this.fullscreen.release();
@@ -145,6 +159,8 @@ export class TouchControls {
     this.sprint.setVisible(t);
     this.interact.setVisible(t);
     this.options.setVisible(t);
+    this.attack.setVisible(t);
+    this.reload.setVisible(t && this.showReload);
     this.inventory.setVisible(t);
     this.pause.setVisible(true);
     // Só mostra o botão onde o navegador realmente permite tela cheia.
@@ -173,7 +189,7 @@ export class TouchControls {
       return;
     }
     if (this.blocker?.(x, y)) return;
-    for (const b of [this.pause, this.fullscreen, this.sprint, this.interact, this.options]) {
+    for (const b of [this.pause, this.fullscreen, this.sprint, this.interact, this.options, this.attack, this.reload]) {
       if (b.pointerId === null && b.hit(x, y)) {
         b.press(p.id);
         return;
@@ -214,6 +230,14 @@ export class TouchControls {
     if (this.interact.pointerId === p.id) {
       this.interact.release();
       if (this.interact.hit(x, y)) this.cb.onInteract();
+    }
+    if (this.attack.pointerId === p.id) {
+      this.attack.release();
+      if (this.attack.hit(x, y)) this.cb.onAttack();
+    }
+    if (this.reload.pointerId === p.id) {
+      this.reload.release();
+      if (this.reload.hit(x, y)) this.cb.onReload();
     }
     if (this.options.pointerId === p.id) {
       this.options.release();
@@ -267,6 +291,13 @@ export class TouchControls {
     this.interact.setState(interact === true, interact === null);
     this.options.setState(false, interact === null);
     this.inventory.setState(inventoryOpen, false);
+  }
+
+  /** Arma de fogo na mão: aparece o botão de recarregar. */
+  setReloadVisible(v: boolean): void {
+    if (v === this.showReload) return;
+    this.showReload = v;
+    this.applyVisibility();
   }
 
   refreshFullscreenIcon(): void {

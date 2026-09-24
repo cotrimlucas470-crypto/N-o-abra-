@@ -14,6 +14,7 @@ import { ActionBar } from '../ui/ActionBar';
 import { ActionFeedback } from '../ui/ActionFeedback';
 import { InventoryPanel } from '../ui/InventoryPanel';
 import { OptionsMenu } from '../ui/OptionsMenu';
+import { MapView } from '../ui/MapView';
 import { StatePills } from '../ui/StatePills';
 import { hasClock } from '../ui/tabs/BodyTab';
 import { timeText } from '../ui/tabs/TimeTab';
@@ -49,6 +50,8 @@ export class HudScene extends Phaser.Scene {
   private saveBtn!: UiButton;
   private menuBtn!: UiButton;
   private hudTimer = 0;
+  private mapView!: MapView;
+  private ammoText!: Phaser.GameObjects.Text;
   private debugText: Phaser.GameObjects.Text | null = null;
   private debugTimer = 0;
   private paused = false;
@@ -75,6 +78,9 @@ export class HudScene extends Phaser.Scene {
       s.bus.emit('interaction:option', { index: i });
     });
     this.savedText = this.add.text(0, 0, 'jogo salvo', textStyle(10, UI.textDim, '700')).setDepth(91).setResolution(dpr).setAlpha(0);
+    this.mapView = new MapView(this, dpr);
+    this.ammoText = this.add.text(0, 0, '', textStyle(11, UI.text, '800')).setOrigin(0.5).setDepth(102).setResolution(dpr);
+    this.ammoText.setShadow(0, 1, 'rgba(0,0,0,0.9)', 3, false, true);
     this.toast = new Toast(this, dpr);
 
     this.controls = new TouchControls(this, s, {
@@ -82,6 +88,8 @@ export class HudScene extends Phaser.Scene {
       onFullscreen: () => toggleFullscreen(),
       onInteract: () => s.bus.emit('input:interact', {}),
       onOptions: () => (this.optionsMenu.open ? this.optionsMenu.hide() : s.bus.emit('interaction:options', {})),
+      onAttack: () => s.bus.emit('input:attack', {}),
+      onReload: () => s.bus.emit('input:reload', {}),
       onInventory: () => this.inventory.toggle(),
     });
     this.feedback = new ActionFeedback(this, dpr);
@@ -91,13 +99,13 @@ export class HudScene extends Phaser.Scene {
       // Fechar o painel também fecha o recipiente aberto.
       if (s.session.openContainer) s.bus.emit('ui:container-close', {});
     });
-    this.controls.setPointerBlocker((x, y) => this.inventory.contains(x, y) || this.optionsMenu.contains(x, y) || (this.actionBar.visible && this.actionBarHit(x, y)));
+    this.controls.setPointerBlocker((x, y) => this.mapView.isOpen || this.inventory.contains(x, y) || this.optionsMenu.contains(x, y) || (this.actionBar.visible && this.actionBarHit(x, y)));
     // Aviso do alvo de interação: acima do botão (toque) ou embaixo, com a tecla (PC).
     this.prompt = this.add.text(0, 0, '', textStyle(12, UI.text, '700')).setOrigin(0.5, 1).setDepth(93).setResolution(dpr);
     this.prompt.setBackgroundColor('rgba(12,13,16,0.62)').setPadding(8, 4, 8, 4).setVisible(false);
 
     this.keyboardHint = this.add
-      .text(0, 0, 'WASD andar · Shift correr · E interagir · Q mais opções · I inventário/corpo/tempo · segure o mouse para mirar · Esc pausa', textStyle(11, UI.textDim, '600'))
+      .text(0, 0, 'WASD andar · Shift correr · E interagir · Q opções · F atacar · R recarregar · I painel · mouse mira · Esc pausa', textStyle(11, UI.textDim, '600'))
       .setOrigin(0.5, 1)
       .setResolution(dpr)
       .setAlpha(0.75)
@@ -133,6 +141,14 @@ export class HudScene extends Phaser.Scene {
       s.bus.on('ui:container-close', () => this.inventory.hideContainer()),
       s.bus.on('ui:container-refresh', () => this.inventory.refresh()),
       s.bus.on('ui:options-ready', () => this.showOptions()),
+      s.bus.on('ui:map', (e) => {
+        const handle = (window as unknown as { __TDR__?: { map: import('../world/MapTypes').MapData } }).__TDR__;
+        const game = this.scene.get(SCENES.game) as unknown as { worldModel?: { map: import('../world/MapTypes').MapData }; playerPosition?: () => { x: number; y: number } };
+        const map = game.worldModel?.map ?? handle?.map;
+        if (!map || !game.playerPosition) return;
+        this.inventory.setOpen(false);
+        this.mapView.open(map, game.playerPosition(), e.annotated, s.viewport.cssWidth, s.viewport.cssHeight);
+      }),
       s.bus.on('game:saved', (e) => {
         this.savedText.setText(e.ok ? 'jogo salvo' : 'não foi possível salvar').setColor(e.ok ? UI.textDim : '#f07a6a').setAlpha(1);
         this.tweens.add({ targets: this.savedText, alpha: 0, delay: 1400, duration: 700 });
@@ -348,6 +364,14 @@ export class HudScene extends Phaser.Scene {
     const cx = this.inventory.isOpen && !this.s.viewport.isPortrait ? Math.max(150, (this.s.viewport.insets.left + pb.x) / 2) : vw / 2;
     this.actionBar.update(act ? act.label : null, sv?.runner.progress ?? 0, !!sv?.sleeping, clock ? timeText(clock.minuteOfDay, true) : '', cx);
     this.inventory.tick(dt);
+    const handDef = inv?.handDef;
+    this.controls.setReloadVisible(!!handDef?.gun);
+    if (handDef?.gun && this.controls.isTouchMode) {
+      const b = this.controls.attack;
+      this.ammoText.setText(`${inv?.hand?.st?.am ?? 0}/${handDef.gun.capacity}`).setPosition(b.x, b.y + b.radius + 9).setScale(uiScaleFor(this.s.viewport.cssWidth, this.s.viewport.cssHeight)).setVisible(true);
+    } else if (handDef?.gun) {
+      this.ammoText.setText(`${handDef.name}: ${inv?.hand?.st?.am ?? 0}/${handDef.gun.capacity} · F atira · R recarrega`).setPosition(this.s.viewport.cssWidth / 2, this.s.viewport.cssHeight - 58).setVisible(true);
+    } else this.ammoText.setVisible(false);
     const target = this.s.session.interaction;
     if (!this.paused) this.controls.update(stats ? !stats.canSprint() : false, target ? target.enabled : null, this.inventory.isOpen);
     this.updatePrompt();

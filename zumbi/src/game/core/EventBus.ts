@@ -32,6 +32,12 @@ export interface GameEvents {
   'loot:take': { index: number; all?: boolean };
   /** Painel: executar a ação `action` no item em `loc` (ver interaction/itemActions). */
   'item:action': { loc: import('../interaction/itemActions/types').ItemWhere; action: string };
+  /** Atacar (golpe ou tiro) para onde o jogador olha. */
+  'input:attack': Record<string, never>;
+  /** Recarregar a arma da mão. */
+  'input:reload': Record<string, never>;
+  /** Abrir o mapa da cidade (item mapa). */
+  'ui:map': { annotated: boolean };
   /** Pedido do menu "⋯" (botão ou tecla Q): a cena monta `session.options`. */
   'interaction:options': Record<string, never>;
   /** Escolha no menu "⋯". */

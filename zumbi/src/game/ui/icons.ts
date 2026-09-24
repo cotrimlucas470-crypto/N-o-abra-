@@ -99,3 +99,29 @@ export function iconDots(g: G, x: number, y: number, r: number, color: number, a
   g.fillStyle(color, alpha);
   for (const dx of [-0.5, 0, 0.5]) g.fillCircle(x + dx * r, y, r * 0.14);
 }
+
+/** Golpe (lâmina em diagonal com rastro). */
+export function iconAttack(g: G, x: number, y: number, r: number, color: number, alpha = 1): void {
+  const u = r / 10;
+  g.lineStyle(2.4 * u, color, alpha);
+  g.lineBetween(x - 5 * u, y + 5 * u, x + 5.5 * u, y - 5.5 * u);
+  g.lineStyle(1.6 * u, color, alpha);
+  g.lineBetween(x - 6.5 * u, y + 2.5 * u, x - 2.5 * u, y + 6.5 * u);
+  g.lineStyle(1.2 * u, color, alpha * 0.6);
+  g.beginPath();
+  g.arc(x - 1 * u, y + 1 * u, 7.5 * u, -2.4, -0.6);
+  g.strokePath();
+}
+
+/** Recarregar (seta em círculo). */
+export function iconReload(g: G, x: number, y: number, r: number, color: number, alpha = 1): void {
+  const u = r / 10;
+  g.lineStyle(1.8 * u, color, alpha);
+  g.beginPath();
+  g.arc(x, y, 5.5 * u, -2.6, 2.0);
+  g.strokePath();
+  const ax = x + Math.cos(2.0) * 5.5 * u;
+  const ay = y + Math.sin(2.0) * 5.5 * u;
+  g.fillStyle(color, alpha);
+  g.fillTriangle(ax - 3 * u, ay - 1 * u, ax + 2.4 * u, ay - 2.6 * u, ax + 0.6 * u, ay + 2.8 * u);
+}

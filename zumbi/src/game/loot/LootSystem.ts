@@ -160,10 +160,80 @@ export class LootSystem {
     const table = ref.table ? lootTable(ref.table) : null;
     if (table) {
       const rng = new Random(hashString(`${this.seed}:loot:${id}`));
-      for (const s of generateLoot(table, rng, { capacity: ref.capacity, settings: this.settings })) c.add(s.defId, s.count, s.st);
+      for (const s of generateLoot(table, rng, { capacity: ref.capacity, settings: this.settings })) {
+        // Chave encontrada abre algo de verdade por perto (a casa vizinha, o carro da garagem).
+        const key = s.defId === 'chaveCasa' || s.defId === 'chaveCarro' ? this.keyTarget(s.defId, ref) : undefined;
+        c.add(s.defId, s.count, key ? { ...(s.st ?? {}), key } : s.st);
+      }
     }
     this.contents.set(id, c);
     return c;
+  }
+
+  /**
+   * O objeto do mapa foi destruído/desmontado: seus recipientes somem e o
+   * conteúdo (gerado agora, se ninguém tinha aberto) é devolvido para cair no chão.
+   */
+  removeForProp(propId: string, keepContents = true): { defId: string; count: number; st?: ItemContainer['stacks'][number]['st'] }[] {
+    const out: { defId: string; count: number; st?: ItemContainer['stacks'][number]['st'] }[] = [];
+    for (const [id, ref] of [...this.refs]) {
+      if (id !== propId && !id.startsWith(`${propId}:`)) continue;
+      if (keepContents) {
+        const c = this.peek(id, true);
+        for (const st of c?.stacks ?? []) out.push(st.st ? { defId: st.defId, count: st.count, st: { ...st.st } } : { defId: st.defId, count: st.count });
+      }
+      this.refs.delete(id);
+      this.contents.delete(id);
+      this.touched.delete(id);
+      this.searched.delete(id);
+      const k = this.model.index.chunkOfPoint(ref.x, ref.y);
+      const list = this.byChunk.get(k);
+      if (list) this.byChunk.set(k, list.filter((r) => r.id !== id));
+    }
+    return out;
+  }
+
+  /** Recipiente novo em jogo (baú construído, porta-malas de carro...). */
+  addRef(ref: ContainerRef, contents?: ItemContainer): void {
+    this.refs.set(ref.id, ref);
+    const k = this.model.index.chunkOfPoint(ref.x, ref.y);
+    const list = this.byChunk.get(k) ?? [];
+    list.push(ref);
+    this.byChunk.set(k, list);
+    if (contents) {
+      this.contents.set(ref.id, contents);
+      this.touched.add(ref.id);
+    }
+  }
+
+  /** O que uma chave achada neste recipiente abre: casa mais perto (outra) ou carro mais perto. */
+  private keyTarget(defId: string, ref: ContainerRef): string | undefined {
+    const map = this.model.map;
+    let best: string | undefined;
+    let bd = Infinity;
+    if (defId === 'chaveCasa') {
+      for (const b of map.buildings) {
+        if (b.kind !== 'house') continue;
+        const r = b.bounds;
+        const inside = ref.x >= r.x && ref.x < r.x + r.w && ref.y >= r.y && ref.y < r.y + r.h;
+        if (inside) continue;
+        const d = Math.hypot(r.x + r.w / 2 - ref.x, r.y + r.h / 2 - ref.y);
+        if (d < bd) {
+          bd = d;
+          best = b.id;
+        }
+      }
+    } else {
+      for (const p of map.props) {
+        if (p.type !== 'car' && p.type !== 'van') continue;
+        const d = Math.hypot(p.x - ref.x, p.y - ref.y);
+        if (d < bd) {
+          bd = d;
+          best = p.id;
+        }
+      }
+    }
+    return best;
   }
 
   isSearched(id: string): boolean {

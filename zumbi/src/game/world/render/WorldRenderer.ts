@@ -67,6 +67,11 @@ export interface ChunkListener {
   unload(key: number): void;
 }
 
+/** Mudanças do jogador no mundo que o desenho precisa respeitar. */
+export interface WorldEdits {
+  isPropRemoved(id: string): boolean;
+}
+
 export interface ViewRect {
   x: number;
   y: number;
@@ -89,6 +94,7 @@ export class WorldRenderer {
     private readonly world: WorldModel,
     private readonly assets: AssetRegistry,
     bus: EventBus,
+    private readonly edits: WorldEdits | null = null,
   ) {
     this.roofs = new RoofSystem(scene, assets, bus, this.shadows, this.culler, (x, y) => world.index.buildingsNear(x, y));
     this.solids = scene.physics.add.staticGroup();
@@ -213,6 +219,13 @@ export class WorldRenderer {
     this.loaded.delete(key);
   }
 
+  /** Recria um chunk carregado (objeto quebrado/removido ou construído). */
+  refreshChunk(key: number): void {
+    if (!this.loaded.has(key)) return;
+    this.unloadChunk(key);
+    this.loadChunk(key);
+  }
+
   private unloadAll(): void {
     for (const key of [...this.loaded.keys()]) this.unloadChunk(key);
   }
@@ -250,6 +263,7 @@ export class WorldRenderer {
 
   private buildProp(lc: LoadedChunk, i: number): void {
     const p = this.world.map.props[i]!;
+    if (this.edits?.isPropRemoved(p.id)) return;
     const def: PropDef = PROP_DEFS[p.type];
     const id = def.sprites[p.variant] ?? def.sprites[0]!;
     const ref = this.assets.ref(id);

@@ -4,7 +4,6 @@
  * próximos dias. Dormir com alarme também fica aqui.
  */
 import type { GameServices } from '../../core/Services';
-import { charge } from '../../items/condition';
 import { MONTHS, SEASON_LABEL, WEEKDAYS, periodOf } from '../../sim/Calendar';
 import { SKY_LABEL } from '../../sim/Weather';
 import type { PanelAction } from '../panel/ActionButtons';
@@ -29,12 +28,10 @@ export function windText(w: number): string {
 export class TimeTab implements ListSource {
   constructor(private readonly s: GameServices) {}
 
+  /** Ouviu o boletim hoje (ou ontem à noite)? */
   private radio(): boolean {
-    const inv = this.s.session.inventory;
-    if (!inv) return false;
-    for (const x of inv.stacks()) if (x.def.tags.includes('radio') && charge(x.def, x.stack.st) > 0.02) return true;
-    const h = inv.handDef;
-    return !!h?.tags.includes('radio') && charge(h, inv.hand?.st) > 0.02;
+    const sv = this.s.session.survival;
+    return !!sv && sv.radioDay >= sv.clock.day - 1 && sv.radioDay > 0;
   }
 
   rows(): ListRow[] {
@@ -61,7 +58,7 @@ export class TimeTab implements ListSource {
         const dd = sv.calendar.dateOf(c.dayIndex + d);
         rows.push({ kind: 'text', text: `${d === 1 ? 'Amanhã' : WEEKDAYS[dd.weekday]}: ${f.min}–${f.max} °C · ${SKY_LABEL[f.sky]}${f.rainHours > 0 ? ` · chuva ~${f.rainHours} h` : ''}` });
       }
-    } else rows.push({ kind: 'text', text: 'Sem rádio, sem previsão. Um rádio com pilha ainda pega o boletim.' });
+    } else rows.push({ kind: 'text', text: 'Sem previsão. Um rádio com pilha (OUVIR) ainda pega o boletim.' });
     return rows;
   }
 

@@ -13,6 +13,7 @@ import { SLOT_LABEL, WEAR_SLOTS } from '../../items/PlayerInventory';
 import type { PanelAction } from '../panel/ActionButtons';
 import type { ListDetail, ListRow, ListSource } from '../panel/ListView';
 import { UI } from '../theme';
+import { SKILLS, SKILL_LABEL } from '../../skills/Skills';
 
 const GOOD = 0x7fc86a;
 const WARN = 0xe0a040;
@@ -93,6 +94,13 @@ export class BodyTab implements ListSource {
       rows.push({ kind: 'line', id: `worn:${slot}`, icon: d.icon, text: d.name, right: SLOT_LABEL[slot], mark: worst(d.id, w.st, this.s.session.nowDays()) });
     }
     if (!any) rows.push({ kind: 'text', text: 'Sem roupa nenhuma. No frio, isso mata.' });
+
+    rows.push({ kind: 'header', text: 'Habilidades' });
+    const sk = sv.survivor.skills;
+    for (const id of SKILLS) {
+      const lvl = sk.level(id);
+      rows.push({ kind: 'bar', label: SKILL_LABEL[id], value: (lvl + sk.progress(id)) / 5, text: `nível ${lvl}`, color: 0x6fb1e8 });
+    }
     return rows;
   }
 

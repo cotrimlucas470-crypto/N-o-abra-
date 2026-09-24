@@ -7,6 +7,7 @@
  */
 import { Health } from '../health/Health';
 import { PART_INFO } from '../health/Wounds';
+import { Skills } from '../skills/Skills';
 import { Flag, charge, type ItemState } from '../items/condition';
 import { itemDef } from '../items/ItemCatalog';
 import type { PlayerInventory } from '../items/PlayerInventory';
@@ -43,6 +44,8 @@ export class Survivor {
   readonly body: Body;
   /** Ferimentos por parte do corpo (sangramento, infecção, dor, cura). */
   readonly health = new Health();
+  /** Habilidades (praticando e lendo). */
+  readonly skills = new Skills();
   injuries: InjuryModel | null = this.health;
   private cached: PhysicalEffects | null = null;
 

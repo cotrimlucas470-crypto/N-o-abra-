@@ -41,6 +41,11 @@ import { BODY_PARTS, type WoundKind } from '../health/Wounds';
 import { SurvivalLoop } from '../survival/SurvivalLoop';
 import { Survivor } from '../survival/Survivor';
 import { Atmosphere, type LightSource } from '../world/render/Atmosphere';
+import { Combat, type AttackResult } from '../combat/Combat';
+import { CombatFx } from '../world/render/CombatFx';
+import { WindowViews } from '../world/render/WindowViews';
+import { ToolInteractions, WindowInteractions, type WorldActionHooks } from '../interaction/ToolInteractions';
+import type { SkillsSave } from '../skills/Skills';
 import { DoorViews } from '../world/render/DoorViews';
 import { InteractionHighlight } from '../world/render/InteractionHighlight';
 import { ItemViews } from '../world/render/ItemViews';
@@ -83,6 +88,9 @@ export class GameScene extends Phaser.Scene {
   private atmosphere!: Atmosphere;
   private itemUse!: ItemUse;
   private hazards!: Hazards;
+  private combat!: Combat;
+  private combatFx!: CombatFx;
+  private attackCooldown = 0;
   private options: InteractionOption[] = [];
   private readonly lightSources: LightSource[] = [];
   private scanTimer = 0;
@@ -105,7 +113,11 @@ export class GameScene extends Phaser.Scene {
     this.model = new WorldModel(buildCity({ ...s.settings.world, ambience: s.settings.nature.density }));
     if (DEBUG.enabled) console.info(`[mundo] cidade ${s.settings.world.sectorsX}x${s.settings.world.sectorsY} gerada em ${Math.round(performance.now() - t0)} ms`);
     const map = this.model.map;
-    this.world = new WorldRenderer(this, this.model, assets, s.bus);
+    // Estado do mundo antes do desenho: portas, itens, recipientes e objetos
+    // quebrados já nascem no estado salvo.
+    this.state = new WorldState(this.model, { loot: s.settings.loot, nature: s.settings.nature });
+    if (load) this.state.restore(load.world);
+    this.world = new WorldRenderer(this, this.model, assets, s.bus, { isPropRemoved: (id) => this.state.isPropRemoved(id) });
     this.physics.world.setBounds(0, 0, this.world.widthPx, this.world.heightPx);
 
     this.player = new Player(this, map.spawn.x, map.spawn.y, assets, s.bus, this.world.shadows, s.settings.player);
@@ -115,10 +127,6 @@ export class GameScene extends Phaser.Scene {
     if (load) this.clock.restore(load.clock);
     s.session.clock = this.clock;
 
-    // Estado do mundo + o que o jogador carrega. Restaurados ANTES de criar os
-    // desenhos: portas, itens e recipientes já nascem no estado salvo.
-    this.state = new WorldState(this.model, { loot: s.settings.loot, nature: s.settings.nature });
-    if (load) this.state.restore(load.world);
     this.inventory = new PlayerInventory();
     if (load) this.inventory.restore(load.inventory);
     else for (const id of STARTING_OUTFIT) this.inventory.putOn(id);
@@ -130,6 +138,8 @@ export class GameScene extends Phaser.Scene {
     if (load) {
       this.survivor.body.restore(load.body);
       this.survivor.health.restore(load.modules?.['health'] as HealthSave | undefined);
+      this.survivor.skills.restore(load.modules?.['skills'] as SkillsSave | undefined);
+      if (typeof load.modules?.['radioDay'] === 'number') this.loop.radioDay = load.modules['radioDay'] as number;
       this.player.restore(load.player);
     }
     const calendar = new Calendar({ month: s.settings.time.startMonth, day: s.settings.time.startDayOfMonth });
@@ -156,13 +166,41 @@ export class GameScene extends Phaser.Scene {
       hooks: {
         noise: (radius, source) => s.bus.emit('world:noise', { x: this.player.x, y: this.player.y, radius, source }),
         drop: (defId, count, st) => this.lootActions.dropLoose(defId, count, st, this.player.x, this.player.y),
+        reload: () => this.combat.reload(this.survivor.skills.speed('armas') * this.loop.effects.actionTime),
+        unjam: () => this.combat.unjam(),
+        light: () => this.lightLevel(),
+        radioHeard: () => (this.loop.radioDay = this.clock.day),
+        time: () => ({ minuteOfDay: this.clock.minuteOfDay, day: this.clock.day }),
+        show: (kind, data) => {
+          if (kind === 'mapa') s.bus.emit('ui:map', { annotated: !!(data as { annotated?: boolean } | undefined)?.annotated });
+        },
       },
     });
     s.session.itemUse = this.itemUse;
     this.hazards = new Hazards(this.state, this.survivor, this.inventory);
+    this.combat = new Combat(this.state, this.survivor, this.inventory, {
+      stamina: () => this.player.stats.stamina,
+      spendStamina: (n) => this.player.stats.spend(n),
+    });
+    const worldHooks: WorldActionHooks = {
+      start: (spec) => this.loop.start(spec),
+      drop: (items, x, y) => {
+        for (const it of items) this.lootActions.dropLoose(it.defId, it.count, it.st, x, y);
+      },
+      noise: (x, y, radius, source) => s.bus.emit('world:noise', { x, y, radius, source }),
+      moveTo: (x, y) => this.teleport(x, y),
+      now: nowDays,
+    };
+    const tools = new ToolInteractions(this.state, this.inventory, this.survivor, worldHooks);
+    const windows = new WindowInteractions(this.state, this.inventory, this.survivor, worldHooks);
+    // Objeto quebrado/removido: o chunk é redesenhado (colisão e desenho somem juntos).
+    const offProps = this.state.onChange((c) => {
+      if (c.type === 'prop' && c.removed) this.world.refreshChunk(this.model.index.chunkOfPoint(c.x, c.y));
+    });
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, offProps);
     const playerBody = this.interactor;
     this.interaction = new InteractionSystem([
-      new DoorInteractions(this.state, s.bus, () => [playerBody]),
+      new DoorInteractions(this.state, s.bus, () => [playerBody], (d, who) => tools.doorOptions(d, who)),
       this.itemActions,
       new ContainerInteractions(this.state, s.bus),
       new NatureInteractions(this.state, this.inventory, nowDays),
@@ -177,7 +215,11 @@ export class GameScene extends Phaser.Scene {
         },
       }),
     ]);
+    this.interaction.add(tools);
+    this.interaction.add(windows);
     this.highlight = new InteractionHighlight(this);
+    new WindowViews(this, this.state, this.world);
+    this.combatFx = new CombatFx(this);
     this.atmosphere = new Atmosphere(this, this.world.shadows);
 
     const cam = this.cameras.main;
@@ -193,6 +235,9 @@ export class GameScene extends Phaser.Scene {
     this.keyboardMouse = new KeyboardMouseInput(this);
     this.input.keyboard?.on('keydown-E', () => this.interact());
     this.input.keyboard?.on('keydown-Q', () => this.requestOptions());
+    this.input.keyboard?.on('keydown-F', () => this.attack());
+    this.input.keyboard?.on('keydown-SPACE', () => this.attack());
+    this.input.keyboard?.on('keydown-R', () => this.reload());
 
     // Depois da física: alinhar visuais, câmera e mundo com a posição final do frame.
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, this.afterPhysics, this);
@@ -216,6 +261,8 @@ export class GameScene extends Phaser.Scene {
         if (why) this.outcome({ ok: false, message: why, tone: 'warn' });
       }),
       s.bus.on('health:treat', (e) => this.treat(e.wound, e.option)),
+      s.bus.on('input:attack', () => this.attack()),
+      s.bus.on('input:reload', () => this.reload()),
       s.bus.on('game:save-request', () => this.save()),
       s.bus.on('game:paused', () => this.save()),
     ];
@@ -265,6 +312,7 @@ export class GameScene extends Phaser.Scene {
     this.player.stats.setBodyEffects(fx);
     this.player.update(this.dt, intent);
 
+    this.attackCooldown = Math.max(0, this.attackCooldown - delta / 1000);
     this.autosaveTimer -= delta / 1000;
     if (this.autosaveTimer <= 0 && !this.loop.runner.active) this.save();
   }
@@ -277,6 +325,8 @@ export class GameScene extends Phaser.Scene {
     this.world.update(this.cameras.main, this.player.x, this.player.y, this.dt);
     this.doors.update(this.dt);
     this.nature.update(this.dt);
+    this.updateHeldLight();
+    this.combatFx.update(this.dt);
     this.atmosphere.update(this.dt, this.cameras.main, {
       minuteOfDay: this.clock.minuteOfDay,
       weather: this.loop.weather,
@@ -292,6 +342,44 @@ export class GameScene extends Phaser.Scene {
     }
     this.highlight.update(this.dt);
     this.debugLayer?.update(this.player.x, this.player.y, this.dt);
+  }
+
+  /** Vela acesa na mão: luz em volta do jogador (tremendo). */
+  private updateHeldLight(): void {
+    this.lightSources.length = 0;
+    const h = this.inventory.hand;
+    if (h?.defId === 'vela' && h.st?.on) this.lightSources.push({ x: this.player.x, y: this.player.y, radius: 190, intensity: 0.85, flicker: true });
+  }
+
+  /** Luz em volta do jogador (0 breu .. 1 dia): para ler. */
+  private lightLevel(): number {
+    const lit = !!this.flashlight() || this.lightSources.length > 0;
+    return Math.max(1 - this.atmosphere.darkness, lit ? 0.85 : 0);
+  }
+
+  // ---------------------------------------------------------------- combate
+
+  /** Botão Atacar / F / espaço: golpe ou tiro para onde o jogador olha. */
+  attack(): void {
+    if (this.s.session.paused || this.attackCooldown > 0 || this.loop.sleeping) return;
+    if (this.loop.runner.active) this.loop.cancelAction();
+    const gun = !!this.inventory.handDef?.gun;
+    const r: AttackResult = gun ? this.combat.shoot(this.player.x, this.player.y, this.player.facingAngle) : this.combat.melee(this.player.x, this.player.y, this.player.facingAngle);
+    this.attackCooldown = r.cooldown;
+    if (r.swing) this.combatFx.swing(r.swing.x, r.swing.y, r.swing.angle, r.swing.reach);
+    if (r.tracer) this.combatFx.shot(r.tracer.x1, r.tracer.y1, r.tracer.x2, r.tracer.y2);
+    if (r.hit) this.combatFx.impact(r.hit.x, r.hit.y, r.hit.hp, r.hit.max);
+    if (r.noise) this.s.bus.emit('world:noise', r.noise);
+    for (const d of r.drops ?? []) this.lootActions.dropLoose(d.defId, d.count, d.st, d.x, d.y);
+    if (r.message) this.outcome({ ok: r.ok, message: r.message, ...(r.tone ? { tone: r.tone } : {}) });
+    this.scanInteraction();
+  }
+
+  reload(): void {
+    if (this.s.session.paused) return;
+    const r = this.combat.reload(this.survivor.skills.speed('armas') * this.loop.effects.actionTime);
+    if (typeof r === 'string') this.outcome({ ok: false, message: r, tone: 'warn' });
+    else this.loop.start(r);
   }
 
   /** Lanterna ligada na mão ou na cabeça: facho para onde o jogador olha. */
@@ -433,7 +521,7 @@ export class GameScene extends Phaser.Scene {
       body: this.survivor.body.snapshot(),
       inventory: this.inventory.serialize(),
       world: this.state.serialize(),
-      modules: { health: this.survivor.health.serialize() },
+      modules: { health: this.survivor.health.serialize(), skills: this.survivor.skills.serialize(), radioDay: this.loop.radioDay },
     };
   }
 
@@ -544,6 +632,8 @@ export class GameScene extends Phaser.Scene {
       clock: this.clock,
       atmosphere: () => ({ darkness: this.atmosphere.darkness }),
       itemUse: this.itemUse,
+      combat: this.combat,
+      attack: () => this.attack(),
       save: () => this.save(),
       interaction: () => this.interaction.current,
       interact: () => this.interact(),

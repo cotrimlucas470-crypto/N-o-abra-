@@ -38,6 +38,8 @@ export interface SurvivalHooks {
 export class SurvivalLoop {
   weather: WeatherSample;
   sheltered = true;
+  /** Dia em que ouviu o boletim no rádio (libera a previsão). */
+  radioDay = -1;
   private sleepInfo: SleepInfo | null = null;
   private weatherAt = -1;
 

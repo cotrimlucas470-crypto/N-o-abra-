@@ -7,6 +7,7 @@ import { charge, doses, drinkEffect, foodEffect, isBroken } from '../../items/co
 import type { ItemDef } from '../../items/ItemTypes';
 import { BAG_ID } from '../../items/PlayerInventory';
 import { consumeOne, findTagged, setState } from './access';
+import { lightSource } from './gear';
 import { fail, ok, type ItemActionContext, type ItemActionDef, type ItemResult } from './types';
 
 const inPockets = (c: ItemActionContext) => c.loc.where === 'inv';
@@ -161,16 +162,24 @@ export const BASIC_ACTIONS: ItemActionDef[] = [
   // ---------------------------------------------------------------- aparelhos
   {
     id: 'ligar',
-    label: (c) => (c.st?.on ? 'DESLIGAR' : 'LIGAR'),
+    label: (c) => (c.def.id === 'vela' ? (c.st?.on ? 'APAGAR' : 'ACENDER') : c.st?.on ? 'DESLIGAR' : 'LIGAR'),
     order: 15,
     when: (c) => !!c.def.power && (c.def.tags.includes('luz') || c.def.tags.includes('radio')) && (c.loc.where === 'hand' || c.loc.where === 'worn'),
-    can: (c) => (c.st?.on || charge(c.def, c.st) > 0.01 ? (isBroken(c.def, c.st) ? 'Quebrado.' : true) : 'Sem carga.'),
+    can: (c) => {
+      if (c.st?.on) return true;
+      if (charge(c.def, c.st) <= 0.01) return c.def.id === 'vela' ? 'Vela no fim.' : 'Sem carga.';
+      if (isBroken(c.def, c.st)) return 'Quebrado.';
+      if (c.def.id === 'vela' && !findTagged(c, 'acender', (st) => (st?.ch ?? 1) > 0.02)) return 'Precisa de isqueiro ou fósforo.';
+      return true;
+    },
     run: (c) => {
       const on = !c.st?.on;
+      if (on && c.def.id === 'vela') lightSource(c);
       const next = { ...(c.st ?? {}) };
       if (on) next.on = 1;
       else delete next.on;
       setState(c, next);
+      if (c.def.id === 'vela') return ok(on ? 'Vela acesa.' : 'Vela apagada.', 'info');
       return ok(on ? `${c.def.name}: ligado` : `${c.def.name}: desligado`, 'info');
     },
   },

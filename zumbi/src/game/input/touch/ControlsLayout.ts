@@ -21,7 +21,7 @@ export interface ControlPlacement {
 }
 
 /** Controles existentes hoje. Ataque, recarregar etc. entram aqui nas próximas etapas. */
-export type ControlId = 'moveStick' | 'aimStick' | 'sprint' | 'interact' | 'options' | 'inventory' | 'pause' | 'fullscreen';
+export type ControlId = 'moveStick' | 'aimStick' | 'sprint' | 'interact' | 'options' | 'attack' | 'reload' | 'inventory' | 'pause' | 'fullscreen';
 
 export interface ControlsLayoutData {
   version: 1;
@@ -38,6 +38,8 @@ export const DEFAULT_LAYOUT: ControlsLayoutData = {
     sprint: { anchor: 'bottom-right', x: 262, y: 70, size: 32 },
     interact: { anchor: 'bottom-right', x: 250, y: 168, size: 34 },
     options: { anchor: 'bottom-right', x: 204, y: 224, size: 19 },
+    attack: { anchor: 'bottom-right', x: 130, y: 236, size: 26 },
+    reload: { anchor: 'bottom-right', x: 184, y: 290, size: 17 },
     inventory: { anchor: 'bottom-right', x: 46, y: 246, size: 25 },
     pause: { anchor: 'top-right', x: 34, y: 34, size: 22 },
     fullscreen: { anchor: 'top-right', x: 88, y: 34, size: 22 },
@@ -46,6 +48,8 @@ export const DEFAULT_LAYOUT: ControlsLayoutData = {
     sprint: { anchor: 'bottom-right', x: 70, y: 250, size: 32 },
     interact: { anchor: 'bottom-right', x: 152, y: 250, size: 34 },
     options: { anchor: 'bottom-right', x: 152, y: 322, size: 21 },
+    attack: { anchor: 'bottom-right', x: 232, y: 250, size: 28 },
+    reload: { anchor: 'bottom-right', x: 232, y: 322, size: 20 },
     inventory: { anchor: 'bottom-right', x: 70, y: 332, size: 25 },
   },
 };
