@@ -1,6 +1,6 @@
 /**
  * Flags de depuração lidas da URL:
- *   ?debug        -> mostra FPS e informações
+ *   ?debug ou #debug -> painel de debug, FPS e informações
  *   ?debug=fisica -> também desenha os corpos de colisão
  */
 function readFlags() {
@@ -10,7 +10,15 @@ function readFlags() {
   } catch {
     params = new URLSearchParams();
   }
-  const debug = params.get('debug');
+  let hash = '';
+  try {
+    hash = globalThis.location?.hash ?? '';
+  } catch {
+    hash = '';
+  }
+  // "#debug" também liga o debug: alguns visualizadores (ex.: o link do Claude)
+  // não repassam o "?..." da URL, só o "#".
+  const debug = params.get('debug') ?? (hash === '#debug' ? '' : null);
   return {
     enabled: debug !== null,
     physics: debug === 'fisica' || debug === 'physics',

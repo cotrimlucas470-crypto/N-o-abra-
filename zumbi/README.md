@@ -32,7 +32,7 @@ Há três caminhos, do mais rápido ao mais completo:
 | Botão com o bonequinho: correr (liga/desliga) | Shift |
 | ⏸ pausa · ⛶ tela cheia | Esc ou P pausa |
 
-Parâmetros úteis na URL: `?debug` (painel **DBG**: colisões, navegação, chunks, visão/rota, mapa com
+Parâmetros úteis na URL: `?debug` ou `#debug` no fim do link (painel **DBG**: colisões, navegação, chunks, visão/rota, mapa com
 teleporte, hora), `?direto` (pula a tela de título), `?toque` (força os controles de toque no PC),
 `?setores=1x1` (cidade menor), `?semente=42` (outra cidade), `?hora=20` (começa às 20h).
 

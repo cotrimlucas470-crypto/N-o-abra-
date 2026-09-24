@@ -279,7 +279,8 @@ try {
   // ---------------------------------------------------------------- celular em pé
   {
     const { ctx, page, errors } = await mobilePage(390, 844);
-    await page.goto(BASE + '?debug&direto');
+    // "#debug" (sem "?"): é assim que o debug liga pelo link do Claude
+    await page.goto(BASE + '?direto#debug');
     await waitGame(page);
     await page.screenshot({ path: OUT + '11-retrato.png' });
     check(errors.length === 0, `retrato sem erros (${errors.length}) ${errors.slice(0, 3).join(' | ')}`);
