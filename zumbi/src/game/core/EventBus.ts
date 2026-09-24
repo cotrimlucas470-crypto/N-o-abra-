@@ -22,6 +22,20 @@ export interface GameEvents {
   'input:touch-detected': Record<string, never>;
   /** Pedido de interagir (botão de toque ou tecla E). */
   'input:interact': Record<string, never>;
+  /** Um recipiente do mundo foi aberto: o HUD mostra o conteúdo ao lado do inventário. */
+  'ui:container-open': { id: string };
+  /** O recipiente aberto saiu do alcance (ou foi fechado). */
+  'ui:container-close': Record<string, never>;
+  /** O conteúdo do recipiente aberto mudou (o painel redesenha). */
+  'ui:container-refresh': Record<string, never>;
+  /** Painel: pegar a pilha `index` do recipiente aberto (ou tudo). */
+  'loot:take': { index: number; all?: boolean };
+  /** Painel: guardar a pilha do jogador no recipiente aberto. */
+  'loot:store': { containerId: string; index: number };
+  /** Painel: usar (comer, beber, curar, vestir) a pilha do jogador. */
+  'inventory:use': { containerId: string; index: number };
+  /** Painel: tirar a mochila (vazia). */
+  'inventory:unequip': Record<string, never>;
   /** Pedido de largar itens de um recipiente do jogador (painel de inventário). */
   'inventory:drop': { containerId: string; index: number; count: number };
   'viewport:changed': { cssWidth: number; cssHeight: number; dpr: number };

@@ -113,6 +113,26 @@ Precisam repetir sem emenda (as bordas se encaixam). Mesmo tamanho do procedural
 | `workbench` | `prop.workbench` | 152 × 54 | object |
 | `toolShelf` | `prop.toolshelf` | 132 × 42 | object |
 | `cabinet` | `prop.cabinet` | 52 × 42 | object |
+| `treeApple` | `prop.tree.apple` | 150 × 150 | overhead |
+| `treeOrange` | `prop.tree.orange` | 150 × 150 | overhead |
+| `treeMango` | `prop.tree.mango` | 230 × 230 | overhead |
+| `treeLemon` | `prop.tree.lemon` | 120 × 120 | overhead |
+| `treeGuava` | `prop.tree.guava` | 140 × 140 | overhead |
+| `treeAvocado` | `prop.tree.avocado` | 210 × 210 | overhead |
+| `treeJabuticaba` | `prop.tree.jabuticaba` | 130 × 130 | overhead |
+| `treeBanana` | `prop.tree.banana` | 150 × 150 | overhead |
+| `treeBroad` | `prop.tree.broad.a`, `prop.tree.broad.b` | 190 × 190 | overhead |
+| `treeYoung` | `prop.tree.young` | 96 × 96 | overhead |
+| `treePine` | `prop.tree.pine.a`, `prop.tree.pine.b` | 160 × 160 | overhead |
+| `treeDead` | `prop.tree.dead.a`, `prop.tree.dead.b` | 150 × 150 | overhead |
+| `treePalm` | `prop.tree.palm` | 170 × 170 | overhead |
+| `bushBerry` | `prop.bush.berry` | 74 × 64 | object |
+| `bushFlower` | `prop.bush.flower.a`, `prop.bush.flower.b` | 70 × 62 | object |
+| `bushRound` | `prop.bush.round` | 60 × 56 | object |
+| `rock` | `prop.rock.a`, `prop.rock.b` | 70 × 56 | object |
+| `stump` | `prop.stump` | 50 × 50 | object |
+| `fallenLog` | `prop.log` | 150 × 40 | object |
+| `scrapPile` | `prop.scrap` | 90 × 70 | object |
 
 | Decalque | ids de sprite | tamanho (px) |
 |---|---|---|
@@ -131,6 +151,21 @@ Precisam repetir sem emenda (as bordas se encaixam). Mesmo tamanho do procedural
 | `glass` | `decal.glass` | 62 × 52 |
 | `treePit` | `decal.treepit` | 80 × 80 |
 | `planks` | `decal.planks` | 60 × 60 |
+| `grass` | `decal.grass.a`, `decal.grass.b`, `decal.grass.c` | 44 × 38 |
+| `flowers` | `decal.flowers.red`, `.yellow`, `.white`, `.purple` | 52 × 46 |
+| `pebbles` | `decal.pebbles` | 44 × 34 |
+| `litter` | `decal.litter.a`, `decal.litter.b` | 56 × 44 |
+| `weeds` | `decal.weeds.a`, `decal.weeds.b` | 70 × 56 |
+
+### Frutas nas copas e recursos no chão
+
+As frutíferas são desenhadas **sem fruta**; os frutos são uma camada por cima, do mesmo tamanho da árvore,
+que muda conforme a colheita: `fruit.<tipo>` (carregada) e `fruit.<tipo>.few` (poucas), com
+`<tipo>` = `apple`, `orange`, `mango`, `lemon`, `guava`, `avocado`, `jabuticaba`, `banana`, `berry`
+(o último no arbusto de amoras). Sem fruta, some a camada.
+
+Montes no chão (56 × 56): `res.branches` (galhos), `res.stones` (pedras), `res.mushrooms` (cogumelos),
+`res.mushrooms.bad` (cogumelos venenosos: parecidos, com pintas).
 
 Camadas: `floor` = no chão, pisável · `object` = sólido · `overhead` = acima do jogador (copa de árvore, braço de poste).
 
@@ -141,9 +176,14 @@ Objetos do telhado: `roof.ac` (62 × 52), `roof.vent` (30 × 30).
 Todos 48 × 48 (aparecem com ~30 px no chão, levemente girados, e maiores no inventário). Fundo transparente;
 uma sombra curta embaixo ajuda o item a "descolar" do chão.
 
-`item.agua`, `item.refrigerante`, `item.feijao`, `item.biscoito`, `item.atadura`, `item.analgesico`,
-`item.lanterna`, `item.pilhas`, `item.martelo`, `item.chaveFenda`, `item.peDeCabra`, `item.faca`,
-`item.pregos`, `item.tabua`, `item.fita`.
+O id é sempre `item.<id do catálogo>` (371 itens; a lista completa está em `src/game/items/catalog/`).
+Exemplos: `item.agua`, `item.feijao`, `item.maca`, `item.manga`, `item.martelo`, `item.pistola9`,
+`item.municao38`, `item.mochilaTrilha`, `item.atadura`, `item.radio`.
+
+Os 15 itens originais têm desenho feito à mão (`procedural/items.ts`). Os outros são **paramétricos**
+(`procedural/itemIcons/`): cada item diz a família do desenho e as cores no campo `iconSpec`
+(lata, garrafa, fruta, ferramenta, arma, roupa, livro, remédio...), então item novo quase nunca precisa de
+desenho novo. Um PNG no `overrides.json` substitui qualquer um.
 
 Portas e portões são desenhados por código (retângulos na cor do material) e não têm id de sprite ainda.
 
@@ -155,5 +195,6 @@ Portas e portões são desenhados por código (retângulos na cor do material) e
   pequenas, o que ajuda o celular.
 - Para **acrescentar** um objeto: nova entrada em `world/PropCatalog.ts` + desenho em `procedural/props.ts`
   (ou só o PNG no overrides.json). O teste avisa se faltar desenho.
-- Para **acrescentar** um item: entrada em `items/ItemCatalog.ts` + desenho em `procedural/items.ts`
-  (ou só o PNG `item.<id>` no overrides.json).
+- Para **acrescentar** um item: linha no arquivo da categoria em `items/catalog/` com um `iconSpec` de
+  família existente (ou desenho próprio em `procedural/items.ts`, ou só o PNG `item.<id>` no overrides.json).
+  O teste avisa se algum item ficar sem desenho.

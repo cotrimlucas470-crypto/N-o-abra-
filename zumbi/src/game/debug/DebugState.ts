@@ -14,10 +14,12 @@ export interface DebugState {
   noise: boolean;
   /** Estado das portas: verde aberta, vermelha fechada, amarela trancada. */
   doors: boolean;
+  /** Recipientes (azul = não vasculhado, amarelo = vasculhado, cinza = vazio) e recursos (barra = quanto tem). */
+  loot: boolean;
   /** Ponto escolhido no mundo: desenha linha de visão e rota do jogador até ele. */
   target: { x: number; y: number } | null;
 }
 
 export function createDebugState(): DebugState {
-  return { colliders: false, nav: false, chunks: false, noise: false, doors: false, target: null };
+  return { colliders: false, nav: false, chunks: false, noise: false, doors: false, loot: false, target: null };
 }

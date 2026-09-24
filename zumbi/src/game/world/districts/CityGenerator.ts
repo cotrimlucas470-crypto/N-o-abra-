@@ -14,11 +14,14 @@ import { SectorBuilder } from './SectorBuilder';
 import { AV_Y, QUADRANTS, ROAD, SECTOR_H, SECTOR_W, SIDEWALK, ST_X } from './SectorLayout';
 import { buildBackFences, buildRoadSkeleton } from './SectorRoads';
 import { buildStarterSector } from './StarterDistrict';
+import { addAmbience } from './Ambience';
 
 export interface CityOptions {
   seed: number;
   sectorsX: number;
   sectorsY: number;
+  /** Densidade da camada de ambiente (vegetação, pedras, lixo). Padrão 1; 0 = sem. */
+  ambience?: number;
 }
 
 export type SectorZone = 'starter' | BlockZone;
@@ -139,7 +142,10 @@ export function buildCity(opts: CityOptions): MapData {
   }
 
   worldEdges(b, opts);
-  return b.build();
+  const map = b.build();
+  // Camada de ambiente por cima do traçado pronto (não muda o que já existe).
+  addAmbience(map, { seed: opts.seed, density: opts.ambience ?? 1 });
+  return map;
 }
 
 /** Carros largados, cones e sujeira nas vias de um setor gerado. */

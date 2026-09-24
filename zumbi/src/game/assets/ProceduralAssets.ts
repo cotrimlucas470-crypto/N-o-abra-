@@ -17,6 +17,9 @@ import { DECAL_DRAWERS } from './procedural/decals';
 import { drawDust, drawSoftShadow, drawVignette } from './procedural/fx';
 import { ITEM_DRAWERS, ITEM_ICON_SIZE } from './procedural/items';
 import { drawItemIcon } from './procedural/itemIcons';
+import { NATURE_OVERLAY_DRAWERS } from './procedural/nature';
+import { PROP_HARVEST, RESOURCE_HARVEST, RESOURCE_SIZE } from '../nature/NatureCatalog';
+import { PROP_DEFS, type PropType } from '../world/PropCatalog';
 import { PATTERNS } from './procedural/patterns';
 import { PROP_DRAWERS, ROOF_PROPS, seedFor } from './procedural/props';
 import { drawTileset } from './procedural/tiles';
@@ -63,6 +66,18 @@ export function generateAssets(textures: Phaser.Textures.TextureManager, registr
     const src = drawSprite(s.id, s.width, s.height, PROP_DRAWERS);
     if (src) entries.push({ id: `${s.id}#shadow`, canvas: silhouetteShadow(src, s.width, s.height, 3) });
   }
+
+  // Frutos por cima das copas (cheia e "poucos") e montinhos de recurso.
+  const overlaySizes = new Map<string, [number, number]>();
+  for (const [type, h] of Object.entries(PROP_HARVEST)) {
+    if (!h?.overlay) continue;
+    const d = PROP_DEFS[type as PropType];
+    overlaySizes.set(h.overlay, [d.width, d.height]);
+    overlaySizes.set(`${h.overlay}.few`, [d.width, d.height]);
+  }
+  for (const h of Object.values(RESOURCE_HARVEST)) if (h.sprite) overlaySizes.set(h.sprite, [RESOURCE_SIZE, RESOURCE_SIZE]);
+  for (const [id, [w, h]] of overlaySizes) drawSprite(id, w, h, NATURE_OVERLAY_DRAWERS);
+  lap('natureza');
 
   // Ícones dos itens (chão e inventário).
   // Os primeiros ícones foram desenhados à mão (ITEM_DRAWERS); o resto sai das famílias do catálogo.

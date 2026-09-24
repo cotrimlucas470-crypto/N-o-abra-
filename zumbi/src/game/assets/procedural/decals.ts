@@ -2,6 +2,7 @@
 import { Random } from '../../core/Random';
 import { blob, circle, line, rgba, roundRect, shade, shadedBox, speckle } from './canvas';
 import type { PropDrawer } from './props';
+import { NATURE_DECAL_DRAWERS } from './nature';
 
 function blood(seed: number): PropDrawer {
   return (ctx, w, h) => {
@@ -197,5 +198,6 @@ export const DECAL_DRAWERS: Record<string, PropDrawer> = {
   'decal.glass': glass,
   'decal.treepit': treePit,
   'decal.planks': planks,
+  ...NATURE_DECAL_DRAWERS,
 };
 

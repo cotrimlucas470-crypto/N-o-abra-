@@ -22,7 +22,10 @@ import { flood, walkableGrid } from './support/reach';
 const R = PLAYER_TUNING.bodyRadius;
 
 function fingerprint(m: MapData): string {
-  const layout = JSON.stringify([m.walls, m.props, m.decals, m.markings, m.buildings, m.regions, m.spawn]);
+  // Só o traçado: a camada de ambiente (vegetação, pedras, lixo) fica de fora.
+  const props = m.props.filter((pp) => !pp.ambient);
+  const decals = m.decals.filter((d) => !d.ambient);
+  const layout = JSON.stringify([m.walls, props, decals, m.markings, m.buildings, m.regions, m.spawn]);
   return `${hashString(Array.from(m.ground).join(''))}-${hashString(layout)}-${layout.length}`;
 }
 

@@ -10,6 +10,7 @@ import type { SandboxSettings } from '../config/Sandbox';
 import type { GameClock } from '../sim/GameClock';
 import type { InteractionTarget } from '../interaction/InteractionSystem';
 import type { PlayerInventory } from '../items/PlayerInventory';
+import type { ItemContainer } from '../items/ItemContainer';
 import { KeyboardMouseState, TouchInputState } from '../input/InputState';
 import type { Viewport } from '../systems/Viewport';
 import { EventBus } from './EventBus';
@@ -21,6 +22,10 @@ export interface GameSession {
   clock: GameClock | null;
   /** O que o jogador carrega (o painel de inventário lê daqui). */
   inventory: PlayerInventory | null;
+  /** Recipiente do mundo aberto agora (geladeira, porta-malas...), ou null. */
+  openContainer: { id: string; name: string; container: ItemContainer } | null;
+  /** Dia de jogo atual (fração), para condição de itens na interface. */
+  nowDays: () => number;
   /** Alvo de interação atual (o botão e o aviso do HUD leem daqui). */
   interaction: InteractionTarget | null;
   /** HUD com painel aberto por cima do ponteiro: o mouse não mira. */
@@ -51,7 +56,7 @@ export function createServices(game: Phaser.Game, viewport: Viewport, bus: Event
     assets: null,
     overrides: { sprites: {}, patterns: {} },
     settings,
-    session: { stats: null, clock: null, inventory: null, interaction: null, pointerOverUi: false, paused: false },
+    session: { stats: null, clock: null, inventory: null, openContainer: null, nowDays: () => 0, interaction: null, pointerOverUi: false, paused: false },
   };
   registry.set(game, s);
   return s;

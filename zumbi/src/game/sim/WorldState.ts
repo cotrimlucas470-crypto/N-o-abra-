@@ -23,6 +23,8 @@ import type { WorldModel } from '../world/WorldModel';
 import { chunkKey, chunkKeyAt, chunkOf } from './ChunkGrid';
 import { DEFAULT_LOOT, type LootSettings } from '../loot/generate';
 import { LootSystem, type LootSave } from '../loot/LootSystem';
+import type { HarvestDef } from '../nature/NatureCatalog';
+import { DEFAULT_NATURE, NatureState, type NatureSave, type NatureSettings } from '../nature/NatureState';
 
 export interface DoorState {
   open: boolean;
@@ -42,10 +44,12 @@ export interface WorldItem {
 export type WorldChange =
   | { type: 'door'; door: DoorPlacement; state: Readonly<DoorState> }
   | { type: 'items'; chunk: number }
-  | { type: 'container'; id: string };
+  | { type: 'container'; id: string }
+  | { type: 'nature'; id: string };
 
 export interface WorldStateOptions {
   loot?: LootSettings;
+  nature?: NatureSettings;
 }
 
 export interface WorldStateSave {
@@ -59,6 +63,7 @@ export interface WorldStateSave {
   items: WorldItem[];
   nextItem: number;
   loot?: LootSave;
+  nature?: NatureSave;
 }
 
 export class WorldState {
@@ -72,6 +77,8 @@ export class WorldState {
   private readonly baseCount = new Map<string, number>();
   /** Recipientes do mapa e seu conteúdo (gerado ao abrir). */
   readonly loot: LootSystem;
+  /** Árvores frutíferas e recursos do chão (quanto têm agora, quando repõem). */
+  readonly nature: NatureState;
   private readonly listeners = new Set<(c: WorldChange) => void>();
   private nextItem = 1;
 
@@ -88,6 +95,7 @@ export class WorldState {
       if (!this.doors[i]!.open) this.applyClosed(d, true);
     });
     this.loot = new LootSystem(model, map.seed, opts.loot ?? DEFAULT_LOOT);
+    this.nature = new NatureState(map.seed, opts.nature ?? DEFAULT_NATURE);
     for (const it of [...map.items, ...this.loot.floorItems]) {
       if (!itemDef(it.defId)) continue;
       this.mapItemCount.set(it.id, it.count);
@@ -103,6 +111,13 @@ export class WorldState {
     const c = this.loot.open(id);
     if (c) this.emit({ type: 'container', id });
     return c;
+  }
+
+  /** Colhe de uma árvore/montinho; devolve quanto saiu. */
+  harvest(id: string, def: HarvestDef, now: number, amount: number): number {
+    const n = this.nature.harvest(id, def, now, amount);
+    if (n > 0) this.emit({ type: 'nature', id });
+    return n;
   }
 
   /** Avise depois de tirar/pôr algo: o recipiente passa a ser salvo. */
@@ -286,7 +301,7 @@ export class WorldState {
     }
     const items: WorldItem[] = [];
     for (const m of this.items.values()) for (const it of m.values()) if (!this.mapItemCount.has(it.id)) items.push({ ...it });
-    return { version: 2, doors, mapItems, items, nextItem: this.nextItem, loot: this.loot.serialize() };
+    return { version: 2, doors, mapItems, items, nextItem: this.nextItem, loot: this.loot.serialize(), nature: this.nature.serialize() };
   }
 
   /**
@@ -296,6 +311,7 @@ export class WorldState {
   restore(save: WorldStateSave): void {
     if (!save || (save.version !== 1 && save.version !== 2)) return;
     this.loot.restore(save.loot);
+    this.nature.restore(save.nature);
     for (const [id, [open, locked]] of Object.entries(save.doors ?? {})) {
       const i = this.doorIndex.get(id);
       if (i === undefined) continue;

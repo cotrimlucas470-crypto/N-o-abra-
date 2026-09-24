@@ -67,6 +67,8 @@ export class HudScene extends Phaser.Scene {
     if (!s.assets) throw new Error('Assets não carregados');
     this.inventory = new InventoryPanel(this, s, s.assets, dpr, () => {
       s.session.pointerOverUi = false;
+      // Fechar o painel também fecha o recipiente aberto.
+      if (s.session.openContainer) s.bus.emit('ui:container-close', {});
     });
     this.controls.setPointerBlocker((x, y) => this.inventory.contains(x, y));
     // Aviso do alvo de interação: acima do botão (toque) ou embaixo, com a tecla (PC).
@@ -74,7 +76,7 @@ export class HudScene extends Phaser.Scene {
     this.prompt.setBackgroundColor('rgba(12,13,16,0.62)').setPadding(8, 4, 8, 4).setVisible(false);
 
     this.keyboardHint = this.add
-      .text(0, 0, 'WASD andar · Shift correr · E interagir · I inventário · segure o mouse para mirar · Esc pausa', textStyle(11, UI.textDim, '600'))
+      .text(0, 0, 'WASD andar · Shift correr · E interagir/abrir/colher · I inventário · segure o mouse para mirar · Esc pausa', textStyle(11, UI.textDim, '600'))
       .setOrigin(0.5, 1)
       .setResolution(dpr)
       .setAlpha(0.75)
@@ -106,7 +108,11 @@ export class HudScene extends Phaser.Scene {
         this.promptKey = '';
       }),
       s.bus.on('player:feedback', (e) => this.feedback.show(e.text, e.tone)),
+      s.bus.on('ui:container-open', () => this.inventory.showContainer()),
+      s.bus.on('ui:container-close', () => this.inventory.hideContainer()),
+      s.bus.on('ui:container-refresh', () => this.inventory.refresh()),
     );
+    this.input.on(Phaser.Input.Events.POINTER_WHEEL, (p: Phaser.Input.Pointer, _o: unknown, _dx: number, dy: number) => this.inventory.wheel(p.x / dpr, p.y / dpr, dy * 0.5));
     this.input.keyboard?.on('keydown-I', () => {
       if (!this.paused) this.inventory.toggle();
     });
@@ -243,6 +249,7 @@ export class HudScene extends Phaser.Scene {
     this.s.session.pointerOverUi = !!mouse && this.inventory.contains(mouse.x / this.s.viewport.dpr, mouse.y / this.s.viewport.dpr);
 
     if (this.debugText) {
+      this.debugText.setVisible(!this.inventory.isOpen);
       this.debugTimer -= dt;
       if (this.debugTimer <= 0) {
         this.debugTimer = 0.5;

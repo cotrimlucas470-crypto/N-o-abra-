@@ -5,6 +5,108 @@ O que cada etapa entregou, como foi testado e o que ficou pendente. A ordem das 
 
 ---
 
+## Etapas 4 e 5: itens, loot e natureza (v0.5.0)
+
+Antes de começar: 15 itens, colocados à mão só no setor inicial; nenhum móvel guardava nada. Pedido:
+sistema **rico** de itens encontráveis, loot coerente com o lugar, estado dos itens com efeito real,
+persistência, recursos naturais renováveis **sem respawn mágico** e mais densidade visual, **sem refazer
+o mapa**. O traçado não mudou (impressão digital travada; a natureza nova é uma camada marcada `ambient`).
+
+### L1 Catálogo de itens (371) + ícones paramétricos
+- `items/catalog/`: um arquivo por grupo, cada item com id, nome, descrição, categoria, subtipo, peso,
+  volume, pilha, raridade, perfil de condição, etiquetas e propriedades do tipo (calorias/fome/sede,
+  doses, cura, dano, calibre, capacidade, isolamento, proteção, bolsos, carga de bateria...).
+- 16 categorias: comida 79 · bebida 16 · ferramenta 31 · material 30 · construção 13 · medicina 26 ·
+  arma branca 15 · arma de fogo 8 · munição 12 (com carregadores) · roupa e proteção 34 · mochila 10 ·
+  eletrônico 19 · agricultura e natureza 20 · doméstico 29 · leitura (livros, revistas, mapas,
+  documentos) 20 · valor 9. Raridade: 226 comuns, 91 incomuns, 39 raros, 12 muito raros, 3 raríssimos.
+- 8 itens são **só de fabricação** (`craftOnly`: água suja, ferramentas improvisadas...) e nunca saem do loot.
+- Os 15 ids antigos continuam iguais (saves antigos abrem).
+- `assets/procedural/itemIcons/`: ~60 famílias de desenho (lata, garrafa, pote, fruta, carne, ferramenta,
+  faca, arma, munição, roupa, mochila, livro, remédio, seringa, aparelho, bateria...). Cada item só diz a
+  família e as cores; o teste garante que nenhum item fica sem ícone.
+
+### L2 Estado e condição com efeito real
+- `items/condition.ts`: `ItemState` compacto (condição, nascimento, validade, doses, aberto, carga,
+  marcas sujo/molhado/enferrujado/contaminado/rasgado/ensanguentado), normalizado por perfil.
+- Perecível: frescor pelo relógio do jogo (fresco → passando → estragado → podre); comida estragada faz mal.
+- Enlatado/remédio: validade; remédio vencido rende metade. Bebida aberta guarda as doses que sobraram.
+- Ferramenta/arma: desgaste (quebrada não serve); arma de fogo suja/enferrujada engasga mais.
+- Roupa: rasgada/molhada protege e aquece menos. Pilha e aparelho: carga.
+- Itens iguais só empilham com o mesmo estado; o painel mostra barra de condição e etiquetas.
+
+### L3 Tabelas de loot, recipientes e geração
+- `loot/containers.ts`: 24 tipos de recipiente (geladeira, fogão, armário, gaveta, guarda-roupa,
+  criado-mudo, prateleira, gôndola, caixa registradora, bancada, caixote, caçamba, lixeira, saco de lixo,
+  tambor, porta-luvas, porta-malas...) ligados aos móveis que já existiam no mapa.
+- `loot/tables.ts`: 41 tabelas (casa, restaurante, mercado, farmácia, loja de roupas, oficina, galpão,
+  escritório, abrigo, rua, veículos, chão; hospital e delegacia prontas para quando existirem).
+- `loot/rules.ts`: a tabela depende do **recipiente + prédio + cômodo + zona** (armário do banheiro ≠
+  armário da cozinha ≠ armário da oficina). Arma de fogo só em guarda-roupa, porta-malas e poucos
+  lugares, e rara.
+- Geração **preguiçosa e determinística**: na primeira abertura, `Random(semente:loot:id)`; quantidade e
+  raridade variam; estado do item depende do lugar (lixo vem sujo, porta-malas pode vir molhado).
+- Itens soltos no chão das casas/lojas/oficinas também saem de tabela, uma vez, na criação do mundo.
+- `Sandbox.loot`: abundância, multiplicador de raros, fração já saqueada, **idade do colapso** (dias:
+  envelhece comida e remédio) e itens no chão. URL: `?loot=0.5`, `?colapso=90`.
+
+### L4 Natureza, densidade visual e recursos renováveis
+- 20 objetos novos: macieira, laranjeira, mangueira, limoeiro, goiabeira, abacateiro, jabuticabeira,
+  bananeira, árvores comuns de copa larga, jovens, pinheiros, secas e palmeiras, arbustos de amora, com
+  flores e redondos, pedras, tocos, troncos caídos, sucata; 5 decalques (grama, flores, pedrinhas, lixo,
+  mato).
+- `districts/Ambience.ts`: camada de ambiente por setor, com folgas rígidas (longe de prédios, portas,
+  bordas e outros sólidos); na 3×3: +256 objetos, +2.763 decalques, 67 montes de recurso.
+- `nature/`: frutíferas (com frutos próprios), arbusto de amoras, árvore seca (galhos), montes de galhos
+  (renovam), pedras (**acabam**), cogumelos comestíveis e venenosos parecidos. A quantidade é calculada
+  pelo relógio do jogo **na hora de ler** (sem timer, sem "spawn"); colher pela metade guarda o progresso.
+- Frutos visíveis nas copas: carregada, poucas ou nenhuma. `Sandbox.nature`: dias para renovar e densidade.
+
+### L5 Persistência, interação e interface de saque
+- `WorldState` v2: recipientes revistados, recipientes mexidos (conteúdo inteiro) e colheitas; lê save v1.
+  Mundo intocado continua pequeno (127 bytes).
+- Interação: **Abrir geladeira / Vasculhar armário / Revirar lixeira / Colher mangas (3) / Juntar galhos**;
+  recipiente vazio ou revistado aparece como tal; caçamba, porta-malas, tambor e saco de lixo fazem barulho.
+- Painel de saque ao lado do inventário (em cima/embaixo no retrato): PEGAR, PEGAR TUDO, GUARDAR,
+  LARGAR, **USAR** (comer, beber, curar, vestir mochila); raridade na cor do nome; peso, categoria e estado.
+  Lata precisa de abridor/faca; bebida acaba e deixa a garrafa vazia; mochila aumenta a carga.
+  O painel fecha sozinho quando você se afasta.
+
+### L6 Debug e testes
+- Debug: botão **Loot** (azul = intacto, amarelo = revistado, cinza = vazio; barra de colheita nas
+  frutíferas e montes) e **Dia +1**; painel em 3 colunas na horizontal.
+- 178 testes unitários (50 novos): catálogo (mínimos por categoria, ícones, munição para todo calibre,
+  perfis), regras de condição; tabelas válidas, todo recipiente com tabela em todo contexto, nada fora
+  do lugar (arma não sai de geladeira/farmácia/lixo), geladeira só comida e bebida, farmácia principalmente
+  remédio, raridade respeitada, quantidades variam, ajustes do sandbox funcionam, estado conforme o lugar,
+  comida estraga com a idade do colapso, validade, determinismo, persistência, save v1, itens no chão
+  alcançáveis; natureza (renova, pedras acabam, save), regras da camada de ambiente (longe de portas e
+  prédios, mapa alcançável), colher, abrir, pegar tudo, guardar, comer, beber, curar, vestir mochila.
+- Smoke test no navegador: abrir geladeira mostra o painel, PEGAR TUDO esvazia, frutífera vira alvo e
+  COLHER põe frutas no inventário, debug de loot e Dia +1, painel de saque em retrato sem cobrir botões.
+
+### Distribuição e desempenho (Node, desktop; semente 1337)
+
+| Cidade | Gerar cidade (com ambiente) | Recipientes | Vazios | Itens (todos abertos) | Armas de fogo | Soltos no chão | Gerar TODO o loot | Save intocado |
+|---|---|---|---|---|---|---|---|---|
+| 1×1 | 17 ms | 125 | 56 | 468 | 1 | 12 | 5 ms | 127 B |
+| 3×3 | 56 ms | 677 | 231 | 5.798 | 9 | 139 | 11 ms | 127 B |
+| 5×5 | 92 ms | 1.746 | 571 | 17.314 | 22 | 380 | 22 ms | 127 B |
+
+Na prática o loot só é gerado quando o recipiente é aberto (microssegundos cada). No navegador de teste,
+os 371 ícones levam ~90 ms e a natureza ~8 ms do tempo de carregamento da arte.
+
+### Pendências conhecidas
+- **Fabricação (receitas e bancadas)**: etapas 15–16. Os itens, etiquetas e os `craftOnly` já estão prontos.
+- Hospital, delegacia, escola e posto ainda não existem no mapa (as tabelas de hospital e delegacia sim).
+- Cadáveres com loot dependem dos zumbis (etapa 7).
+- Fome e sede ainda não existem (etapa 6): comer/beber hoje só aplica o efeito na vida; os valores de
+  calorias, fome e sede já estão no catálogo.
+- Vestir roupas, ler livros (habilidades), usar armas, recolher/ferver água e plantar sementes: etapas próprias.
+- Save ainda não é gravado no aparelho (etapa 25); tudo já serializa.
+
+---
+
 ## Etapa 1: movimentação e interação (v0.4.0)
 
 Antes de começar: andar, correr, parar, virar, entrar/sair de construções e colisão com paredes já

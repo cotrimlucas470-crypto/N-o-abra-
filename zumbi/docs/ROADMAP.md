@@ -28,9 +28,9 @@ por cima do mesmo mapa.
 |---|---|---|
 | 1 | **Movimentação e interação** (portas, entrar/sair, pegar/largar, colisões sólidas) | ✅ v0.4.0 |
 | 2 | Controles mobile configuráveis (Configurações → Controles → Personalizar HUD, presets) | ⏳ próxima |
-| 3 | Inventário (mãos, bolsos, mochila, peso e cansaço por carga) | ⏳ (núcleo pronto) |
-| 4 | Itens (catálogo ampliado, estado, durabilidade, validade) | ⏳ (catálogo inicial pronto) |
-| 5 | Loot contextual (por tipo de construção e cômodo, finito) | ⏳ |
+| 3 | Inventário (mãos, bolsos, mochila, peso e cansaço por carga) | ⏳ (mochila e usar itens prontos; falta cansaço e roupas com bolsos) |
+| 4 | Itens (catálogo ampliado, estado, durabilidade, validade) | ✅ v0.5.0 (371 itens) |
+| 5 | Loot contextual (por tipo de construção e cômodo, finito) | ✅ v0.5.0 (+ frutíferas e recursos renováveis) |
 | 6 | Sobrevivência (fome, sede, sono, cansaço, interligados) | ⏳ |
 | 7 | Zumbis (indivíduos, estados, variação) | ⏳ (desenho em ZUMBIS.md) |
 | 8 | Percepção (visão, audição, memória) | ⏳ |
@@ -40,17 +40,17 @@ por cima do mesmo mapa.
 | 12 | Ferimentos (por parte do corpo) | ⏳ |
 | 13 | Medicina | ⏳ |
 | 14 | Roupas | ⏳ |
-| 15 | Crafting | ⏳ |
+| 15 | Crafting | ⏳ (itens `craftOnly` e etiquetas prontos; receitas a fazer) |
 | 16 | Bancadas | ⏳ |
 | 17 | Construção (sem ataques programados) | ⏳ |
-| 18 | Agricultura | ⏳ |
-| 19 | Água | ⏳ |
+| 18 | Agricultura | ⏳ (sementes no catálogo; frutíferas já renovam) |
+| 19 | Água | ⏳ (água contaminada e garrafa vazia no catálogo) |
 | 20 | Eletricidade | ⏳ |
 | 21 | Dia/noite (sem hordas noturnas) | ⏳ |
 | 22 | Clima e temperatura | ⏳ |
 | 23 | Veículos | ⏳ |
 | 24 | NPCs (só depois da base estável) | ⏳ |
-| 25 | Save completo (slots, backup automático, migração) | ⏳ (portas, itens e inventário já serializam) |
+| 25 | Save completo (slots, backup automático, migração) | ⏳ (portas, itens, recipientes, natureza e inventário já serializam; save v2 lê v1) |
 | 26 | Configurações | ⏳ |
 | 27 | Debug (ferramentas finais) | ⏳ (cada etapa acrescenta as suas) |
 | 28 | Otimização Android (APK) | ⏳ |
@@ -74,6 +74,13 @@ por cima do mesmo mapa.
 - Porta fechada bloqueia passagem (física e zumbis) e, se não for de vidro, a visão.
 - Estado do mundo (`sim/WorldState.ts`) separado do mapa: o save guarda só as diferenças.
 - Inventário limitado por **peso** (kg), sem "casas".
+- Loot gerado **na primeira abertura**, com semente própria por recipiente: sempre o mesmo, sem custo no
+  início e sem salvar o que ninguém mexeu. Nada reaparece; só a natureza (frutas, galhos, cogumelos)
+  se renova com o tempo do jogo, e pedras se esgotam.
+- Estado do item (validade, frescor, desgaste, carga, doses, sujo/molhado/enferrujado) tem efeito real;
+  itens iguais só empilham se o estado for igual.
+- Camada de ambiente (árvores variadas, arbustos, pedras, grama, flores, lixo) entra por cima do mapa
+  pronto e fica fora da impressão digital do traçado.
 - Interação por **provedores**: coisa nova interativa não muda o sistema, o botão nem o aviso.
 - Tudo o que ajusta uma partida mora em `config/` (`Sandbox.ts`, `WorldTuning.ts`, `PlayerTuning.ts`).
 
@@ -81,6 +88,7 @@ por cima do mesmo mapa.
 
 - Gerar o atlas procedural no build (PNG em cache) para abrir mais rápido em celulares fracos.
 - Sombra do telhado com o formato do telhado de 4 águas.
-- Mais plantas: escola, hospital, delegacia, igreja, posto, prédio de apartamentos (entram com o loot).
+- Mais plantas: escola, hospital, delegacia, igreja, posto, prédio de apartamentos (as tabelas de loot de
+  hospital e delegacia já existem; falta a construção no mapa).
 - Janelas como entidades (abrir, quebrar, pular) — junto com ruído/combate.
 - Chaves e pé de cabra para portas trancadas (o estado "trancada" já existe; hoje só o debug tranca).

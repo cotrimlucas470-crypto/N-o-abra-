@@ -78,6 +78,11 @@ export interface PropPlacement {
   variant: number;
   /** Espelhado horizontalmente (construções espelhadas). */
   flipX?: boolean;
+  /**
+   * Camada de ambiente (vegetação, pedras, lixo espalhados depois do traçado).
+   * Não faz parte do "mapa expandido" congelado: dá para ajustar a densidade.
+   */
+  ambient?: true;
 }
 
 export interface DecalPlacement {
@@ -87,6 +92,18 @@ export interface DecalPlacement {
   angle: number;
   scale: number;
   alpha: number;
+  /** Camada de ambiente (ver PropPlacement.ambient). */
+  ambient?: true;
+}
+
+/** Montinho de recurso natural no chão (galhos, pedras, cogumelos): coleta e, às vezes, volta. */
+export type ResourceType = 'galhos' | 'pedras' | 'cogumelos' | 'cogumelosVenenosos';
+
+export interface ResourcePlacement {
+  id: string;
+  type: ResourceType;
+  x: number;
+  y: number;
 }
 
 /** Tipo da construção — define identidade e, na Fase 4, as tabelas de loot. */
@@ -175,6 +192,8 @@ export interface MapData {
   buildings: BuildingData[];
   doors: DoorPlacement[];
   items: ItemPlacement[];
+  /** Recursos naturais coletáveis (camada de ambiente). */
+  resources: ResourcePlacement[];
   regions: RegionData[];
   spawn: { x: number; y: number };
 }

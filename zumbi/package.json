@@ -1,6 +1,6 @@
 {
   "name": "toque-de-recolher",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "type": "module",
   "description": "Sobrevivência zumbi 2D top-down para Android (Phaser 4 + TypeScript).",

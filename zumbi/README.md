@@ -3,10 +3,13 @@
 Jogo **original** de sobrevivência zumbi em 2D, câmera de cima (top-down), feito para **celular Android**.
 (Nome provisório — muda em `src/game/config/GameConfig.ts`.)
 
-> Estado atual: **Etapa 1 (v0.4.0)**: cidade de vários setores em chunks, câmera, movimento, colisões,
-> **portas** (abrir, fechar, trancadas; fazem barulho), **itens** no chão (pegar, largar) e **inventário**
-> por peso, navegação/visão para a IA, relógio do jogo e painel de debug.
-> Ainda não há zumbis, armas nem crafting. Veja [docs/ROADMAP.md](docs/ROADMAP.md) (ordem das 29 etapas),
+> Estado atual: **Etapas 4–5 (v0.5.0)**: cidade de vários setores em chunks, câmera, movimento, colisões,
+> **portas** (abrir, fechar, trancadas; fazem barulho), **371 itens** em 16 categorias com estado
+> (validade, frescor, desgaste, carga, doses), **loot contextual** em geladeiras, armários, prateleiras,
+> porta-malas, lixeiras e no chão (finito e salvo), **frutíferas e recursos naturais** que se renovam
+> com o tempo do jogo, natureza mais densa, **inventário** por peso com mochila, comer/beber/curar,
+> navegação/visão para a IA, relógio do jogo e painel de debug.
+> Ainda não há zumbis, combate nem crafting (os itens e etiquetas já estão prontos para ele). Veja [docs/ROADMAP.md](docs/ROADMAP.md) (ordem das 29 etapas),
 > o plano completo em [docs/PLANO-GERAL.md](docs/PLANO-GERAL.md) e o que cada etapa fez em [docs/FASES.md](docs/FASES.md).
 
 Este jogo mora na pasta `zumbi/` e é independente do jogo "NÃO ABRA" que está na raiz do repositório.
@@ -31,13 +34,14 @@ Há três caminhos, do mais rápido ao mais completo:
 | Polegar esquerdo: andar (joystick que aparece onde você toca) | WASD ou setas |
 | Polegar direito: mirar | segurar um botão do mouse |
 | Botão com o bonequinho: correr (liga/desliga) | Shift |
-| Botão com a mão: interagir (abrir/fechar porta, pegar item) | E |
-| Botão com a mochila: inventário (ver peso, largar itens) | I |
+| Botão com a mão: interagir (porta, pegar item, abrir/vasculhar recipiente, colher fruta, juntar galhos) | E |
+| Botão com a mochila: inventário (peso, estado dos itens, usar, largar, vestir mochila) | I |
 | ⏸ pausa · ⛶ tela cheia | Esc ou P pausa |
 
 Parâmetros úteis na URL: `?debug` ou `#debug` no fim do link (painel **DBG**: colisões, navegação, chunks, visão/rota, mapa com
-teleporte, hora, estado das portas, ruído, gerar item, trancar porta), `?direto` (pula a tela de título), `?toque` (força os controles de toque no PC),
-`?setores=1x1` (cidade menor), `?semente=42` (outra cidade), `?hora=20` (começa às 20h).
+teleporte, hora, estado das portas, ruído, gerar item, trancar porta, loot dos recipientes, Dia +1), `?direto` (pula a tela de título), `?toque` (força os controles de toque no PC),
+`?setores=1x1` (cidade menor), `?semente=42` (outra cidade), `?hora=20` (começa às 20h),
+`?loot=0.5` (metade do loot), `?colapso=90` (mundo 90 dias depois do colapso: comida estragada, remédio vencido).
 
 ---
 
@@ -88,9 +92,11 @@ zumbi/
 │   └── game/
 │       ├── config/         números do jogo e OPÇÕES DE MUNDO (Sandbox.ts)
 │       ├── core/           peças sem Phaser: eventos, aleatório com semente, armazenamento, matemática
-│       ├── sim/            relógio do jogo, chunks, estado do mundo (portas, itens no chão)
-│       ├── items/          catálogo de itens, recipientes por peso, inventário do jogador
-│       ├── interaction/    interação por provedores (portas, itens...)
+│       ├── sim/            relógio do jogo, chunks, estado do mundo (portas, itens, recipientes, natureza)
+│       ├── items/          catálogo de itens (catalog/), estado/condição, recipientes, inventário
+│       ├── loot/           recipientes do mapa, tabelas de loot por lugar, geração persistente
+│       ├── nature/         frutíferas e recursos naturais renováveis
+│       ├── interaction/    interação por provedores (portas, itens, recipientes, natureza) e ações
 │       ├── assets/         registro de sprites, atlas, substituição por PNG, arte procedural
 │       ├── entities/       personagem (lógica pura + parte visual)
 │       ├── input/          intenção do jogador; teclado/mouse; joysticks e botões de toque

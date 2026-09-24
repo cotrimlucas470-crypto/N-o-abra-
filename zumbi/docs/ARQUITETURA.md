@@ -20,9 +20,11 @@ Regras que sustentam isso:
 ```
 config/     números e OPÇÕES DE MUNDO (Sandbox.ts) — tudo que ajusta uma partida
 core/       puro: eventos, aleatório com semente, armazenamento, matemática, serviços
-sim/        puro: relógio do jogo, chunks, ESTADO do mundo (portas, itens no chão)
-items/      puro: catálogo de itens, recipiente por peso, inventário do jogador
-interaction/ puro: sistema de interação por provedores (portas, itens; depois armários, carros...)
+sim/        puro: relógio do jogo, chunks, ESTADO do mundo (portas, itens no chão, recipientes, natureza)
+items/      puro: catálogo de itens (catalog/), condição/estado, recipiente por peso, inventário do jogador
+loot/       puro: recipientes do mapa, tabelas de loot por lugar, geração preguiçosa e persistente
+nature/     puro: frutíferas e recursos naturais que se renovam com o tempo do jogo
+interaction/ puro: interação por provedores (portas, itens, recipientes, natureza) + ações de item
 world/      dados do mundo: formato do mapa, catálogos, plantas, cidade, colisão,
             navegação/visão (nav/), WorldModel; e o desenho do mundo (render/)
 entities/   jogador (lógica pura + parte Phaser)
@@ -92,6 +94,7 @@ WorldRenderer ── chão: 1 camada de tiles na GPU para o mundo inteiro
 | `districts/SectorRoads.ts` | malha comum de vias e mobiliário urbano |
 | `districts/SectorBlocks.ts` | quarteirões residencial, comercial, industrial, parque |
 | `districts/StarterDistrict.ts` | setor inicial (feito à mão) |
+| `districts/Ambience.ts` | camada de ambiente (árvores variadas, arbustos, pedras, grama, flores, lixo, recursos) por cima do mapa pronto |
 | `buildings/templates.ts` | plantas: casas, abrigo, mercadinho, lojas, oficina, galpão |
 | `PropCatalog.ts` / `DecalCatalog.ts` | objetos: tamanho, colisão, camada, sombra |
 | `collision.ts` | geometria de colisão pura (física **e** testes) |
@@ -104,6 +107,7 @@ WorldRenderer ── chão: 1 camada de tiles na GPU para o mundo inteiro
 | `doors.ts` | geometria pura das portas (vão, folhas, dobradiças) |
 | `render/DoorViews.ts` | folhas/portões animados, colisão da porta fechada, fachada na beirada do telhado |
 | `render/ItemViews.ts` | ícones dos itens no chão, por chunk |
+| `render/NatureViews.ts` | frutas nas copas (cheia / poucas / nenhuma) e montes de galhos, pedras e cogumelos |
 | `render/InteractionHighlight.ts` | destaque pulsante no alvo de interação |
 
 ## Interação, itens e estado do mundo
@@ -126,6 +130,33 @@ PlayerInventory (items/) ← pegar;  painel do HUD → inventory:drop → largar
 - Conteúdo dinâmico por chunk (portas, itens; depois zumbis, cadáveres) se inscreve em
   `WorldRenderer.onChunk()` e cria/destrói os próprios objetos junto com o chunk.
 
+## Itens, loot e natureza (v0.5.0)
+
+```
+items/catalog/*.ts ──→ ItemCatalog (371 itens, 16 categorias; id, peso, volume, pilha, raridade,
+                        perfil de condição, propriedades por tipo, ícone paramétrico, etiquetas)
+items/condition.ts ──→ ItemState {c, born, exp, dose, open, ch, f} → frescor, validade, desgaste,
+                        carga, doses, sujo/molhado/enferrujado... e o EFEITO real (comer, beber, curar)
+
+MapData.props ─(loot/containers.ts)─→ ContainerRef (geladeira, armário, porta-malas...) + contexto
+               (loot/rules.ts: prédio + cômodo + zona) ─→ tabela (loot/tables.ts)
+LootSystem: ao abrir pela 1ª vez gera com Random(semente:loot:id) → o conteúdo é sempre o mesmo
+            sem precisar salvar; depois de mexer, o save guarda o recipiente inteiro.
+            Itens soltos no chão também saem de tabela (uma vez, na criação do mundo).
+
+MapData.props (frutíferas) / MapData.resources ─→ NatureState: quantos frutos/galhos há AGORA
+            calculado pelo relógio do jogo na hora de ler (sem timer global, sem "spawn").
+```
+
+- **Item novo** = uma linha em `items/catalog/<categoria>.ts` com `iconSpec` de uma família existente
+  (`assets/procedural/itemIcons/`). Desenho à mão opcional em `procedural/items.ts` tem prioridade.
+- **Lugar novo** (hospital, delegacia...) = plantas + regra em `loot/rules.ts`; as tabelas já existem.
+- **Recipiente novo** = entrada em `CONTAINER_DEFS` + `PROP_CONTAINERS` (qual objeto do mapa e onde).
+- Quantidade, raridade, "já saqueado" e envelhecimento do mundo vêm de `Sandbox.loot`; frutas e
+  densidade da natureza de `Sandbox.nature`.
+- A camada de ambiente é marcada `ambient: true` e fica fora da impressão digital do mapa expandido.
+- Save do mundo v2 = v1 + `loot` (revistados + recipientes mexidos) + `nature` (colheitas); lê saves v1.
+
 **Testes de integridade**: para várias cidades, confirmam que todo cômodo é alcançável pelo corpo do
 jogador **e** pela grade de navegação dos zumbis, que nenhuma porta está bloqueada e que nenhum móvel
 atravessa parede.
@@ -139,7 +170,9 @@ save guardará as opções junto com o mundo.
 ## Debug (`?debug`)
 
 `scenes/DebugScene.ts` + `debug/`: colisões, navegação, chunks, alvo (visão + rota), mapa com teleporte,
-hora, velocidade do tempo, números. Cada fase acrescenta suas camadas (zumbis, ruído, loot...).
+hora, velocidade do tempo, números, portas, ruído, gerar item, trancar porta, **loot** (recipientes:
+azul = intacto, amarelo = revistado, cinza = vazio; barras de colheita) e **Dia +1**. Cada fase acrescenta
+suas camadas.
 
 ## Pronto para as próximas etapas
 
@@ -147,8 +180,10 @@ hora, velocidade do tempo, números. Cada fase acrescenta suas camadas (zumbis, 
 |---|---|
 | 2 Controles | `ControlsLayout` já é dado (âncora + deslocamento + tamanho) e é salvo/carregado; botões novos só entram na lista |
 | 3 Inventário | `PlayerInventory.containers` (mochila, roupas com bolsos); `ItemContainer` por peso |
-| 4/5 Itens e loot | `ItemCatalog` (tags), `BuildingData.kind` + `rooms`; recipientes do mapa viram provedores de interação |
-| 6 Sobrevivência | `GameClock` + `PlayerStats` (snapshot/restore) + `SpeedModifiers` do movimento |
+| 13 Medicina, 14 Roupas | `MedProps`, `WearProps` (slot, isolamento, proteção contra mordida/arranhão, bolsos) já no catálogo |
+| 15/16 Crafting e bancadas | etiquetas (`tags`) e `craftOnly` (itens que só saem de receita); ferramentas com `ToolProps.uses` |
+| 18/19 Agricultura e água | `SeedProps`, `NatureState` (regrowth), bebida com doses e garrafa vazia que sobra |
+| 6 Sobrevivência | `GameClock` + `PlayerStats` + `SpeedModifiers`; comida/bebida já têm kcal, fome, sede e efeito |
 | 7–9 Zumbis, percepção, ruído | `WorldModel` (nav, sight, chunks), `Pathfinder`, `world:noise`, portas fechadas na NavGrid/SightGrid; ver [ZUMBIS.md](ZUMBIS.md) |
 | 21 Dia/noite | `ShadowSystem.setSun()`, `GameClock.dayFraction`, `DEPTH.atmosphere` |
 | 25 Save | `WorldState.serialize()`, `PlayerInventory.serialize()`, relógio e jogador com snapshot, `core/Storage.ts` |

@@ -21,7 +21,8 @@ const TIME_SCALES = [1, 10, 60, 0] as const;
 /** Botões em duas colunas: cabe em celular deitado (390 px de altura) com o texto de informação. */
 const BTN_W = 124;
 const BTN_H = 26;
-const PANEL_W = BTN_W * 2 + 18;
+/** Colunas de botões: 3 deitado (cabe o texto de informação embaixo), 2 em pé. */
+const panelW = (cols: number) => BTN_W * cols + 8 + (cols - 1) * 2 + 8;
 
 export class DebugScene extends Phaser.Scene {
   private s!: GameServices;
@@ -105,7 +106,10 @@ export class DebugScene extends Phaser.Scene {
     add(() => `${onOff(this.state.noise)} Ruído`, () => (this.state.noise = !this.state.noise));
     add(() => 'Gerar item', () => this.flash(`item: ${this.game_.debugSpawnItem()}`));
     add(() => 'Trancar porta', () => this.flash(this.game_.debugToggleLock()));
-    this.info = this.add.text(0, 0, '', textStyle(10, '#bfe8bf', '600')).setResolution(dpr).setWordWrapWidth(PANEL_W - 16);
+    // Loot e natureza
+    add(() => `${onOff(this.state.loot)} Loot`, () => (this.state.loot = !this.state.loot));
+    add(() => 'Dia +1', () => this.s.session.clock?.advance(24 * 60));
+    this.info = this.add.text(0, 0, '', textStyle(10, '#bfe8bf', '600')).setResolution(dpr);
     this.panel.add(this.info);
 
     this.input.keyboard?.on('keydown-F2', () => this.setOpen(!this.open));
@@ -214,11 +218,14 @@ export class DebugScene extends Phaser.Scene {
     this.pickZone.input?.hitArea.setTo(0, 0, w, h);
     this.pickHint.setPosition(w / 2, ins.top + 12);
 
+    const cols = w > h ? 3 : 2;
+    const PANEL_W = panelW(cols);
+    this.info.setWordWrapWidth(PANEL_W - 16);
     const px = w - ins.right - PANEL_W - 4;
     const py = ins.top + 108;
     this.panel.setPosition(px, py);
-    this.buttons.forEach((b, i) => b.btn.setPosition(8 + BTN_W / 2 + (i % 2) * (BTN_W + 2), 6 + BTN_H / 2 + Math.floor(i / 2) * (BTN_H + 4)));
-    const infoY = 8 + Math.ceil(this.buttons.length / 2) * (BTN_H + 4);
+    this.buttons.forEach((b, i) => b.btn.setPosition(8 + BTN_W / 2 + (i % cols) * (BTN_W + 2), 6 + BTN_H / 2 + Math.floor(i / cols) * (BTN_H + 4)));
+    const infoY = 8 + Math.ceil(this.buttons.length / cols) * (BTN_H + 4);
     this.info.setPosition(8, infoY);
     const panelH = Math.min(h - py - 6, infoY + 112);
     this.panelBg.setSize(PANEL_W, panelH);

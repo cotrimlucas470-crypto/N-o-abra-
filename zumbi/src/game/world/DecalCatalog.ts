@@ -24,6 +24,12 @@ export const DECAL_DEFS = {
   glass: { sprites: ['decal.glass'], width: 62, height: 52 },
   treePit: { sprites: ['decal.treepit'], width: 80, height: 80 },
   planks: { sprites: ['decal.planks'], width: 60, height: 60 },
+  // camada de ambiente
+  grass: { sprites: ['decal.grass.a', 'decal.grass.b', 'decal.grass.c'], width: 44, height: 38 },
+  flowers: { sprites: ['decal.flowers.red', 'decal.flowers.yellow', 'decal.flowers.white', 'decal.flowers.purple'], width: 52, height: 46 },
+  pebbles: { sprites: ['decal.pebbles'], width: 44, height: 34 },
+  litter: { sprites: ['decal.litter.a', 'decal.litter.b'], width: 56, height: 44 },
+  weeds: { sprites: ['decal.weeds.a', 'decal.weeds.b'], width: 70, height: 56 },
 } as const satisfies Record<string, DecalDef>;
 
 export type DecalType = keyof typeof DECAL_DEFS;

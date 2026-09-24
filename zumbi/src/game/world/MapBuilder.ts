@@ -420,6 +420,7 @@ export class MapBuilder {
       buildings: this.buildings,
       doors: this.doors,
       items: this.items,
+      resources: [],
       regions: this.regions,
       spawn: this.spawn,
     };

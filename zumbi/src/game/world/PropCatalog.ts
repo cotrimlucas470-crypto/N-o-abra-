@@ -67,6 +67,29 @@ export const PROP_DEFS = {
   bush: { sprites: ['prop.bush.a', 'prop.bush.b'], width: 74, height: 64, collider: circle(24), layer: 'object', shadowHeight: 0.6 },
   hedge: { sprites: ['prop.hedge'], width: 128, height: 42, collider: rect(126, 38), layer: 'object', shadowHeight: 0.8 },
 
+  // ---------- natureza (camada de ambiente) ----------
+  // Frutíferas: a copa é o sprite; os frutos são uma camada à parte (somem ao colher).
+  treeApple: { sprites: ['prop.tree.apple'], width: 150, height: 150, collider: circle(12), layer: 'overhead', shadowHeight: 2, fadeWhenNear: true },
+  treeOrange: { sprites: ['prop.tree.orange'], width: 150, height: 150, collider: circle(12), layer: 'overhead', shadowHeight: 2, fadeWhenNear: true },
+  treeMango: { sprites: ['prop.tree.mango'], width: 230, height: 230, collider: circle(17), layer: 'overhead', shadowHeight: 2.8, fadeWhenNear: true },
+  treeLemon: { sprites: ['prop.tree.lemon'], width: 120, height: 120, collider: circle(10), layer: 'overhead', shadowHeight: 1.7, fadeWhenNear: true },
+  treeGuava: { sprites: ['prop.tree.guava'], width: 140, height: 140, collider: circle(11), layer: 'overhead', shadowHeight: 1.9, fadeWhenNear: true },
+  treeAvocado: { sprites: ['prop.tree.avocado'], width: 210, height: 210, collider: circle(16), layer: 'overhead', shadowHeight: 2.6, fadeWhenNear: true },
+  treeJabuticaba: { sprites: ['prop.tree.jabuticaba'], width: 130, height: 130, collider: circle(12), layer: 'overhead', shadowHeight: 1.8, fadeWhenNear: true },
+  treeBanana: { sprites: ['prop.tree.banana'], width: 150, height: 150, collider: circle(10), layer: 'overhead', shadowHeight: 1.8, fadeWhenNear: true },
+  treeBroad: { sprites: ['prop.tree.broad.a', 'prop.tree.broad.b'], width: 190, height: 190, collider: circle(15), layer: 'overhead', shadowHeight: 2.5, fadeWhenNear: true },
+  treeYoung: { sprites: ['prop.tree.young'], width: 96, height: 96, collider: circle(8), layer: 'overhead', shadowHeight: 1.4, fadeWhenNear: true },
+  treePine: { sprites: ['prop.tree.pine.a', 'prop.tree.pine.b'], width: 160, height: 160, collider: circle(12), layer: 'overhead', shadowHeight: 2.7, fadeWhenNear: true },
+  treeDead: { sprites: ['prop.tree.dead.a', 'prop.tree.dead.b'], width: 150, height: 150, collider: circle(12), layer: 'overhead', shadowHeight: 1.6, fadeWhenNear: true },
+  treePalm: { sprites: ['prop.tree.palm'], width: 170, height: 170, collider: circle(10), layer: 'overhead', shadowHeight: 2.8, fadeWhenNear: true },
+  bushBerry: { sprites: ['prop.bush.berry'], width: 74, height: 64, collider: circle(22), layer: 'object', shadowHeight: 0.6 },
+  bushFlower: { sprites: ['prop.bush.flower.a', 'prop.bush.flower.b'], width: 70, height: 62, collider: circle(21), layer: 'object', shadowHeight: 0.6 },
+  bushRound: { sprites: ['prop.bush.round'], width: 60, height: 56, collider: circle(18), layer: 'object', shadowHeight: 0.5 },
+  rock: { sprites: ['prop.rock.a', 'prop.rock.b'], width: 70, height: 56, collider: circle(22), layer: 'object', shadowHeight: 0.5 },
+  stump: { sprites: ['prop.stump'], width: 50, height: 50, collider: circle(15), layer: 'object', shadowHeight: 0.3 },
+  fallenLog: { sprites: ['prop.log'], width: 150, height: 40, collider: rect(140, 28), layer: 'object', shadowHeight: 0.4 },
+  scrapPile: { sprites: ['prop.scrap'], width: 90, height: 70, collider: circle(26), layer: 'object', shadowHeight: 0.5 },
+
   // ---------- interiores ----------
   bedDouble: { sprites: ['prop.bed.double'], width: 128, height: 152, collider: rect(124, 148), layer: 'object', shadowHeight: 0.35 },
   bedSingle: { sprites: ['prop.bed.single'], width: 82, height: 140, collider: rect(78, 136), layer: 'object', shadowHeight: 0.35 },

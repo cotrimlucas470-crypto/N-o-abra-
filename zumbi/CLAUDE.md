@@ -43,7 +43,15 @@ Olhe os prints de `smoke-out/` antes de dizer que ficou bonito. Headless roda a 
   chunks perto da câmera (`WorldRenderer`). Nada de criar objeto do mundo fora do streaming de chunks:
   conteúdo dinâmico se inscreve em `WorldRenderer.onChunk()` (ver `render/DoorViews.ts`, `ItemViews.ts`).
 - O que muda em jogo é **estado** (`sim/WorldState.ts`), nunca o `MapData`. Tudo serializa (save por diferenças).
-- Item novo = entrada em `items/ItemCatalog.ts` + ícone em `assets/procedural/items.ts`.
+- Item novo = linha em `items/catalog/<categoria>.ts` com `iconSpec` de uma família de
+  `assets/procedural/itemIcons/` (desenho à mão opcional em `procedural/items.ts`). Nunca mudar o id de
+  item existente (saves e tabelas usam o id).
+- Onde o item aparece = `loot/tables.ts` (tabelas por recipiente e lugar) + `loot/rules.ts` (qual tabela
+  para cada recipiente em cada prédio/cômodo/zona). Recipiente novo = `loot/containers.ts`.
+- Loot é finito e gerado na primeira abertura com semente por recipiente. Só a natureza (`nature/`) se
+  renova, calculada pelo relógio do jogo na leitura. Nada de timer que cria item.
+- Densidade visual (árvores, arbustos, grama, lixo) vai na camada de ambiente
+  (`districts/Ambience.ts`, `ambient: true`), que não entra na impressão digital do mapa.
 - Coisa interativa nova = provedor em `interaction/` (o botão, o aviso e o destaque já funcionam).
 - Ajustes de partida em `config/Sandbox.ts` (com faixa válida). Nada de número de balanceamento solto.
 - Ferramentas de debug em `debug/` + `scenes/DebugScene.ts` (só com `?debug`). Cada sistema novo ganha a sua camada.

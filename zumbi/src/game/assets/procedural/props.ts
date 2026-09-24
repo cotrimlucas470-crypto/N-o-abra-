@@ -11,6 +11,7 @@
  */
 import { Random, hashString } from '../../core/Random';
 import { ball, blob, circle, line, mix, rgba, roundRect, shade, shadedBox, speckle, type Ctx } from './canvas';
+import { NATURE_PROP_DRAWERS } from './nature';
 
 export type PropDrawer = (ctx: Ctx, w: number, h: number, rng: Random) => void;
 
@@ -723,6 +724,7 @@ export const PROP_DRAWERS: Record<string, PropDrawer> = {
   'prop.workbench': workbench,
   'prop.toolshelf': toolShelf,
   'prop.cabinet': cabinet,
+  ...NATURE_PROP_DRAWERS,
   'roof.ac': roofAc,
   'roof.vent': roofVent,
 };

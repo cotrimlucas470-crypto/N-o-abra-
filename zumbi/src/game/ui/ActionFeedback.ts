@@ -15,7 +15,7 @@ export class ActionFeedback {
     private readonly scene: Phaser.Scene,
     dpr: number,
   ) {
-    this.text = scene.add.text(0, 0, '', textStyle(14, UI.text, '700')).setOrigin(0.5).setDepth(94).setAlpha(0).setResolution(dpr);
+    this.text = scene.add.text(0, 0, '', textStyle(14, UI.text, '700')).setOrigin(0.5).setDepth(130).setAlpha(0).setResolution(dpr);
     this.text.setShadow(0, 1, 'rgba(0,0,0,0.85)', 4, false, true);
     this.text.setBackgroundColor('rgba(12,13,16,0.55)').setPadding(10, 5, 10, 5);
   }

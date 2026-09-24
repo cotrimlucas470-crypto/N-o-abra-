@@ -16,6 +16,7 @@ export interface ChunkContent {
   doors: number[];
   /** Itens colocados no mapa (os largados em jogo ficam no WorldState, com a mesma chave). */
   items: number[];
+  resources: number[];
 }
 
 export class ChunkIndex {
@@ -34,7 +35,7 @@ export class ChunkIndex {
       const k = chunkKeyAt(Math.min(Math.max(x, 0), w - 1), Math.min(Math.max(y, 0), h - 1));
       let c = this.chunks.get(k);
       if (!c) {
-        c = { props: [], decals: [], walls: [], markings: [], buildings: [], doors: [], items: [] };
+        c = { props: [], decals: [], walls: [], markings: [], buildings: [], doors: [], items: [], resources: [] };
         this.chunks.set(k, c);
       }
       return c;
@@ -46,6 +47,7 @@ export class ChunkIndex {
     map.buildings.forEach((b, i) => at(b.bounds.x + b.bounds.w / 2, b.bounds.y + b.bounds.h / 2).buildings.push(i));
     map.doors.forEach((d, i) => at(d.x, d.y).doors.push(i));
     map.items.forEach((it, i) => at(it.x, it.y).items.push(i));
+    map.resources.forEach((r, i) => at(r.x, r.y).resources.push(i));
   }
 
   /** Chunk de um ponto, com o mesmo critério de borda usado no índice. */

@@ -19,6 +19,11 @@ import { PLAYER_TUNING } from '../config/PlayerTuning';
 import { DoorInteractions } from '../interaction/DoorInteractions';
 import { InteractionSystem, type Interactor } from '../interaction/InteractionSystem';
 import { ItemInteractions } from '../interaction/ItemInteractions';
+import { ContainerInteractions } from '../interaction/ContainerInteractions';
+import { LootActions } from '../interaction/LootActions';
+import { NatureInteractions } from '../interaction/NatureInteractions';
+import { NatureViews } from '../world/render/NatureViews';
+import { MINUTES_PER_DAY } from '../sim/GameClock';
 import { allItemIds, itemDef } from '../items/ItemCatalog';
 import { PlayerInventory } from '../items/PlayerInventory';
 import { DoorViews } from '../world/render/DoorViews';
@@ -49,6 +54,8 @@ export class GameScene extends Phaser.Scene {
   private doors!: DoorViews;
   private items!: ItemViews;
   private itemActions!: ItemInteractions;
+  private lootActions!: LootActions;
+  private nature!: NatureViews;
   private interaction!: InteractionSystem;
   private highlight!: InteractionHighlight;
   private scanTimer = 0;
@@ -65,7 +72,7 @@ export class GameScene extends Phaser.Scene {
     if (!assets) throw new Error('Assets não carregados');
 
     const t0 = performance.now();
-    this.model = new WorldModel(buildCity(s.settings.world));
+    this.model = new WorldModel(buildCity({ ...s.settings.world, ambience: s.settings.nature.density }));
     if (DEBUG.enabled) console.info(`[mundo] cidade ${s.settings.world.sectorsX}x${s.settings.world.sectorsY} gerada em ${Math.round(performance.now() - t0)} ms`);
     const map = this.model.map;
     this.world = new WorldRenderer(this, this.model, assets, s.bus);
@@ -79,14 +86,23 @@ export class GameScene extends Phaser.Scene {
 
     // Estado do mundo (portas, itens) + o que o jogador carrega + interação.
     // Criados antes de carregar os chunks: o desenho de portas/itens entra junto.
-    this.state = new WorldState(this.model);
+    this.state = new WorldState(this.model, { loot: s.settings.loot, nature: s.settings.nature });
     this.inventory = new PlayerInventory();
     s.session.inventory = this.inventory;
+    const nowDays = () => this.clock.minutes / MINUTES_PER_DAY;
+    s.session.nowDays = nowDays;
     this.doors = new DoorViews(this, this.state, this.world);
     this.items = new ItemViews(this, this.state, this.world, assets);
+    this.nature = new NatureViews(this, this.state, this.world, assets, nowDays);
     this.itemActions = new ItemInteractions(this.state, this.inventory);
+    this.lootActions = new LootActions(this.state, this.inventory, this.player.stats, nowDays);
     const playerBody = this.interactor;
-    this.interaction = new InteractionSystem([new DoorInteractions(this.state, s.bus, () => [playerBody]), this.itemActions]);
+    this.interaction = new InteractionSystem([
+      new DoorInteractions(this.state, s.bus, () => [playerBody]),
+      this.itemActions,
+      new ContainerInteractions(this.state, s.bus),
+      new NatureInteractions(this.state, this.inventory, nowDays),
+    ]);
     this.highlight = new InteractionHighlight(this);
 
     const cam = this.cameras.main;
@@ -111,12 +127,31 @@ export class GameScene extends Phaser.Scene {
     });
     const offInteract = s.bus.on('input:interact', () => this.interact());
     const offDrop = s.bus.on('inventory:drop', (e) => this.drop(e.containerId, e.index, e.count));
+    const offLoot = [
+      s.bus.on('ui:container-open', (e) => this.openContainer(e.id)),
+      s.bus.on('ui:container-close', () => (s.session.openContainer = null)),
+      s.bus.on('loot:take', (e) => this.lootResult(e.all ? this.lootActions.takeAll(this.openId()) : this.lootActions.take(this.openId(), e.index))),
+      s.bus.on('loot:store', (e) => {
+        const from = this.inventory.container(e.containerId);
+        if (from) this.lootResult(this.lootActions.store(this.openId(), from, e.index));
+      }),
+      s.bus.on('inventory:use', (e) => {
+        const from = this.inventory.container(e.containerId);
+        if (from) this.lootResult(this.lootActions.use(from, e.index));
+      }),
+      s.bus.on('inventory:unequip', () => {
+        const err = this.inventory.unequipBag();
+        this.lootResult(err ? { ok: false, message: err, tone: 'warn' } : { ok: true, message: 'Tirou a mochila.', tone: 'info' });
+      }),
+    ];
     this.events.on(Phaser.Scenes.Events.PAUSE, () => this.keyboardMouse.reset(s.keyboardMouse));
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       offViewport();
       offInteract();
       offDrop();
+      offLoot.forEach((u) => u());
       s.session.inventory = null;
+      s.session.openContainer = null;
       s.session.interaction = null;
       this.events.off(Phaser.Scenes.Events.POST_UPDATE, this.afterPhysics, this);
       s.session.stats = null;
@@ -126,7 +161,7 @@ export class GameScene extends Phaser.Scene {
     this.scene.launch(SCENES.hud);
     if (DEBUG.enabled) {
       this.debugState = createDebugState();
-      this.debugLayer = new DebugWorldLayer(this, this.model, this.debugState, () => this.world.loadedChunkKeys(), this.state, s.bus);
+      this.debugLayer = new DebugWorldLayer(this, this.model, this.debugState, () => this.world.loadedChunkKeys(), this.state, s.bus, () => this.clock.minutes / MINUTES_PER_DAY);
       this.scene.launch(SCENES.debug);
     }
 
@@ -151,6 +186,7 @@ export class GameScene extends Phaser.Scene {
     this.trackRegion();
     this.world.update(this.cameras.main, this.player.x, this.player.y, this.dt);
     this.doors.update(this.dt);
+    this.nature.update(this.dt);
     this.scanTimer -= this.dt;
     if (this.scanTimer <= 0) {
       this.scanTimer = 1 / INTERACTION_TUNING.scanHz;
@@ -174,6 +210,33 @@ export class GameScene extends Phaser.Scene {
     const target = this.interaction.scan(this.syncInteractor());
     this.s.session.interaction = target;
     this.highlight.set(target);
+    // Recipiente aberto fica para trás quando o jogador se afasta.
+    const open = this.s.session.openContainer;
+    if (open) {
+      const ref = this.state.loot.ref(open.id);
+      const far = !ref || this.state.loot.refsNear(this.player.x, this.player.y, INTERACTION_TUNING.doorReach + 70).every((r) => r.ref.id !== open.id);
+      if (far) {
+        this.s.session.openContainer = null;
+        this.s.bus.emit('ui:container-close', {});
+      }
+    }
+  }
+
+  private openId(): string {
+    return this.s.session.openContainer?.id ?? '';
+  }
+
+  private openContainer(id: string): void {
+    const c = this.state.loot.peek(id);
+    const ref = this.state.loot.ref(id);
+    if (!c || !ref) return;
+    this.s.session.openContainer = { id, name: ref.name, container: c };
+  }
+
+  private lootResult(r: { ok: boolean; message?: string; tone?: 'ok' | 'info' | 'warn' | 'bad' }): void {
+    if (r.message) this.s.bus.emit('player:feedback', { text: r.message, tone: r.tone === 'bad' ? 'warn' : (r.tone ?? (r.ok ? 'ok' : 'warn')) });
+    this.s.bus.emit('ui:container-refresh', {});
+    this.scanInteraction();
   }
 
   /** Botão Interagir / tecla E. */
@@ -188,9 +251,7 @@ export class GameScene extends Phaser.Scene {
   private drop(containerId: string, index: number, count: number): void {
     const c = this.inventory.containers.find((x) => x.id === containerId);
     if (!c) return;
-    const r = this.itemActions.drop(c, index, count, this.player.x, this.player.y);
-    if (r.message) this.s.bus.emit('player:feedback', { text: r.message, tone: 'info' });
-    this.scanInteraction();
+    this.lootResult(this.lootActions.drop(c, index, count, this.player.x, this.player.y));
   }
 
   // ---------------------------------------------------------------- consultas (debug, testes)
@@ -240,7 +301,8 @@ export class GameScene extends Phaser.Scene {
   /** Números de portas/itens para o painel de debug. */
   interactionStats(): string {
     const target = this.interaction.current;
-    return `portas ${this.doors.count} (${this.doors.colliderCount()} fech.) · itens ${this.items.count}/${this.state.itemCount} · ${this.inventory.weight.toFixed(2)} kg` + (target ? `\nalvo: ${target.label}` : '');
+    const open = this.s.session.openContainer;
+    return `portas ${this.doors.count} (${this.doors.colliderCount()} fech.) · itens ${this.items.count}/${this.state.itemCount} · ${this.inventory.weight.toFixed(2)} kg` + `\nrecipientes ${this.state.loot.containerCount} · recursos ${this.nature.count}${open ? ` · aberto: ${open.name}` : ''}` + (target ? `\nalvo: ${target.label}` : '');
   }
 
   /** Carrega de uma vez os chunks da tela (início, teleporte, mudança de tamanho de tela). */

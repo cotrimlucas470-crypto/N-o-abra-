@@ -216,15 +216,15 @@ try {
     const hud = () => page.evaluate(() => {
       const h = window.__TDR__.scene.scene.get('Hud');
       const inv = h.inventory;
-      return { open: inv.isOpen, listTop: inv.listTop, box: inv.box, k: inv.k, drop: { x: inv.dropOne.x, y: inv.dropOne.y, visible: inv.dropOne.visible } };
+      return { open: inv.isOpen, box: inv.box, row0: inv.rowCenter('inv', 0), drop: inv.buttonAt('LARGAR') };
     });
     let panel = await hud();
     check(panel.open, 'botão Inventário abre o painel');
-    await tap(panel.box.x + panel.box.w / 2, panel.listTop + 20 * panel.k); // primeira linha
+    await tap(panel.row0.x, panel.row0.y); // primeira linha (o martelo)
     await sleep(200);
     panel = await hud();
     await page.screenshot({ path: OUT + '06b-inventario.png' });
-    check(panel.drop.visible, 'tocar no item mostra LARGAR');
+    check(!!panel.drop, 'tocar no item mostra LARGAR');
     await tap(panel.drop.x, panel.drop.y);
     await sleep(300);
     const afterDrop = await page.evaluate(() => ({ n: window.__TDR__.inventory.carried.countOf('martelo'), items: window.__TDR__.state.itemCount }));
@@ -238,6 +238,64 @@ try {
     check(Math.abs(moved2.x - moved.x) > 30, `dá para andar com o inventário aberto (dx=${Math.round(moved2.x - moved.x)})`);
     await tap(844 - 46 * scale, 390 - 246 * scale);
     check(!(await hud()).open, 'botão Inventário fecha o painel');
+
+    // loot: abre a geladeira da casa vizinha, pega tudo e confere que não volta
+    const fridge = await page.evaluate(() => {
+      const T = window.__TDR__;
+      const b = T.map.buildings.find((x) => x.id === 'casa-no');
+      const f = T.map.props.find((p) => p.type === 'fridge' && p.x > b.bounds.x && p.x < b.bounds.x + b.bounds.w && p.y > b.bounds.y && p.y < b.bounds.y + b.bounds.h);
+      return { id: f.id, x: f.x, y: f.y };
+    });
+    // chega pela frente (lado da cozinha): tenta alguns pontos até a geladeira ser o alvo
+    let fridgeTarget = null;
+    for (const [dx, dy] of [[-58, 0], [-50, 30], [-50, -30], [0, 58], [0, -58]]) {
+      await page.evaluate(([x, y]) => window.__TDR__.teleport(x, y), [fridge.x + dx, fridge.y + dy]);
+      await sleep(350);
+      fridgeTarget = await page.evaluate(() => window.__TDR__.interaction());
+      if (fridgeTarget?.key === `recipiente:${fridge.id}`) break;
+    }
+    check(fridgeTarget?.kind === 'container', `geladeira vira alvo (${fridgeTarget?.label})`);
+    await tap(844 - 250 * scale, 390 - 168 * scale); // Interagir = abrir
+    await sleep(500);
+    const lootInfo = await page.evaluate(() => {
+      const T = window.__TDR__;
+      const open = T.scene.s.session.openContainer;
+      const inv = T.scene.scene.get('Hud').inventory;
+      return { open: !!open, n: open ? open.container.stacks.length : -1, panel: inv.isOpen, all: inv.buttonAt('PEGAR TUDO') };
+    });
+    check(lootInfo.open && lootInfo.panel, `abrir mostra o painel de saque (${lootInfo.n} pilhas na geladeira)`);
+    await page.screenshot({ path: OUT + '06c-saque.png' });
+    if (lootInfo.all) {
+      await tap(lootInfo.all.x, lootInfo.all.y);
+      await sleep(400);
+    }
+    const afterLoot = await page.evaluate((id) => ({ left: window.__TDR__.state.loot.peek(id).stacks.length, carried: window.__TDR__.inventory.carried.stacks.length }), fridge.id);
+    check(lootInfo.n === 0 || afterLoot.left < lootInfo.n, `PEGAR TUDO tira da geladeira (${lootInfo.n} → ${afterLoot.left})`);
+    await page.screenshot({ path: OUT + '06d-saque-pego.png' });
+    // fecha o painel e colhe numa frutífera
+    await tap(844 - 46 * scale, 390 - 246 * scale);
+    const tree = await page.evaluate(() => {
+      const T = window.__TDR__;
+      const t = T.map.props.find((p) => ['treeOrange', 'treeMango', 'treeLemon', 'treeBanana', 'treeGuava'].includes(p.type));
+      return t ? { x: t.x, y: t.y, type: t.type } : null;
+    });
+    check(!!tree, 'há frutíferas no mapa');
+    if (tree) {
+      let harvest = null;
+      for (const [dx, dy] of [[45, 0], [-45, 0], [0, 45], [0, -45]]) {
+        await page.evaluate(([x, y]) => window.__TDR__.teleport(x, y), [tree.x + dx, tree.y + dy]);
+        await sleep(400);
+        harvest = await page.evaluate(() => window.__TDR__.interaction());
+        if (harvest?.kind === 'harvest') break;
+      }
+      check(harvest?.kind === 'harvest', `frutífera vira alvo (${harvest?.label})`);
+      await page.screenshot({ path: OUT + '06e-frutifera.png' });
+      const before = await page.evaluate(() => window.__TDR__.inventory.weight);
+      await tap(844 - 250 * scale, 390 - 168 * scale);
+      await sleep(300);
+      const after = await page.evaluate(() => window.__TDR__.inventory.weight);
+      check(after > before, `COLHER põe frutas no inventário (${before.toFixed(2)} → ${after.toFixed(2)} kg)`);
+    }
 
     // pausa (canto superior direito)
     const pscale = scale;
@@ -283,10 +341,11 @@ try {
     await page.evaluate(([x, y]) => window.__TDR__.teleport(x, y), at(20, 20));
     await sleep(400);
     await tap(844 - 40, 88); // DBG
-    const PW = 124 * 2 + 18;
+    // painel de debug deitado: 3 colunas de botões
+    const PW = 124 * 3 + 8 + 4 + 8;
     const px = 844 - PW - 4;
     const py = 108;
-    const btn = (i) => [px + 8 + 62 + (i % 2) * 126, py + 6 + 13 + Math.floor(i / 2) * 30];
+    const btn = (i) => [px + 8 + 62 + (i % 3) * 126, py + 6 + 13 + Math.floor(i / 3) * 30];
     await tap(...btn(0)); // colisões
     await tap(...btn(1)); // navegação
     await tap(...btn(2)); // chunks
@@ -318,6 +377,14 @@ try {
     check(n1 === n0 + 1, `debug: gerar item larga um item no chão (${n0} → ${n1})`);
     await page.screenshot({ path: OUT + '17-debug-portas-ruido.png' });
     for (const i of [7, 8]) await tap(...btn(i));
+    await tap(...btn(11)); // loot
+    await sleep(300);
+    await page.screenshot({ path: OUT + '18-debug-loot.png' });
+    const d0 = await page.evaluate(() => window.__TDR__.scene.s.session.clock.day);
+    await tap(...btn(12)); // dia +1
+    const d1 = await page.evaluate(() => window.__TDR__.scene.s.session.clock.day);
+    check(d1 === d0 + 1, `debug: Dia +1 avança o relógio (${d0} → ${d1})`);
+    await tap(...btn(11));
     await tap(844 - 40, 88); // fecha
 
     const cull = await page.evaluate(() => window.__TDR__.culler());
@@ -371,6 +438,17 @@ try {
     await page.screenshot({ path: OUT + '11b-retrato-inventario.png' });
     const pbox = await page.evaluate(() => window.__TDR__.scene.scene.get('Hud').inventory.box);
     check(pbox.y + pbox.h < 844 - 332 * ps - 25 * ps, `retrato: painel não cobre o botão do inventário (fim ${Math.round(pbox.y + pbox.h)})`);
+    // saque em pé: recipiente em cima, inventário embaixo
+    await page.evaluate(() => {
+      const T = window.__TDR__;
+      const crate = T.map.props.find((p) => p.type === 'crate' && T.state.loot.ref(p.id)?.table === 'abrigo-caixas');
+      T.state.openContainer(crate.id);
+      T.scene.s.bus.emit('ui:container-open', { id: crate.id });
+    });
+    await sleep(400);
+    await page.screenshot({ path: OUT + '11c-retrato-saque.png' });
+    const pbox2 = await page.evaluate(() => window.__TDR__.scene.scene.get('Hud').inventory.box);
+    check(pbox2.y + pbox2.h < 844 - 332 * ps - 25 * ps, 'retrato: painel de saque não cobre os botões');
     check(errors.length === 0, `retrato sem erros (${errors.length}) ${errors.slice(0, 3).join(' | ')}`);
     await ctx.close();
   }

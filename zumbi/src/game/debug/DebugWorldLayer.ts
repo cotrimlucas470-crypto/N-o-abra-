@@ -9,6 +9,7 @@ import type { EventBus } from '../core/EventBus';
 import { CHUNK_PX, chunkKey } from '../sim/ChunkGrid';
 import type { WorldState } from '../sim/WorldState';
 import { doorGapRect } from '../world/doors';
+import { PROP_HARVEST, RESOURCE_HARVEST } from '../nature/NatureCatalog';
 import { Pathfinder } from '../world/nav/Pathfinder';
 import type { WorldModel } from '../world/WorldModel';
 import type { DebugState } from './DebugState';
@@ -30,6 +31,8 @@ export class DebugWorldLayer {
     private readonly loadedChunks: () => number[],
     private readonly world: WorldState,
     bus: EventBus,
+    /** Agora, em dias de jogo (quanto as árvores têm). */
+    private readonly nowDays: () => number = () => 0,
   ) {
     this.g = scene.add.graphics().setDepth(500);
     this.pathfinder = new Pathfinder(model.nav);
@@ -58,6 +61,7 @@ export class DebugWorldLayer {
     if (s.chunks) this.drawChunks(view);
     if (s.nav) this.drawNav(view);
     if (s.doors) this.drawDoors(view);
+    if (s.loot) this.drawLoot(view);
     this.drawNoises(dt);
     if (s.target) this.drawTarget(px, py, dt);
     else {
@@ -97,6 +101,45 @@ export class DebugWorldLayer {
           const color = st?.locked ? 0xffd166 : st?.open ? 0x5fe07a : 0xe05f5f;
           const r = doorGapRect(d);
           g.fillStyle(color, 0.55).fillRect(r.x - 3, r.y - 3, r.w + 6, r.h + 6);
+        }
+      }
+    }
+  }
+
+  private drawLoot(view: Phaser.Geom.Rectangle): void {
+    const g = this.g;
+    const idx = this.model.index;
+    const map = this.model.map;
+    const now = this.nowDays();
+    const cx0 = Math.max(0, Math.floor(view.x / CHUNK_PX) - 1);
+    const cy0 = Math.max(0, Math.floor(view.y / CHUNK_PX) - 1);
+    const cx1 = Math.floor((view.x + view.width) / CHUNK_PX) + 1;
+    const cy1 = Math.floor((view.y + view.height) / CHUNK_PX) + 1;
+    for (let cy = cy0; cy <= cy1; cy++) {
+      for (let cx = cx0; cx <= cx1; cx++) {
+        const key = chunkKey(cx, cy);
+        for (const ref of this.world.loot.refsInChunk(key)) {
+          const searched = this.world.loot.isSearched(ref.id);
+          const empty = searched && (this.world.loot.peek(ref.id)?.isEmpty ?? false);
+          const color = !searched ? 0x5fb8ff : empty ? 0x777777 : 0xffd166;
+          g.fillStyle(color, 0.9).fillCircle(ref.x, ref.y, 9);
+          g.lineStyle(2, 0x000000, 0.8).strokeCircle(ref.x, ref.y, 9);
+        }
+        const content = idx.get(key);
+        if (!content) continue;
+        const bar = (x: number, y: number, frac: number) => {
+          g.fillStyle(0x000000, 0.7).fillRect(x - 22, y - 34, 44, 8);
+          g.fillStyle(frac > 0 ? 0x7fd35f : 0xd35f5f, 1).fillRect(x - 21, y - 33, Math.max(2, 42 * frac), 6);
+        };
+        for (const i of content.props) {
+          const p = map.props[i]!;
+          const def = PROP_HARVEST[p.type];
+          if (def) bar(p.x, p.y, this.world.nature.count(p.id, def, now) / def.max);
+        }
+        for (const i of content.resources) {
+          const r = map.resources[i]!;
+          const def = RESOURCE_HARVEST[r.type];
+          bar(r.x, r.y, this.world.nature.count(r.id, def, now) / def.max);
         }
       }
     }
