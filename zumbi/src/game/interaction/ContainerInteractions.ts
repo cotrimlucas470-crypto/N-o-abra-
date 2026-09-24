@@ -20,6 +20,8 @@ export class ContainerInteractions implements InteractionProvider {
   collect(who: Interactor, out: InteractionCandidate[]): void {
     const reach = INTERACTION_TUNING.doorReach;
     for (const { ref, distance } of this.state.loot.refsNear(who.x, who.y, reach + who.radius)) {
+      // Compartimentos de carro: quem cuida é VehicleInteractions (depende das portas).
+      if (this.state.vehicles.vehicle(ref.id.split(':')[0]!)) continue;
       const d = distance - who.radius;
       const searched = this.state.loot.isSearched(ref.id);
       const empty = searched && (this.state.loot.peek(ref.id)?.isEmpty ?? false);

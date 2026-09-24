@@ -36,6 +36,8 @@ export interface GameEvents {
   'input:attack': Record<string, never>;
   /** Recarregar a arma da mão. */
   'input:reload': Record<string, never>;
+  /** Cartão de informação (examinar veículo...). */
+  'ui:info': { title: string; lines: string[] };
   /** Abrir o mapa da cidade (item mapa). */
   'ui:map': { annotated: boolean };
   /** Pedido do menu "⋯" (botão ou tecla Q): a cena monta `session.options`. */

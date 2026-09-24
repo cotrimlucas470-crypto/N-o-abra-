@@ -30,6 +30,7 @@ export const CONTAINER_DEFS: Record<ContainerKind, ContainerDef> = {
   sacoLixo: { name: 'Sacos de lixo', capacity: 15, verb: 'REVIRAR' },
   portaLuvas: { name: 'Porta-luvas', capacity: 3, verb: 'ABRIR' },
   portaMalas: { name: 'Porta-malas', capacity: 60, verb: 'ABRIR' },
+  bancoCarro: { name: 'Banco do carro', capacity: 20, verb: 'VASCULHAR' },
   tambor: { name: 'Tambor', capacity: 40, verb: 'VASCULHAR' },
   chao: { name: 'Chão', capacity: 999, verb: 'PEGAR' },
 };
@@ -68,13 +69,21 @@ export const PROP_CONTAINERS: Partial<Record<PropType, readonly PropContainerSlo
   trashBags: [{ kind: 'sacoLixo' }],
   drum: [{ kind: 'tambor' }],
   // Carros "olham" para +x: porta-malas atrás (-x), porta do motorista à esquerda (-y).
+  // Bancos: acesso pela porta aberta ou vidro quebrado (vehicles/Vehicles.ts decide).
   car: [
     { kind: 'portaLuvas', slot: 'luvas', at: [14, -48] },
     { kind: 'portaMalas', slot: 'malas', at: [-96, 0] },
+    { kind: 'bancoCarro', slot: 'bancoF', at: [20, -48] },
+    { kind: 'bancoCarro', slot: 'bancoT', at: [-30, -48] },
   ],
   van: [
     { kind: 'portaLuvas', slot: 'luvas', at: [44, -54] },
     { kind: 'portaMalas', slot: 'malas', at: [-115, 0] },
+    { kind: 'bancoCarro', slot: 'bancoF', at: [60, -54] },
+    { kind: 'bancoCarro', slot: 'bancoT', at: [0, 54] },
   ],
-  carWreck: [{ kind: 'portaMalas', slot: 'malas', at: [-96, 0] }],
+  carWreck: [
+    { kind: 'portaMalas', slot: 'malas', at: [-96, 0] },
+    { kind: 'bancoCarro', slot: 'bancoF', at: [20, -48] },
+  ],
 };

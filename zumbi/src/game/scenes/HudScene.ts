@@ -15,6 +15,7 @@ import { ActionFeedback } from '../ui/ActionFeedback';
 import { InventoryPanel } from '../ui/InventoryPanel';
 import { OptionsMenu } from '../ui/OptionsMenu';
 import { MapView } from '../ui/MapView';
+import { InfoCard } from '../ui/InfoCard';
 import { StatePills } from '../ui/StatePills';
 import { hasClock } from '../ui/tabs/BodyTab';
 import { timeText } from '../ui/tabs/TimeTab';
@@ -51,6 +52,7 @@ export class HudScene extends Phaser.Scene {
   private menuBtn!: UiButton;
   private hudTimer = 0;
   private mapView!: MapView;
+  private infoCard!: InfoCard;
   private ammoText!: Phaser.GameObjects.Text;
   private debugText: Phaser.GameObjects.Text | null = null;
   private debugTimer = 0;
@@ -79,6 +81,7 @@ export class HudScene extends Phaser.Scene {
     });
     this.savedText = this.add.text(0, 0, 'jogo salvo', textStyle(10, UI.textDim, '700')).setDepth(91).setResolution(dpr).setAlpha(0);
     this.mapView = new MapView(this, dpr);
+    this.infoCard = new InfoCard(this, dpr);
     this.ammoText = this.add.text(0, 0, '', textStyle(11, UI.text, '800')).setOrigin(0.5).setDepth(102).setResolution(dpr);
     this.ammoText.setShadow(0, 1, 'rgba(0,0,0,0.9)', 3, false, true);
     this.toast = new Toast(this, dpr);
@@ -141,6 +144,7 @@ export class HudScene extends Phaser.Scene {
       s.bus.on('ui:container-close', () => this.inventory.hideContainer()),
       s.bus.on('ui:container-refresh', () => this.inventory.refresh()),
       s.bus.on('ui:options-ready', () => this.showOptions()),
+      s.bus.on('ui:info', (e) => this.infoCard.show(e.title, e.lines, s.viewport.cssWidth, s.viewport.cssHeight, uiScaleFor(s.viewport.cssWidth, s.viewport.cssHeight))),
       s.bus.on('ui:map', (e) => {
         const handle = (window as unknown as { __TDR__?: { map: import('../world/MapTypes').MapData } }).__TDR__;
         const game = this.scene.get(SCENES.game) as unknown as { worldModel?: { map: import('../world/MapTypes').MapData }; playerPosition?: () => { x: number; y: number } };
@@ -161,6 +165,7 @@ export class HudScene extends Phaser.Scene {
     this.input.on(Phaser.Input.Events.POINTER_DOWN, (p: Phaser.Input.Pointer) => {
       const x = p.x / dpr;
       const y = p.y / dpr;
+      if (this.infoCard.open) this.infoCard.hide();
       // Tocar fora do menu "⋯" fecha o menu (o toque não faz mais nada).
       if (this.optionsMenu.open && !this.optionsMenu.contains(x, y)) {
         const ob = this.controls.options;
@@ -364,6 +369,7 @@ export class HudScene extends Phaser.Scene {
     const cx = this.inventory.isOpen && !this.s.viewport.isPortrait ? Math.max(150, (this.s.viewport.insets.left + pb.x) / 2) : vw / 2;
     this.actionBar.update(act ? act.label : null, sv?.runner.progress ?? 0, !!sv?.sleeping, clock ? timeText(clock.minuteOfDay, true) : '', cx);
     this.inventory.tick(dt);
+    this.infoCard.update(dt);
     const handDef = inv?.handDef;
     this.controls.setReloadVisible(!!handDef?.gun);
     if (handDef?.gun && this.controls.isTouchMode) {

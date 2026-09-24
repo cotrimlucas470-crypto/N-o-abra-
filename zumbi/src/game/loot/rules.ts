@@ -87,6 +87,8 @@ export function tableFor(kind: ContainerKind, ctx: LootContext, prop?: PropType)
       return 'porta-luvas';
     case 'portaMalas':
       return prop === 'carWreck' ? 'porta-malas-destrocado' : 'porta-malas';
+    case 'bancoCarro':
+      return prop === 'carWreck' ? 'banco-destrocado' : 'banco-carro';
     case 'tambor':
       return 'tambor-industrial';
     case 'chao':

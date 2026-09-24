@@ -45,6 +45,8 @@ import { Combat, type AttackResult } from '../combat/Combat';
 import { CombatFx } from '../world/render/CombatFx';
 import { WindowViews } from '../world/render/WindowViews';
 import { ToolInteractions, WindowInteractions, type WorldActionHooks } from '../interaction/ToolInteractions';
+import { VehicleInteractions } from '../interaction/VehicleInteractions';
+import { VehicleViews } from '../world/render/VehicleViews';
 import type { SkillsSave } from '../skills/Skills';
 import { DoorViews } from '../world/render/DoorViews';
 import { InteractionHighlight } from '../world/render/InteractionHighlight';
@@ -91,6 +93,8 @@ export class GameScene extends Phaser.Scene {
   private combat!: Combat;
   private combatFx!: CombatFx;
   private attackCooldown = 0;
+  private vehicleViews!: VehicleViews;
+  private alarmTimer = 0;
   private options: InteractionOption[] = [];
   private readonly lightSources: LightSource[] = [];
   private scanTimer = 0;
@@ -217,6 +221,17 @@ export class GameScene extends Phaser.Scene {
     ]);
     this.interaction.add(tools);
     this.interaction.add(windows);
+    this.interaction.add(
+      new VehicleInteractions(this.state, this.inventory, this.survivor, {
+        ...worldHooks,
+        openContainer: (id) => {
+          if (!this.state.openContainer(id)) return;
+          s.bus.emit('ui:container-open', { id });
+        },
+        info: (title, lines) => s.bus.emit('ui:info', { title, lines }),
+      }),
+    );
+    this.vehicleViews = new VehicleViews(this, this.state, this.world);
     this.highlight = new InteractionHighlight(this);
     new WindowViews(this, this.state, this.world);
     this.combatFx = new CombatFx(this);
@@ -313,6 +328,13 @@ export class GameScene extends Phaser.Scene {
     this.player.update(this.dt, intent);
 
     this.attackCooldown = Math.max(0, this.attackCooldown - delta / 1000);
+    // Alarme de carro: barulho alto de tempos em tempos enquanto toca.
+    this.alarmTimer -= delta / 1000;
+    const alarms = this.state.vehicles.tickAlarms(delta / 1000);
+    if (alarms.length && this.alarmTimer <= 0) {
+      this.alarmTimer = 1.5;
+      for (const v of alarms) s.bus.emit('world:noise', { x: v.x, y: v.y, radius: 950, source: 'alarme de carro' });
+    }
     this.autosaveTimer -= delta / 1000;
     if (this.autosaveTimer <= 0 && !this.loop.runner.active) this.save();
   }
@@ -327,6 +349,7 @@ export class GameScene extends Phaser.Scene {
     this.nature.update(this.dt);
     this.updateHeldLight();
     this.combatFx.update(this.dt);
+    this.vehicleViews.update(this.dt);
     this.atmosphere.update(this.dt, this.cameras.main, {
       minuteOfDay: this.clock.minuteOfDay,
       weather: this.loop.weather,

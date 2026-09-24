@@ -357,6 +357,23 @@ export const LOOT_TABLES = {
       i('revolver38', 1.8), i('municao38', 2, [3, 12]), i('pistola9', 1), i('municao9', 1.2, [4, 12]), i('bilhete', 1),
     ],
   },
+  'banco-carro': {
+    rolls: [0, 3],
+    empty: 0.35,
+    wear: 'veiculo',
+    entries: [
+      i('mochilaEscolar', 1.2), i('sacolaMercado', 2), i('sacolaPlastica', 2), i('bolsaLateral', 1), i('moletom', 2), i('jaquetaJeans', 1), i('casacoInverno', 0.6),
+      i('capaChuva', 1), i('bone', 1.5), i('agua', 3), i('refrigerante', 2), i('sucoCaixa', 1.5), i('salgadinho', 2), i('chocolate', 1.5), i('biscoito', 1.5),
+      i('celular', 1.2), i('carregadorCelular', 1.5), i('carteira', 1.5), i('jornal', 1.5), i('revista', 1.5), i('mapaCidade', 1),
+      i('cobertor', 0.8), i('travesseiro', 0.6), i('chaveCarro', 0.6), i('isqueiro', 1), i('sanduiche', 0.8), i('lanterna', 0.6),
+    ],
+  },
+  'banco-destrocado': {
+    rolls: [0, 2],
+    empty: 0.5,
+    wear: 'lixo',
+    entries: [i('trapo', 3, [1, 3]), i('cacoVidro', 3, [1, 4]), i('garrafaPet', 2), i('jornal', 1), i('sucata', 1), i('borracha', 1), i('carteira', 0.5)],
+  },
   'porta-malas': {
     rolls: [0, 4],
     empty: 0.3,

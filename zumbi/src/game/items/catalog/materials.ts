@@ -43,6 +43,7 @@ export const MATERIALS = category('material', { stack: 10, cond: 'none', tags: [
   mat('cola', 'Cola', 'adesivo', 0.1, { f: 'tube', c: '#f2f2f2', c2: '#e8c84a' }, 'Cola forte.', ['cola'], { stack: 5 }),
   mat('colaMadeira', 'Cola de madeira', 'adesivo', 0.5, { f: 'bottle', c: '#f2f2e8', c2: '#c89a3a', k: 'pet' }, 'Móveis e reparos.', ['cola'], { stack: 2, rar: 'incomum' }),
   mat('combustivel', 'Galão de gasolina', 'combustivel', 4, { f: 'bucket', k: 'jerrycan', c: '#c8342a' }, 'Cinco litros. Gerador, carro, fogo.', ['combustivel', 'gasolina'], { stack: 1, rar: 'raro', cond: 'battery' }),
+  mat('galaoVazio', 'Galão vazio', 'combustivel', 0.4, { f: 'bucket', k: 'jerrycan', c: '#8a2a22' }, 'Cinco litros de nada. Serve para tirar gasolina de carro.', ['galao', 'recipiente-combustivel'], { stack: 1, rar: 'incomum' }),
   mat('oleoMotor', 'Óleo de motor', 'combustivel', 1, { f: 'bottle', c: '#2a2a2a', c2: '#e8c84a', k: 'pet' }, 'Lubrifica e queima.', ['oleo', 'lubrificante'], { stack: 2, rar: 'incomum' }),
   mat('pecasMotor', 'Peças de motor', 'mecanica', 1.5, { f: 'bits', k: 'gears', c: '#7a7a72' }, 'Para consertar veículos.', ['pecas', 'mecanica', 'metal'], { stack: 3, rar: 'incomum', metal: true }),
   mat('velaIgnicao', 'Vela de ignição', 'mecanica', 0.06, { f: 'bits', k: 'plug', c: '#e8e8e8' }, 'Motor que não pega, às vezes é ela.', ['pecas', 'mecanica'], { stack: 8, rar: 'incomum' }),

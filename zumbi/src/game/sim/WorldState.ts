@@ -26,6 +26,7 @@ import { DEFAULT_LOOT, type LootSettings } from '../loot/generate';
 import { LootSystem, type LootSave } from '../loot/LootSystem';
 import type { HarvestDef } from '../nature/NatureCatalog';
 import { DEFAULT_NATURE, NatureState, type NatureSave, type NatureSettings } from '../nature/NatureState';
+import { Vehicles, type VehicleState } from '../vehicles/Vehicles';
 
 export interface DoorState {
   open: boolean;
@@ -76,6 +77,8 @@ export interface WorldStateSave {
   nextItem: number;
   loot?: LootSave;
   nature?: NatureSave;
+  /** Veículos mexidos (estado inteiro). */
+  vehicles?: Record<string, VehicleState>;
   /** Cacos de vidro em jogo e cacos do mapa já varridos. */
   glass?: { spots: { x: number; y: number }[]; cleared: string[] };
 }
@@ -93,6 +96,8 @@ export class WorldState {
   readonly loot: LootSystem;
   /** Árvores frutíferas e recursos do chão (quanto têm agora, quando repõem). */
   readonly nature: NatureState;
+  /** Carros, vans e carcaças: portas, trancas, vidros, gasolina, bateria, pneus. */
+  readonly vehicles: Vehicles;
   private readonly listeners = new Set<(c: WorldChange) => void>();
   private nextItem = 1;
   private readonly removedProps = new Set<string>();
@@ -120,6 +125,7 @@ export class WorldState {
     });
     this.loot = new LootSystem(model, map.seed, opts.loot ?? DEFAULT_LOOT);
     this.nature = new NatureState(map.seed, opts.nature ?? DEFAULT_NATURE);
+    this.vehicles = new Vehicles(map.seed, map.props, { collapseAgeDays: opts.loot?.collapseAgeDays ?? 0 });
     for (const it of [...map.items, ...this.loot.floorItems]) {
       if (!itemDef(it.defId)) continue;
       this.mapItemCount.set(it.id, it.count);
@@ -515,6 +521,8 @@ export class WorldState {
     if (this.removedProps.size || this.propHp.size) out.props = { removed: [...this.removedProps], hp: Object.fromEntries(this.propHp) };
     if (this.brokenWindows.size) out.windows = { broken: [...this.brokenWindows], cleared: [...this.clearedWindows] };
     if (this.doorHp.size) out.doorHp = Object.fromEntries(this.doorHp);
+    const veh = this.vehicles.serialize();
+    if (Object.keys(veh).length) out.vehicles = veh;
     return out;
   }
 
@@ -526,6 +534,7 @@ export class WorldState {
     if (!save || (save.version !== 1 && save.version !== 2)) return;
     this.loot.restore(save.loot);
     this.nature.restore(save.nature);
+    this.vehicles.restore(save.vehicles);
     for (const [id, [open, locked, broken]] of Object.entries(save.doors ?? {})) {
       const i = this.doorIndex.get(id);
       if (i === undefined) continue;

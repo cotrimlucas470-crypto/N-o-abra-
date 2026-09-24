@@ -33,6 +33,7 @@ export type ContainerKind =
   | 'sacoLixo'
   | 'portaLuvas'
   | 'portaMalas'
+  | 'bancoCarro'
   | 'tambor'
   | 'chao';
 
