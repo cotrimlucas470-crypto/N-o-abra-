@@ -4,8 +4,8 @@
  */
 
 export const GAME_TITLE = 'Toque de Recolher';
-export const GAME_VERSION = '0.2.0';
-export const GAME_STAGE = 'Etapa 1 + 2';
+export const GAME_VERSION = '0.3.0';
+export const GAME_STAGE = 'Fase 1';
 
 /** Tamanho de um tile do mapa, em pixels de mundo. */
 export const TILE = 64;
@@ -53,4 +53,5 @@ export const SCENES = {
   title: 'Title',
   game: 'Game',
   hud: 'Hud',
+  debug: 'Debug',
 } as const;

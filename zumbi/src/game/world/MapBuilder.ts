@@ -47,7 +47,11 @@ export interface PlacedBuilding {
 }
 
 export class MapBuilder {
-  readonly rng: Random;
+  /**
+   * Gerador aleatório em uso. Cada setor da cidade troca por um próprio
+   * (semente + posição do setor): mudar a geração de um setor não altera os outros.
+   */
+  rng: Random;
   private readonly ground: Uint8Array;
   private readonly markings: MarkingPlacement[] = [];
   private readonly walls: WallPiece[] = [];
@@ -164,10 +168,13 @@ export class MapBuilder {
   prop(type: PropType, tx: number, ty: number, angle = 0, variant?: number, flipX = false): this {
     const def = PROP_DEFS[type];
     const v = variant ?? this.rng.int(0, def.sprites.length - 1);
+    const x = tx * TILE;
+    const y = ty * TILE;
     this.props.push({
+      id: `${type}@${Math.round(x)},${Math.round(y)}`,
       type,
-      x: tx * TILE,
-      y: ty * TILE,
+      x,
+      y,
       angle,
       variant: Math.min(v, def.sprites.length - 1),
       ...(flipX ? { flipX: true } : {}),
@@ -309,6 +316,13 @@ export class MapBuilder {
   }
 
   build(): MapData {
+    // Dois objetos iguais no mesmo ponto (raro) ganham sufixo — ainda determinístico.
+    const seen = new Map<string, number>();
+    for (const p of this.props) {
+      const n = seen.get(p.id) ?? 0;
+      seen.set(p.id, n + 1);
+      if (n > 0) p.id = `${p.id}#${n}`;
+    }
     return {
       id: this.id,
       name: this.name,

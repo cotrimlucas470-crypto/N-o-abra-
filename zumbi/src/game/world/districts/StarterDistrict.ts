@@ -1,5 +1,5 @@
 /**
- * REGIÃO 1 — Zona Residencial, Setor 1 (mapa inicial).
+ * REGIÃO 1 — Zona Residencial, Setor 1 (setor inicial, no centro da cidade).
  *
  * Um cruzamento entre a Avenida (leste-oeste) e a Rua (norte-sul)
  * divide quatro quarteirões:
@@ -7,128 +7,41 @@
  *   NE: praça arborizada e uma casa.
  *   SO: estacionamento e o Mercadinho.
  *   SE: Oficina, uma casa e um ferro-velho.
- * As saídas do setor estão bloqueadas por barricadas — as próximas
- * regiões vão "abrir" essas ruas.
  *
- * Layout em tiles (1 tile = 64 px). Mapa: 72 x 56.
+ * Coordenadas em tiles LOCAIS do setor (ver SectorLayout.ts). A malha de
+ * ruas vem de SectorRoads.ts, igual à dos outros setores.
  */
-import { MapBuilder, type PlacedBuilding } from '../MapBuilder';
 import { Ground, type MapData } from '../MapTypes';
 import { CORNER_STORE, GARAGE, HOUSE_SMALL, SHELTER } from '../buildings/templates';
+import type { PlacedBuilding } from '../MapBuilder';
+import { buildCity } from './CityGenerator';
+import type { SectorBuilder } from './SectorBuilder';
+import { AV_Y, ROAD, SECTOR_H, SECTOR_W, ST_X } from './SectorLayout';
 
 export const STARTER_DISTRICT_SEED = 1337;
 
-const W = 72;
-const H = 56;
+const W = SECTOR_W;
+const H = SECTOR_H;
 
-// Avenida: linhas 26..31 · Rua: colunas 34..39
-const AV_Y = 26;
-const ST_X = 34;
-const ROAD = 6;
-
+/** O setor inicial sozinho, como um mapa de 1×1 setor (usado em testes e no preset "cidade pequena"). */
 export function buildStarterDistrict(seed = STARTER_DISTRICT_SEED): MapData {
-  const b = new MapBuilder('setor-1', 'Zona Residencial · Setor 1', W, H, seed, Ground.Grass);
+  return buildCity({ seed, sectorsX: 1, sectorsY: 1 });
+}
 
-  roads(b);
+/** Conteúdo do setor inicial (a malha de ruas e as cercas de fundo já foram feitas). */
+export function buildStarterSector(b: SectorBuilder): void {
   northWest(b);
   northEast(b);
   southWest(b);
   southEast(b);
-  edges(b);
   streetLife(b);
-
   b.region('setor-1', 'Zona Residencial · Setor 1', 0, 0, W, H);
-  return b.build();
-}
-
-// ---------------------------------------------------------------- vias
-
-function roads(b: MapBuilder): void {
-  // calçadas primeiro, asfalto por cima nos cruzamentos
-  b.fill(0, AV_Y - 2, W, 2, Ground.Sidewalk);
-  b.fill(0, AV_Y + ROAD, W, 2, Ground.Sidewalk);
-  b.fill(ST_X - 2, 0, 2, H, Ground.Sidewalk);
-  b.fill(ST_X + ROAD, 0, 2, H, Ground.Sidewalk);
-  b.fill(0, AV_Y, W, ROAD, Ground.Asphalt);
-  b.fill(ST_X, 0, ROAD, H, Ground.Asphalt);
-
-  const cy = AV_Y + ROAD / 2; // 29
-  const cx = ST_X + ROAD / 2; // 37
-  const westEnd = ST_X - 2.2; // antes da faixa de pedestres
-  const eastStart = ST_X + ROAD + 2.2;
-  const northEnd = AV_Y - 2.2;
-  const southStart = AV_Y + ROAD + 2.2;
-
-  // Avenida: faixa dupla amarela + tracejado das pistas
-  for (const [x1, x2] of [[0, westEnd], [eastStart, W]] as const) {
-    b.marking('lane-double', x1, cy, x2, cy, 14);
-    b.marking('lane-dash', x1, cy - 1.5, x2, cy - 1.5, 6);
-    b.marking('lane-dash', x1, cy + 1.5, x2, cy + 1.5, 6);
-  }
-  // Rua
-  for (const [y1, y2] of [[0, northEnd], [southStart, H]] as const) {
-    b.marking('lane-double', cx, y1, cx, y2, 14);
-    b.marking('lane-dash', cx - 1.5, y1, cx - 1.5, y2, 6);
-    b.marking('lane-dash', cx + 1.5, y1, cx + 1.5, y2, 6);
-  }
-  // Faixas de pedestres (listras paralelas ao fluxo, repetidas atravessando a via)
-  b.marking('crosswalk', ST_X - 1, AV_Y, ST_X - 1, AV_Y + ROAD, 96);
-  b.marking('crosswalk', ST_X + ROAD + 1, AV_Y, ST_X + ROAD + 1, AV_Y + ROAD, 96);
-  b.marking('crosswalk', ST_X, AV_Y - 1, ST_X + ROAD, AV_Y - 1, 96);
-  b.marking('crosswalk', ST_X, AV_Y + ROAD + 1, ST_X + ROAD, AV_Y + ROAD + 1, 96);
-
-  // Meio-fio (a borda clara entre calçada e asfalto)
-  const curb = 7;
-  for (const [x1, x2] of [[0, ST_X - 2], [ST_X + ROAD + 2, W]] as const) {
-    b.marking('curb', x1, AV_Y - 0.05, x2, AV_Y - 0.05, curb);
-    b.marking('curb', x1, AV_Y + ROAD + 0.05, x2, AV_Y + ROAD + 0.05, curb);
-  }
-  for (const [y1, y2] of [[0, AV_Y - 2], [AV_Y + ROAD + 2, H]] as const) {
-    b.marking('curb', ST_X - 0.05, y1, ST_X - 0.05, y2, curb);
-    b.marking('curb', ST_X + ROAD + 0.05, y1, ST_X + ROAD + 0.05, y2, curb);
-  }
-
-  // Bueiros e tampas
-  b.decal('manhole', 20, cy + 0.2, 0);
-  b.decal('manhole', 52, cy - 0.3, 0);
-  b.decal('manhole', cx + 0.3, 12, 0);
-  b.decal('manhole', cx - 0.2, 46, 0);
-  for (const x of [6, 17, 28, 47, 58, 68]) {
-    b.decal('drain', x, AV_Y + 0.22, 0);
-    b.decal('drain', x + 3, AV_Y + ROAD - 0.22, 180);
-  }
-  for (const y of [5, 16, 38, 50]) {
-    b.decal('drain', ST_X + 0.22, y, 90);
-    b.decal('drain', ST_X + ROAD - 0.22, y + 3, -90);
-  }
-
-  // Postes (o braço aponta para a pista) e árvores nas calçadas
-  for (const x of [4, 14, 24, 46, 56, 66]) {
-    b.prop('lampPost', x, AV_Y - 1.4 + 0.5625, 90);
-    b.prop('lampPost', x + 5, AV_Y + ROAD + 1.4 - 0.5625, -90);
-  }
-  for (const y of [5, 15, 42, 52]) {
-    b.prop('lampPost', ST_X - 1.4 + 0.5625, y, 0);
-    b.prop('lampPost', ST_X + ROAD + 1.4 - 0.5625, y + 5, 180);
-  }
-  for (const x of [9, 19, 29.5, 51, 61]) {
-    b.decal('treePit', x, AV_Y - 1, 0);
-    b.prop('treeLarge', x, AV_Y - 1);
-  }
-  for (const x of [3, 27, 52, 66]) {
-    b.decal('treePit', x, AV_Y + ROAD + 1, 0);
-    b.prop('treeSmall', x, AV_Y + ROAD + 1);
-  }
-  b.prop('hydrant', 31.2, AV_Y - 0.6);
-  b.prop('hydrant', 42.8, AV_Y + ROAD + 0.6);
-  b.prop('trashCan', 16.4, AV_Y - 1.6);
-  b.prop('trashCan', 48.6, AV_Y + ROAD + 1.6);
 }
 
 // ---------------------------------------------------------------- quarteirões
 
 /** Caminho de concreto da porta (tile) até a calçada, na direção da fachada. */
-function pathFromDoor(b: MapBuilder, placed: PlacedBuilding, doorIndex: number, toEdge: number, width = 2): void {
+function pathFromDoor(b: SectorBuilder, placed: PlacedBuilding, doorIndex: number, toEdge: number, width = 2): void {
   const d = placed.doors[doorIndex];
   if (!d) return;
   const x0 = Math.round(d.x - width / 2);
@@ -139,9 +52,9 @@ function pathFromDoor(b: MapBuilder, placed: PlacedBuilding, doorIndex: number, 
   else b.fill(toEdge, y0, d.x - toEdge, width, Ground.Concrete);
 }
 
-function northWest(b: MapBuilder): void {
+function northWest(b: SectorBuilder): void {
   // Quintais: cerca divisória, horta, árvores
-  b.wall(16, 1, 16, 11.2, 'fence');
+  b.wall(16, 2, 16, 11.2, 'fence');
   b.fill(4, 3, 6, 3, Ground.Dirt);
   b.decal('dirt', 7, 4.5, 0, 1.3, 0.6);
   b.prop('treeLarge', 12.5, 4.5);
@@ -181,7 +94,7 @@ function northWest(b: MapBuilder): void {
   b.setSpawn(19 + 4.25, 13 + 6.4);
 }
 
-function northEast(b: MapBuilder): void {
+function northEast(b: SectorBuilder): void {
   // Praça
   b.fill(43, 3, 14, 20, Ground.GrassDark);
   b.fill(43, 12, 14, 1, Ground.Gravel);
@@ -213,11 +126,11 @@ function northEast(b: MapBuilder): void {
   b.prop('bush', 59.5, 10.2);
   b.prop('trashBags', 69.5, 22.4);
   b.prop('trashBags', 58.2, 22.6, 40);
-  b.wall(58, 1, 58, 11.4, 'fence');
+  b.wall(58, 2, 58, 11.4, 'fence');
   b.scatterDecals(['leaves'], 6, 58, 2, 13, 9, [0.7, 1.1], [0.5, 0.9]);
 }
 
-function southWest(b: MapBuilder): void {
+function southWest(b: SectorBuilder): void {
   // Estacionamento do mercado
   b.fill(3, 35, 27, 7, Ground.Parking);
   b.fill(8, 42, 16, 1, Ground.Concrete);
@@ -254,7 +167,7 @@ function southWest(b: MapBuilder): void {
   // Laterais
   b.prop('treeLarge', 4, 46);
   b.prop('treeSmall', 5.6, 51.5);
-  b.prop('bush', 2, 50);
+  b.prop('bush', 3.4, 50);
   b.prop('bush', 7, 44.2);
   b.prop('treeLarge', 28.5, 45.5);
   b.prop('carWreck', 28.4, 50.4, 95);
@@ -262,7 +175,7 @@ function southWest(b: MapBuilder): void {
   b.scatterDecals(['leaves'], 8, 1, 43, 31, 11, [0.7, 1.1], [0.5, 0.9]);
 }
 
-function southEast(b: MapBuilder): void {
+function southEast(b: SectorBuilder): void {
   // Oficina com pátio
   const garage = b.building(GARAGE, 44, 36, { id: 'oficina' });
   b.fill(44, 34, 7, 2, Ground.Concrete);
@@ -297,49 +210,9 @@ function southEast(b: MapBuilder): void {
   b.scatterDecals(['oil', 'debris'], 10, 43, 47, 28, 8, [0.7, 1.1], [0.6, 0.9]);
 }
 
-// ---------------------------------------------------------------- bordas do setor
-
-function edges(b: MapBuilder): void {
-  // Cercas no perímetro (menos onde passam ruas/calçadas)
-  b.wall(0, 1, ST_X - 2, 1, 'fence');
-  b.wall(ST_X + ROAD + 2, 1, W, 1, 'fence');
-  b.wall(0, 55, ST_X - 2, 55, 'fence');
-  b.wall(ST_X + ROAD + 2, 55, W, 55, 'fence');
-  b.wall(0.5, 1, 0.5, AV_Y - 2, 'fence');
-  b.wall(0.5, AV_Y + ROAD + 2, 0.5, 55, 'fence');
-  b.wall(71.5, 1, 71.5, AV_Y - 2, 'fence');
-  b.wall(71.5, AV_Y + ROAD + 2, 71.5, 55, 'fence');
-
-  // Árvores do lado de fora das cercas (a cidade continua além do setor)
-  for (let x = 2; x < W; x += 5.5) {
-    if (x > ST_X - 3 && x < ST_X + ROAD + 3) continue;
-    b.prop('treeLarge', x + b.rng.range(-0.6, 0.6), 0.1 + b.rng.range(-0.2, 0.2));
-  }
-
-  // Avenida bloqueada a oeste: muretas de concreto + carros queimados
-  for (const y of [AV_Y + 1, AV_Y + 3, AV_Y + 5]) b.prop('concreteBarrier', 1.1, y, 90);
-  b.prop('carWreck', 3.6, AV_Y + 1.6, 105);
-  b.prop('carWreck', 4.4, AV_Y + 4.3, 75);
-  b.decal('debris', 6, AV_Y + 3);
-
-  // Avenida bloqueada a leste: ônibus atravessado + barricadas
-  b.prop('bus', 69.8, AV_Y + 3, 90);
-  b.prop('barricade', 66.4, AV_Y + 1.4, 80);
-  b.prop('barricade', 66.2, AV_Y + 4.8, 100);
-  b.decal('glass', 67.4, AV_Y + 3.2);
-
-  // Rua bloqueada ao norte e ao sul
-  for (const x of [ST_X + 1, ST_X + 3, ST_X + 5]) b.prop('concreteBarrier', x, 1.1, 0);
-  b.prop('van', ST_X + 3, 3.4, 8);
-  for (const x of [ST_X + 1.2, ST_X + 3, ST_X + 4.8]) b.prop('barricade', x, 54.6, b.rng.range(-5, 5));
-  b.prop('car', ST_X + 1.6, 52, 70, 1);
-  b.prop('cone', ST_X + 3.8, 52.6);
-  b.prop('cone', ST_X + 4.6, 52.1);
-}
-
 // ---------------------------------------------------------------- abandono
 
-function streetLife(b: MapBuilder): void {
+function streetLife(b: SectorBuilder): void {
   const cy = AV_Y + 3;
   // Avenida
   b.prop('car', 12, cy - 1.4, 180, 1);

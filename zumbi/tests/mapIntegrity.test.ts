@@ -2,17 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { PLAYER_TUNING } from '../src/game/config/PlayerTuning';
 import { TILE } from '../src/game/config/GameConfig';
 import { circleHitsSolid, mapSolids, type Solid } from '../src/game/world/collision';
+import { buildCity, planCity } from '../src/game/world/districts/CityGenerator';
 import { buildStarterDistrict } from '../src/game/world/districts/StarterDistrict';
-import { GROUND_COUNT } from '../src/game/world/MapTypes';
+import { GROUND_COUNT, type MapData } from '../src/game/world/MapTypes';
 import { PROP_DEFS } from '../src/game/world/PropCatalog';
 
-const map = buildStarterDistrict();
-const solids = mapSolids(map);
 const R = PLAYER_TUNING.bodyRadius;
-const CELL = 8;
 
 /** Grade de células onde o CENTRO do jogador cabe sem encostar em nada. */
-function walkableGrid(): { cols: number; rows: number; free: Uint8Array } {
+function walkableGrid(map: MapData, solids: Solid[], CELL: number): { cols: number; rows: number; free: Uint8Array } {
   const cols = Math.floor((map.widthTiles * TILE) / CELL);
   const rows = Math.floor((map.heightTiles * TILE) / CELL);
   const free = new Uint8Array(cols * rows).fill(1);
@@ -46,7 +44,7 @@ function walkableGrid(): { cols: number; rows: number; free: Uint8Array } {
   return { cols, rows, free };
 }
 
-function flood(grid: ReturnType<typeof walkableGrid>, sx: number, sy: number): Uint8Array {
+function flood(grid: ReturnType<typeof walkableGrid>, sx: number, sy: number, CELL: number): Uint8Array {
   const { cols, rows, free } = grid;
   const seen = new Uint8Array(cols * rows);
   const start = Math.floor(sy / CELL) * cols + Math.floor(sx / CELL);
@@ -71,14 +69,26 @@ function flood(grid: ReturnType<typeof walkableGrid>, sx: number, sy: number): U
   return seen;
 }
 
-describe('Mapa inicial (Setor 1)', () => {
+function checkMap(label: string, build: () => MapData, CELL: number) {
+describe(label, () => {
+  const map = build();
+  const solids = mapSolids(map);
+  let cached: { grid: ReturnType<typeof walkableGrid>; reach: Uint8Array } | null = null;
+  const reachability = () => {
+    if (!cached) {
+      const grid = walkableGrid(map, solids, CELL);
+      cached = { grid, reach: flood(grid, map.spawn.x, map.spawn.y, CELL) };
+    }
+    return cached;
+  };
+
   it('tem dimensões e chão válidos', () => {
     expect(map.ground.length).toBe(map.widthTiles * map.heightTiles);
     for (const g of map.ground) expect(g).toBeLessThan(GROUND_COUNT);
   });
 
   it('é determinístico para a mesma semente', () => {
-    const again = buildStarterDistrict();
+    const again = build();
     expect(again.props).toEqual(map.props);
     expect(again.decals).toEqual(map.decals);
     expect(Array.from(again.ground)).toEqual(Array.from(map.ground));
@@ -103,6 +113,12 @@ describe('Mapa inicial (Setor 1)', () => {
     }
   });
 
+  it('todo objeto tem id estável e único', () => {
+    const ids = map.props.map((p) => p.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids.every((id) => /^[a-zA-Z]+@-?\d+,-?\d+(#\d+)?$/.test(id))).toBe(true);
+  });
+
   it('paredes têm tamanho positivo', () => {
     for (const w of map.walls) {
       expect(w.w).toBeGreaterThan(0);
@@ -111,8 +127,7 @@ describe('Mapa inicial (Setor 1)', () => {
   });
 
   it('todo cômodo de toda construção é alcançável a partir do spawn', () => {
-    const grid = walkableGrid();
-    const reach = flood(grid, map.spawn.x, map.spawn.y);
+    const { grid, reach } = reachability();
     const problems: string[] = [];
     for (const b of map.buildings) {
       for (const room of b.rooms) {
@@ -133,8 +148,7 @@ describe('Mapa inicial (Setor 1)', () => {
   });
 
   it('toda porta externa é atravessável (dos dois lados)', () => {
-    const grid = walkableGrid();
-    const reach = flood(grid, map.spawn.x, map.spawn.y);
+    const { grid, reach } = reachability();
     const blocked: string[] = [];
     for (const b of map.buildings) {
       for (const d of b.doors) {
@@ -172,5 +186,29 @@ describe('Mapa inicial (Setor 1)', () => {
       }
     }
     expect([...new Set(overlaps)]).toEqual([]);
+  });
+});
+}
+
+checkMap('Setor inicial (cidade 1×1)', () => buildStarterDistrict(), 8);
+checkMap('Cidade 3×3 (semente padrão)', () => buildCity({ seed: 1337, sectorsX: 3, sectorsY: 3 }), 12);
+checkMap('Cidade 3×3 (outra semente)', () => buildCity({ seed: 90210, sectorsX: 3, sectorsY: 3 }), 12);
+checkMap('Cidade 2×4 (outra forma)', () => buildCity({ seed: 4242, sectorsX: 2, sectorsY: 4 }), 12);
+
+describe('plano da cidade', () => {
+  it('3×3 tem setor inicial no centro e ao menos um de cada zona', () => {
+    const plan = planCity({ seed: 1337, sectorsX: 3, sectorsY: 3 });
+    expect(plan.find((p) => p.zone === 'starter')).toMatchObject({ sx: 1, sy: 1 });
+    for (const z of ['residential', 'commercial', 'industrial', 'park']) expect(plan.some((p) => p.zone === z), z).toBe(true);
+    expect(new Set(plan.map((p) => p.name)).size).toBe(plan.length);
+  });
+
+  it('muitas sementes geram cidades válidas (sem erro, spawn livre)', () => {
+    for (let seed = 1; seed <= 12; seed++) {
+      const map = buildCity({ seed, sectorsX: 3, sectorsY: 3 });
+      const solids = mapSolids(map);
+      for (const s of solids) expect(circleHitsSolid(map.spawn.x, map.spawn.y, R + 2, s)).toBe(false);
+      expect(map.buildings.length).toBeGreaterThan(30);
+    }
   });
 });

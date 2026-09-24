@@ -1,43 +1,47 @@
 # Roteiro
 
-Uma etapa por vez. Depois de cada etapa: verificar arquivos, procurar erros, corrigir bugs, checar desempenho
-e controles, e garantir que o que já funcionava continua funcionando (`npm run verificar` + `npm run smoke`).
+A especificação completa e as decisões por trás deste roteiro estão em [PLANO-GERAL.md](PLANO-GERAL.md).
+O desenho do sistema de zumbis está em [ZUMBIS.md](ZUMBIS.md). O que cada fase entregou está em [FASES.md](FASES.md).
 
-| # | Etapa | Estado |
+Regra de cada fase: implementar → testar → procurar bugs → corrigir → medir desempenho → confirmar que o
+que já existia continua funcionando → documentar → só então avançar.
+
+| Fase | Conteúdo | Estado |
 |---|---|---|
-| 1 | Projeto (Phaser 4 + TypeScript + Vite, estrutura, testes, pacote) | ✅ feito |
-| 2 | Personagem (8 direções/analógico, aceleração, colisão, animação, fôlego, vida) | ✅ feito |
-| 3 | Mapa (Setor 1: cruzamento, casas, abrigo, mercadinho, oficina, praça, estacionamento) | 🟡 base pronta |
-| 4 | Câmera (segue com suavidade, olha à frente, zoom por aparelho) | 🟡 base pronta |
-| 5 | Controles touch (2 joysticks, correr, pausa, tela cheia, layout em dados) | 🟡 base pronta |
-| 6 | Primeiro zumbi (IA: parado → patrulha → ouve → investiga → persegue → ataca → procura → volta) | ⏳ |
-| 7 | Combate (corpo a corpo e armas; ruído chama zumbis) | ⏳ |
-| 8 | Loot (tabelas por tipo de local e cômodo, com probabilidade) | ⏳ |
-| 9 | Inventário (slots, peso, categorias, empilhar, usar/equipar/descartar/transferir) | ⏳ |
-| 10 | Primeiro interior "de verdade" (portas, cômodos com loot, áreas trancadas) | ⏳ |
-| 11 | Dia e noite (iluminação dinâmica, lanterna, sombras que giram) | ⏳ |
-| 12 | Base (melhorias, armazenamento, defesa) | ⏳ |
-| 13 | Crafting (árvore com desbloqueio gradual) | ⏳ |
-| 14 | Progressão (XP, nível, fome, sede, temperatura) | ⏳ |
-| 15 | Regiões adicionais (centro, comercial, industrial, hospital, delegacia, militar...) | ⏳ |
-| 16 | Chefes | ⏳ |
-| 17 | Eventos (hordas, sobreviventes, rádio, chuva, queda de energia) | ⏳ |
-| 18 | Polimento (som, partículas, clima, APK/Play Store) | ⏳ |
-
-As etapas 3, 4 e 5 já têm a base funcionando (era preciso ter algo jogável na Etapa 2). Quando chegarmos
-nelas, o trabalho é **aprofundar**: mais tipos de construção e ruas, ajustes finos de câmera, tela para
-reposicionar botões e botões de ação.
+| — | Protótipo (projeto, personagem, mapa inicial, câmera, toque) | ✅ v0.2.0 |
+| **1** | **Arquitetura + mapa + câmera + movimento + colisões** | ✅ v0.3.0 |
+| 2 | Interação + objetos + portas + containers + inventário (+ save básico) | ⏳ próxima |
+| 3 | Sobrevivência básica (fome, sede, energia, sono) | ⏳ |
+| 4 | Loot contextual | ⏳ |
+| 5 | Zumbis + percepção + IA (+ sistema de ruído) | ⏳ (desenho pronto em ZUMBIS.md) |
+| 6 | Combate corpo a corpo | ⏳ |
+| 7 | Armas de fogo + munição | ⏳ |
+| 8 | Ferimentos + medicina | ⏳ |
+| 9 | Crafting + bancadas | ⏳ |
+| 10 | Construção + base | ⏳ |
+| 11 | Dia/noite + clima + temperatura | ⏳ |
+| 12 | Água + energia + geradores | ⏳ |
+| 13 | Agricultura | ⏳ |
+| 14 | Veículos | ⏳ |
+| 15 | NPCs e sistemas sociais | ⏳ |
+| 16 | Save/load completo (slots, backups, migração) | ⏳ |
+| 17 | Configurações + customização dos controles | ⏳ |
+| 18 | Performance e otimização Android (APK) | ⏳ |
+| 19 | Polimento visual, animações, áudio | ⏳ |
 
 ## Decisões já tomadas
 
-- Movimento analógico em 360° no joystick (inclui as 8 direções); teclado anda em 8 direções.
-- Correr é um botão **liga/desliga** (com os dois polegares ocupados não dá para segurar um botão).
-  Desliga sozinho ao soltar o joystick de movimento. Mirar impede correr.
-- Telhados escondem os interiores até você entrar: o que tem dentro de uma casa é surpresa.
-- Colisão justa para objetos tortos (carro batido vira uma fileira de círculos, e não uma caixa enorme).
+- Movimento analógico em 360° no joystick; teclado em 8 direções.
+- Correr é botão liga/desliga; desliga ao soltar o joystick de movimento; mirar impede correr.
+- Telhados escondem os interiores até você entrar.
+- Objetos girados colidem como fileiras de círculos, e não como caixas gigantes.
+- Mundo em **chunks de 16×16 tiles**; só os chunks perto da câmera existem no Phaser.
+- Cidade em **setores de 72×56 tiles** com a mesma malha de avenida, rua e becos.
+- Navegação em células de 32 px; visão em células de 16 px (janela deixa ver, não deixa passar).
+- Tudo o que ajusta uma partida mora em `config/Sandbox.ts` (opções de mundo).
 
 ## Ideias anotadas para depois
 
 - Gerar o atlas procedural no build (PNG em cache) para abrir mais rápido em celulares fracos.
 - Sombra do telhado com o formato do telhado de 4 águas.
-- Janelas quebráveis; portas que abrem e fecham (com barulho).
+- Mais plantas: escola, hospital, delegacia, igreja, posto, prédio de apartamentos (entram com o loot, Fase 4).

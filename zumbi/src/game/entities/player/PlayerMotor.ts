@@ -20,8 +20,16 @@ export interface Velocity {
   y: number;
 }
 
+/** Multiplicadores externos (opções de mundo hoje; peso, ferimentos e postura nas próximas fases). */
+export interface SpeedModifiers {
+  walk: number;
+  run: number;
+}
+
+const NO_MODS: SpeedModifiers = { walk: 1, run: 1 };
+
 /** Velocidade alvo para um input. Diagonal nunca fica mais rápida que reto. */
-export function targetVelocity(intent: MoveIntent, canSprint: boolean): Velocity {
+export function targetVelocity(intent: MoveIntent, canSprint: boolean, mods: SpeedModifiers = NO_MODS): Velocity {
   let mag = length(intent.x, intent.y);
   if (mag < 1e-4) return { x: 0, y: 0 };
   const dirX = intent.x / mag;
@@ -31,7 +39,7 @@ export function targetVelocity(intent: MoveIntent, canSprint: boolean): Velocity
   // Joystick analógico: pouca inclinação = passo lento, mas nunca "quase parado".
   const factor = t.minAnalogSpeedFactor + (1 - t.minAnalogSpeedFactor) * mag;
   const running = intent.sprint && canSprint && mag > 0.5;
-  const speed = running ? t.runSpeed : t.walkSpeed * factor;
+  const speed = running ? t.runSpeed * mods.run : t.walkSpeed * mods.walk * factor;
   return { x: dirX * speed, y: dirY * speed };
 }
 

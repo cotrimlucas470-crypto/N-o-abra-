@@ -2,7 +2,7 @@
  * Sombras projetadas pelo "sol". Cada objeto que faz sombra registra
  * um sprite-sombra e sua altura; o deslocamento é altura x direção do sol.
  *
- * Hoje o sol é fixo (fim de tarde). Na Etapa 11 (dia/noite) basta chamar
+ * Hoje o sol é fixo (fim de tarde). Na Fase 11 (dia/noite) basta chamar
  * setSun() ao longo do dia: sombras giram, esticam e somem à noite —
  * sem tocar em nenhum outro sistema.
  */
@@ -11,7 +11,7 @@ export interface ShadowCaster {
   setAlpha(a: number): unknown;
 }
 
-interface Entry {
+export interface ShadowEntry {
   obj: ShadowCaster;
   baseX: number;
   baseY: number;
@@ -33,13 +33,23 @@ export interface SunState {
 export const DEFAULT_SUN: SunState = { dirX: 0.56, dirY: 0.83, length: 13, alpha: 0.3 };
 
 export class ShadowSystem {
-  private entries: Entry[] = [];
+  private entries = new Set<ShadowEntry>();
   private sun: SunState = { ...DEFAULT_SUN };
 
-  add(obj: ShadowCaster, baseX: number, baseY: number, height: number, strength = 1): void {
+  add(obj: ShadowCaster, baseX: number, baseY: number, height: number, strength = 1): ShadowEntry {
     const e = { obj, baseX, baseY, height, strength };
-    this.entries.push(e);
+    this.entries.add(e);
     this.apply(e);
+    return e;
+  }
+
+  /** Esquece uma sombra (o objeto dela foi descarregado junto com o chunk). */
+  remove(e: ShadowEntry): void {
+    this.entries.delete(e);
+  }
+
+  get count(): number {
+    return this.entries.size;
   }
 
   offset(height: number): { x: number; y: number } {
@@ -55,7 +65,7 @@ export class ShadowSystem {
     for (const e of this.entries) this.apply(e);
   }
 
-  private apply(e: Entry): void {
+  private apply(e: ShadowEntry): void {
     const o = this.offset(e.height);
     e.obj.setPosition(e.baseX + o.x, e.baseY + o.y);
     e.obj.setAlpha(this.sun.alpha * e.strength);

@@ -1,7 +1,8 @@
 /**
  * Painel de status (canto superior esquerdo): vida e fôlego.
- * Etapas futuras acrescentam fome, sede, temperatura e peso aqui —
- * cada um é só mais uma barra (addBar).
+ * A Fase 3 (sobrevivência) traz fome, sede, sono e peso — de preferência como
+ * indicadores discretos que só aparecem quando importam (a especificação pede
+ * poucas barras); `addBar` continua disponível para o que precisar de barra.
  */
 import type Phaser from 'phaser';
 import type { PlayerStats } from '../entities/player/PlayerStats';

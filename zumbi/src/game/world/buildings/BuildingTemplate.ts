@@ -23,6 +23,8 @@ export interface BuildingTemplate {
   w: number;
   h: number;
   roof: RoofStyle;
+  /** Lado da porta principal (fachada) na orientação natural. O gerador gira para a rua. */
+  front: 'n' | 's';
   floors: { rect: readonly [number, number, number, number]; ground: GroundId; room: string }[];
   walls: TemplateWall[];
   props: { type: PropType; at: readonly [number, number]; angle?: number; variant?: number }[];

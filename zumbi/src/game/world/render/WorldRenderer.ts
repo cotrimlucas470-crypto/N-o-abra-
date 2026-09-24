@@ -1,7 +1,11 @@
 /**
- * Transforma um MapData (dados puros) em objetos do Phaser:
- * chão (tilemap), faixas, decalques, objetos, paredes, sombras,
- * telhados e corpos de colisão.
+ * Desenha o mundo a partir do WorldModel (dados puros), EM CHUNKS:
+ * só os chunks perto da câmera existem como objetos do Phaser (visuais,
+ * sombras, telhados e corpos de colisão). Ao se afastar, eles são
+ * destruídos; ao voltar, recriados a partir dos mesmos dados.
+ *
+ * O chão é uma exceção: uma única camada de tiles na GPU para o mundo todo
+ * (custo fixo por pixel, não importa o tamanho do mapa).
  *
  * Nada de regra de jogo aqui — só construção visual/física do mundo.
  */
@@ -10,16 +14,18 @@ import { DEPTH, TILE } from '../../config/GameConfig';
 import { PALETTE, hex } from '../../config/Palette';
 import type { EventBus } from '../../core/EventBus';
 import { hash2 } from '../../core/Random';
+import { CHUNK_PX, chunksInRect, keyToChunk } from '../../sim/ChunkGrid';
 import { TEX } from '../../assets/AssetKeys';
 import type { AssetRegistry } from '../../assets/AssetRegistry';
-import { mapSolids } from '../collision';
+import { propSolids, type Solid } from '../collision';
 import { DECAL_DEFS } from '../DecalCatalog';
-import { GROUND_VARIANTS, type MapData, type MarkingKind, type WallPiece } from '../MapTypes';
+import { GROUND_VARIANTS, type MarkingKind, type WallPiece } from '../MapTypes';
 import { PROP_DEFS, type PropDef } from '../PropCatalog';
-import { CanopyFader } from './CanopyFader';
+import type { WorldModel } from '../WorldModel';
+import { CanopyFader, type Canopy } from './CanopyFader';
 import { RoofSystem } from './RoofSystem';
-import { ShadowSystem } from './ShadowSystem';
-import { SpatialCuller } from './SpatialCuller';
+import { ShadowSystem, type ShadowEntry } from './ShadowSystem';
+import { SpatialCuller, type CullEntry } from './SpatialCuller';
 
 const MARKING_TEXTURE: Record<MarkingKind, { key: string; fitThickness: boolean }> = {
   'lane-dash': { key: 'pattern.lane.dash', fitThickness: true },
@@ -36,6 +42,31 @@ const WALL_SHADOW: Record<WallPiece['kind'], { height: number; strength: number 
   fence: { height: 0.9, strength: 0.7 },
 };
 
+/**
+ * Margens de carga (px além da borda da tela). Carrega antes de aparecer;
+ * só descarrega bem depois de sumir (histerese: andar para lá e para cá na
+ * fronteira não fica criando e destruindo objetos).
+ */
+const LOAD_MARGIN = CHUNK_PX * 0.75;
+const UNLOAD_MARGIN = CHUNK_PX * 1.5;
+/** Chunks criados por quadro em jogo normal (espalha o custo, sem travadas). */
+const LOADS_PER_FRAME = 2;
+
+interface LoadedChunk {
+  objects: Phaser.GameObjects.GameObject[];
+  culls: CullEntry[];
+  shadows: ShadowEntry[];
+  canopies: Canopy[];
+  zones: Phaser.GameObjects.Zone[];
+  roofs: string[];
+}
+
+export interface ViewRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
 export class WorldRenderer {
   readonly shadows = new ShadowSystem();
@@ -43,38 +74,44 @@ export class WorldRenderer {
   readonly canopies = new CanopyFader();
   readonly roofs: RoofSystem;
   readonly solids: Phaser.Physics.Arcade.StaticGroup;
-  readonly widthPx: number;
-  readonly heightPx: number;
+  private readonly loaded = new Map<number, LoadedChunk>();
+  private readonly markingTexH = new Map<string, number>();
 
   constructor(
     private readonly scene: Phaser.Scene,
-    private readonly map: MapData,
+    private readonly world: WorldModel,
     private readonly assets: AssetRegistry,
     bus: EventBus,
   ) {
-    this.widthPx = map.widthTiles * map.tileSize;
-    this.heightPx = map.heightTiles * map.tileSize;
-    this.roofs = new RoofSystem(scene, assets, bus);
-
+    this.roofs = new RoofSystem(scene, assets, bus, this.shadows, this.culler, (x, y) => world.index.buildingsNear(x, y));
+    this.solids = scene.physics.add.staticGroup();
     this.buildGround();
-    this.buildMarkings();
-    this.buildDecals();
-    this.buildProps();
-    this.buildWalls();
-    this.roofs.build(map.buildings, this.shadows, this.culler);
-    this.solids = this.buildColliders();
+    for (const spec of Object.values(MARKING_TEXTURE)) {
+      const img = scene.textures.get(spec.key).getSourceImage() as { height: number };
+      this.markingTexH.set(spec.key, img.height);
+    }
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.unloadAll());
+  }
+
+  get widthPx(): number {
+    return this.world.widthPx;
+  }
+
+  get heightPx(): number {
+    return this.world.heightPx;
   }
 
   // ------------------------------------------------------------------ chão
 
   private buildGround(): void {
-    const { widthTiles: w, heightTiles: h } = this.map;
+    const map = this.world.map;
+    const { widthTiles: w, heightTiles: h } = map;
     const data: number[][] = [];
     for (let y = 0; y < h; y++) {
       const row: number[] = [];
       for (let x = 0; x < w; x++) {
-        const g = this.map.ground[y * w + x]!;
-        row.push(g * GROUND_VARIANTS + pickVariant(hash2(x, y, this.map.seed)));
+        const g = map.ground[y * w + x]!;
+        row.push(g * GROUND_VARIANTS + pickVariant(hash2(x, y, map.seed)));
       }
       data.push(row);
     }
@@ -88,115 +125,199 @@ export class WorldRenderer {
     layer.setDepth(DEPTH.ground);
   }
 
-  private buildMarkings(): void {
-    for (const m of this.map.markings) {
-      const spec = MARKING_TEXTURE[m.kind];
-      const tex = this.scene.textures.get(spec.key).getSourceImage() as { height: number };
-      const ts = this.scene.add.tileSprite(m.x, m.y, m.length, m.thickness, spec.key).setDepth(DEPTH.groundMarkings);
-      if (spec.fitThickness) ts.setTileScale(1, m.thickness / tex.height);
-      if (m.vertical) ts.setAngle(90);
-      const hw = (m.vertical ? m.thickness : m.length) / 2;
-      const hh = (m.vertical ? m.length : m.thickness) / 2;
-      this.culler.addCentered(ts, m.x, m.y, hw, hh);
+  // ------------------------------------------------------------------ streaming
+
+  /**
+   * Carrega o que a tela vai precisar e descarrega o que ficou longe.
+   * `force`: carrega tudo o que falta de uma vez (início, teleporte).
+   */
+  stream(view: ViewRect, force = false): void {
+    const W = this.world.widthPx;
+    const H = this.world.heightPx;
+    const keep = new Set(
+      chunksInRect(view.x - UNLOAD_MARGIN, view.y - UNLOAD_MARGIN, view.x + view.width + UNLOAD_MARGIN, view.y + view.height + UNLOAD_MARGIN, W, H),
+    );
+    for (const key of [...this.loaded.keys()]) if (!keep.has(key)) this.unloadChunk(key);
+
+    const want = chunksInRect(view.x - LOAD_MARGIN, view.y - LOAD_MARGIN, view.x + view.width + LOAD_MARGIN, view.y + view.height + LOAD_MARGIN, W, H).filter(
+      (k) => !this.loaded.has(k),
+    );
+    if (want.length === 0) return;
+    // Mais perto do centro da tela primeiro.
+    const cx = (view.x + view.width / 2) / CHUNK_PX - 0.5;
+    const cy = (view.y + view.height / 2) / CHUNK_PX - 0.5;
+    want.sort((a, b) => {
+      const p = keyToChunk(a);
+      const q = keyToChunk(b);
+      return (p.cx - cx) ** 2 + (p.cy - cy) ** 2 - ((q.cx - cx) ** 2 + (q.cy - cy) ** 2);
+    });
+    const n = force ? want.length : Math.min(LOADS_PER_FRAME, want.length);
+    for (let i = 0; i < n; i++) this.loadChunk(want[i]!);
+  }
+
+  /** Garante tudo carregado em volta de um ponto (antes de teleportar ou nascer). */
+  ensureLoadedAround(x: number, y: number, viewW: number, viewH: number): void {
+    this.stream({ x: x - viewW / 2, y: y - viewH / 2, width: viewW, height: viewH }, true);
+    this.culler.update({ x: x - viewW / 2, y: y - viewH / 2, width: viewW, height: viewH }, true);
+  }
+
+  private loadChunk(key: number): void {
+    const content = this.world.index.get(key);
+    const lc: LoadedChunk = { objects: [], culls: [], shadows: [], canopies: [], zones: [], roofs: [] };
+    this.loaded.set(key, lc);
+    if (!content) return; // chunk vazio (só chão): nada a criar
+    const map = this.world.map;
+    for (const i of content.markings) this.buildMarking(lc, i);
+    for (const i of content.decals) this.buildDecal(lc, i);
+    for (const i of content.props) this.buildProp(lc, i);
+    for (const i of content.walls) this.buildWall(lc, i);
+    for (const i of content.buildings) {
+      const b = map.buildings[i]!;
+      this.roofs.load(b);
+      lc.roofs.push(b.id);
     }
   }
 
-  private buildDecals(): void {
-    for (const d of this.map.decals) {
-      const def = DECAL_DEFS[d.type];
-      const id = def.sprites[Math.floor(hash2(Math.round(d.x), Math.round(d.y), 7) * def.sprites.length)]!;
-      const ref = this.assets.ref(id);
-      const img = this.scene.add.image(d.x, d.y, ref.key, ref.frame);
-      img.setScale((def.width / this.assets.frameWidth(ref)) * d.scale, (def.height / this.assets.frameHeight(ref)) * d.scale);
-      img.setAngle(d.angle).setAlpha(d.alpha).setDepth(DEPTH.decal);
-      const r = (Math.hypot(def.width, def.height) / 2) * d.scale;
-      this.culler.addCentered(img, d.x, d.y, r, r);
-    }
+  private unloadChunk(key: number): void {
+    const lc = this.loaded.get(key);
+    if (!lc) return;
+    for (const c of lc.culls) this.culler.remove(c);
+    for (const s of lc.shadows) this.shadows.remove(s);
+    for (const c of lc.canopies) this.canopies.remove(c);
+    for (const z of lc.zones) this.solids.remove(z, true, true);
+    for (const o of lc.objects) o.destroy();
+    for (const id of lc.roofs) this.roofs.unload(id);
+    this.loaded.delete(key);
   }
 
-  // ------------------------------------------------------------------ objetos
+  private unloadAll(): void {
+    for (const key of [...this.loaded.keys()]) this.unloadChunk(key);
+  }
 
-  private buildProps(): void {
-    for (const p of this.map.props) {
-      const def: PropDef = PROP_DEFS[p.type];
-      const id = def.sprites[p.variant] ?? def.sprites[0]!;
-      const ref = this.assets.ref(id);
-      const depth = def.layer === 'floor' ? DEPTH.floorProp : def.layer === 'overhead' ? DEPTH.overhead : DEPTH.object;
-      const img = this.scene.add.image(p.x, p.y, ref.key, ref.frame).setAngle(p.angle).setDepth(depth);
-      img.setScale(def.width / this.assets.frameWidth(ref), def.height / this.assets.frameHeight(ref));
-      if (p.flipX) img.setFlipX(true);
-      const r = Math.hypot(def.width, def.height) / 2;
-      this.culler.addCentered(img, p.x, p.y, r, r);
+  // ------------------------------------------------------------------ construção de um chunk
 
-      if (def.fadeWhenNear) this.canopies.add(img, p.x, p.y, Math.min(def.width, def.height) / 2);
+  private buildMarking(lc: LoadedChunk, i: number): void {
+    const m = this.world.map.markings[i]!;
+    const spec = MARKING_TEXTURE[m.kind];
+    const ts = this.scene.add.tileSprite(m.x, m.y, m.length, m.thickness, spec.key).setDepth(DEPTH.groundMarkings);
+    const texH = this.markingTexH.get(spec.key) ?? m.thickness;
+    const sy = spec.fitThickness ? m.thickness / texH : 1;
+    ts.setTileScale(1, sy);
+    // Pedaço de uma faixa longa: continua o desenho de onde o anterior parou.
+    if (m.offset) ts.setTilePosition(m.offset, 0);
+    if (m.vertical) ts.setAngle(90);
+    const hw = (m.vertical ? m.thickness : m.length) / 2;
+    const hh = (m.vertical ? m.length : m.thickness) / 2;
+    lc.objects.push(ts);
+    lc.culls.push(this.culler.addCentered(ts, m.x, m.y, hw, hh));
+  }
 
-      if (def.shadowHeight > 0) {
-        const sref = this.assets.shadowRef(id);
-        if (sref) {
-          const sh = this.scene.add.image(p.x, p.y, sref.key, sref.frame).setAngle(p.angle).setDepth(DEPTH.shadow);
-          if (p.flipX) sh.setFlipX(true);
-          this.shadows.add(sh, p.x, p.y, def.shadowHeight);
-          const o = this.shadows.offset(def.shadowHeight);
-          this.culler.addCentered(sh, p.x + o.x, p.y + o.y, r + 12, r + 12);
-        }
+  private buildDecal(lc: LoadedChunk, i: number): void {
+    const d = this.world.map.decals[i]!;
+    const def = DECAL_DEFS[d.type];
+    const id = def.sprites[Math.floor(hash2(Math.round(d.x), Math.round(d.y), 7) * def.sprites.length)]!;
+    const ref = this.assets.ref(id);
+    const img = this.scene.add.image(d.x, d.y, ref.key, ref.frame);
+    img.setScale((def.width / this.assets.frameWidth(ref)) * d.scale, (def.height / this.assets.frameHeight(ref)) * d.scale);
+    img.setAngle(d.angle).setAlpha(d.alpha).setDepth(DEPTH.decal);
+    const r = (Math.hypot(def.width, def.height) / 2) * d.scale;
+    lc.objects.push(img);
+    lc.culls.push(this.culler.addCentered(img, d.x, d.y, r, r));
+  }
+
+  private buildProp(lc: LoadedChunk, i: number): void {
+    const p = this.world.map.props[i]!;
+    const def: PropDef = PROP_DEFS[p.type];
+    const id = def.sprites[p.variant] ?? def.sprites[0]!;
+    const ref = this.assets.ref(id);
+    const depth = def.layer === 'floor' ? DEPTH.floorProp : def.layer === 'overhead' ? DEPTH.overhead : DEPTH.object;
+    const img = this.scene.add.image(p.x, p.y, ref.key, ref.frame).setAngle(p.angle).setDepth(depth);
+    img.setScale(def.width / this.assets.frameWidth(ref), def.height / this.assets.frameHeight(ref));
+    if (p.flipX) img.setFlipX(true);
+    const r = Math.hypot(def.width, def.height) / 2;
+    lc.objects.push(img);
+    lc.culls.push(this.culler.addCentered(img, p.x, p.y, r, r));
+
+    if (def.fadeWhenNear) lc.canopies.push(this.canopies.add(img, p.x, p.y, Math.min(def.width, def.height) / 2));
+
+    if (def.shadowHeight > 0) {
+      const sref = this.assets.shadowRef(id);
+      if (sref) {
+        const sh = this.scene.add.image(p.x, p.y, sref.key, sref.frame).setAngle(p.angle).setDepth(DEPTH.shadow);
+        if (p.flipX) sh.setFlipX(true);
+        lc.objects.push(sh);
+        lc.shadows.push(this.shadows.add(sh, p.x, p.y, def.shadowHeight));
+        const o = this.shadows.offset(def.shadowHeight);
+        lc.culls.push(this.culler.addCentered(sh, p.x + o.x, p.y + o.y, r + 12, r + 12));
       }
     }
+    for (const s of propSolids(p)) this.addCollider(lc, s);
   }
 
-  // ------------------------------------------------------------------ paredes
-
-  private buildWalls(): void {
-    for (const w of this.map.walls) {
-      const cx = w.x + w.w / 2;
-      const cy = w.y + w.h / 2;
-      let obj: Phaser.GameObjects.Rectangle | Phaser.GameObjects.TileSprite;
-      if (w.kind === 'fence') {
-        const vertical = w.h > w.w;
-        const len = vertical ? w.h : w.w;
-        const th = vertical ? w.w : w.h;
-        obj = this.scene.add.tileSprite(cx, cy, len, th, 'pattern.fence');
-        if (vertical) obj.setAngle(90);
-      } else if (w.kind === 'window') {
-        obj = this.scene.add.rectangle(cx, cy, w.w, w.h, hex(PALETTE.window), 0.92).setStrokeStyle(2, 0x2a2f33, 1);
-      } else {
-        obj = this.scene.add.rectangle(cx, cy, w.w, w.h, hex(PALETTE.wall)).setStrokeStyle(2, hex(PALETTE.wallTop), 1);
-      }
-      obj.setDepth(DEPTH.wall);
-      this.culler.addCentered(obj, cx, cy, w.w / 2, w.h / 2);
-
-      const s = WALL_SHADOW[w.kind];
-      const shadow = this.scene.add.rectangle(cx, cy, w.w, w.h, 0x000000).setDepth(DEPTH.wallShadow);
-      this.shadows.add(shadow, cx, cy, s.height, s.strength);
-      const o = this.shadows.offset(s.height);
-      this.culler.addCentered(shadow, cx + o.x, cy + o.y, w.w / 2, w.h / 2);
+  private buildWall(lc: LoadedChunk, i: number): void {
+    const w = this.world.map.walls[i]!;
+    const cx = w.x + w.w / 2;
+    const cy = w.y + w.h / 2;
+    let obj: Phaser.GameObjects.Rectangle | Phaser.GameObjects.TileSprite;
+    if (w.kind === 'fence') {
+      const vertical = w.h > w.w;
+      const len = vertical ? w.h : w.w;
+      const th = vertical ? w.w : w.h;
+      const ts = this.scene.add.tileSprite(cx, cy, len, th, 'pattern.fence');
+      if (w.offset) ts.setTilePosition(w.offset, 0);
+      if (vertical) ts.setAngle(90);
+      obj = ts;
+    } else if (w.kind === 'window') {
+      obj = this.scene.add.rectangle(cx, cy, w.w, w.h, hex(PALETTE.window), 0.92).setStrokeStyle(2, 0x2a2f33, 1);
+    } else {
+      obj = this.scene.add.rectangle(cx, cy, w.w, w.h, hex(PALETTE.wall)).setStrokeStyle(2, hex(PALETTE.wallTop), 1);
     }
+    obj.setDepth(DEPTH.wall);
+    lc.objects.push(obj);
+    lc.culls.push(this.culler.addCentered(obj, cx, cy, w.w / 2, w.h / 2));
+
+    const s = WALL_SHADOW[w.kind];
+    const shadow = this.scene.add.rectangle(cx, cy, w.w, w.h, 0x000000).setDepth(DEPTH.wallShadow);
+    lc.objects.push(shadow);
+    lc.shadows.push(this.shadows.add(shadow, cx, cy, s.height, s.strength));
+    const o = this.shadows.offset(s.height);
+    lc.culls.push(this.culler.addCentered(shadow, cx + o.x, cy + o.y, w.w / 2, w.h / 2));
+
+    this.addCollider(lc, { kind: 'rect', x: w.x, y: w.y, w: w.w, h: w.h });
   }
 
-  // ------------------------------------------------------------------ física
-
-  private buildColliders(): Phaser.Physics.Arcade.StaticGroup {
-    const group = this.scene.physics.add.staticGroup();
-    for (const s of mapSolids(this.map)) {
-      if (s.kind === 'rect') {
-        const z = this.scene.add.zone(s.x + s.w / 2, s.y + s.h / 2, s.w, s.h);
-        this.scene.physics.add.existing(z, true);
-        group.add(z);
-      } else {
-        const z = this.scene.add.zone(s.x, s.y, s.r * 2, s.r * 2);
-        this.scene.physics.add.existing(z, true);
-        (z.body as Phaser.Physics.Arcade.StaticBody).setCircle(s.r);
-        group.add(z);
-      }
+  private addCollider(lc: LoadedChunk, s: Solid): void {
+    let z: Phaser.GameObjects.Zone;
+    if (s.kind === 'rect') {
+      z = this.scene.add.zone(s.x + s.w / 2, s.y + s.h / 2, s.w, s.h);
+      this.scene.physics.add.existing(z, true);
+    } else {
+      z = this.scene.add.zone(s.x, s.y, s.r * 2, s.r * 2);
+      this.scene.physics.add.existing(z, true);
+      (z.body as Phaser.Physics.Arcade.StaticBody).setCircle(s.r);
     }
-    return group;
+    this.solids.add(z);
+    lc.zones.push(z);
   }
 
   // ------------------------------------------------------------------ por frame
 
   update(camera: Phaser.Cameras.Scene2D.Camera, playerX: number, playerY: number, dt: number): void {
+    this.stream(camera.worldView);
     this.culler.update(camera.worldView);
     this.canopies.update(playerX, playerY, dt);
     this.roofs.update(playerX, playerY, dt);
+  }
+
+  /** Números para o painel de debug e para testes. */
+  stats(): { chunks: number; colliders: number; roofs: number; shadows: number; culled: { total: number; visible: number } } {
+    let colliders = 0;
+    for (const lc of this.loaded.values()) colliders += lc.zones.length;
+    return { chunks: this.loaded.size, colliders, roofs: this.roofs.loadedCount, shadows: this.shadows.count, culled: this.culler.stats() };
+  }
+
+  loadedChunkKeys(): number[] {
+    return [...this.loaded.keys()];
   }
 }
 
@@ -207,4 +328,3 @@ function pickVariant(r: number): number {
   if (r < 0.88) return 2;
   return 3;
 }
-

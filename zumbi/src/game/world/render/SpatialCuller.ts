@@ -7,7 +7,7 @@ export interface Cullable {
   setVisible(v: boolean): unknown;
 }
 
-interface Entry {
+export interface CullEntry {
   obj: Cullable;
   x0: number;
   y0: number;
@@ -23,8 +23,8 @@ export interface ViewRect {
 }
 
 export class SpatialCuller {
-  private cells = new Map<number, Entry[]>();
-  private shown = new Set<Entry>();
+  private cells = new Map<number, CullEntry[]>();
+  private shown = new Set<CullEntry>();
   private last = { x: Number.NaN, y: Number.NaN, w: 0, h: 0 };
   private total = 0;
 
@@ -35,8 +35,8 @@ export class SpatialCuller {
   ) {}
 
   /** Registra um objeto pela sua caixa (px de mundo). Começa escondido até o primeiro update. */
-  add(obj: Cullable, x0: number, y0: number, x1: number, y1: number): void {
-    const e: Entry = { obj, x0: Math.min(x0, x1), y0: Math.min(y0, y1), x1: Math.max(x0, x1), y1: Math.max(y0, y1) };
+  add(obj: Cullable, x0: number, y0: number, x1: number, y1: number): CullEntry {
+    const e: CullEntry = { obj, x0: Math.min(x0, x1), y0: Math.min(y0, y1), x1: Math.max(x0, x1), y1: Math.max(y0, y1) };
     const cs = this.cellSize;
     for (let cy = Math.floor(e.y0 / cs); cy <= Math.floor(e.y1 / cs); cy++) {
       for (let cx = Math.floor(e.x0 / cs); cx <= Math.floor(e.x1 / cs); cx++) {
@@ -51,11 +51,34 @@ export class SpatialCuller {
     }
     obj.setVisible(false);
     this.total++;
+    // Objeto novo dentro da área visível aparece já no próximo update.
+    this.last.x = Number.NaN;
+    return e;
+  }
+
+  /** Tira um objeto do recorte (ele será destruído junto com o chunk). */
+  remove(e: CullEntry): void {
+    const cs = this.cellSize;
+    for (let cy = Math.floor(e.y0 / cs); cy <= Math.floor(e.y1 / cs); cy++) {
+      for (let cx = Math.floor(e.x0 / cs); cx <= Math.floor(e.x1 / cs); cx++) {
+        const k = key(cx, cy);
+        const list = this.cells.get(k);
+        if (!list) continue;
+        const i = list.indexOf(e);
+        if (i >= 0) {
+          list[i] = list[list.length - 1]!;
+          list.pop();
+        }
+        if (list.length === 0) this.cells.delete(k);
+      }
+    }
+    this.shown.delete(e);
+    this.total--;
   }
 
   /** Registra pelo centro + meia-dimensão (objetos girados: use o raio que cobre a diagonal). */
-  addCentered(obj: Cullable, x: number, y: number, halfW: number, halfH: number): void {
-    this.add(obj, x - halfW, y - halfH, x + halfW, y + halfH);
+  addCentered(obj: Cullable, x: number, y: number, halfW: number, halfH: number): CullEntry {
+    return this.add(obj, x - halfW, y - halfH, x + halfW, y + halfH);
   }
 
   update(view: ViewRect, force = false): void {
@@ -69,7 +92,7 @@ export class SpatialCuller {
     const vx1 = view.x + view.width + m;
     const vy1 = view.y + view.height + m;
     const cs = this.cellSize;
-    const next = new Set<Entry>();
+    const next = new Set<CullEntry>();
     for (let cy = Math.floor(vy0 / cs); cy <= Math.floor(vy1 / cs); cy++) {
       for (let cx = Math.floor(vx0 / cs); cx <= Math.floor(vx1 / cs); cx++) {
         const list = this.cells.get(key(cx, cy));

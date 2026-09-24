@@ -10,8 +10,8 @@ import { Random, hashString } from '../../core/Random';
 import { damp } from '../../core/math';
 import type { AssetRegistry } from '../../assets/AssetRegistry';
 import type { BuildingData } from '../MapTypes';
-import type { ShadowSystem } from './ShadowSystem';
-import type { SpatialCuller } from './SpatialCuller';
+import type { ShadowEntry, ShadowSystem } from './ShadowSystem';
+import type { CullEntry, SpatialCuller } from './SpatialCuller';
 
 const OVERHANG = 10;
 const ROOF_HEIGHT = 2.3;
@@ -21,32 +21,60 @@ interface Roof {
   data: BuildingData;
   container: Phaser.GameObjects.Container;
   shadow: Phaser.GameObjects.Rectangle;
-  inside: boolean;
+  shadowEntry: ShadowEntry;
+  culls: CullEntry[];
 }
 
+/**
+ * Telhados são carregados/descarregados junto com o chunk da construção;
+ * a detecção de "entrou/saiu" usa os DADOS de todas as construções, então
+ * funciona mesmo antes de o telhado existir na tela.
+ */
 export class RoofSystem {
-  private roofs: Roof[] = [];
-  private current: Roof | null = null;
-  private shadows: ShadowSystem | null = null;
+  private readonly loaded = new Map<string, Roof>();
+  private current: BuildingData | null = null;
 
   constructor(
     private readonly scene: Phaser.Scene,
     private readonly assets: AssetRegistry,
     private readonly bus: EventBus,
+    private readonly shadows: ShadowSystem,
+    private readonly culler: SpatialCuller,
+    /** Busca rápida das construções perto de um ponto (índice por chunk). */
+    private readonly buildingsNear: (x: number, y: number) => BuildingData[],
   ) {}
 
-  build(buildings: BuildingData[], shadows: ShadowSystem, culler: SpatialCuller): void {
-    this.shadows = shadows;
-    for (const b of buildings) {
-      const roof = this.buildRoof(b, shadows);
-      this.roofs.push(roof);
-      const o = shadows.offset(ROOF_HEIGHT);
-      culler.add(roof.container, b.bounds.x - OVERHANG, b.bounds.y - OVERHANG, b.bounds.x + b.bounds.w + OVERHANG, b.bounds.y + b.bounds.h + OVERHANG);
-      culler.add(roof.shadow, b.bounds.x + o.x - OVERHANG, b.bounds.y + o.y - OVERHANG, b.bounds.x + b.bounds.w + o.x + OVERHANG, b.bounds.y + b.bounds.h + o.y + OVERHANG);
+  load(b: BuildingData): void {
+    if (this.loaded.has(b.id)) return;
+    const roof = this.buildRoof(b);
+    const o = this.shadows.offset(ROOF_HEIGHT);
+    roof.culls.push(
+      this.culler.add(roof.container, b.bounds.x - OVERHANG, b.bounds.y - OVERHANG, b.bounds.x + b.bounds.w + OVERHANG, b.bounds.y + b.bounds.h + OVERHANG),
+      this.culler.add(roof.shadow, b.bounds.x + o.x - OVERHANG, b.bounds.y + o.y - OVERHANG, b.bounds.x + b.bounds.w + o.x + OVERHANG, b.bounds.y + b.bounds.h + o.y + OVERHANG),
+    );
+    // Carregou com o jogador dentro (teleporte, início no abrigo): já nasce transparente.
+    if (this.current?.id === b.id) {
+      roof.container.setAlpha(0);
+      roof.shadow.setAlpha(0);
     }
+    this.loaded.set(b.id, roof);
   }
 
-  private buildRoof(b: BuildingData, shadows: ShadowSystem): Roof {
+  unload(id: string): void {
+    const r = this.loaded.get(id);
+    if (!r) return;
+    for (const c of r.culls) this.culler.remove(c);
+    this.shadows.remove(r.shadowEntry);
+    r.container.destroy();
+    r.shadow.destroy();
+    this.loaded.delete(id);
+  }
+
+  get loadedCount(): number {
+    return this.loaded.size;
+  }
+
+  private buildRoof(b: BuildingData): Roof {
     const s = this.scene;
     const x0 = b.bounds.x - OVERHANG;
     const y0 = b.bounds.y - OVERHANG;
@@ -56,7 +84,7 @@ export class RoofSystem {
     const cy = y0 + h / 2;
 
     const shadow = s.add.rectangle(0, 0, w, h, 0x000000).setDepth(DEPTH.roofShadow);
-    shadows.add(shadow, cx, cy, ROOF_HEIGHT, ROOF_SHADOW_STRENGTH);
+    const shadowEntry = this.shadows.add(shadow, cx, cy, ROOF_HEIGHT, ROOF_SHADOW_STRENGTH);
 
     const container = s.add.container(0, 0).setDepth(DEPTH.roof);
     const pattern = s.add.tileSprite(cx, cy, w, h, `pattern.roof.${b.roof}`);
@@ -130,27 +158,31 @@ export class RoofSystem {
       g.fillCircle(x0 + rng.range(20, w - 20), y0 + rng.range(20, h - 20), rng.range(2, 6));
     }
 
-    return { data: b, container, shadow, inside: false };
+    return { data: b, container, shadow, shadowEntry, culls: [] };
   }
 
   /** Construção em que o ponto está (pela linha central das paredes externas). */
   buildingAt(x: number, y: number): BuildingData | null {
-    for (const r of this.roofs) {
-      const b = r.data.bounds;
-      if (x > b.x && x < b.x + b.w && y > b.y && y < b.y + b.h) return r.data;
+    for (const b of this.buildingsNear(x, y)) {
+      const r = b.bounds;
+      if (x > r.x && x < r.x + r.w && y > r.y && y < r.y + r.h) return b;
     }
     return null;
   }
 
   update(px: number, py: number, dt: number): void {
+    const now = this.buildingAt(px, py);
+    if (now !== this.current) {
+      const info = (b: BuildingData) => ({ buildingId: b.id, name: b.name, kind: b.kind });
+      if (this.current) this.bus.emit('player:exit-building', info(this.current));
+      if (now) this.bus.emit('player:enter-building', info(now));
+      this.current = now;
+    }
+
     const t = damp(9, dt);
-    const shadowAlpha = (this.shadows?.alpha ?? 0.3) * ROOF_SHADOW_STRENGTH;
-    let now: Roof | null = null;
-    for (const r of this.roofs) {
-      const b = r.data.bounds;
-      r.inside = px > b.x && px < b.x + b.w && py > b.y && py < b.y + b.h;
-      if (r.inside) now = r;
-      const target = r.inside ? 0 : 1;
+    const shadowAlpha = this.shadows.alpha * ROOF_SHADOW_STRENGTH;
+    for (const r of this.loaded.values()) {
+      const target = r.data === now ? 0 : 1;
       const a = r.container.alpha;
       if (Math.abs(a - target) > 0.003) {
         const next = a + (target - a) * t;
@@ -160,12 +192,6 @@ export class RoofSystem {
         r.container.setAlpha(target);
         r.shadow.setAlpha(target * shadowAlpha);
       }
-    }
-    if (now !== this.current) {
-      const info = (r: Roof) => ({ buildingId: r.data.id, name: r.data.name, kind: r.data.kind });
-      if (this.current) this.bus.emit('player:exit-building', info(this.current));
-      if (now) this.bus.emit('player:enter-building', info(now));
-      this.current = now;
     }
   }
 }

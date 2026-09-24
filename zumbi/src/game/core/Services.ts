@@ -6,6 +6,8 @@ import type Phaser from 'phaser';
 import type { AssetRegistry } from '../assets/AssetRegistry';
 import type { OverrideManifest } from '../assets/AssetOverrides';
 import type { PlayerStats } from '../entities/player/PlayerStats';
+import type { SandboxSettings } from '../config/Sandbox';
+import type { GameClock } from '../sim/GameClock';
 import { KeyboardMouseState, TouchInputState } from '../input/InputState';
 import type { Viewport } from '../systems/Viewport';
 import { EventBus } from './EventBus';
@@ -13,6 +15,8 @@ import { EventBus } from './EventBus';
 export interface GameSession {
   /** Atributos do jogador em jogo (o HUD lê daqui). */
   stats: PlayerStats | null;
+  /** Relógio da partida em andamento. */
+  clock: GameClock | null;
   paused: boolean;
 }
 
@@ -23,12 +27,14 @@ export interface GameServices {
   keyboardMouse: KeyboardMouseState;
   assets: AssetRegistry | null;
   overrides: OverrideManifest;
+  /** Opções de mundo da partida (ver config/Sandbox.ts). */
+  settings: SandboxSettings;
   session: GameSession;
 }
 
 const registry = new WeakMap<Phaser.Game, GameServices>();
 
-export function createServices(game: Phaser.Game, viewport: Viewport, bus: EventBus): GameServices {
+export function createServices(game: Phaser.Game, viewport: Viewport, bus: EventBus, settings: SandboxSettings): GameServices {
   const s: GameServices = {
     bus,
     viewport,
@@ -36,7 +42,8 @@ export function createServices(game: Phaser.Game, viewport: Viewport, bus: Event
     keyboardMouse: new KeyboardMouseState(),
     assets: null,
     overrides: { sprites: {}, patterns: {} },
-    session: { stats: null, paused: false },
+    settings,
+    session: { stats: null, clock: null, paused: false },
   };
   registry.set(game, s);
   return s;

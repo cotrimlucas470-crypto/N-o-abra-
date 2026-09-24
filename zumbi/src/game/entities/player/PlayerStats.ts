@@ -3,7 +3,7 @@ import { clamp } from '../../core/math';
 
 /**
  * Atributos do personagem — lógica pura, sem Phaser (testada em tests/).
- * Etapa 2: vida e stamina. Fome, sede, temperatura e peso entram aqui
+ * Hoje: vida e fôlego. Fome, sede, temperatura e peso (Fase 3) entram aqui
  * nas próximas etapas, cada um com sua própria regra de update.
  */
 export interface PlayerStatsSnapshot {
@@ -22,6 +22,8 @@ export class PlayerStats {
 
   private regenCooldown = 0;
 
+  constructor(private readonly mods: { drain: number; regen: number } = { drain: 1, regen: 1 }) {}
+
   /** Pode começar/continuar a correr agora? */
   canSprint(): boolean {
     return !this.exhausted && this.stamina > 0;
@@ -34,14 +36,14 @@ export class PlayerStats {
   update(dt: number, sprinting: boolean): boolean {
     const t = STAMINA_TUNING;
     if (sprinting && this.canSprint()) {
-      this.stamina = Math.max(0, this.stamina - t.drainPerSecond * dt);
+      this.stamina = Math.max(0, this.stamina - t.drainPerSecond * this.mods.drain * dt);
       this.regenCooldown = t.regenDelay;
       if (this.stamina <= 0) this.exhausted = true;
     } else {
       if (this.regenCooldown > 0) {
         this.regenCooldown = Math.max(0, this.regenCooldown - dt);
       } else {
-        this.stamina = Math.min(this.maxStamina, this.stamina + t.regenPerSecond * dt);
+        this.stamina = Math.min(this.maxStamina, this.stamina + t.regenPerSecond * this.mods.regen * dt);
       }
       if (this.exhausted && this.stamina >= this.maxStamina * t.exhaustedRecoverFraction) {
         this.exhausted = false;

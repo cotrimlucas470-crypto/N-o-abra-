@@ -7,11 +7,13 @@ import { DEBUG } from './game/core/Debug';
 import { EventBus } from './game/core/EventBus';
 import { createServices } from './game/core/Services';
 import { BootScene } from './game/scenes/BootScene';
+import { DebugScene } from './game/scenes/DebugScene';
 import { GameScene } from './game/scenes/GameScene';
 import { HudScene } from './game/scenes/HudScene';
 import { PreloadScene } from './game/scenes/PreloadScene';
 import { TitleScene } from './game/scenes/TitleScene';
 import { Viewport } from './game/systems/Viewport';
+import { sandboxFromUrl } from './game/config/Sandbox';
 
 const bus = new EventBus();
 const viewport = new Viewport(bus);
@@ -49,10 +51,11 @@ const game = new Phaser.Game({
       debug: DEBUG.physics,
     },
   },
-  scene: [BootScene, PreloadScene, TitleScene, GameScene, HudScene],
+  scene: [BootScene, PreloadScene, TitleScene, GameScene, HudScene, DebugScene],
 });
 
-createServices(game, viewport, bus);
+// Opções de mundo: padrão, com ajustes de teste pela URL (?setores=1x1, ?hora=20...).
+createServices(game, viewport, bus, sandboxFromUrl(window.location.search));
 viewport.attach(game);
 
 document.getElementById('boot')?.remove();

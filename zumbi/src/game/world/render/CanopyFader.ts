@@ -4,7 +4,7 @@
  */
 import { damp } from '../../core/math';
 
-interface Canopy {
+export interface Canopy {
   obj: { alpha: number; setAlpha(a: number): unknown };
   x: number;
   y: number;
@@ -12,10 +12,16 @@ interface Canopy {
 }
 
 export class CanopyFader {
-  private list: Canopy[] = [];
+  private list = new Set<Canopy>();
 
-  add(obj: Canopy['obj'], x: number, y: number, radius: number): void {
-    this.list.push({ obj, x, y, radius });
+  add(obj: Canopy['obj'], x: number, y: number, radius: number): Canopy {
+    const c = { obj, x, y, radius };
+    this.list.add(c);
+    return c;
+  }
+
+  remove(c: Canopy): void {
+    this.list.delete(c);
   }
 
   update(px: number, py: number, dt: number): void {

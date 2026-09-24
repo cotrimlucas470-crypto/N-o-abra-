@@ -3,8 +3,10 @@
 Jogo **original** de sobrevivência zumbi em 2D, câmera de cima (top-down), feito para **celular Android**.
 (Nome provisório — muda em `src/game/config/GameConfig.ts`.)
 
-> Estado atual: **Etapa 1 + 2**: projeto, personagem, movimento, câmera, mapa inicial e controles de toque.
-> Ainda não há zumbis, armas, inventário nem crafting. Veja [docs/ROADMAP.md](docs/ROADMAP.md).
+> Estado atual: **Fase 1 (v0.3.0)**: arquitetura, cidade de vários setores carregada em chunks, câmera,
+> movimento, colisões, navegação/visão para a IA, relógio do jogo e painel de debug.
+> Ainda não há zumbis, armas, inventário nem crafting. Veja [docs/ROADMAP.md](docs/ROADMAP.md),
+> o plano completo em [docs/PLANO-GERAL.md](docs/PLANO-GERAL.md) e o que cada fase fez em [docs/FASES.md](docs/FASES.md).
 
 Este jogo mora na pasta `zumbi/` e é independente do jogo "NÃO ABRA" que está na raiz do repositório.
 
@@ -30,8 +32,9 @@ Há três caminhos, do mais rápido ao mais completo:
 | Botão com o bonequinho: correr (liga/desliga) | Shift |
 | ⏸ pausa · ⛶ tela cheia | Esc ou P pausa |
 
-Parâmetros úteis na URL: `?debug` (FPS e informações), `?debug=fisica` (mostra as caixas de colisão),
-`?direto` (pula a tela de título), `?toque` (força os controles de toque no PC).
+Parâmetros úteis na URL: `?debug` (painel **DBG**: colisões, navegação, chunks, visão/rota, mapa com
+teleporte, hora), `?direto` (pula a tela de título), `?toque` (força os controles de toque no PC),
+`?setores=1x1` (cidade menor), `?semente=42` (outra cidade), `?hora=20` (começa às 20h).
 
 ---
 
@@ -80,14 +83,16 @@ zumbi/
 ├── src/
 │   ├── main.ts             cria o jogo
 │   └── game/
-│       ├── config/         números do jogo: tamanhos, velocidades, cores, camadas
+│       ├── config/         números do jogo e OPÇÕES DE MUNDO (Sandbox.ts)
 │       ├── core/           peças sem Phaser: eventos, aleatório com semente, armazenamento, matemática
+│       ├── sim/            relógio do jogo, chunks
 │       ├── assets/         registro de sprites, atlas, substituição por PNG, arte procedural
 │       ├── entities/       personagem (lógica pura + parte visual)
 │       ├── input/          intenção do jogador; teclado/mouse; joysticks e botões de toque
-│       ├── world/          formato do mapa, catálogo de objetos, plantas de construções, mapa inicial, renderização
+│       ├── world/          mapa como dado, cidade (setores), plantas, navegação/visão, desenho em chunks
 │       ├── systems/        câmera, tela/DPR, tela cheia
-│       ├── scenes/         Boot → Preload → Título → Jogo (+ HUD por cima)
+│       ├── scenes/         Boot → Preload → Título → Jogo (+ HUD e Debug por cima)
+│       ├── debug/          ferramentas de debug (só com ?debug)
 │       └── ui/             painel de status, avisos, botões, ícones
 ├── tests/                  testes automáticos (lógica, controles, integridade do mapa)
 ├── scripts/                smoke test no navegador, pacote zip, ícones

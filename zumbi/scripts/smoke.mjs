@@ -93,6 +93,9 @@ try {
     await sleep(900);
     await page.screenshot({ path: OUT + '02-abrigo.png' });
 
+    // setor inicial fica no centro da cidade: coordenadas do teste são relativas a ele
+    const S = await page.evaluate(() => window.__TDR__.map.regions.find((r) => r.id === 'setor-1').rect);
+    const at = (tx, ty) => [S.x + tx * 64, S.y + ty * 64];
     const p0 = await pos(page);
     // joystick esquerdo: toca e arrasta para BAIXO (sai pela porta do abrigo)
     await touch('touchStart', [{ x: 130, y: 250, id: 1 }]);
@@ -125,7 +128,7 @@ try {
     await sleep(300);
 
     // correr: vai para a avenida, liga o botão Correr e anda para a direita
-    await page.evaluate(() => window.__TDR__.teleport(8 * 64, 29 * 64));
+    await page.evaluate(([x, y]) => window.__TDR__.teleport(x, y), at(8, 29));
     await sleep(200);
     // botão correr: âncora inferior direita (262, 70) * escala
     const scale = Math.max(0.78, Math.min(1.35, 390 / 400));
@@ -180,15 +183,62 @@ try {
     check(resumed, 'CONTINUAR volta ao jogo');
 
     // visão geral da rua
-    await page.evaluate(() => window.__TDR__.teleport(37 * 64, 29 * 64));
+    await page.evaluate(([x, y]) => window.__TDR__.teleport(x, y), at(37, 29));
     await sleep(900);
     await page.screenshot({ path: OUT + '08-cruzamento.png' });
-    await page.evaluate(() => window.__TDR__.teleport(50 * 64, 12 * 64));
+    await page.evaluate(([x, y]) => window.__TDR__.teleport(x, y), at(50, 12));
     await sleep(900);
     await page.screenshot({ path: OUT + '09-praca.png' });
-    await page.evaluate(() => window.__TDR__.teleport(16 * 64, 38.5 * 64));
+    await page.evaluate(([x, y]) => window.__TDR__.teleport(x, y), at(16, 38.5));
     await sleep(900);
     await page.screenshot({ path: OUT + '10-estacionamento.png' });
+
+    // outros setores da cidade: teleporta, confere que o mundo foi carregado lá e não há erros
+    const regions = await page.evaluate(() => window.__TDR__.map.regions.filter((r) => r.id !== 'setor-1').map((r) => ({ id: r.id, name: r.name, rect: r.rect })));
+    let shot = 0;
+    for (const r of regions.slice(0, 8)) {
+      await page.evaluate(([x, y]) => window.__TDR__.teleport(x, y), [r.rect.x + 37 * 64, r.rect.y + 22.5 * 64]);
+      await sleep(700);
+      const w = await page.evaluate(() => window.__TDR__.world());
+      check(w.chunks > 0 && w.chunks < 60 && w.colliders > 20, `${r.name}: chunks carregados ${w.chunks}, colisores ${w.colliders}`);
+      if (shot < 4) await page.screenshot({ path: OUT + `14-setor-${++shot}.png` });
+    }
+    const far = await page.evaluate(() => window.__TDR__.world());
+    check(far.chunks <= 40, `descarrega o que ficou longe (${far.chunks} chunks carregados)`);
+
+    // painel de debug: abrir, ligar camadas, marcar alvo (visão + rota), mapa com teleporte
+    const tap = async (x, y, id = 9) => {
+      await touch('touchStart', [{ x, y, id }]);
+      await sleep(70);
+      await touch('touchEnd', []);
+      await sleep(250);
+    };
+    await page.evaluate(([x, y]) => window.__TDR__.teleport(x, y), at(20, 20));
+    await sleep(400);
+    await tap(844 - 40, 88); // DBG
+    const PW = 124 * 2 + 18;
+    const px = 844 - PW - 4;
+    const py = 108;
+    const btn = (i) => [px + 8 + 62 + (i % 2) * 126, py + 6 + 13 + Math.floor(i / 2) * 30];
+    await tap(...btn(0)); // colisões
+    await tap(...btn(1)); // navegação
+    await tap(...btn(2)); // chunks
+    await tap(...btn(3)); // marcar alvo
+    await tap(200, 120); // alvo no mundo
+    await sleep(900);
+    const dbg = await page.evaluate(() => ({ info: window.__TDR__.scene.debugInfo(), target: window.__TDR__.scene.debugState.target }));
+    check(!!dbg.target && dbg.info.startsWith('rota:'), `debug: alvo marcado e rota calculada (${dbg.info})`);
+    await page.screenshot({ path: OUT + '15-debug.png' });
+    await tap(...btn(4)); // mapa
+    await sleep(500);
+    await page.screenshot({ path: OUT + '16-debug-mapa.png' });
+    const before = await pos(page);
+    await tap(422, 200); // teleporta para o meio do mapa
+    await sleep(600);
+    const after = await pos(page);
+    check(Math.hypot(after.x - before.x, after.y - before.y) > 200, `debug: teleporte pelo mapa (${Math.round(before.x)},${Math.round(before.y)} → ${Math.round(after.x)},${Math.round(after.y)})`);
+    for (const i of [0, 1, 2, 3]) await tap(...btn(i)); // desliga tudo
+    await tap(844 - 40, 88); // fecha
 
     const cull = await page.evaluate(() => window.__TDR__.culler());
     check(cull.visible < cull.total * 0.6, `culling esconde o que está fora da tela (${cull.visible}/${cull.total})`);

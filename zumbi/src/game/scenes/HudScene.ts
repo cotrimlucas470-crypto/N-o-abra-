@@ -28,6 +28,8 @@ export class HudScene extends Phaser.Scene {
   private resumeBtn!: UiButton;
   private rotateHint!: Phaser.GameObjects.Text;
   private keyboardHint!: Phaser.GameObjects.Text;
+  private clockText!: Phaser.GameObjects.Text;
+  private clockLabel = '';
   private debugText: Phaser.GameObjects.Text | null = null;
   private debugTimer = 0;
   private paused = false;
@@ -45,6 +47,8 @@ export class HudScene extends Phaser.Scene {
 
     this.vignette = this.add.image(0, 0, TEX.vignette).setOrigin(0, 0).setDepth(0);
     this.status = new StatusPanel(this, dpr);
+    this.clockText = this.add.text(0, 0, '', textStyle(12, UI.text, '700')).setDepth(91).setResolution(dpr);
+    this.clockText.setLetterSpacing(1).setShadow(0, 1, 'rgba(0,0,0,0.8)', 3, false, true);
     this.toast = new Toast(this, dpr);
 
     this.controls = new TouchControls(this, s, {
@@ -78,7 +82,7 @@ export class HudScene extends Phaser.Scene {
     // Eventos do jogo
     this.unsubs.push(
       s.bus.on('player:enter-building', (e) => this.toast.show(e.name, e.kind === 'shelter' ? 'sua base · por enquanto, segura' : 'interior')),
-      s.bus.on('world:region-entered', (e) => this.toast.show(e.name, `Dia 1 · v${GAME_VERSION}`, 2600)),
+      s.bus.on('world:region-entered', (e) => this.toast.show(e.name, `Dia ${s.session.clock?.day ?? 1} · v${GAME_VERSION}`, 2600)),
       s.bus.on('viewport:changed', () => this.layout()),
       s.bus.on('input:touch-detected', () => this.keyboardHint.setVisible(false)),
     );
@@ -144,6 +148,7 @@ export class HudScene extends Phaser.Scene {
 
     this.vignette.setDisplaySize(w, h);
     this.status.setPosition(ins.left + 12, ins.top + 10, k);
+    this.clockText.setPosition(ins.left + 16, ins.top + 10 + 56 * k).setScale(k);
     this.toast.setPosition(w / 2, ins.top + Math.max(14, h * 0.08), k);
     this.controls.layout(w, h);
     this.keyboardHint.setPosition(w / 2, h - 10 - ins.bottom);
@@ -157,13 +162,19 @@ export class HudScene extends Phaser.Scene {
     const portraitPhone = s.viewport.isPortrait && this.controls.isTouchMode;
     // Em pé: aviso no meio-alto da tela, longe do nome do local (topo) e dos controles (base).
     this.rotateHint.setVisible(portraitPhone).setPosition(w / 2, h * 0.24).setScale(Math.min(k, (w * 0.92) / Math.max(1, this.rotateHint.width)));
-    this.debugText?.setPosition(ins.left + 12, ins.top + 70 * k);
+    this.debugText?.setPosition(ins.left + 12, ins.top + 84 * k);
   }
 
   override update(_time: number, delta: number): void {
     const dt = Math.min(delta / 1000, 0.1);
     const stats = this.s.session.stats;
     this.status.update(stats, dt);
+    const clock = this.s.session.clock;
+    const label = clock ? `DIA ${clock.day} · ${clock.timeLabel()}` : '';
+    if (label !== this.clockLabel) {
+      this.clockLabel = label;
+      this.clockText.setText(label);
+    }
     if (!this.paused) this.controls.update(stats ? !stats.canSprint() : false);
 
     if (this.debugText) {

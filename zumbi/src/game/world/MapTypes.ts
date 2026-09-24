@@ -38,6 +38,11 @@ export type WallKind = 'wall' | 'window' | 'fence';
 
 export interface WallPiece extends Rect {
   kind: WallKind;
+  /**
+   * Deslocamento da textura ao longo do comprimento (px). Peças de uma cerca
+   * longa cortada em chunks continuam o desenho sem "emenda".
+   */
+  offset?: number;
 }
 
 /** Faixas pintadas no chão, desenhadas como textura repetida (TileSprite). */
@@ -53,9 +58,17 @@ export interface MarkingPlacement {
   thickness: number;
   /** true = faixa corre na vertical (gira 90°). */
   vertical: boolean;
+  /** Deslocamento do desenho ao longo do comprimento (px), para pedaços cortados em chunks. */
+  offset?: number;
 }
 
 export interface PropPlacement {
+  /**
+   * Id estável, derivado do conteúdo (tipo + posição), não da ordem de criação:
+   * o save (Fase 2+) guarda mudanças por id, então reorganizar o gerador não
+   * embaralha o mundo salvo.
+   */
+  id: string;
   type: PropType;
   x: number;
   y: number;
@@ -76,7 +89,8 @@ export interface DecalPlacement {
   alpha: number;
 }
 
-export type BuildingKind = 'house' | 'store' | 'garage' | 'shelter';
+/** Tipo da construção — define identidade e, na Fase 4, as tabelas de loot. */
+export type BuildingKind = 'house' | 'store' | 'garage' | 'shelter' | 'pharmacy' | 'restaurant' | 'clothing' | 'warehouse';
 export type RoofStyle = 'shingle-a' | 'shingle-b' | 'flat';
 
 export interface RoomData {

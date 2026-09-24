@@ -16,14 +16,16 @@ import { ANIM, TEX } from '../../assets/AssetKeys';
 import type { AssetRegistry } from '../../assets/AssetRegistry';
 import type { PlayerIntent } from '../../input/InputState';
 import type { ShadowSystem } from '../../world/render/ShadowSystem';
-import { stepVelocity, targetVelocity } from './PlayerMotor';
+import type { SandboxSettings } from '../../config/Sandbox';
+import { stepVelocity, targetVelocity, type SpeedModifiers } from './PlayerMotor';
 import { PlayerStats } from './PlayerStats';
 
 /** Quadros em que um pé toca o chão (ver procedural/characters.ts). */
 const FOOTSTEP_FRAMES = new Set([2, 6]);
 
 export class Player {
-  readonly stats = new PlayerStats();
+  readonly stats: PlayerStats;
+  private readonly speedMods: SpeedModifiers;
   readonly sprite: Phaser.Physics.Arcade.Sprite;
   private readonly legs: Phaser.GameObjects.Sprite;
   private readonly shadow: Phaser.GameObjects.Image;
@@ -46,8 +48,11 @@ export class Player {
     assets: AssetRegistry,
     private readonly bus: EventBus,
     private readonly shadows: ShadowSystem,
+    settings: SandboxSettings['player'],
   ) {
     const t = PLAYER_TUNING;
+    this.stats = new PlayerStats({ drain: settings.staminaDrainMultiplier, regen: settings.staminaRegenMultiplier });
+    this.speedMods = { walk: settings.walkSpeedMultiplier, run: settings.runSpeedMultiplier };
 
     this.shadow = scene.add.image(x, y, TEX.shadowSoft).setDepth(DEPTH.playerShadow).setAlpha(0.45).setDisplaySize(46, 32);
 
@@ -118,12 +123,12 @@ export class Player {
     // Correr: exige estar se movendo, não mirando e ter fôlego.
     const moveMag = length(intent.moveX, intent.moveY);
     const wantsSprint = intent.sprint && !intent.aiming && moveMag > 0.5;
-    const target = targetVelocity({ x: intent.moveX, y: intent.moveY, sprint: wantsSprint }, this.stats.canSprint());
+    const target = targetVelocity({ x: intent.moveX, y: intent.moveY, sprint: wantsSprint }, this.stats.canSprint(), this.speedMods);
     const v = stepVelocity({ x: body.velocity.x, y: body.velocity.y }, target, dt);
     body.setVelocity(v.x, v.y);
 
     const speed = length(v.x, v.y);
-    this.sprinting = wantsSprint && this.stats.canSprint() && speed > t.walkSpeed * 1.05;
+    this.sprinting = wantsSprint && this.stats.canSprint() && speed > t.walkSpeed * this.speedMods.walk * 1.05;
     this.stats.update(dt, this.sprinting);
 
     // Tronco: mira > movimento > mantém.
@@ -201,7 +206,7 @@ export class Player {
 
     this.aimMarker.clear();
     if (this.aiming) {
-      // Arco de mira: só um indicativo de direção por enquanto (armas vêm na Etapa 7).
+      // Arco de mira: só um indicativo de direção por enquanto (armas vêm nas Fases 6 e 7).
       const a = this.facing;
       const r0 = 34;
       const r1 = 118;
