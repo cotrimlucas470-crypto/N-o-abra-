@@ -24,6 +24,7 @@ import { BAG_ID } from '../items/PlayerInventory';
 import { ActionButtons, type PanelAction } from './panel/ActionButtons';
 import { ListView, fit, type ListSource } from './panel/ListView';
 import { BodyTab } from './tabs/BodyTab';
+import { CraftTab } from './tabs/CraftTab';
 import { HealthRows } from './tabs/HealthRows';
 import { TimeTab } from './tabs/TimeTab';
 import { UI, textStyle } from './theme';
@@ -139,6 +140,7 @@ export class InventoryPanel {
     this.body = new BodyTab(s, say);
     this.body.extensions.push(new HealthRows(s));
     this.addTab('itens', 'ITENS', null);
+    this.addTab('fabricar', 'FABRICAR', new CraftTab(s));
     this.addTab('corpo', 'CORPO', this.body);
     this.addTab('tempo', 'TEMPO', new TimeTab(s));
     this.root.setDepth(DEPTH).setVisible(false);
@@ -375,6 +377,9 @@ export class InventoryPanel {
       t.w = w;
       g.fillStyle(active ? UI.accentNum : 0xffffff, active ? 0.95 : 0.06).fillRoundedRect(x, y, w, h, 8 * k);
       t.text.setText(t.label).setColor(active ? '#16171a' : UI.textDim).setPosition(x + w / 2, y + h / 2).setScale(k);
+      // Aba estreita (retrato): o rótulo encolhe para caber.
+      const fitK = (w - 10 * k) / Math.max(1, t.text.width);
+      if (fitK < k) t.text.setScale(fitK);
       x += w + 6 * k;
     }
   }

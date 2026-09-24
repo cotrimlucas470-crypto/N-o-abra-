@@ -11,6 +11,7 @@ import type { Survivor } from '../survival/Survivor';
 import { BASIC_ACTIONS } from './itemActions/basic';
 import { MEDICAL_ACTIONS } from './itemActions/medical';
 import { GEAR_ACTIONS } from './itemActions/gear';
+import { CRAFT_ACTIONS } from './itemActions/craft';
 import { fail, type ItemActionContext, type ItemActionDef, type ItemHooks, type ItemResult, type ItemWhere } from './itemActions/types';
 
 export interface ItemActionView {
@@ -38,6 +39,7 @@ export class ItemUse {
     this.register(BASIC_ACTIONS);
     this.register(MEDICAL_ACTIONS);
     this.register(GEAR_ACTIONS);
+    this.register(CRAFT_ACTIONS);
   }
 
   register(list: readonly ItemActionDef[]): void {

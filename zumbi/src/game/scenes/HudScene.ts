@@ -93,7 +93,11 @@ export class HudScene extends Phaser.Scene {
       onOptions: () => (this.optionsMenu.open ? this.optionsMenu.hide() : s.bus.emit('interaction:options', {})),
       onAttack: () => s.bus.emit('input:attack', {}),
       onReload: () => s.bus.emit('input:reload', {}),
-      onInventory: () => this.inventory.toggle(),
+      onInventory: () => {
+        // Um painel por vez: o menu "⋯" fecha ao abrir a bolsa (o toque não passa para os dois).
+        this.optionsMenu.hide();
+        this.inventory.toggle();
+      },
     });
     this.feedback = new ActionFeedback(this, dpr);
     if (!s.assets) throw new Error('Assets não carregados');
@@ -144,6 +148,11 @@ export class HudScene extends Phaser.Scene {
       s.bus.on('ui:container-close', () => this.inventory.hideContainer()),
       s.bus.on('ui:container-refresh', () => this.inventory.refresh()),
       s.bus.on('ui:options-ready', () => this.showOptions()),
+      s.bus.on('ui:tab', (e) => {
+        this.optionsMenu.hide();
+        this.inventory.setOpen(true);
+        this.inventory.setTab(e.tab);
+      }),
       s.bus.on('ui:info', (e) => this.infoCard.show(e.title, e.lines, s.viewport.cssWidth, s.viewport.cssHeight, uiScaleFor(s.viewport.cssWidth, s.viewport.cssHeight))),
       s.bus.on('ui:map', (e) => {
         const handle = (window as unknown as { __TDR__?: { map: import('../world/MapTypes').MapData } }).__TDR__;

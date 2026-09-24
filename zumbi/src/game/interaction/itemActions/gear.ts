@@ -9,9 +9,10 @@
  *   VER MAPA (mapa da cidade; o anotado marca lugares).
  */
 import { charge, Flag } from '../../items/condition';
+import { useLighter } from '../../items/consumables';
 import { itemDef } from '../../items/ItemCatalog';
 import { BOOK_SKILL, SKILL_LABEL } from '../../skills/Skills';
-import { consumeOne, findTagged, setState } from './access';
+import { consumeOne, setState } from './access';
 import { fail, ok, type ItemActionContext, type ItemActionDef, type ItemResult } from './types';
 
 const inHandOrInv = (c: ItemActionContext) => c.loc.where === 'hand' || c.loc.where === 'inv';
@@ -233,14 +234,5 @@ export const GEAR_ACTIONS: ItemActionDef[] = [
 
 /** Vela: acender precisa de fogo (isqueiro gasta carga, fósforo gasta um palito). */
 export function lightSource(c: ItemActionContext): string | null {
-  const lighter = findTagged(c, 'acender', (st) => (st?.ch ?? 1) > 0.02);
-  if (!lighter) return null;
-  if (lighter.def.id === 'fosforos') {
-    lighter.container.take(lighter.index, 1);
-  } else {
-    const ch = Math.max(0, (lighter.stack.st?.ch ?? 1) - 0.01);
-    lighter.container.updateOne(lighter.index, { ...(lighter.stack.st ?? {}), ch });
-  }
-  c.inventory.changed();
-  return lighter.def.name;
+  return useLighter(c.inventory);
 }

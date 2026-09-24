@@ -4,6 +4,7 @@
  * guardar no recipiente aberto e largar no chão.
  */
 import { charge, doses, drinkEffect, foodEffect, isBroken } from '../../items/condition';
+import { emptyAfter, hasLighter } from '../../items/consumables';
 import type { ItemDef } from '../../items/ItemTypes';
 import { BAG_ID } from '../../items/PlayerInventory';
 import { consumeOne, findTagged, setState } from './access';
@@ -11,20 +12,13 @@ import { lightSource } from './gear';
 import { fail, ok, type ItemActionContext, type ItemActionDef, type ItemResult } from './types';
 
 const inPockets = (c: ItemActionContext) => c.loc.where === 'inv';
+/** Luz de chama (vela, tocha): acende com isqueiro/fósforo e queima até o fim. */
+const flame = (d: ItemDef) => d.tags.includes('chama');
 const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
 
 /** Dá para segurar na mão? (arma, ferramenta, luz, aparelho, cabo) */
 export function holdable(d: ItemDef): boolean {
   return !!(d.melee || d.gun || d.tool || d.power || d.tags.includes('cabo') || d.tags.includes('luz') || d.category === 'arma-branca' || d.category === 'ferramenta');
-}
-
-/** Garrafa que sobra quando a bebida acaba. */
-function emptyBottleOf(def: ItemDef): string | null {
-  if (def.iconSpec.f !== 'bottle') return null;
-  const k = def.iconSpec.k;
-  if (k === 'glass') return 'garrafaVidro';
-  if (k === 'jug' || k === 'oil' || k === 'thermos' || k === 'milk') return null;
-  return 'garrafaPet';
 }
 
 function eat(c: ItemActionContext): ItemResult {
@@ -33,15 +27,29 @@ function eat(c: ItemActionContext): ItemResult {
   consumeOne(c);
   // Na hora só o engulho; a doença tira vida aos poucos (Body).
   if (eff.health < 0) c.survivor.body.cheer(-2);
+  // Comida feita na hora levanta o ânimo (a lata fria, não).
+  else if (c.def.tags.includes('preparada')) c.survivor.body.cheer(3);
   return { ok: true, message: eff.message, tone: eff.tone };
 }
 
 function drink(c: ItemActionContext): ItemResult {
   const eff = drinkEffect(c.def, c.st)!;
-  c.survivor.body.consume(eff);
+  const b = c.survivor.body;
+  b.consume(eff);
+  // Café e energético espantam o sono; chá acalma; bebida quente esquenta.
+  let extra = '';
+  if (c.def.tags.includes('cafeina')) {
+    b.fatigue = Math.max(0, b.fatigue - 12);
+    extra = ' Acordou um pouco.';
+  }
+  if (c.def.tags.includes('calmante')) b.cheer(5);
+  if (c.def.tags.includes('quente')) {
+    b.cheer(2);
+    if (b.temp < 36.8) b.temp = Math.min(36.8, b.temp + 0.3);
+  }
   const left = doses(c.def, c.st) - 1;
   if (left <= 0) {
-    const empty = emptyBottleOf(c.def);
+    const empty = emptyAfter(c.def);
     consumeOne(c);
     if (empty) {
       if (c.loc.where === 'inv' && c.container) c.container.add(empty, 1);
@@ -51,7 +59,7 @@ function drink(c: ItemActionContext): ItemResult {
   } else {
     setState(c, { ...(c.st ?? {}), open: 1, dose: left });
   }
-  return { ok: true, message: eff.message, tone: eff.tone };
+  return { ok: true, message: eff.message + extra, tone: eff.tone };
 }
 
 export const BASIC_ACTIONS: ItemActionDef[] = [
@@ -162,24 +170,24 @@ export const BASIC_ACTIONS: ItemActionDef[] = [
   // ---------------------------------------------------------------- aparelhos
   {
     id: 'ligar',
-    label: (c) => (c.def.id === 'vela' ? (c.st?.on ? 'APAGAR' : 'ACENDER') : c.st?.on ? 'DESLIGAR' : 'LIGAR'),
+    label: (c) => (flame(c.def) ? (c.st?.on ? 'APAGAR' : 'ACENDER') : c.st?.on ? 'DESLIGAR' : 'LIGAR'),
     order: 15,
     when: (c) => !!c.def.power && (c.def.tags.includes('luz') || c.def.tags.includes('radio')) && (c.loc.where === 'hand' || c.loc.where === 'worn'),
     can: (c) => {
       if (c.st?.on) return true;
-      if (charge(c.def, c.st) <= 0.01) return c.def.id === 'vela' ? 'Vela no fim.' : 'Sem carga.';
+      if (charge(c.def, c.st) <= 0.01) return flame(c.def) ? 'No fim.' : 'Sem carga.';
       if (isBroken(c.def, c.st)) return 'Quebrado.';
-      if (c.def.id === 'vela' && !findTagged(c, 'acender', (st) => (st?.ch ?? 1) > 0.02)) return 'Precisa de isqueiro ou fósforo.';
+      if (flame(c.def) && !hasLighter(c.inventory)) return 'Precisa de isqueiro ou fósforo.';
       return true;
     },
     run: (c) => {
       const on = !c.st?.on;
-      if (on && c.def.id === 'vela') lightSource(c);
+      if (on && flame(c.def)) lightSource(c);
       const next = { ...(c.st ?? {}) };
       if (on) next.on = 1;
       else delete next.on;
       setState(c, next);
-      if (c.def.id === 'vela') return ok(on ? 'Vela acesa.' : 'Vela apagada.', 'info');
+      if (flame(c.def)) return ok(on ? `${c.def.name} acesa.` : `${c.def.name} apagada.`, 'info');
       return ok(on ? `${c.def.name}: ligado` : `${c.def.name}: desligado`, 'info');
     },
   },

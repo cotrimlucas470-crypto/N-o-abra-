@@ -242,6 +242,14 @@ export const stick: IconDrawer = (ctx, s, spec) => {
     });
     return;
   }
+  if (spec.k === 'torch') {
+    // Tocha: cabo, trapo enrolado na ponta e a chama.
+    bar(ctx, [[s * 0.22, s * 0.9], [s * 0.6, s * 0.36]], col, 5);
+    rotated(ctx, s, 35, () => box(ctx, s * 0.52, s * 0.26, s * 0.18, s * 0.2, 3, '#b8a080'));
+    ellipse(ctx, s * 0.68, s * 0.2, 6, 10, '#f07a20', null);
+    ellipse(ctx, s * 0.68, s * 0.24, 3, 6, '#fde08a', null);
+    return;
+  }
   bar(ctx, [[s * 0.14, s * 0.84], [s * 0.52, s * 0.46], [s * 0.86, s * 0.16]], col, 4);
   bar(ctx, [[s * 0.52, s * 0.46], [s * 0.72, s * 0.52]], col, 2.5);
   bar(ctx, [[s * 0.36, s * 0.62], [s * 0.3, s * 0.42]], col, 2);

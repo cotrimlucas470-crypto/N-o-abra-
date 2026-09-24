@@ -96,7 +96,7 @@ export const TOOLS = category('ferramenta', { stack: 1, cond: 'durable', tags: [
     tags: ['costurar', 'agulha'],
   }),
   tool('isqueiro', 'Isqueiro', 'fogo', 0.03, 'lighter', ['acender', 'fogo'], 300, 'Acende fogueira, fogão, vela.', { stack: 3, cond: 'battery', metal: false }),
-  tool('fosforos', 'Caixa de fósforos', 'fogo', 0.02, 'matches', ['acender', 'fogo'], 40, 'Cada palito, uma chance.', { stack: 5, cond: 'none', metal: false }),
+  tool('fosforos', 'Caixa de fósforos', 'fogo', 0.02, 'matches', ['acender', 'fogo'], 40, 'Cada palito, uma chance.', { stack: 5, cond: 'battery', metal: false }),
   tool('macaco', 'Macaco hidráulico', 'mecanica', 3.5, 'jack', ['levantar-carro', 'mecanica'], 400, 'Levanta carro para trocar pneu.', { rar: 'incomum' }),
   // ---------------- improvisadas (só por fabricação)
   tool('marteloPedra', 'Martelo de pedra', 'improvisada', 1.1, 'stonehammer', ['martelar', 'martelo'], 60, 'Pedra amarrada num galho. Funciona.', {

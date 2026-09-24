@@ -8,6 +8,7 @@
  */
 import { AMMO, FIREARMS, MELEE } from './catalog/weapons';
 import { BAGS, CLOTHING } from './catalog/clothing';
+import { COOKED, PREPARED_DRINKS } from './catalog/cooked';
 import { DRINKS } from './catalog/drinks';
 import { FOOD } from './catalog/food';
 import { CONSTRUCTION, MATERIALS } from './catalog/materials';
@@ -20,7 +21,9 @@ export type { ItemCategory, ItemDef } from './ItemTypes';
 
 const ALL: ItemDef[] = [
   ...FOOD,
+  ...COOKED,
   ...DRINKS,
+  ...PREPARED_DRINKS,
   ...TOOLS,
   ...MATERIALS,
   ...CONSTRUCTION,

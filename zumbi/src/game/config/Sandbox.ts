@@ -61,6 +61,12 @@ export interface SandboxSettings {
     thirstRate: number;
     fatigueRate: number;
   };
+  utilities: {
+    /** Dias de jogo com água nas torneiras (0 = já cortada). Depois, só chuva, rio e caixa da descarga. */
+    waterDays: number;
+    /** Dias com gás no fogão (0 = já cortado). Depois, só fogueira e fogão a lenha. */
+    gasDays: number;
+  };
   nature: {
     /** Dias para uma árvore frutífera repor um fruto. */
     fruitRegrowDays: number;
@@ -79,6 +85,7 @@ export const SANDBOX_DEFAULTS: SandboxSettings = {
   player: { walkSpeedMultiplier: 1, runSpeedMultiplier: 1, staminaDrainMultiplier: 1, staminaRegenMultiplier: 1 },
   loot: { abundance: 1, rareMultiplier: 1, alreadyLooted: 0, collapseAgeDays: 0, floorItems: 1 },
   survival: { hungerRate: 1, thirstRate: 1, fatigueRate: 1 },
+  utilities: { waterDays: 12, gasDays: 18 },
   nature: { fruitRegrowDays: 3, density: 1 },
 };
 
@@ -142,6 +149,10 @@ export function sanitizeSandbox(input: DeepPartial<SandboxSettings> | null | und
       thirstRate: num(i.survival?.thirstRate, d.survival.thirstRate, 0, 5),
       fatigueRate: num(i.survival?.fatigueRate, d.survival.fatigueRate, 0, 5),
     },
+    utilities: {
+      waterDays: num(i.utilities?.waterDays, d.utilities.waterDays, 0, 365, true),
+      gasDays: num(i.utilities?.gasDays, d.utilities.gasDays, 0, 365, true),
+    },
     nature: {
       fruitRegrowDays: num(i.nature?.fruitRegrowDays, d.nature.fruitRegrowDays, 0.5, 60),
       density: num(i.nature?.density, d.nature.density, 0, 2),
@@ -154,6 +165,7 @@ export function sanitizeSandbox(input: DeepPartial<SandboxSettings> | null | und
  *   ?setores=1x1   ?semente=42   ?dia=10 (minutos reais por dia)   ?hora=20
  *   ?loot=2 (abundância)   ?colapso=30 (dias desde o colapso)
  *   ?mes=7 (começa em julho, inverno)   ?chuva=2 (chove o dobro)
+ *   ?agua=0 ?gas=0 (água e gás já cortados)
  */
 export function sandboxFromUrl(search: string, base: SandboxSettings = SANDBOX_DEFAULTS): SandboxSettings {
   let params: URLSearchParams;
@@ -177,6 +189,10 @@ export function sandboxFromUrl(search: string, base: SandboxSettings = SANDBOX_D
   if (month !== null && Number.isFinite(Number(month))) out.time = { ...out.time, startMonth: Number(month) };
   const rain = params.get('chuva');
   if (rain !== null && Number.isFinite(Number(rain))) out.climate = { ...out.climate, rainMultiplier: Number(rain) };
+  const water = params.get('agua');
+  if (water !== null && Number.isFinite(Number(water))) out.utilities = { ...(out.utilities ?? {}), waterDays: Number(water) };
+  const gas = params.get('gas');
+  if (gas !== null && Number.isFinite(Number(gas))) out.utilities = { ...(out.utilities ?? {}), gasDays: Number(gas) };
   const hour = params.get('hora');
   if (hour !== null && Number.isFinite(Number(hour))) out.time = { ...out.time, startHour: Number(hour) };
   return sanitizeSandbox(out);

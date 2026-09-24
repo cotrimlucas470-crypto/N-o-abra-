@@ -31,7 +31,7 @@ export interface RestHooks {
 }
 
 /** Distância do corpo do jogador até a borda do móvel. */
-function edgeDistance(p: PropPlacement, x: number, y: number): number {
+export function edgeDistance(p: PropPlacement, x: number, y: number): number {
   let best = Infinity;
   for (const s of propSolids(p)) {
     const d =

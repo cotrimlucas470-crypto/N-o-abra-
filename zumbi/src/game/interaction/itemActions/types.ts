@@ -69,6 +69,11 @@ export interface ItemHooks {
   /** Hora do jogo (minuto do dia) e dia. */
   time?(): { minuteOfDay: number; day: number };
   rng?(): number;
+  /** Fabricação: começar a receita (motivo de não dar, ou null) e conferir. */
+  craft?(recipeId: string): string | null;
+  craftReady?(recipeId: string): true | string;
+  /** Chuva agora (0..1) e se o jogador está coberto. */
+  weather?(): { rain: number; sheltered: boolean };
 }
 
 export interface ItemActionDef {

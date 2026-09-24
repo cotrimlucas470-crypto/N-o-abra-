@@ -46,6 +46,10 @@ export interface GameEvents {
   'interaction:option': { index: number };
   /** O menu "⋯" foi montado (o HUD mostra). */
   'ui:options-ready': Record<string, never>;
+  /** Abrir o painel numa aba (FABRICAR ao "Cozinhar aqui" na fogueira). */
+  'ui:tab': { tab: string };
+  /** Fabricar a receita (aba FABRICAR ou ação COZINHAR no item). */
+  'craft:start': { recipe: string };
   /** Cancelar a ação em andamento (ou acordar). */
   'action:cancel': Record<string, never>;
   /** Dormir no chão / onde estiver (painel CORPO). */

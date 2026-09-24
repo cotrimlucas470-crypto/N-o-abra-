@@ -26,7 +26,8 @@ export interface ListDetail {
 }
 
 export interface ListSource {
-  rows(): ListRow[];
+  /** Linhas da lista; `selected` deixa a fonte abrir detalhes embaixo da linha tocada. */
+  rows(selected: string | null): ListRow[];
   detail(selected: string | null): ListDetail;
 }
 
@@ -119,7 +120,7 @@ export class ListView {
     const k = this.k;
     const g = this.g;
     g.clear();
-    this.rowsCache = this.source.rows();
+    this.rowsCache = this.source.rows(this.selected);
     // Seleção que sumiu da lista.
     if (this.selected && !this.rowsCache.some((r) => r.kind === 'line' && r.id === this.selected)) this.selected = null;
     const lb = this.listBox;

@@ -14,6 +14,7 @@ import type { ItemContainer } from '../items/ItemContainer';
 import type { ItemUse } from '../interaction/ItemUse';
 import type { GameSave } from '../save/SaveGame';
 import type { SurvivalLoop } from '../survival/SurvivalLoop';
+import type { CraftService } from '../crafting/CraftService';
 import { KeyboardMouseState, TouchInputState } from '../input/InputState';
 import type { Viewport } from '../systems/Viewport';
 import { EventBus } from './EventBus';
@@ -42,6 +43,8 @@ export interface GameSession {
   options: { label: string; enabled: boolean }[] | null;
   /** Save a carregar quando a cena do jogo começar (CONTINUAR). */
   pendingLoad: GameSave | null;
+  /** Fabricação (a aba FABRICAR confere receitas por aqui). */
+  crafting: CraftService | null;
 }
 
 export interface GameServices {
@@ -78,6 +81,7 @@ export function createServices(game: Phaser.Game, viewport: Viewport, bus: Event
       paused: false,
       survival: null,
       itemUse: null,
+      crafting: null,
       options: null,
       pendingLoad: null,
     },

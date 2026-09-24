@@ -47,6 +47,13 @@ import { WindowViews } from '../world/render/WindowViews';
 import { ToolInteractions, WindowInteractions, type WorldActionHooks } from '../interaction/ToolInteractions';
 import { VehicleInteractions } from '../interaction/VehicleInteractions';
 import { VehicleViews } from '../world/render/VehicleViews';
+import { StructureViews } from '../world/render/StructureViews';
+import { FireSystem } from '../build/FireSystem';
+import { CraftService } from '../crafting/CraftService';
+import { RECIPE_BY_ID } from '../crafting/Recipes';
+import { StructureInteractions } from '../interaction/StructureInteractions';
+import { WaterInteractions } from '../interaction/WaterInteractions';
+import { isSheltered } from '../world/shelter';
 import type { SkillsSave } from '../skills/Skills';
 import { DoorViews } from '../world/render/DoorViews';
 import { InteractionHighlight } from '../world/render/InteractionHighlight';
@@ -94,6 +101,10 @@ export class GameScene extends Phaser.Scene {
   private combatFx!: CombatFx;
   private attackCooldown = 0;
   private vehicleViews!: VehicleViews;
+  private structureViews!: StructureViews;
+  private fires!: FireSystem;
+  private crafting!: CraftService;
+  private fireTimer = 0;
   private alarmTimer = 0;
   private options: InteractionOption[] = [];
   private readonly lightSources: LightSource[] = [];
@@ -143,15 +154,21 @@ export class GameScene extends Phaser.Scene {
       this.survivor.body.restore(load.body);
       this.survivor.health.restore(load.modules?.['health'] as HealthSave | undefined);
       this.survivor.skills.restore(load.modules?.['skills'] as SkillsSave | undefined);
-      if (typeof load.modules?.['radioDay'] === 'number') this.loop.radioDay = load.modules['radioDay'] as number;
       this.player.restore(load.player);
     }
     const calendar = new Calendar({ month: s.settings.time.startMonth, day: s.settings.time.startDayOfMonth });
     const weather = new Weather(s.settings.world.seed, calendar, s.settings.climate);
+    // Fogos do mundo: calor no corpo, luz, cozinha.
+    this.fires = new FireSystem(this.state, (x, y) => isSheltered(this.model, x, y));
     this.loop = new SurvivalLoop(this.clock, calendar, weather, this.survivor, new ActionRunner(), this.model, {
       outcome: (o) => this.outcome(o),
+      fireHeat: (x, y) => this.fires.heat(x, y, this.clock.minutes),
     });
+    if (typeof load?.modules?.['radioDay'] === 'number') this.loop.radioDay = load.modules['radioDay'] as number;
     s.session.survival = this.loop;
+    const util = s.settings.utilities;
+    const waterOn = () => this.clock.day <= util.waterDays;
+    const gasOn = () => this.clock.day <= util.gasDays;
 
     const nowDays = () => this.clock.minutes / MINUTES_PER_DAY;
     s.session.nowDays = nowDays;
@@ -178,6 +195,14 @@ export class GameScene extends Phaser.Scene {
         show: (kind, data) => {
           if (kind === 'mapa') s.bus.emit('ui:map', { annotated: !!(data as { annotated?: boolean } | undefined)?.annotated });
         },
+        craft: (id) => this.crafting.start(id),
+        craftReady: (id) => {
+          const r = RECIPE_BY_ID.get(id);
+          if (!r) return 'Receita desconhecida.';
+          const c = this.crafting.check(r);
+          return c.ok ? true : (c.reason ?? 'Não dá agora.');
+        },
+        weather: () => ({ rain: this.loop.weather.rain, sheltered: this.loop.sheltered }),
       },
     });
     s.session.itemUse = this.itemUse;
@@ -195,6 +220,15 @@ export class GameScene extends Phaser.Scene {
       moveTo: (x, y) => this.teleport(x, y),
       now: nowDays,
     };
+    this.crafting = new CraftService(this.state, this.inventory, this.survivor, this.fires, {
+      start: (spec) => this.loop.start(spec),
+      drop: worldHooks.drop,
+      where: () => ({ x: this.player.x, y: this.player.y, facing: this.player.facingAngle }),
+      minutes: () => this.clock.minutes,
+      days: nowDays,
+      gasOn,
+    });
+    s.session.crafting = this.crafting;
     const tools = new ToolInteractions(this.state, this.inventory, this.survivor, worldHooks);
     const windows = new WindowInteractions(this.state, this.inventory, this.survivor, worldHooks);
     // Objeto quebrado/removido: o chunk é redesenhado (colisão e desenho somem juntos).
@@ -231,7 +265,22 @@ export class GameScene extends Phaser.Scene {
         info: (title, lines) => s.bus.emit('ui:info', { title, lines }),
       }),
     );
+    this.interaction.add(
+      new StructureInteractions(this.state, this.inventory, {
+        start: (spec) => this.loop.start(spec),
+        minutes: () => this.clock.minutes,
+        openCraft: () => s.bus.emit('ui:tab', { tab: 'fabricar' }),
+      }),
+    );
+    this.interaction.add(
+      new WaterInteractions(this.state, this.inventory, this.survivor, {
+        start: (spec) => this.loop.start(spec),
+        waterOn,
+        drop: (defId, count, st) => this.lootActions.dropLoose(defId, count, st, this.player.x, this.player.y),
+      }),
+    );
     this.vehicleViews = new VehicleViews(this, this.state, this.world);
+    this.structureViews = new StructureViews(this, this.state, this.world, () => this.clock.minutes);
     this.highlight = new InteractionHighlight(this);
     new WindowViews(this, this.state, this.world);
     this.combatFx = new CombatFx(this);
@@ -276,6 +325,10 @@ export class GameScene extends Phaser.Scene {
         if (why) this.outcome({ ok: false, message: why, tone: 'warn' });
       }),
       s.bus.on('health:treat', (e) => this.treat(e.wound, e.option)),
+      s.bus.on('craft:start', (e) => {
+        const why = this.crafting.start(e.recipe);
+        if (why) this.outcome({ ok: false, message: why, tone: 'warn' });
+      }),
       s.bus.on('input:attack', () => this.attack()),
       s.bus.on('input:reload', () => this.reload()),
       s.bus.on('game:save-request', () => this.save()),
@@ -289,6 +342,7 @@ export class GameScene extends Phaser.Scene {
       s.session.interaction = null;
       s.session.survival = null;
       s.session.itemUse = null;
+      s.session.crafting = null;
       s.session.options = null;
       this.events.off(Phaser.Scenes.Events.POST_UPDATE, this.afterPhysics, this);
       s.session.stats = null;
@@ -323,6 +377,18 @@ export class GameScene extends Phaser.Scene {
       if (hz.noise) s.bus.emit('world:noise', { x: this.player.x, y: this.player.y, radius: hz.noise, source: 'tombo' });
       this.loop.runner.cancel();
     }
+    const burn = this.hazards.burn(delta / 1000, this.fires.inFire(this.player.x, this.player.y, this.clock.minutes));
+    if (burn) {
+      this.outcome({ ok: false, message: burn.message, tone: 'bad' });
+      this.loop.runner.cancel();
+    }
+    this.fireTimer -= delta / 1000;
+    if (this.fireTimer <= 0) {
+      this.fireTimer = 1;
+      for (const f of this.fires.tick(this.clock.minutes, this.loop.weather.rain, this.player.x, this.player.y)) {
+        if (Math.hypot(f.x - this.player.x, f.y - this.player.y) < 500) this.outcome({ ok: false, message: 'A fogueira apagou.', tone: 'info' });
+      }
+    }
     this.player.setMoveEffects(fx.walk, fx.run);
     this.player.stats.setBodyEffects(fx);
     this.player.update(this.dt, intent);
@@ -350,6 +416,7 @@ export class GameScene extends Phaser.Scene {
     this.updateHeldLight();
     this.combatFx.update(this.dt);
     this.vehicleViews.update(this.dt);
+    this.structureViews.update(this.dt);
     this.atmosphere.update(this.dt, this.cameras.main, {
       minuteOfDay: this.clock.minuteOfDay,
       weather: this.loop.weather,
@@ -367,11 +434,13 @@ export class GameScene extends Phaser.Scene {
     this.debugLayer?.update(this.player.x, this.player.y, this.dt);
   }
 
-  /** Vela acesa na mão: luz em volta do jogador (tremendo). */
+  /** Chama na mão (vela, tocha) e fogueiras acesas: luz em volta (tremendo). */
   private updateHeldLight(): void {
     this.lightSources.length = 0;
     const h = this.inventory.hand;
-    if (h?.defId === 'vela' && h.st?.on) this.lightSources.push({ x: this.player.x, y: this.player.y, radius: 190, intensity: 0.85, flicker: true });
+    if (h?.st?.on && h.defId === 'vela') this.lightSources.push({ x: this.player.x, y: this.player.y, radius: 190, intensity: 0.85, flicker: true });
+    if (h?.st?.on && h.defId === 'tocha') this.lightSources.push({ x: this.player.x, y: this.player.y, radius: 300, intensity: 0.95, flicker: true });
+    this.fires.lights(this.clock.minutes, this.lightSources);
   }
 
   /** Luz em volta do jogador (0 breu .. 1 dia): para ler. */
@@ -409,7 +478,9 @@ export class GameScene extends Phaser.Scene {
   private flashlight(): { angle: number; range: number } | null {
     const h = this.inventory.hand;
     const hd = this.inventory.handDef;
-    const lit = (h?.st?.on && hd?.tags.includes('luz')) || [...this.inventory.worn.values()].some((w) => w.st?.on && itemDef(w.defId)?.tags.includes('luz'));
+    // Chama (vela, tocha) ilumina em volta, não em facho.
+    const beam = (d: ReturnType<typeof itemDef>) => !!d?.tags.includes('luz') && !d.tags.includes('chama');
+    const lit = (h?.st?.on && beam(hd)) || [...this.inventory.worn.values()].some((w) => w.st?.on && beam(itemDef(w.defId)));
     if (!lit) return null;
     const phone = hd?.id === 'celular' && h?.st?.on;
     return { angle: this.player.facingAngle, range: phone ? 230 : 420 };
@@ -661,6 +732,10 @@ export class GameScene extends Phaser.Scene {
       interaction: () => this.interaction.current,
       interact: () => this.interact(),
       views: () => ({ doors: this.doors.count, doorColliders: this.doors.colliderCount(), items: this.items.count }),
+      crafting: this.crafting,
+      fires: this.fires,
+      options: () => (this.requestOptions(), this.options.map((o) => o.label)),
+      choose: (i: number) => this.chooseOption(i),
     };
   }
 }

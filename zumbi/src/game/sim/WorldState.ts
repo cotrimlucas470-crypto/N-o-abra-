@@ -27,6 +27,7 @@ import { LootSystem, type LootSave } from '../loot/LootSystem';
 import type { HarvestDef } from '../nature/NatureCatalog';
 import { DEFAULT_NATURE, NatureState, type NatureSave, type NatureSettings } from '../nature/NatureState';
 import { Vehicles, type VehicleState } from '../vehicles/Vehicles';
+import { Structures, type StructuresSave } from '../build/Structures';
 
 export interface DoorState {
   open: boolean;
@@ -81,6 +82,10 @@ export interface WorldStateSave {
   vehicles?: Record<string, VehicleState>;
   /** Cacos de vidro em jogo e cacos do mapa já varridos. */
   glass?: { spots: { x: number; y: number }[]; cleared: string[] };
+  /** O que o jogador montou (fogueira, paredes, móveis...). */
+  structures?: StructuresSave;
+  /** Água usada de pontos finitos (caixa da descarga, banheira): id → doses tiradas. */
+  waterUsed?: Record<string, number>;
 }
 
 export class WorldState {
@@ -98,6 +103,10 @@ export class WorldState {
   readonly nature: NatureState;
   /** Carros, vans e carcaças: portas, trancas, vidros, gasolina, bateria, pneus. */
   readonly vehicles: Vehicles;
+  /** Construções do jogador. */
+  readonly structures: Structures;
+  /** Doses já tiradas de fontes finitas de água (id do objeto → doses). */
+  readonly waterUsed = new Map<string, number>();
   private readonly listeners = new Set<(c: WorldChange) => void>();
   private nextItem = 1;
   private readonly removedProps = new Set<string>();
@@ -126,6 +135,7 @@ export class WorldState {
     this.loot = new LootSystem(model, map.seed, opts.loot ?? DEFAULT_LOOT);
     this.nature = new NatureState(map.seed, opts.nature ?? DEFAULT_NATURE);
     this.vehicles = new Vehicles(map.seed, map.props, { collapseAgeDays: opts.loot?.collapseAgeDays ?? 0 });
+    this.structures = new Structures(model.widthPx, model.heightPx);
     for (const it of [...map.items, ...this.loot.floorItems]) {
       if (!itemDef(it.defId)) continue;
       this.mapItemCount.set(it.id, it.count);
@@ -523,6 +533,8 @@ export class WorldState {
     if (this.doorHp.size) out.doorHp = Object.fromEntries(this.doorHp);
     const veh = this.vehicles.serialize();
     if (Object.keys(veh).length) out.vehicles = veh;
+    if (this.structures.count) out.structures = this.structures.serialize();
+    if (this.waterUsed.size) out.waterUsed = Object.fromEntries(this.waterUsed);
     return out;
   }
 
@@ -572,6 +584,8 @@ export class WorldState {
     this.nextItem = Math.max(this.nextItem, save.nextItem ?? 1);
     this.glassSpots = (save.glass?.spots ?? []).filter((g) => Number.isFinite(g.x) && Number.isFinite(g.y));
     for (const k of save.glass?.cleared ?? []) this.clearedGlass.add(k);
+    this.structures.restore(save.structures);
+    for (const [id, n] of Object.entries(save.waterUsed ?? {})) if (Number.isFinite(n)) this.waterUsed.set(id, n);
   }
 }
 

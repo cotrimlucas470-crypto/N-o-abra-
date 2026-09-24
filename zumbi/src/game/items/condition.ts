@@ -63,7 +63,8 @@ const has = (st: ItemState | undefined, flag: number) => ((st?.f ?? 0) & flag) !
 const q = (v: number, step: number) => Math.round(v / step) * step;
 
 /**
- * Deixa só o que faz sentido para o perfil do item, arredondado (pilhas de
+ * Deixa só o que faz sentido para o perfil do item, arredondado (milésimos:
+ * uma serra de 300 usos precisa sentir cada uso; pilhas de
  * itens "praticamente iguais" se juntam). Devolve undefined se o item está novo.
  */
 export function normalizeState(def: ItemDef, st: ItemState | undefined): ItemState | undefined {
@@ -72,7 +73,7 @@ export function normalizeState(def: ItemDef, st: ItemState | undefined): ItemSta
   const k = def.condition;
   const durable = k === 'durable' || k === 'clothing' || k === 'device';
   if (durable && st.c !== undefined) {
-    const c = Math.min(1, Math.max(0, q(st.c, 0.01)));
+    const c = Math.min(1, Math.max(0, q(st.c, 0.001)));
     if (c < 1) out.c = c;
   }
   if (k === 'perishable' && st.born !== undefined) out.born = q(st.born, 0.25);
@@ -81,7 +82,7 @@ export function normalizeState(def: ItemDef, st: ItemState | undefined): ItemSta
   if ((k === 'drink' || k === 'medicine') && maxDose && st.dose !== undefined && st.dose < maxDose) out.dose = Math.max(0, Math.round(st.dose));
   if (k === 'drink' && (st.open || out.dose !== undefined)) out.open = 1;
   if ((k === 'battery' || k === 'device') && st.ch !== undefined) {
-    const ch = Math.min(1, Math.max(0, q(st.ch, 0.01)));
+    const ch = Math.min(1, Math.max(0, q(st.ch, 0.001)));
     if (ch < 1) out.ch = ch;
   }
   if (def.gun && st.am !== undefined) {
@@ -192,7 +193,10 @@ export function conditionTags(def: ItemDef, st: ItemState | undefined, now: Game
   }
   if (k === 'battery' || k === 'device') {
     const ch = charge(def, st);
-    if (k === 'battery' || def.power) tags.push(ch <= 0.02 ? { text: 'Descarregado', tone: 'bad' } : ch < 0.5 ? { text: `Carga ${Math.round(ch * 100)}%`, tone: 'warn' } : { text: ch >= 1 ? 'Carregado' : `Carga ${Math.round(ch * 100)}%`, tone: 'ok' });
+    if (def.tags.includes('chama')) tags.push(ch <= 0.02 ? { text: 'No fim', tone: 'bad' } : { text: `Resta ${Math.round(ch * 100)}%`, tone: ch < 0.3 ? 'warn' : 'ok' });
+    else if (def.power) tags.push(ch <= 0.02 ? { text: 'Descarregado', tone: 'bad' } : ch < 0.5 ? { text: `Carga ${Math.round(ch * 100)}%`, tone: 'warn' } : { text: ch >= 1 ? 'Carregado' : `Carga ${Math.round(ch * 100)}%`, tone: 'ok' });
+    // Consumível medido (fita, sal, café, gasolina, cloro): quanto sobrou.
+    else if (k === 'battery') tags.push(ch <= 0.02 ? { text: 'Vazio', tone: 'bad' } : ch < 1 ? { text: `Resta ${Math.round(ch * 100)}%`, tone: ch < 0.3 ? 'warn' : 'info' } : { text: 'Cheio', tone: 'ok' });
   }
   if (has(st, Flag.Sujo)) tags.push({ text: 'Sujo', tone: 'warn' });
   if (has(st, Flag.Molhado)) tags.push({ text: 'Molhado', tone: 'warn' });
@@ -258,7 +262,9 @@ export function foodEffect(def: ItemDef, st: ItemState | undefined, now: GameDay
   const f = def.food;
   if (!f) return null;
   const fr = freshness(def, st, now) ?? 'fresco';
-  const mult = fr === 'fresco' ? 1 : fr === 'passado' ? 0.8 : fr === 'estragado' ? 0.4 : 0;
+  // Pacote aberto (sal, óleo, café): come o que sobrou.
+  const part = def.condition === 'battery' ? Math.max(0, st?.ch ?? 1) : 1;
+  const mult = (fr === 'fresco' ? 1 : fr === 'passado' ? 0.8 : fr === 'estragado' ? 0.4 : 0) * part;
   let sickness = fr === 'estragado' ? 0.5 : fr === 'podre' ? 1 : 0;
   if (f.raw) sickness = Math.max(sickness, def.tags.includes('carne') || def.tags.includes('peixe') ? 0.6 : 0.2);
   if (f.toxic) sickness = 1;

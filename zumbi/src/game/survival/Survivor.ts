@@ -104,24 +104,26 @@ export class Survivor {
     }
   }
 
-  /** Lanterna/rádio ligados gastam carga; sem carga, desligam. */
+  /** Lanterna/rádio ligados gastam carga; sem carga, desligam. Vela e tocha queimam até o fim e somem. */
   private drainDevices(minutes: number): void {
     const h = this.inventory.hand;
     if (h?.st?.on) {
       const next = this.drained(h.defId, h.st, minutes);
-      if (next) this.inventory.updateHand(next);
+      if (next === 'gone') this.inventory.updateHand(null);
+      else if (next) this.inventory.updateHand(next);
     }
     for (const [slot, e] of this.inventory.worn) {
       if (!e.st?.on) continue;
       const next = this.drained(e.defId, e.st, minutes);
-      if (next) this.inventory.updateWorn(slot, next);
+      if (next && next !== 'gone') this.inventory.updateWorn(slot, next);
     }
   }
 
-  private drained(defId: string, st: ItemState, minutes: number): ItemState | null {
+  private drained(defId: string, st: ItemState, minutes: number): ItemState | 'gone' | null {
     const def = itemDef(defId);
     if (!def?.power) return null;
     const ch = Math.max(0, charge(def, st) - minutes / (def.power.hours * 60));
+    if (ch <= 0 && def.tags.includes('chama')) return 'gone';
     return ch <= 0 ? { ...st, ch: 0, on: undefined } : { ...st, ch };
   }
 
