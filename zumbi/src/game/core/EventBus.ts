@@ -42,6 +42,8 @@ export interface GameEvents {
   'action:cancel': Record<string, never>;
   /** Dormir no chão / onde estiver (painel CORPO). */
   'body:sleep': { place: 'cama' | 'sofa' | 'chao'; wakeAt?: number };
+  /** Tratar o ferimento `wound` com a opção `option` (aba CORPO). */
+  'health:treat': { wound: number; option: string };
   /** O jogo foi salvo (automático ou manual). */
   'game:saved': { ok: boolean };
   /** Pedido de salvar agora (menu de pausa). */

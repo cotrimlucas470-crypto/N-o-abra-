@@ -37,9 +37,13 @@ export const MEDICAL = category('medicina', { stack: 10, cond: 'medicine', tags:
   med('tala', 'Tala', 'ortopedia', 0.3, { f: 'plank', c: '#e8d8b0', k: 'splint' }, 'Imobiliza fratura.', { heal: 0 }, { cond: 'none', rar: 'incomum', stack: 4, tags: ['tala'] }),
   med('pinca', 'Pinça', 'instrumento', 0.02, { f: 'tool', k: 'tweezers' }, 'Tira caco de vidro e bala.', {}, { cond: 'durable', rar: 'incomum', stack: 1, metal: true, tags: ['pinca'] }),
   med('kitSutura', 'Kit de sutura', 'instrumento', 0.1, { f: 'kit', c: '#3a8ab0', k: 'small' }, 'Agulha curva e fio. Fecha corte fundo.', { heal: 10, doses: 3, shelfLifeDays: 900 }, { rar: 'raro', stack: 3, tags: ['sutura'] }),
-  med('luvasLatex', 'Luvas de látex', 'protecao', 0.01, { f: 'gloves', c: '#e8f2f8', k: 'thin' }, 'Descartáveis.', {}, { cond: 'none', stack: 20, tags: ['higiene'] }),
-  med('mascara', 'Máscara descartável', 'protecao', 0.01, { f: 'cloth', k: 'mask', c: '#8ac8e8' }, 'Protege do cheiro. Um pouco.', {}, { cond: 'none', stack: 20, tags: ['higiene'] }),
+  med('luvasLatex', 'Luvas de látex', 'protecao', 0.01, { f: 'gloves', c: '#e8f2f8', k: 'thin' }, 'Descartáveis. Vestidas, protegem a mão de sujeira ao tratar ferida.', {}, { cond: 'clothing', stack: 20, tags: ['higiene'], wear: { slot: 'maos', insulation: 0.02, bite: 0, scratch: 0.03 } }),
+  med('mascara', 'Máscara descartável', 'protecao', 0.01, { f: 'cloth', k: 'mask', c: '#8ac8e8' }, 'Protege do cheiro. Um pouco.', {}, { cond: 'clothing', stack: 20, tags: ['higiene'], wear: { slot: 'rosto', insulation: 0.02, bite: 0, scratch: 0.02 } }),
   med('termometro', 'Termômetro', 'instrumento', 0.03, { f: 'device', k: 'thermometer', c: '#f2f2f2' }, 'Mede a febre.', {}, { cond: 'durable', stack: 1, rar: 'incomum' }),
   med('seringa', 'Seringa', 'instrumento', 0.01, { f: 'syringe' }, 'Descartável, lacrada.', {}, { cond: 'none', rar: 'incomum', stack: 10, tags: ['seringa'] }),
+  // ---------------- improvisados (fabricação) e usados
+  med('ataduraImprovisada', 'Atadura improvisada', 'curativo', 0.05, { f: 'roll', c: '#e8e0d0', k: 'bandage' }, 'Tiras de pano limpo. Serve bem.', { heal: 4, bandage: true }, { cond: 'none', craftOnly: true, tags: ['curativo', 'atadura'] }),
+  med('ataduraSuja', 'Atadura usada', 'curativo', 0.05, { f: 'roll', c: '#b88a7a', k: 'bandage' }, 'Suja de sangue. Ferva para usar de novo.', {}, { cond: 'none', craftOnly: true, tags: ['atadura-suja'] }),
+  med('talaImprovisada', 'Tala improvisada', 'ortopedia', 0.5, { f: 'plank', c: '#a8784a', k: 'splint' }, 'Galho reto e pano. Imobiliza.', { heal: 0 }, { cond: 'none', craftOnly: true, stack: 4, tags: ['tala'] }),
   med('kitPrimeirosSocorros', 'Kit de primeiros socorros', 'kit', 0.8, { f: 'kit', c: '#c8342a' }, 'Tudo o que precisa numa caixa só.', { heal: 30, bandage: true, disinfect: true, doses: 4, shelfLifeDays: 900 }, { rar: 'raro', stack: 1, tags: ['curativo', 'kit'] }),
 ]);

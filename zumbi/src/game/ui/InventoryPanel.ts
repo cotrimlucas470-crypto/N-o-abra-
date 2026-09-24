@@ -24,6 +24,7 @@ import { BAG_ID } from '../items/PlayerInventory';
 import { ActionButtons, type PanelAction } from './panel/ActionButtons';
 import { ListView, fit, type ListSource } from './panel/ListView';
 import { BodyTab } from './tabs/BodyTab';
+import { HealthRows } from './tabs/HealthRows';
 import { TimeTab } from './tabs/TimeTab';
 import { UI, textStyle } from './theme';
 
@@ -136,6 +137,7 @@ export class InventoryPanel {
     this.buttons = new ActionButtons(scene, this.root, dpr, say, () => this.refresh());
     this.list = new ListView(scene, this.root, assets, dpr, say);
     this.body = new BodyTab(s, say);
+    this.body.extensions.push(new HealthRows(s));
     this.addTab('itens', 'ITENS', null);
     this.addTab('corpo', 'CORPO', this.body);
     this.addTab('tempo', 'TEMPO', new TimeTab(s));
@@ -152,6 +154,11 @@ export class InventoryPanel {
 
   get isOpen(): boolean {
     return this.open;
+  }
+
+  /** Caixa do painel na tela (para outros elementos do HUD desviarem). */
+  get bounds(): Readonly<Box> {
+    return this.box;
   }
 
   get currentTab(): TabId {

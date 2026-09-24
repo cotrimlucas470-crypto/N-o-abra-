@@ -342,7 +342,11 @@ export class HudScene extends Phaser.Scene {
       this.pills.update(sv.survivor.states().map((x) => ({ label: x.label, tone: x.tone })));
     }
     const act = sv?.runner.current;
-    this.actionBar.update(act ? act.label : null, sv?.runner.progress ?? 0, !!sv?.sleeping, clock ? timeText(clock.minuteOfDay, true) : '');
+    // Painel aberto na horizontal: a barra de ação vai para o espaço livre à esquerda.
+    const vw = this.s.viewport.cssWidth;
+    const pb = this.inventory.bounds;
+    const cx = this.inventory.isOpen && !this.s.viewport.isPortrait ? Math.max(150, (this.s.viewport.insets.left + pb.x) / 2) : vw / 2;
+    this.actionBar.update(act ? act.label : null, sv?.runner.progress ?? 0, !!sv?.sleeping, clock ? timeText(clock.minuteOfDay, true) : '', cx);
     this.inventory.tick(dt);
     const target = this.s.session.interaction;
     if (!this.paused) this.controls.update(stats ? !stats.canSprint() : false, target ? target.enabled : null, this.inventory.isOpen);

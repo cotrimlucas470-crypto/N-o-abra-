@@ -46,6 +46,11 @@ export class UiButton extends Phaser.GameObjects.Container {
     return this.label.text;
   }
 
+  /** Largura do texto (px antes da escala). */
+  get labelWidth(): number {
+    return this.label.width;
+  }
+
   setLabel(text: string): this {
     this.label.setText(text);
     return this;

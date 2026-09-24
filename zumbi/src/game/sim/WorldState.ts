@@ -64,6 +64,8 @@ export interface WorldStateSave {
   nextItem: number;
   loot?: LootSave;
   nature?: NatureSave;
+  /** Cacos de vidro em jogo e cacos do mapa já varridos. */
+  glass?: { spots: { x: number; y: number }[]; cleared: string[] };
 }
 
 export class WorldState {
@@ -144,6 +146,38 @@ export class WorldState {
       }
     }
     return out;
+  }
+
+  // ---------------------------------------------------------------- cacos de vidro
+
+  /** Cacos espalhados em jogo (janela quebrada, garrafa): corta pé descalço. */
+  private glassSpots: { x: number; y: number }[] = [];
+  private readonly clearedGlass = new Set<string>();
+
+  addGlass(x: number, y: number): void {
+    this.glassSpots.push({ x: Math.round(x), y: Math.round(y) });
+  }
+
+  /** Tem caco a até `r` px? (decalque de vidro do mapa ou caco de jogo). */
+  glassNear(x: number, y: number, r: number): { x: number; y: number; key: string } | null {
+    for (const g of this.glassSpots) if (Math.hypot(g.x - x, g.y - y) <= r) return { ...g, key: `j:${g.x},${g.y}` };
+    const map = this.model.map;
+    for (const i of this.model.index.get(this.model.index.chunkOfPoint(x, y))?.decals ?? []) {
+      const d = map.decals[i]!;
+      if (d.type !== 'glass') continue;
+      const key = `m:${Math.round(d.x)},${Math.round(d.y)}`;
+      if (this.clearedGlass.has(key)) continue;
+      if (Math.hypot(d.x - x, d.y - y) <= r + 18 * d.scale) return { x: d.x, y: d.y, key };
+    }
+    return null;
+  }
+
+  /** Varre/junta os cacos de um lugar. */
+  clearGlass(key: string): void {
+    if (key.startsWith('j:')) {
+      const [x, y] = key.slice(2).split(',').map(Number);
+      this.glassSpots = this.glassSpots.filter((g) => g.x !== x || g.y !== y);
+    } else this.clearedGlass.add(key);
   }
 
   // ---------------------------------------------------------------- portas
@@ -321,7 +355,9 @@ export class WorldState {
     }
     const items: WorldItem[] = [];
     for (const m of this.items.values()) for (const it of m.values()) if (!this.mapItemCount.has(it.id)) items.push({ ...it });
-    return { version: 2, doors, mapItems, items, nextItem: this.nextItem, loot: this.loot.serialize(), nature: this.nature.serialize() };
+    const out: WorldStateSave = { version: 2, doors, mapItems, items, nextItem: this.nextItem, loot: this.loot.serialize(), nature: this.nature.serialize() };
+    if (this.glassSpots.length || this.clearedGlass.size) out.glass = { spots: this.glassSpots.map((g) => ({ ...g })), cleared: [...this.clearedGlass] };
+    return out;
   }
 
   /**
@@ -351,6 +387,8 @@ export class WorldState {
       this.emit({ type: 'items', chunk: this.itemChunk.get(it.id)! });
     }
     this.nextItem = Math.max(this.nextItem, save.nextItem ?? 1);
+    this.glassSpots = (save.glass?.spots ?? []).filter((g) => Number.isFinite(g.x) && Number.isFinite(g.y));
+    for (const k of save.glass?.cleared ?? []) this.clearedGlass.add(k);
   }
 }
 

@@ -5,6 +5,8 @@
  * ambiente; aqui se decide o que acontece com vida, roupa molhada, pilha da
  * lanterna etc. Puro, testável sem Phaser.
  */
+import { Health } from '../health/Health';
+import { PART_INFO } from '../health/Wounds';
 import { Flag, charge, type ItemState } from '../items/condition';
 import { itemDef } from '../items/ItemCatalog';
 import type { PlayerInventory } from '../items/PlayerInventory';
@@ -39,7 +41,9 @@ export interface InjuryModel {
 
 export class Survivor {
   readonly body: Body;
-  injuries: InjuryModel | null = null;
+  /** Ferimentos por parte do corpo (sangramento, infecção, dor, cura). */
+  readonly health = new Health();
+  injuries: InjuryModel | null = this.health;
   private cached: PhysicalEffects | null = null;
 
   constructor(
@@ -79,8 +83,15 @@ export class Survivor {
     this.cached = null;
   }
 
-  /** Roupa acompanha o corpo: molhou/secou. */
+  /** Roupa acompanha o corpo: molhou/secou; sangue de ferida aberta suja a roupa daquela parte. */
   private updateClothes(): void {
+    for (const w of this.health.wounds) {
+      if (w.bleed < 0.3 || w.bandage) continue;
+      for (const slot of PART_INFO[w.part].slots) {
+        const e = this.inventory.wornIn(slot);
+        if (e && ((e.st?.f ?? 0) & Flag.Ensanguentado) === 0) this.inventory.updateWorn(slot, { ...(e.st ?? {}), f: (e.st?.f ?? 0) | Flag.Ensanguentado });
+      }
+    }
     const wet = this.body.wet;
     for (const [slot, e] of this.inventory.worn) {
       const f = e.st?.f ?? 0;

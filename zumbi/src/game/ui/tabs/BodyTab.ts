@@ -42,7 +42,11 @@ export class BodyTab implements ListSource {
     const inv = this.s.session.inventory;
     if (!sv || !stats || !inv) return [{ kind: 'text', text: 'Sem jogo em andamento.' }];
     const b = sv.survivor.body;
-    const rows: ListRow[] = [{ kind: 'header', text: 'Estado' }];
+    // Ferimentos primeiro quando existem: é o que exige ação.
+    const extra = this.extensions.flatMap((e) => e.rows());
+    const urgent = extra.some((r) => r.kind === 'line');
+    const rows: ListRow[] = urgent ? [...extra] : [];
+    rows.push({ kind: 'header', text: 'Estado' });
     const hp = stats.health / stats.maxHealth;
     rows.push({ kind: 'bar', label: 'Vida', value: hp, text: `${Math.round(stats.health)}`, color: barColor(hp) });
     const need = (label: string, v: number, words: [string, string, string, string]) => {
@@ -55,7 +59,10 @@ export class BodyTab implements ListSource {
     need('Energia', b.fatigue, ['Descansado', 'Cansado', 'Muito cansado', 'Exausto']);
     const t = b.temp;
     const tv = Math.max(0, Math.min(1, (t - 33) / 8));
-    rows.push({ kind: 'bar', label: 'Temperatura', value: tv, text: `${t.toFixed(1).replace('.', ',')} °C`, color: t < 36.3 ? COLD : t > 37.8 ? BAD : GOOD });
+    // Só com termômetro dá para saber o número; sem ele, a sensação.
+    const exactTemp = inv.countOf('termometro') > 0;
+    const feel = t < 35 ? 'Congelando' : t < 36.3 ? 'Com frio' : t > 39 ? 'Febre alta' : t > 37.8 ? 'Quente' : 'Normal';
+    rows.push({ kind: 'bar', label: 'Temperatura', value: tv, text: exactTemp ? `${t.toFixed(1).replace('.', ',')} °C` : feel, color: t < 36.3 ? COLD : t > 37.8 ? BAD : GOOD });
     if (b.wet > 0.02) rows.push({ kind: 'bar', label: 'Molhado', value: b.wet, text: `${Math.round(b.wet * 100)}%`, color: COLD });
     rows.push({ kind: 'bar', label: 'Ânimo', value: b.morale / 100, text: b.morale > 60 ? 'Bem' : b.morale > 40 ? 'Normal' : b.morale > 25 ? 'Desanimado' : 'Deprimido', color: barColor(b.morale / 100) });
     if (b.sickness > 0.02) rows.push({ kind: 'bar', label: 'Enjoo', value: b.sickness, text: b.sickness > 0.4 ? 'Doente' : 'Enjoado', color: BAD });
@@ -68,7 +75,7 @@ export class BodyTab implements ListSource {
     const states = sv.survivor.states();
     if (states.length) rows.push({ kind: 'text', text: states.map((x) => x.label).join(' · '), color: TONE_TEXT[states.some((x) => x.tone === 'bad') ? 'bad' : 'warn'] });
 
-    for (const ext of this.extensions) rows.push(...ext.rows());
+    if (!urgent) rows.push(...extra);
 
     rows.push({ kind: 'header', text: 'Na mão' });
     const h = inv.hand;

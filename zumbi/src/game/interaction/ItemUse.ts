@@ -9,6 +9,7 @@ import type { PlayerInventory } from '../items/PlayerInventory';
 import type { WorldState } from '../sim/WorldState';
 import type { Survivor } from '../survival/Survivor';
 import { BASIC_ACTIONS } from './itemActions/basic';
+import { MEDICAL_ACTIONS } from './itemActions/medical';
 import { fail, type ItemActionContext, type ItemActionDef, type ItemHooks, type ItemResult, type ItemWhere } from './itemActions/types';
 
 export interface ItemActionView {
@@ -34,6 +35,7 @@ export class ItemUse {
 
   constructor(private readonly env: ItemUseEnv) {
     this.register(BASIC_ACTIONS);
+    this.register(MEDICAL_ACTIONS);
   }
 
   register(list: readonly ItemActionDef[]): void {

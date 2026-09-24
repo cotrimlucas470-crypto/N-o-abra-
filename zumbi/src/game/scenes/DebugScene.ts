@@ -109,6 +109,10 @@ export class DebugScene extends Phaser.Scene {
     // Loot e natureza
     add(() => `${onOff(this.state.loot)} Loot`, () => (this.state.loot = !this.state.loot));
     add(() => 'Dia +1', () => this.s.session.clock?.advance(24 * 60));
+    // Sobrevivência
+    add(() => 'Ferir', () => this.flash(this.game_.debugHurt()));
+    add(() => 'Curar tudo', () => this.flash(this.game_.debugHealAll()));
+    add(() => 'Noite/dia', () => this.s.session.clock?.advance(12 * 60));
     this.info = this.add.text(0, 0, '', textStyle(10, '#bfe8bf', '600')).setResolution(dpr);
     this.panel.add(this.info);
 

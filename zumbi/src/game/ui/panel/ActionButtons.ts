@@ -47,7 +47,7 @@ export class ActionButtons {
     for (const b of this.buttons) root.bringToTop(b);
   }
 
-  /** Posiciona as ações na linha que começa em (x, y) com largura w. */
+  /** Posiciona as ações na linha que começa em (x, y) com largura w (px na tela). */
   layout(actions: PanelAction[], x: number, y: number, w: number, k: number): void {
     const key = actions.map((a) => `${a.label}${a.enabled === false ? '·' : ''}`).join('|');
     if (key !== this.key) {
@@ -55,23 +55,44 @@ export class ActionButtons {
       this.page = 0;
     }
     this.actions = actions;
-    const fit = Math.max(1, Math.min(POOL, Math.floor((w + GAP * k) / ((BTN_W + GAP) * k))));
-    let list: (PanelAction | 'more')[];
-    if (actions.length <= fit) list = actions;
-    else {
-      const per = fit - 1;
-      const pages = Math.ceil(actions.length / per);
-      this.page %= pages;
-      list = [...actions.slice(this.page * per, this.page * per + per), 'more'];
-    }
+    // Largura de cada botão pelo texto; páginas enchem a linha, com "MAIS ▸" quando sobra.
+    const probe = this.buttons[POOL - 1]!;
+    const widthOf = (label: string) => {
+      probe.setLabel(label);
+      return Math.min(240, Math.max(78, probe.labelWidth + 26));
+    };
+    const avail = w / k;
+    const more = widthOf('MAIS ▸');
+    const pages: PanelAction[][] = [];
+    let cur: PanelAction[] = [];
+    let used = 0;
+    actions.forEach((a, i) => {
+      const bw = widthOf(a.label);
+      const last = i === actions.length - 1;
+      const need = used + bw + (last ? 0 : more + GAP);
+      if (cur.length && (need > avail || cur.length >= POOL - 1)) {
+        pages.push(cur);
+        cur = [];
+        used = 0;
+      }
+      cur.push(a);
+      used += bw + GAP;
+    });
+    if (cur.length) pages.push(cur);
+    this.page = pages.length ? this.page % pages.length : 0;
+    const list: (PanelAction | 'more')[] = pages.length > 1 ? [...pages[this.page]!, 'more'] : (pages[0] ?? []);
     this.shown = list;
+    let cx = x;
     this.buttons.forEach((b, i) => {
       const a = list[i];
       b.setVisible(!!a);
       if (!a) return;
-      b.setLabel(a === 'more' ? 'MAIS ▸' : a.label);
+      const label = a === 'more' ? 'MAIS ▸' : a.label;
+      const bw = widthOf(label);
+      b.setLabel(label).setButtonSize(bw, BTN_H);
       b.setDim(a !== 'more' && a.enabled === false);
-      b.setScale(k).setPosition(x + (BTN_W / 2 + i * (BTN_W + GAP)) * k, y);
+      b.setScale(k).setPosition(cx + (bw / 2) * k, y);
+      cx += (bw + GAP) * k;
     });
   }
 

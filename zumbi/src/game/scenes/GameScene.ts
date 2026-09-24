@@ -34,6 +34,10 @@ import { ActionRunner, type ActionOutcome } from '../sim/Actions';
 import { Calendar } from '../sim/Calendar';
 import { Weather } from '../sim/Weather';
 import { restAction } from '../survival/Sleep';
+import { Hazards } from '../survival/Hazards';
+import { treatmentsFor } from '../health/Treatments';
+import { woundTitle, type HealthSave } from '../health/Health';
+import { BODY_PARTS, type WoundKind } from '../health/Wounds';
 import { SurvivalLoop } from '../survival/SurvivalLoop';
 import { Survivor } from '../survival/Survivor';
 import { Atmosphere, type LightSource } from '../world/render/Atmosphere';
@@ -78,6 +82,7 @@ export class GameScene extends Phaser.Scene {
   private loop!: SurvivalLoop;
   private atmosphere!: Atmosphere;
   private itemUse!: ItemUse;
+  private hazards!: Hazards;
   private options: InteractionOption[] = [];
   private readonly lightSources: LightSource[] = [];
   private scanTimer = 0;
@@ -124,6 +129,7 @@ export class GameScene extends Phaser.Scene {
     this.survivor = new Survivor(this.player.stats, this.inventory, { hunger: sv.hungerRate, thirst: sv.thirstRate, fatigue: sv.fatigueRate });
     if (load) {
       this.survivor.body.restore(load.body);
+      this.survivor.health.restore(load.modules?.['health'] as HealthSave | undefined);
       this.player.restore(load.player);
     }
     const calendar = new Calendar({ month: s.settings.time.startMonth, day: s.settings.time.startDayOfMonth });
@@ -153,6 +159,7 @@ export class GameScene extends Phaser.Scene {
       },
     });
     s.session.itemUse = this.itemUse;
+    this.hazards = new Hazards(this.state, this.survivor, this.inventory);
     const playerBody = this.interactor;
     this.interaction = new InteractionSystem([
       new DoorInteractions(this.state, s.bus, () => [playerBody]),
@@ -208,6 +215,7 @@ export class GameScene extends Phaser.Scene {
         const why = this.loop.sleep({ place: e.place, blanket: this.inventory.hasTag('aquecer'), ...(e.wakeAt !== undefined ? { wakeAt: e.wakeAt } : {}) });
         if (why) this.outcome({ ok: false, message: why, tone: 'warn' });
       }),
+      s.bus.on('health:treat', (e) => this.treat(e.wound, e.option)),
       s.bus.on('game:save-request', () => this.save()),
       s.bus.on('game:paused', () => this.save()),
     ];
@@ -247,6 +255,12 @@ export class GameScene extends Phaser.Scene {
     // Dormindo: o corpo fica parado; o resto do estado físico vira velocidade e fôlego.
     this.player.frozen = this.loop.sleeping || this.loop.runner.current?.id === 'descansar';
     const fx = this.loop.effects;
+    const hz = this.hazards.frame(delta / 1000, { x: this.player.x, y: this.player.y, moving, sprinting: this.player.isSprinting }, fx);
+    if (hz) {
+      this.outcome({ ok: false, message: hz.message, tone: 'bad' });
+      if (hz.noise) s.bus.emit('world:noise', { x: this.player.x, y: this.player.y, radius: hz.noise, source: 'tombo' });
+      this.loop.runner.cancel();
+    }
     this.player.setMoveEffects(fx.walk, fx.run);
     this.player.stats.setBodyEffects(fx);
     this.player.update(this.dt, intent);
@@ -368,6 +382,47 @@ export class GameScene extends Phaser.Scene {
     if (r.message) this.s.bus.emit('player:feedback', { text: r.message, tone: r.ok ? 'ok' : 'warn' });
   }
 
+  /** Tratamento escolhido na aba CORPO: ação com tempo; gasta o item no fim. */
+  private treat(woundId: number, optionId: string): void {
+    const h = this.survivor.health;
+    const w = h.byId(woundId);
+    if (!w) return;
+    const opt = treatmentsFor(w, h, this.inventory, this.clock.minutes / MINUTES_PER_DAY).find((o) => o.id === optionId);
+    if (!opt) return;
+    if (!opt.enabled) {
+      this.outcome({ ok: false, message: opt.reason ?? 'Não dá.', tone: 'warn' });
+      return;
+    }
+    this.loop.start({
+      id: 'tratar',
+      label: `Tratando: ${woundTitle(w).toLowerCase()}`,
+      minutes: opt.minutes * this.loop.effects.actionTime,
+      done: () => ({ ok: true, message: opt.run(), tone: 'ok' }),
+    });
+  }
+
+  /** Debug: ferimento aleatório. */
+  debugHurt(): string {
+    const kinds: WoundKind[] = ['arranhao', 'corte', 'laceracao', 'perfuracao', 'fratura', 'entorse', 'queimadura', 'contusao', 'estilhaco'];
+    const kind = kinds[Math.floor(Math.random() * kinds.length)]!;
+    const part = BODY_PARTS[Math.floor(Math.random() * BODY_PARTS.length)]!;
+    const w = this.survivor.health.add(part, kind, 0.4 + Math.random() * 0.5);
+    return woundTitle(w);
+  }
+
+  debugHealAll(): string {
+    this.survivor.health.wounds = [];
+    this.player.stats.setHealth(this.player.stats.maxHealth);
+    const b = this.survivor.body;
+    b.hunger = 5;
+    b.thirst = 5;
+    b.fatigue = 5;
+    b.sickness = 0;
+    b.temp = 37;
+    b.wet = 0;
+    return 'curado';
+  }
+
   // ---------------------------------------------------------------- save
 
   private gatherSave(): Omit<GameSave, 'version' | 'savedAt' | 'game'> {
@@ -378,6 +433,7 @@ export class GameScene extends Phaser.Scene {
       body: this.survivor.body.snapshot(),
       inventory: this.inventory.serialize(),
       world: this.state.serialize(),
+      modules: { health: this.survivor.health.serialize() },
     };
   }
 
