@@ -30,6 +30,12 @@ export interface ItemState {
   ch?: number;
   /** Marcas: ver `Flag`. */
   f?: number;
+  /** Cartuchos dentro da arma de fogo. */
+  am?: number;
+  /** Aparelho ligado (lanterna, rádio). */
+  on?: 1;
+  /** Chave: id do que ela abre (prédio ou veículo). */
+  key?: string;
 }
 
 export const Flag = {
@@ -39,6 +45,8 @@ export const Flag = {
   Contaminado: 8,
   Rasgado: 16,
   Ensanguentado: 32,
+  /** Arma de fogo travada: precisa destravar antes de atirar. */
+  Emperrada: 64,
 } as const;
 
 export type Tone = 'ok' | 'info' | 'warn' | 'bad';
@@ -76,13 +84,19 @@ export function normalizeState(def: ItemDef, st: ItemState | undefined): ItemSta
     const ch = Math.min(1, Math.max(0, q(st.ch, 0.01)));
     if (ch < 1) out.ch = ch;
   }
+  if (def.gun && st.am !== undefined) {
+    const am = Math.max(0, Math.min(def.gun.capacity, Math.round(st.am)));
+    if (am > 0) out.am = am;
+  }
+  if (st.on && def.power && (k === 'device' || k === 'battery')) out.on = 1;
+  if (st.key && def.tags.includes('chave')) out.key = String(st.key).slice(0, 80);
   let f = st.f ?? 0;
   // Só as marcas que existem para o perfil.
   const allowed =
     k === 'clothing'
       ? Flag.Sujo | Flag.Molhado | Flag.Rasgado | Flag.Ensanguentado
       : k === 'durable' || k === 'device'
-        ? Flag.Sujo | Flag.Molhado | (def.metal ? Flag.Enferrujado : 0) | Flag.Ensanguentado
+        ? Flag.Sujo | Flag.Molhado | (def.metal ? Flag.Enferrujado : 0) | Flag.Ensanguentado | (def.gun ? Flag.Emperrada : 0)
         : k === 'drink' || k === 'perishable'
           ? Flag.Contaminado
           : 0;
@@ -186,6 +200,9 @@ export function conditionTags(def: ItemDef, st: ItemState | undefined, now: Game
   if (has(st, Flag.Rasgado)) tags.push({ text: 'Rasgado', tone: 'warn' });
   if (has(st, Flag.Ensanguentado)) tags.push({ text: 'Ensanguentado', tone: 'warn' });
   if (has(st, Flag.Contaminado)) tags.push({ text: 'Contaminado', tone: 'bad' });
+  if (has(st, Flag.Emperrada)) tags.push({ text: 'Emperrada', tone: 'bad' });
+  if (def.gun) tags.push({ text: `${st?.am ?? 0}/${def.gun.capacity} balas`, tone: (st?.am ?? 0) > 0 ? 'info' : 'warn' });
+  if (st?.on) tags.push({ text: 'Ligado', tone: 'ok' });
   return tags;
 }
 

@@ -27,6 +27,15 @@ export interface SandboxSettings {
     startDay: number;
     /** Hora do jogo em que a partida começa (0–23,99). */
     startHour: number;
+    /** Data do primeiro dia (mês 1–12, dia do mês). Define estação e clima. */
+    startMonth: number;
+    startDayOfMonth: number;
+  };
+  climate: {
+    /** Soma em todas as temperaturas (°C): negativo = mundo mais frio. */
+    temperatureOffset: number;
+    /** Frequência da chuva (0 = nunca, 1 = normal). */
+    rainMultiplier: number;
   };
   player: {
     walkSpeedMultiplier: number;
@@ -46,6 +55,12 @@ export interface SandboxSettings {
     /** Itens soltos pelo chão das construções (1 = normal, 0 = nenhum). */
     floorItems: number;
   };
+  survival: {
+    /** Velocidade com que fome, sede e cansaço aumentam (1 = normal). */
+    hungerRate: number;
+    thirstRate: number;
+    fatigueRate: number;
+  };
   nature: {
     /** Dias para uma árvore frutífera repor um fruto. */
     fruitRegrowDays: number;
@@ -59,9 +74,11 @@ export type SandboxPresetId = 'padrao' | 'cidade-pequena' | 'cidade-grande';
 export const SANDBOX_DEFAULTS: SandboxSettings = {
   version: 1,
   world: { seed: 1337, sectorsX: 3, sectorsY: 3 },
-  time: { dayLengthMinutes: 48, startDay: 1, startHour: 8 },
+  time: { dayLengthMinutes: 48, startDay: 1, startHour: 8, startMonth: 5, startDayOfMonth: 3 },
+  climate: { temperatureOffset: 0, rainMultiplier: 1 },
   player: { walkSpeedMultiplier: 1, runSpeedMultiplier: 1, staminaDrainMultiplier: 1, staminaRegenMultiplier: 1 },
   loot: { abundance: 1, rareMultiplier: 1, alreadyLooted: 0, collapseAgeDays: 0, floorItems: 1 },
+  survival: { hungerRate: 1, thirstRate: 1, fatigueRate: 1 },
   nature: { fruitRegrowDays: 3, density: 1 },
 };
 
@@ -100,6 +117,12 @@ export function sanitizeSandbox(input: DeepPartial<SandboxSettings> | null | und
       dayLengthMinutes: num(i.time?.dayLengthMinutes, d.time.dayLengthMinutes, 2, 24 * 60),
       startDay: num(i.time?.startDay, d.time.startDay, 1, 9999, true),
       startHour: num(i.time?.startHour, d.time.startHour, 0, 23.99),
+      startMonth: num(i.time?.startMonth, d.time.startMonth, 1, 12, true),
+      startDayOfMonth: num(i.time?.startDayOfMonth, d.time.startDayOfMonth, 1, 31, true),
+    },
+    climate: {
+      temperatureOffset: num(i.climate?.temperatureOffset, d.climate.temperatureOffset, -15, 15),
+      rainMultiplier: num(i.climate?.rainMultiplier, d.climate.rainMultiplier, 0, 3),
     },
     player: {
       walkSpeedMultiplier: num(i.player?.walkSpeedMultiplier, d.player.walkSpeedMultiplier, 0.5, 2),
@@ -114,6 +137,11 @@ export function sanitizeSandbox(input: DeepPartial<SandboxSettings> | null | und
       collapseAgeDays: num(i.loot?.collapseAgeDays, d.loot.collapseAgeDays, 0, 365),
       floorItems: num(i.loot?.floorItems, d.loot.floorItems, 0, 3),
     },
+    survival: {
+      hungerRate: num(i.survival?.hungerRate, d.survival.hungerRate, 0, 5),
+      thirstRate: num(i.survival?.thirstRate, d.survival.thirstRate, 0, 5),
+      fatigueRate: num(i.survival?.fatigueRate, d.survival.fatigueRate, 0, 5),
+    },
     nature: {
       fruitRegrowDays: num(i.nature?.fruitRegrowDays, d.nature.fruitRegrowDays, 0.5, 60),
       density: num(i.nature?.density, d.nature.density, 0, 2),
@@ -125,6 +153,7 @@ export function sanitizeSandbox(input: DeepPartial<SandboxSettings> | null | und
  * Lê ajustes de teste da URL (só para desenvolvimento):
  *   ?setores=1x1   ?semente=42   ?dia=10 (minutos reais por dia)   ?hora=20
  *   ?loot=2 (abundância)   ?colapso=30 (dias desde o colapso)
+ *   ?mes=7 (começa em julho, inverno)   ?chuva=2 (chove o dobro)
  */
 export function sandboxFromUrl(search: string, base: SandboxSettings = SANDBOX_DEFAULTS): SandboxSettings {
   let params: URLSearchParams;
@@ -144,6 +173,10 @@ export function sandboxFromUrl(search: string, base: SandboxSettings = SANDBOX_D
   if (loot !== null && Number.isFinite(Number(loot))) out.loot = { ...out.loot, abundance: Number(loot) };
   const colapso = params.get('colapso');
   if (colapso !== null && Number.isFinite(Number(colapso))) out.loot = { ...out.loot, collapseAgeDays: Number(colapso) };
+  const month = params.get('mes');
+  if (month !== null && Number.isFinite(Number(month))) out.time = { ...out.time, startMonth: Number(month) };
+  const rain = params.get('chuva');
+  if (rain !== null && Number.isFinite(Number(rain))) out.climate = { ...out.climate, rainMultiplier: Number(rain) };
   const hour = params.get('hora');
   if (hour !== null && Number.isFinite(Number(hour))) out.time = { ...out.time, startHour: Number(hour) };
   return sanitizeSandbox(out);

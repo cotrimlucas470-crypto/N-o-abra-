@@ -11,6 +11,9 @@ import type { GameClock } from '../sim/GameClock';
 import type { InteractionTarget } from '../interaction/InteractionSystem';
 import type { PlayerInventory } from '../items/PlayerInventory';
 import type { ItemContainer } from '../items/ItemContainer';
+import type { ItemUse } from '../interaction/ItemUse';
+import type { GameSave } from '../save/SaveGame';
+import type { SurvivalLoop } from '../survival/SurvivalLoop';
 import { KeyboardMouseState, TouchInputState } from '../input/InputState';
 import type { Viewport } from '../systems/Viewport';
 import { EventBus } from './EventBus';
@@ -31,6 +34,14 @@ export interface GameSession {
   /** HUD com painel aberto por cima do ponteiro: o mouse não mira. */
   pointerOverUi: boolean;
   paused: boolean;
+  /** Corpo, clima, ações com tempo (o HUD lê daqui). */
+  survival: SurvivalLoop | null;
+  /** Ações de item (o painel pergunta o que dá para fazer). */
+  itemUse: ItemUse | null;
+  /** Menu "⋯": ações por perto montadas no último pedido. */
+  options: { label: string; enabled: boolean }[] | null;
+  /** Save a carregar quando a cena do jogo começar (CONTINUAR). */
+  pendingLoad: GameSave | null;
 }
 
 export interface GameServices {
@@ -56,7 +67,20 @@ export function createServices(game: Phaser.Game, viewport: Viewport, bus: Event
     assets: null,
     overrides: { sprites: {}, patterns: {} },
     settings,
-    session: { stats: null, clock: null, inventory: null, openContainer: null, nowDays: () => 0, interaction: null, pointerOverUi: false, paused: false },
+    session: {
+      stats: null,
+      clock: null,
+      inventory: null,
+      openContainer: null,
+      nowDays: () => 0,
+      interaction: null,
+      pointerOverUi: false,
+      paused: false,
+      survival: null,
+      itemUse: null,
+      options: null,
+      pendingLoad: null,
+    },
   };
   registry.set(game, s);
   return s;

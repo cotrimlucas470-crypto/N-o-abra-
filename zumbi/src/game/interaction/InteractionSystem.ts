@@ -32,11 +32,19 @@ export interface InteractionResult {
   message?: string;
 }
 
+export interface InteractionOption {
+  label: string;
+  enabled: boolean;
+  perform(): InteractionResult;
+}
+
 export interface InteractionCandidate {
   target: InteractionTarget;
   /** Distância efetiva (px) — menor vence. */
   distance: number;
   perform(): InteractionResult;
+  /** Outras ações do mesmo alvo (menu "⋯"): desmontar, dormir, examinar... */
+  more?: () => InteractionOption[];
 }
 
 export interface Interactor {
@@ -83,6 +91,35 @@ export class InteractionSystem {
     }
     this.best = best;
     return this.current;
+  }
+
+  /**
+   * Todas as ações por perto, para o menu "⋯": primeiro as do alvo atual
+   * (principal + extras), depois a principal dos outros alvos ao alcance.
+   */
+  options(who: Interactor, max = 8): InteractionOption[] {
+    this.scan(who);
+    const fx = Math.cos(who.facing);
+    const fy = Math.sin(who.facing);
+    const score = (c: InteractionCandidate) => {
+      const dx = c.target.x - who.x;
+      const dy = c.target.y - who.y;
+      const len = Math.hypot(dx, dy) || 1;
+      return c.distance - ((dx * fx + dy * fy) / len) * INTERACTION_TUNING.facingBonus;
+    };
+    const list = [...this.candidates].sort((a, b) => score(a) - score(b));
+    const out: InteractionOption[] = [];
+    const seen = new Set<string>();
+    const push = (o: InteractionOption) => {
+      if (out.length >= max || seen.has(o.label)) return;
+      seen.add(o.label);
+      out.push(o);
+    };
+    list.forEach((c, i) => {
+      push({ label: c.target.label, enabled: c.target.enabled, perform: () => c.perform() });
+      if (i === 0 || c.more) for (const m of c.more?.() ?? []) push(m);
+    });
+    return out;
   }
 
   /** Executa a ação do alvo atual e recalcula (o alvo pode ter mudado de estado). */

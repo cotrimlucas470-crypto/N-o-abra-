@@ -18,9 +18,9 @@ import { hashString } from '../core/Random';
 import { itemDef } from '../items/ItemCatalog';
 import { normalizeState, type ItemState } from '../items/condition';
 import { doorGapRect } from '../world/doors';
-import type { DoorPlacement } from '../world/MapTypes';
+import type { DoorPlacement, PropPlacement } from '../world/MapTypes';
 import type { WorldModel } from '../world/WorldModel';
-import { chunkKey, chunkKeyAt, chunkOf } from './ChunkGrid';
+import { CHUNK_PX, chunkKey, chunkKeyAt, chunkOf } from './ChunkGrid';
 import { DEFAULT_LOOT, type LootSettings } from '../loot/generate';
 import { LootSystem, type LootSave } from '../loot/LootSystem';
 import type { HarvestDef } from '../nature/NatureCatalog';
@@ -124,6 +124,26 @@ export class WorldState {
   containerChanged(id: string): void {
     this.loot.markTouched(id);
     this.emit({ type: 'container', id });
+  }
+
+  // ---------------------------------------------------------------- objetos do mapa
+
+  /** Objetos do mapa a até `r` px do ponto (pela vizinhança de chunks). */
+  propsNear(x: number, y: number, r: number): { prop: PropPlacement; distance: number }[] {
+    const out: { prop: PropPlacement; distance: number }[] = [];
+    const map = this.model.map;
+    const { cx, cy } = chunkOf(x, y);
+    const span = Math.max(1, Math.ceil(r / CHUNK_PX));
+    for (let dy = -span; dy <= span; dy++) {
+      for (let dx = -span; dx <= span; dx++) {
+        for (const i of this.model.index.get(chunkKey(cx + dx, cy + dy))?.props ?? []) {
+          const p = map.props[i]!;
+          const d = Math.hypot(p.x - x, p.y - y);
+          if (d <= r) out.push({ prop: p, distance: d });
+        }
+      }
+    }
+    return out;
   }
 
   // ---------------------------------------------------------------- portas

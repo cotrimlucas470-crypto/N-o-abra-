@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { EventBus } from '../src/game/core/EventBus';
 import { ContainerInteractions } from '../src/game/interaction/ContainerInteractions';
 import { InteractionSystem, type Interactor } from '../src/game/interaction/InteractionSystem';
-import { LootActions, useKind } from '../src/game/interaction/LootActions';
+import { ItemUse } from '../src/game/interaction/ItemUse';
+import { LootActions } from '../src/game/interaction/LootActions';
+import { Survivor } from '../src/game/survival/Survivor';
 import { NatureInteractions } from '../src/game/interaction/NatureInteractions';
 import { freshness } from '../src/game/items/condition';
 import { itemDef } from '../src/game/items/ItemCatalog';
@@ -117,8 +119,20 @@ function world(seed = 1337) {
   const nature = new NatureInteractions(state, inv, () => now);
   const containers = new ContainerInteractions(state, bus);
   const sys = new InteractionSystem([nature, containers]);
-  const actions = new LootActions(state, inv, stats, () => now);
-  return { map, model, state, inv, bus, stats, who, sys, actions, setNow: (t: number) => (now = t) };
+  const actions = new LootActions(state, inv);
+  const survivor = new Survivor(stats, inv);
+  const use = new ItemUse({
+    inventory: inv,
+    survivor,
+    state,
+    now: () => now,
+    openContainerId: () => null,
+    position: () => ({ x: 0, y: 0 }),
+    hooks: { noise: () => undefined, drop: () => undefined },
+  });
+  /** Usa o item (ação pelo id) na pilha `index` dos bolsos. */
+  const act = (action: string, index: number) => use.run(action, { where: 'inv', containerId: 'corpo', index });
+  return { map, model, state, inv, bus, stats, who, sys, actions, use, act, survivor, setNow: (t: number) => (now = t) };
 }
 
 describe('colher no mundo', () => {
@@ -182,47 +196,52 @@ describe('recipientes e ações de saque', () => {
     expect(save.loot.containers[shelf.id]).toBeDefined();
   });
 
-  it('comer: lata precisa de abridor/faca; estragado faz mal', () => {
+  it('comer: lata precisa de abridor/faca; estragado deixa doente', () => {
     const t = world();
     t.inv.add('feijao', 1);
-    const r = t.actions.use(t.inv.carried, 0);
+    const r = t.act('comer', 0);
     expect(r.ok).toBe(false);
     expect(r.message).toMatch(/abridor/);
     t.inv.add('abridor', 1);
-    expect(t.actions.use(t.inv.carried, t.inv.carried.stacks.findIndex((s) => s.defId === 'feijao')).ok).toBe(true);
+    const hunger = t.survivor.body.hunger;
+    expect(t.act('comer', t.inv.carried.stacks.findIndex((s) => s.defId === 'feijao')).ok).toBe(true);
+    expect(t.survivor.body.hunger).toBeLessThan(hunger);
     t.inv.add('frango', 1, { born: -10 });
-    const hp = t.stats.health;
-    t.actions.use(t.inv.carried, t.inv.carried.stacks.findIndex((s) => s.defId === 'frango'));
-    expect(t.stats.health).toBeLessThan(hp);
+    t.act('comer', t.inv.carried.stacks.findIndex((s) => s.defId === 'frango'));
+    expect(t.survivor.body.sickness).toBeGreaterThan(0.3);
   });
 
   it('beber: garrafa aberta guarda o resto; a vazia fica para juntar água', () => {
     const t = world();
     t.inv.add('agua', 1);
-    t.actions.use(t.inv.carried, 0);
+    t.survivor.body.thirst = 60;
+    t.act('beber', 0);
+    expect(t.survivor.body.thirst).toBeLessThan(60);
     const water = t.inv.carried.stacks.find((s) => s.defId === 'agua')!;
     expect(water.st?.open).toBe(1);
     expect(water.st?.dose).toBe(1);
-    t.actions.use(t.inv.carried, t.inv.carried.stacks.indexOf(water));
+    t.act('beber', t.inv.carried.stacks.indexOf(water));
     expect(t.inv.carried.countOf('agua')).toBe(0);
     expect(t.inv.carried.countOf('garrafaPet')).toBe(1);
   });
 
-  it('curativo só é gasto se houver ferimento; remédio vencido rende metade', () => {
+  it('as ações certas aparecem para cada item', () => {
     const t = world();
-    t.inv.add('kitPrimeirosSocorros', 1, { exp: 100 });
-    expect(t.actions.use(t.inv.carried, 0).ok).toBe(false);
-    t.stats.setHealth(40);
-    t.actions.use(t.inv.carried, 0);
-    expect(t.stats.health).toBe(70);
+    t.inv.add('martelo', 1);
+    t.inv.add('camiseta', 1);
+    t.inv.add('biscoito', 1);
+    const ids = (i: number) => t.use.actionsFor({ where: 'inv', containerId: 'corpo', index: i }).map((a) => a.id);
+    expect(ids(0)).toContain('segurar');
+    expect(ids(1)).toContain('vestir');
+    expect(ids(2)).toContain('comer');
+    expect(ids(2)).not.toContain('vestir');
   });
 
   it('mochila aumenta a capacidade; só tira vazia', () => {
     const t = world();
     t.inv.add('mochilaTrilha', 1);
     const cap = t.inv.capacity;
-    expect(useKind(itemDef('mochilaTrilha')!)).toBe('equipar');
-    expect(t.actions.use(t.inv.carried, 0).ok).toBe(true);
+    expect(t.act('vestirMochila', 0).ok).toBe(true);
     expect(t.inv.capacity).toBe(cap + 14);
     t.inv.add('tijolo', 5); // 12,5 kg: bolsos (8) + mochila
     expect(t.inv.bag!.container.isEmpty).toBe(false);

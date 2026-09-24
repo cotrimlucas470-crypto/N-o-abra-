@@ -85,7 +85,7 @@ try {
     await page.goto(BASE + '?debug');
     await page.waitForTimeout(1500);
     await page.screenshot({ path: OUT + '01-titulo.png' });
-    // toca em JOGAR (centro, ~62% da altura)
+    // toca em JOGAR (centro, ~58% da altura)
     await touch('touchStart', [{ x: 422, y: 242, id: 1 }]);
     await sleep(80);
     await touch('touchEnd', []);
@@ -302,15 +302,14 @@ try {
     await touch('touchStart', [{ x: 844 - 34 * pscale, y: 34 * pscale, id: 4 }]);
     await sleep(60);
     await touch('touchEnd', []);
-    await sleep(300);
-    const paused = await page.evaluate(() => window.__TDR__.scene.scene.isPaused());
+    // Pausar também salva o jogo: espera o quadro (headless é lento).
+    const paused = await page.waitForFunction(() => window.__TDR__.scene.scene.isPaused(), null, { timeout: 3000 }).then(() => true, () => false);
     check(paused, 'botão de pausa pausa o jogo');
     await page.screenshot({ path: OUT + '07-pausa.png' });
     await touch('touchStart', [{ x: 422, y: 234, id: 5 }]);
     await sleep(60);
     await touch('touchEnd', []);
-    await sleep(300);
-    const resumed = await page.evaluate(() => !window.__TDR__.scene.scene.isPaused());
+    const resumed = await page.waitForFunction(() => !window.__TDR__.scene.scene.isPaused(), null, { timeout: 3000 }).then(() => true, () => false);
     check(resumed, 'CONTINUAR volta ao jogo');
 
     // visão geral da rua

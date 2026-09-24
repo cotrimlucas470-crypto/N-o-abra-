@@ -13,7 +13,7 @@ import Phaser from 'phaser';
 import { DEBUG } from '../../core/Debug';
 import { canFullscreen, isFullscreen } from '../../systems/fullscreen';
 import type { GameServices } from '../../core/Services';
-import { iconBag, iconCrosshair, iconFullscreen, iconHand, iconPause, iconRun } from '../../ui/icons';
+import { iconBag, iconCrosshair, iconDots, iconFullscreen, iconHand, iconPause, iconRun } from '../../ui/icons';
 import { UI } from '../../ui/theme';
 import { loadLayout, placementFor, resolvePlacement, uiScaleFor, type ControlId, type ControlsLayoutData } from './ControlsLayout';
 import { TouchButton } from './TouchButton';
@@ -23,6 +23,7 @@ export interface TouchControlsCallbacks {
   onPause: () => void;
   onFullscreen: () => void;
   onInteract: () => void;
+  onOptions: () => void;
   onInventory: () => void;
 }
 
@@ -33,6 +34,7 @@ export class TouchControls {
   readonly aim: VirtualJoystick;
   readonly sprint: TouchButton;
   readonly interact: TouchButton;
+  readonly options: TouchButton;
   readonly inventory: TouchButton;
   readonly pause: TouchButton;
   readonly fullscreen: TouchButton;
@@ -55,6 +57,7 @@ export class TouchControls {
     this.aim = new VirtualJoystick(scene, { deadzone: 0.18, accent: 0xd8d2c0, drawIcon: iconCrosshair }, DEPTH);
     this.sprint = new TouchButton(scene, iconRun, DEPTH + 1, { accent: UI.accentNum });
     this.interact = new TouchButton(scene, iconHand, DEPTH + 1, { accent: UI.accentNum });
+    this.options = new TouchButton(scene, iconDots, DEPTH + 1, { accent: UI.accentNum, hitScale: 1.35 });
     this.inventory = new TouchButton(scene, iconBag, DEPTH + 1, { accent: UI.accentNum, hitScale: 1.4 });
     this.pause = new TouchButton(scene, iconPause, DEPTH + 1, { accent: UI.accentNum, hitScale: 1.5, subtle: true });
     this.fullscreen = new TouchButton(
@@ -101,6 +104,8 @@ export class TouchControls {
     this.sprint.setLayout(sp.x, sp.y, sp.radius);
     const it = at('interact');
     this.interact.setLayout(it.x, it.y, it.radius);
+    const op = at('options');
+    this.options.setLayout(op.x, op.y, op.radius);
     const inv = at('inventory');
     this.inventory.setLayout(inv.x, inv.y, inv.radius);
     const p = at('pause');
@@ -125,6 +130,7 @@ export class TouchControls {
     this.aim.end();
     this.sprint.release();
     this.interact.release();
+    this.options.release();
     this.inventory.release();
     this.pause.release();
     this.fullscreen.release();
@@ -138,6 +144,7 @@ export class TouchControls {
     this.aim.setVisible(t);
     this.sprint.setVisible(t);
     this.interact.setVisible(t);
+    this.options.setVisible(t);
     this.inventory.setVisible(t);
     this.pause.setVisible(true);
     // Só mostra o botão onde o navegador realmente permite tela cheia.
@@ -166,7 +173,7 @@ export class TouchControls {
       return;
     }
     if (this.blocker?.(x, y)) return;
-    for (const b of [this.pause, this.fullscreen, this.sprint, this.interact]) {
+    for (const b of [this.pause, this.fullscreen, this.sprint, this.interact, this.options]) {
       if (b.pointerId === null && b.hit(x, y)) {
         b.press(p.id);
         return;
@@ -207,6 +214,10 @@ export class TouchControls {
     if (this.interact.pointerId === p.id) {
       this.interact.release();
       if (this.interact.hit(x, y)) this.cb.onInteract();
+    }
+    if (this.options.pointerId === p.id) {
+      this.options.release();
+      if (this.options.hit(x, y)) this.cb.onOptions();
     }
     if (this.inventory.pointerId === p.id) {
       this.inventory.release();
@@ -254,6 +265,7 @@ export class TouchControls {
     }
     this.sprint.setState(this.s.touch.sprintToggled, sprintBlocked);
     this.interact.setState(interact === true, interact === null);
+    this.options.setState(false, interact === null);
     this.inventory.setState(inventoryOpen, false);
   }
 

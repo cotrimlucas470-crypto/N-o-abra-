@@ -12,6 +12,7 @@ export class UiButton extends Phaser.GameObjects.Container {
   private btnW: number;
   private btnH: number;
   private pressed = false;
+  private dim = false;
 
   constructor(
     scene: Phaser.Scene,
@@ -41,8 +42,34 @@ export class UiButton extends Phaser.GameObjects.Container {
     scene.add.existing(this);
   }
 
+  get text(): string {
+    return this.label.text;
+  }
+
   setLabel(text: string): this {
     this.label.setText(text);
+    return this;
+  }
+
+  /** Muda o tamanho (px antes da escala) e redesenha. */
+  setButtonSize(w: number, h: number): this {
+    if (w === this.btnW && h === this.btnH) return this;
+    this.btnW = w;
+    this.btnH = h;
+    this.setSize(w, h);
+    if (this.input?.hitArea instanceof Phaser.Geom.Rectangle) this.input.hitArea.setTo(0, 0, w, h);
+    this.draw();
+    return this;
+  }
+
+  /** Aparência "indisponível" (continua tocável: quem usa mostra o motivo). */
+  setDim(v: boolean): this {
+    if (v === this.dim) return this;
+    this.dim = v;
+    // Botão principal apagado perde o fundo claro: o texto passa a claro também.
+    if (this.primary) this.label.setColor(v ? UI.text : '#16171a');
+    this.label.setAlpha(v ? 0.45 : 1);
+    this.draw();
     return this;
   }
 
@@ -58,7 +85,7 @@ export class UiButton extends Phaser.GameObjects.Container {
     const s = this.pressed ? 0.97 : 1;
     const w = this.btnW * s;
     const h = this.btnH * s;
-    if (this.primary) {
+    if (this.primary && !this.dim) {
       g.fillStyle(this.pressed ? 0xc99440 : UI.accentNum, 1);
     } else {
       g.fillStyle(0x1b1d22, this.pressed ? 0.95 : 0.8);

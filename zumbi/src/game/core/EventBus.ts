@@ -30,14 +30,22 @@ export interface GameEvents {
   'ui:container-refresh': Record<string, never>;
   /** Painel: pegar a pilha `index` do recipiente aberto (ou tudo). */
   'loot:take': { index: number; all?: boolean };
-  /** Painel: guardar a pilha do jogador no recipiente aberto. */
-  'loot:store': { containerId: string; index: number };
-  /** Painel: usar (comer, beber, curar, vestir) a pilha do jogador. */
-  'inventory:use': { containerId: string; index: number };
-  /** Painel: tirar a mochila (vazia). */
-  'inventory:unequip': Record<string, never>;
-  /** Pedido de largar itens de um recipiente do jogador (painel de inventário). */
-  'inventory:drop': { containerId: string; index: number; count: number };
+  /** Painel: executar a ação `action` no item em `loc` (ver interaction/itemActions). */
+  'item:action': { loc: import('../interaction/itemActions/types').ItemWhere; action: string };
+  /** Pedido do menu "⋯" (botão ou tecla Q): a cena monta `session.options`. */
+  'interaction:options': Record<string, never>;
+  /** Escolha no menu "⋯". */
+  'interaction:option': { index: number };
+  /** O menu "⋯" foi montado (o HUD mostra). */
+  'ui:options-ready': Record<string, never>;
+  /** Cancelar a ação em andamento (ou acordar). */
+  'action:cancel': Record<string, never>;
+  /** Dormir no chão / onde estiver (painel CORPO). */
+  'body:sleep': { place: 'cama' | 'sofa' | 'chao'; wakeAt?: number };
+  /** O jogo foi salvo (automático ou manual). */
+  'game:saved': { ok: boolean };
+  /** Pedido de salvar agora (menu de pausa). */
+  'game:save-request': Record<string, never>;
   'viewport:changed': { cssWidth: number; cssHeight: number; dpr: number };
 }
 

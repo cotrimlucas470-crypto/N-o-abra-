@@ -1,34 +1,37 @@
 /**
- * Painel de inventário e saque (px CSS, no HUD). O jogo NÃO pausa com ele
- * aberto: o mundo continua, como deve ser num jogo de sobrevivência.
+ * Painel do sobrevivente (px CSS, no HUD). O jogo NÃO pausa com ele aberto.
  *
- * - Só inventário: lista do que o jogador carrega (bolsos + mochila).
- * - Com um recipiente aberto (geladeira, armário, porta-malas...): duas
- *   colunas — o recipiente e o inventário — lado a lado (deitado) ou uma em
- *   cima da outra (em pé).
- * - Tocar num item mostra nome, raridade, CONDIÇÃO (colorida), peso e o que
- *   dá para fazer: pegar, pegar tudo, guardar, largar, comer/beber/usar/vestir.
+ * Abas: ITENS (inventário e saque), CORPO (estado físico, roupas, ferimentos)
+ * e TEMPO (data, hora, clima, dormir). Etapas seguintes acrescentam abas
+ * (FABRICAR, CONSTRUIR) pela mesma lista genérica (panel/ListView).
  *
- * Toques são tratados à mão (pointer down/move/up vindos da HudScene):
- * tocar seleciona; arrastar rola a lista. As ações viram eventos no EventBus;
+ * ITENS: sem recipiente aberto, só o inventário (item na mão, bolsos,
+ * mochila). Com um recipiente aberto, duas colunas — o recipiente e o
+ * inventário — lado a lado (deitado) ou uma em cima da outra (em pé).
+ * Tocar num item mostra nome, raridade, CONDIÇÃO, peso e as ações que fazem
+ * sentido (ver interaction/ItemUse.ts). As ações viram eventos no EventBus;
  * quem mexe no mundo é a cena do jogo.
  */
 import Phaser from 'phaser';
 import type { AssetRegistry } from '../assets/AssetRegistry';
 import type { GameServices } from '../core/Services';
-import { USE_LABEL, useKind } from '../interaction/LootActions';
+import type { ItemWhere } from '../interaction/itemActions/types';
 import { conditionTags, type Tone } from '../items/condition';
 import { formatKg, itemDef } from '../items/ItemCatalog';
 import type { ItemContainer } from '../items/ItemContainer';
 import { CATEGORY_INFO, RARITY_INFO } from '../items/ItemTypes';
 import { BAG_ID } from '../items/PlayerInventory';
-import { UiButton } from './UiButton';
+import { ActionButtons, type PanelAction } from './panel/ActionButtons';
+import { ListView, fit, type ListSource } from './panel/ListView';
+import { BodyTab } from './tabs/BodyTab';
+import { TimeTab } from './tabs/TimeTab';
 import { UI, textStyle } from './theme';
 
 const ROW_H = 40;
 const HEAD_H = 22;
 const PAD = 10;
 const FOOT_H = 104;
+const TAB_H = 34;
 const DEPTH = 120;
 
 const TONE_COLOR: Record<Tone, string> = { ok: '#9fd88a', info: '#c9c7bf', warn: '#f0b060', bad: '#f07a6a' };
@@ -41,10 +44,12 @@ export interface Box {
   h: number;
 }
 
+export type TabId = 'itens' | 'corpo' | 'tempo' | string;
+
 type PaneId = 'loot' | 'inv';
 
-/** Uma linha da lista: cabeçalho de recipiente ou pilha de item. */
-type Row = { kind: 'header'; container: ItemContainer; title: string } | { kind: 'stack'; container: ItemContainer; index: number };
+/** Uma linha da lista: cabeçalho de recipiente, item na mão ou pilha. */
+type Row = { kind: 'header'; container: ItemContainer; title: string } | { kind: 'hand' } | { kind: 'stack'; container: ItemContainer; index: number };
 
 interface RowView {
   icon: Phaser.GameObjects.Image;
@@ -65,15 +70,19 @@ interface Pane {
 
 interface Selection {
   pane: PaneId;
-  containerId: string;
-  /** -1 = cabeçalho (mochila). */
-  index: number;
+  loc: ItemWhere;
 }
 
-interface Action {
+interface Tab {
+  id: TabId;
   label: string;
-  run: () => void;
+  source: ListSource | null;
+  text: Phaser.GameObjects.Text;
+  x: number;
+  w: number;
 }
+
+const sameLoc = (a: ItemWhere, b: ItemWhere) => JSON.stringify(a) === JSON.stringify(b);
 
 export class InventoryPanel {
   private readonly root: Phaser.GameObjects.Container;
@@ -82,9 +91,12 @@ export class InventoryPanel {
   private readonly detailName: Phaser.GameObjects.Text;
   private readonly detailTags: Phaser.GameObjects.Text;
   private readonly detailDesc: Phaser.GameObjects.Text;
-  private readonly buttons: UiButton[] = [];
-  private actions: Action[] = [];
+  private readonly buttons: ActionButtons;
   private readonly panes: Record<PaneId, Pane>;
+  private readonly list: ListView;
+  private readonly tabs: Tab[] = [];
+  private tab: TabId = 'itens';
+  readonly body: BodyTab;
   private box: Box = { x: 0, y: 0, w: 0, h: 0 };
   private foot: Box = { x: 0, y: 0, w: 0, h: 0 };
   private k = 1;
@@ -95,6 +107,7 @@ export class InventoryPanel {
   private selected: Selection | null = null;
   private drag: { id: number; pane: PaneId; y: number; scroll: number; moved: boolean } | null = null;
   private offInventory: (() => void) | null = null;
+  private liveTimer = 0;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -117,16 +130,32 @@ export class InventoryPanel {
       return { id, box: { x: 0, y: 0, w: 0, h: 0 }, rows: [], scroll: 0, views: [], title, sub, empty };
     };
     this.panes = { loot: mkPane('loot'), inv: mkPane('inv') };
-    for (let i = 0; i < 3; i++) {
-      const b = new UiButton(scene, '', 104, 32, () => this.actions[i]?.run(), i === 0, dpr);
-      this.buttons.push(b);
-      this.root.add(b);
-    }
+    const say = (t: string) => {
+      if (t) s.bus.emit('player:feedback', { text: t, tone: 'warn' });
+    };
+    this.buttons = new ActionButtons(scene, this.root, dpr, say, () => this.refresh());
+    this.list = new ListView(scene, this.root, assets, dpr, say);
+    this.body = new BodyTab(s, say);
+    this.addTab('itens', 'ITENS', null);
+    this.addTab('corpo', 'CORPO', this.body);
+    this.addTab('tempo', 'TEMPO', new TimeTab(s));
     this.root.setDepth(DEPTH).setVisible(false);
+  }
+
+  /** Aba nova (fabricar, construir...). */
+  addTab(id: TabId, label: string, source: ListSource | null): void {
+    const text = this.scene.add.text(0, 0, label, textStyle(12, UI.textDim, '800')).setOrigin(0.5).setResolution(this.dpr).setLetterSpacing(1);
+    this.root.add(text);
+    this.tabs.push({ id, label, source, text, x: 0, w: 0 });
+    if (this.open) this.relayout();
   }
 
   get isOpen(): boolean {
     return this.open;
+  }
+
+  get currentTab(): TabId {
+    return this.tab;
   }
 
   private get loot() {
@@ -155,15 +184,25 @@ export class InventoryPanel {
     }
   }
 
-  /** Um recipiente foi aberto no mundo: mostra as duas colunas. */
+  setTab(id: TabId): void {
+    if (!this.tabs.some((t) => t.id === id)) return;
+    this.tab = id;
+    this.selected = null;
+    const t = this.tabs.find((x) => x.id === id)!;
+    if (t.source) this.list.setSource(t.source);
+    this.relayout();
+  }
+
+  /** Um recipiente foi aberto no mundo: mostra as duas colunas na aba ITENS. */
   showContainer(): void {
     this.selected = null;
     this.panes.loot.scroll = 0;
+    this.tab = 'itens';
     if (!this.open) this.setOpen(true);
     else this.relayout();
   }
 
-  /** O recipiente saiu do alcance: volta a mostrar só o inventário (ou fecha, se abriu por causa dele). */
+  /** O recipiente saiu do alcance: volta a mostrar só o inventário. */
   hideContainer(): void {
     if (this.selected?.pane === 'loot') this.selected = null;
     this.relayout();
@@ -182,6 +221,15 @@ export class InventoryPanel {
     this.relayout();
   }
 
+  /** Atualiza sozinho o que muda com o tempo (barras do corpo, relógio). */
+  tick(dt: number): void {
+    if (!this.open || this.tab === 'itens') return;
+    this.liveTimer -= dt;
+    if (this.liveTimer > 0) return;
+    this.liveTimer = 0.5;
+    this.list.refresh();
+  }
+
   /**
    * Deitado: à direita, deixando livres os botões do canto e a coluna do
    * inventário (com recipiente aberto, ocupa a largura toda disponível).
@@ -191,20 +239,20 @@ export class InventoryPanel {
     const { cssW: w, cssH: h, ins, k } = this;
     if (!w || !h) return;
     const portrait = h > w;
-    const two = !!this.loot;
+    const two = this.tab === 'itens' && !!this.loot;
     if (portrait) {
       const y = ins.top + 100 * k;
-      this.box = { x: ins.left + 8, y, w: w - ins.left - ins.right - 16, h: Math.max(260 * k, h - ins.bottom - 360 * k - y) };
+      this.box = { x: ins.left + 8, y, w: w - ins.left - ins.right - 16, h: Math.max(280 * k, h - ins.bottom - 360 * k - y) };
     } else {
       const right = w - ins.right - 118 * k;
-      const width = two ? right - ins.left - 12 : Math.min(380 * k, right - ins.left - 12);
+      const width = two ? right - ins.left - 12 : Math.min(400 * k, right - ins.left - 12);
       this.box = { x: right - width, y: ins.top + 10, w: width, h: h - ins.top - ins.bottom - 20 };
     }
     const b = this.box;
     const foot = FOOT_H * k;
     this.foot = { x: b.x, y: b.y + b.h - foot, w: b.w, h: foot };
-    const top = b.y + 30 * k;
-    const listH = b.h - foot - 30 * k;
+    const top = b.y + (30 + TAB_H) * k;
+    const listH = b.h - foot - (30 + TAB_H) * k;
     if (!two) {
       this.panes.inv.box = { x: b.x, y: top, w: b.w, h: listH };
       this.panes.loot.box = { x: 0, y: 0, w: 0, h: 0 };
@@ -217,6 +265,7 @@ export class InventoryPanel {
       this.panes.loot.box = { x: b.x, y: top, w: half, h: listH };
       this.panes.inv.box = { x: b.x + half, y: top, w: half, h: listH };
     }
+    this.list.setBox({ x: b.x, y: b.y + (TAB_H + 6) * k, w: b.w, h: b.h - (TAB_H + 6) * k }, k);
     this.refresh();
   }
 
@@ -226,6 +275,7 @@ export class InventoryPanel {
     const inv = this.s.session.inventory;
     if (!inv) return [];
     const rows: Row[] = [];
+    if (inv.hand) rows.push({ kind: 'hand' });
     for (const c of inv.containers) {
       rows.push({ kind: 'header', container: c, title: c.id === BAG_ID ? `Mochila · ${c.name}` : c.name });
       c.stacks.forEach((_, index) => rows.push({ kind: 'stack', container: c, index }));
@@ -247,27 +297,54 @@ export class InventoryPanel {
     const k = this.k;
     const b = this.box;
     const g = this.bg;
+    g.clear();
+    g.fillStyle(0x0e0f12, 0.95).fillRoundedRect(b.x, b.y, b.w, b.h, 12 * k);
+    g.lineStyle(1.5, 0xffffff, 0.14).strokeRoundedRect(b.x, b.y, b.w, b.h, 12 * k);
+    this.close.setPosition(b.x + b.w - 18 * k, b.y + 18 * k).setScale(k);
+    this.drawTabs();
+
+    const items = this.tab === 'itens';
+    this.list.setVisible(!items);
+    for (const p of [this.panes.loot, this.panes.inv]) {
+      if (!items) {
+        p.title.setVisible(false);
+        p.sub.setVisible(false);
+        p.empty.setVisible(false);
+        for (const v of p.views) {
+          v.icon.setVisible(false);
+          v.name.setVisible(false);
+          v.right.setVisible(false);
+        }
+      }
+    }
+    if (!items) {
+      this.detailName.setVisible(false);
+      this.detailTags.setVisible(false);
+      this.detailDesc.setVisible(false);
+      this.buttons.hide();
+      const t = this.tabs.find((x) => x.id === this.tab);
+      if (t?.source) this.list.setSource(t.source);
+      this.list.refresh();
+      return;
+    }
+    this.detailName.setVisible(true);
+    this.detailTags.setVisible(true);
+    this.detailDesc.setVisible(true);
+
     const inv = this.s.session.inventory;
     const loot = this.loot;
     // Seleção que deixou de existir (item pego/largado).
     const sel = this.selected;
     if (sel) {
-      const c = sel.pane === 'loot' ? loot?.container : inv?.container(sel.containerId);
-      if (!c || (sel.index >= 0 && !c.stacks[sel.index]) || (sel.index < 0 && sel.containerId !== BAG_ID) || (sel.index < 0 && !inv?.bag)) this.selected = null;
+      const ctx = this.s.session.itemUse?.context(sel.loc);
+      if (!ctx || (sel.pane === 'loot' && !loot)) this.selected = null;
     }
     this.panes.loot.rows = this.lootRows();
     this.panes.inv.rows = this.invRows();
 
-    g.clear();
-    g.fillStyle(0x0e0f12, 0.95).fillRoundedRect(b.x, b.y, b.w, b.h, 12 * k);
-    g.lineStyle(1.5, 0xffffff, 0.14).strokeRoundedRect(b.x, b.y, b.w, b.h, 12 * k);
-    this.close.setPosition(b.x + b.w - 18 * k, b.y + 16 * k).setScale(k);
-
-    // Colunas
     this.drawPane(this.panes.loot, !!loot, loot ? loot.name.toUpperCase() : '', loot ? `${formatKg(loot.container.weight)} de ${formatKg(loot.container.capacity)}` : '', loot?.container.weight ?? 0, loot?.container.capacity ?? 1, 'Vazio.');
-    const invTitle = 'INVENTÁRIO';
     const invSub = inv ? `${formatKg(inv.weight)} de ${formatKg(inv.capacity)}` : '';
-    this.drawPane(this.panes.inv, true, invTitle, invSub, inv?.weight ?? 0, inv?.capacity ?? 1, 'Nada nos bolsos.\nChegue perto de algo e toque em INTERAGIR.');
+    this.drawPane(this.panes.inv, true, 'INVENTÁRIO', invSub, inv?.effectiveLoad ?? 0, inv?.capacity ?? 1, 'Nada nos bolsos.\nChegue perto de algo e toque em INTERAGIR.');
     if (loot) {
       const lb = this.panes.loot.box;
       g.lineStyle(1, 0xffffff, 0.1);
@@ -275,6 +352,24 @@ export class InventoryPanel {
       else g.lineBetween(lb.x + lb.w, lb.y + 4 * k, lb.x + lb.w, lb.y + lb.h);
     }
     this.drawFooter();
+  }
+
+  private drawTabs(): void {
+    const k = this.k;
+    const b = this.box;
+    const g = this.bg;
+    const y = b.y + 6 * k;
+    const h = (TAB_H - 8) * k;
+    let x = b.x + PAD * k;
+    const w = Math.min(96 * k, (b.w - PAD * 2 * k - 40 * k) / this.tabs.length - 6 * k);
+    for (const t of this.tabs) {
+      const active = t.id === this.tab;
+      t.x = x;
+      t.w = w;
+      g.fillStyle(active ? UI.accentNum : 0xffffff, active ? 0.95 : 0.06).fillRoundedRect(x, y, w, h, 8 * k);
+      t.text.setText(t.label).setColor(active ? '#16171a' : UI.textDim).setPosition(x + w / 2, y + h / 2).setScale(k);
+      x += w + 6 * k;
+    }
   }
 
   private drawPane(p: Pane, visible: boolean, title: string, sub: string, weight: number, cap: number, emptyText: string): void {
@@ -292,7 +387,7 @@ export class InventoryPanel {
     if (!visible) return;
     p.title.setText(title).setPosition(x + PAD * k, y - 22 * k).setScale(k);
     p.sub.setText(sub).setPosition(x + PAD * k, y - 4 * k).setScale(k);
-    // barra de peso
+    // barra de peso (peso sentido: a mochila alivia)
     const bx = x + PAD * k;
     const by = y + 14 * k;
     const bw = w - PAD * 2 * k;
@@ -302,11 +397,10 @@ export class InventoryPanel {
 
     const listTop = y + 26 * k;
     const listH = p.box.h - 26 * k;
-    const stacks = p.rows.filter((r) => r.kind === 'stack').length;
+    const stacks = p.rows.filter((r) => r.kind !== 'header').length;
     if (!stacks && !(p.id === 'inv' && p.rows.length > 1)) {
       p.empty.setText(emptyText).setPosition(x + w / 2, listTop + listH / 2).setScale(k).setVisible(true).setWordWrapWidth((w - 20 * k) / k);
     }
-    // rolagem limitada ao que cabe
     let total = 0;
     for (const r of p.rows) total += this.rowHeight(r);
     const maxScroll = Math.max(0, total - listH);
@@ -316,8 +410,7 @@ export class InventoryPanel {
     let vi = 0;
     for (const r of p.rows) {
       const rh = this.rowHeight(r);
-      const inside = cy >= listTop - 0.5 && cy + rh <= listTop + listH + 0.5;
-      if (inside) {
+      if (cy >= listTop - 0.5 && cy + rh <= listTop + listH + 0.5) {
         const v = p.views[vi] ?? this.makeRowView(p);
         vi++;
         this.drawRow(p, r, v, x, cy, w, rh);
@@ -337,42 +430,58 @@ export class InventoryPanel {
     const name = s.add.text(0, 0, '', textStyle(12, UI.text, '600')).setOrigin(0, 0.5).setResolution(this.dpr);
     const right = s.add.text(0, 0, '', textStyle(10, UI.textDim, '600')).setOrigin(1, 0.5).setResolution(this.dpr);
     this.root.add([icon, name, right]);
-    for (const b of this.buttons) this.root.bringToTop(b);
+    this.buttons.bringToTop(this.root);
     const v = { icon, name, right };
     p.views.push(v);
     return v;
   }
 
+  private rowLoc(p: PaneId, r: Row): ItemWhere | null {
+    if (r.kind === 'hand') return { where: 'hand' };
+    if (r.kind === 'stack') return p === 'loot' ? { where: 'loot', index: r.index } : { where: 'inv', containerId: r.container.id, index: r.index };
+    return r.container.id === BAG_ID ? { where: 'bag' } : null;
+  }
+
   private drawRow(p: Pane, r: Row, v: RowView, x: number, y: number, w: number, rh: number): void {
     const k = this.k;
     const g = this.bg;
-    const sel = this.selected;
+    const loc = this.rowLoc(p.id, r);
+    const selected = !!loc && !!this.selected && this.selected.pane === p.id && sameLoc(this.selected.loc, loc);
     if (r.kind === 'header') {
-      const isBag = r.container.id === BAG_ID;
-      const selected = sel?.pane === p.id && sel.index === -1 && isBag;
       if (selected) g.fillStyle(UI.accentNum, 0.22).fillRoundedRect(x + 6 * k, y + 1, w - 12 * k, rh - 2, 6 * k);
       v.name.setText(r.title.toUpperCase()).setColor(UI.textDim).setFontStyle('800').setPosition(x + PAD * k, y + rh / 2).setScale(k * 0.9).setVisible(true);
       v.right.setText(`${formatKg(r.container.weight)} / ${formatKg(r.container.capacity)}`).setPosition(x + w - PAD * k, y + rh / 2).setScale(k).setVisible(true);
       g.lineStyle(1, 0xffffff, 0.08).lineBetween(x + PAD * k, y + rh - 1, x + w - PAD * k, y + rh - 1);
       return;
     }
-    const st = r.container.stacks[r.index]!;
-    const def = itemDef(st.defId);
-    if (!def) return;
-    const selected = sel?.pane === p.id && sel.containerId === r.container.id && sel.index === r.index;
+    const inv = this.s.session.inventory;
+    const st = r.kind === 'hand' ? inv?.hand : r.container.stacks[r.index];
+    const def = st ? itemDef(st.defId) : null;
+    if (!st || !def) return;
+    const count = r.kind === 'stack' ? r.container.stacks[r.index]!.count : 1;
     if (selected) g.fillStyle(UI.accentNum, 0.22).fillRoundedRect(x + 6 * k, y + 2 * k, w - 12 * k, rh - 4 * k, 8 * k);
-    // marca de condição à esquerda (só quando não está "ok")
+    else if (r.kind === 'hand') g.fillStyle(0xffffff, 0.05).fillRoundedRect(x + 6 * k, y + 2 * k, w - 12 * k, rh - 4 * k, 8 * k);
     const tags = conditionTags(def, st.st, this.s.session.nowDays());
     const worst = worstTone(tags.map((t) => t.tone));
     if (worst === 'warn' || worst === 'bad') g.fillStyle(TONE_NUM[worst], 0.9).fillRoundedRect(x + 7 * k, y + 8 * k, 3 * k, rh - 16 * k, 1.5 * k);
     const ref = this.assets.ref(def.icon);
     v.icon.setTexture(ref.key, ref.frame).setDisplaySize(30 * k, 30 * k).setPosition(x + (PAD + 18) * k, y + rh / 2).setVisible(true);
     const nameColor = def.rarity === 'comum' ? UI.text : RARITY_INFO[def.rarity].color;
-    const label = st.count > 1 ? `${def.name}  ×${st.count}` : def.name;
+    const label = r.kind === 'hand' ? `✋ ${def.name}` : count > 1 ? `${def.name}  ×${count}` : def.name;
     v.name.setText(label).setColor(nameColor).setFontStyle('600').setPosition(x + (PAD + 38) * k, y + rh / 2).setScale(k).setVisible(true);
-    const maxW = (w - (PAD + 38) * k - 58 * k) / k;
-    fitText(v.name, label, maxW);
-    v.right.setText(formatKg(st.count * def.weight)).setPosition(x + w - PAD * k, y + rh / 2).setScale(k).setVisible(true);
+    fit(v.name, label, (w - (PAD + 38) * k - 58 * k) / k);
+    v.right.setText(r.kind === 'hand' ? 'na mão' : formatKg(count * def.weight)).setPosition(x + w - PAD * k, y + rh / 2).setScale(k).setVisible(true);
+  }
+
+  private actionsFor(loc: ItemWhere): PanelAction[] {
+    const use = this.s.session.itemUse;
+    if (!use) return [];
+    return use.actionsFor(loc).map((a) => ({
+      label: a.label,
+      enabled: a.enabled,
+      ...(a.reason ? { reason: a.reason } : {}),
+      run: () => this.s.bus.emit('item:action', { loc, action: a.id }),
+    }));
   }
 
   private drawFooter(): void {
@@ -381,66 +490,52 @@ export class InventoryPanel {
     const g = this.bg;
     g.lineStyle(1, 0xffffff, 0.1).lineBetween(f.x + PAD * k, f.y, f.x + f.w - PAD * k, f.y);
     const sel = this.selected;
-    const inv = this.s.session.inventory;
     const loot = this.loot;
-    this.actions = [];
+    let actions: PanelAction[] = [];
     const tx = f.x + PAD * k;
-    if (sel && sel.index === -1 && inv?.bag) {
-      const def = itemDef(inv.bag.defId);
-      this.detailName.setText(def?.name ?? 'Mochila').setColor(UI.text);
-      this.detailTags.setText(`Capacidade ${formatKg(def?.bag?.capacity ?? 0)}`).setColor(TONE_COLOR.info);
-      this.detailDesc.setText(def?.description ?? '');
-      this.actions.push({ label: 'TIRAR MOCHILA', run: () => this.s.bus.emit('inventory:unequip', {}) });
-    } else if (sel && sel.index >= 0) {
-      const c = sel.pane === 'loot' ? loot?.container : inv?.container(sel.containerId);
-      const st = c?.stacks[sel.index];
-      const def = st ? itemDef(st.defId) : null;
-      if (c && st && def) {
-        const rar = RARITY_INFO[def.rarity];
-        this.detailName.setText(`${def.name}${st.count > 1 ? ` ×${st.count}` : ''}`).setColor(def.rarity === 'comum' ? UI.text : rar.color);
-        const tags = conditionTags(def, st.st, this.s.session.nowDays());
-        const tone = worstTone(tags.map((t) => t.tone));
-        const cond = tags.map((t) => t.text).join(' · ');
-        this.detailTags
-          .setText([CATEGORY_INFO[def.category].label, rar.label, formatKg(def.weight) + (st.count > 1 ? ' cada' : ''), cond].filter(Boolean).join(' · '))
-          .setColor(TONE_COLOR[tone ?? 'info']);
-        this.detailDesc.setText(def.description);
-        if (sel.pane === 'loot') {
-          this.actions.push({ label: 'PEGAR', run: () => this.s.bus.emit('loot:take', { index: sel.index }) });
-          this.actions.push({ label: 'PEGAR TUDO', run: () => this.s.bus.emit('loot:take', { index: 0, all: true }) });
-        } else {
-          const use = useKind(def);
-          if (use) this.actions.push({ label: USE_LABEL[use], run: () => this.s.bus.emit('inventory:use', { containerId: c.id, index: sel.index }) });
-          if (loot) this.actions.push({ label: 'GUARDAR', run: () => this.s.bus.emit('loot:store', { containerId: c.id, index: sel.index }) });
-          this.actions.push({ label: 'LARGAR', run: () => this.s.bus.emit('inventory:drop', { containerId: c.id, index: sel.index, count: st.count }) });
-        }
-      }
+    const ctx = sel ? this.s.session.itemUse?.context(sel.loc) : null;
+    if (sel && ctx) {
+      const def = ctx.def;
+      const rar = RARITY_INFO[def.rarity];
+      this.detailName.setText(`${def.name}${ctx.count > 1 ? ` ×${ctx.count}` : ''}`).setColor(def.rarity === 'comum' ? UI.text : rar.color);
+      const tags = conditionTags(def, ctx.st, this.s.session.nowDays());
+      const tone = worstTone(tags.map((t) => t.tone));
+      const extra = sel.loc.where === 'bag' ? `leva ${formatKg(def.bag?.capacity ?? 0)}` : '';
+      this.detailTags
+        .setText([CATEGORY_INFO[def.category].label, rar.label, formatKg(def.weight) + (ctx.count > 1 ? ' cada' : ''), extra, tags.map((t) => t.text).join(' · ')].filter(Boolean).join(' · '))
+        .setColor(TONE_COLOR[tone ?? 'info']);
+      this.detailDesc.setText(def.description);
+      actions = this.actionsFor(sel.loc);
+      if (sel.pane === 'loot' && loot && !loot.container.isEmpty) actions.push({ label: 'PEGAR TUDO', run: () => this.s.bus.emit('loot:take', { index: 0, all: true }) });
     } else {
       this.detailName.setText('');
       this.detailTags.setText('');
       const lootHas = !!loot && !loot.container.isEmpty;
       this.detailDesc.setText(lootHas ? 'Toque num item para ver o estado e as opções.' : loot ? 'Nada aqui. Guarde o que quiser deixar.' : 'Toque num item para ver o estado e as opções.');
-      if (lootHas) this.actions.push({ label: 'PEGAR TUDO', run: () => this.s.bus.emit('loot:take', { index: 0, all: true }) });
+      if (lootHas) actions.push({ label: 'PEGAR TUDO', run: () => this.s.bus.emit('loot:take', { index: 0, all: true }) });
     }
     this.detailName.setPosition(tx, f.y + 8 * k).setScale(k);
     this.detailTags.setPosition(tx, f.y + 26 * k).setScale(k);
+    fit(this.detailTags, this.detailTags.text, (f.w - PAD * 2 * k) / k);
     this.detailDesc.setPosition(tx, f.y + 42 * k).setScale(k).setWordWrapWidth((f.w - PAD * 2 * k) / k);
-    fitText(this.detailDesc, this.detailDesc.text, (f.w - PAD * 2 * k) / k);
-    const by = f.y + f.h - 22 * k;
-    this.buttons.forEach((b, i) => {
-      const a = this.actions[i];
-      b.setVisible(!!a);
-      if (!a) return;
-      b.setLabel(a.label);
-      b.setScale(k).setPosition(tx + (52 + i * 112) * k, by);
-    });
+    fit(this.detailDesc, this.detailDesc.text, (f.w - PAD * 2 * k) / k);
+    this.buttons.layout(actions, tx, f.y + f.h - 22 * k, f.w - PAD * 2 * k, k);
   }
 
   /** Posição de um botão pela etiqueta (testes automáticos). */
   buttonAt(label: string): { x: number; y: number } | null {
-    const i = this.actions.findIndex((a) => a.label === label);
-    const b = i >= 0 ? this.buttons[i] : undefined;
-    return b ? { x: b.x, y: b.y } : null;
+    return this.tab === 'itens' ? this.buttons.buttonAt(label) : this.list.buttonAt(label);
+  }
+
+  /** Centro de uma aba (testes automáticos). */
+  tabCenter(id: TabId): { x: number; y: number } | null {
+    const t = this.tabs.find((x) => x.id === id);
+    return t ? { x: t.x + t.w / 2, y: this.box.y + (6 + (TAB_H - 8) / 2) * this.k } : null;
+  }
+
+  /** Centro da linha com id numa aba de lista (testes automáticos). */
+  listRowCenter(id: string): { x: number; y: number } | null {
+    return this.list.rowCenter(id);
   }
 
   /** Centro da linha de item `n` (0 = primeira pilha) de uma coluna (testes automáticos). */
@@ -476,11 +571,28 @@ export class InventoryPanel {
       this.setOpen(false);
       return;
     }
+    const k = this.k;
+    if (y >= this.box.y + 4 * k && y <= this.box.y + TAB_H * k) {
+      for (const t of this.tabs) {
+        if (x >= t.x && x <= t.x + t.w) {
+          if (t.id !== this.tab) this.setTab(t.id);
+          return;
+        }
+      }
+    }
+    if (this.tab !== 'itens') {
+      this.list.pointerDown(id, x, y);
+      return;
+    }
     const p = this.paneAt(x, y);
     if (p) this.drag = { id, pane: p.id, y, scroll: p.scroll, moved: false };
   }
 
   pointerMove(id: number, _x: number, y: number): void {
+    if (this.tab !== 'itens') {
+      this.list.pointerMove(id, y);
+      return;
+    }
     const d = this.drag;
     if (!d || d.id !== id) return;
     const dy = y - d.y;
@@ -491,6 +603,10 @@ export class InventoryPanel {
   }
 
   pointerUp(id: number, x: number, y: number): void {
+    if (this.tab !== 'itens') {
+      this.list.pointerUp(id, x, y);
+      return;
+    }
     const d = this.drag;
     if (!d || d.id !== id) return;
     this.drag = null;
@@ -500,13 +616,9 @@ export class InventoryPanel {
     for (const r of p.rows) {
       const rh = this.rowHeight(r);
       if (y >= cy && y < cy + rh) {
-        const next: Selection | null =
-          r.kind === 'stack'
-            ? { pane: p.id, containerId: r.container.id, index: r.index }
-            : r.container.id === BAG_ID
-              ? { pane: p.id, containerId: BAG_ID, index: -1 }
-              : null;
-        const same = next && this.selected && next.pane === this.selected.pane && next.containerId === this.selected.containerId && next.index === this.selected.index;
+        const loc = this.rowLoc(p.id, r);
+        const next: Selection | null = loc ? { pane: p.id, loc } : null;
+        const same = next && this.selected && next.pane === this.selected.pane && sameLoc(next.loc, this.selected.loc);
         this.selected = same ? null : next;
         this.refresh();
         return;
@@ -517,6 +629,10 @@ export class InventoryPanel {
 
   /** Roda do mouse (PC). */
   wheel(x: number, y: number, dy: number): void {
+    if (this.tab !== 'itens') {
+      this.list.wheel(x, y, dy);
+      return;
+    }
     const p = this.paneAt(x, y);
     if (!p) return;
     p.scroll += dy;
@@ -529,16 +645,4 @@ function worstTone(tones: Tone[]): Tone | null {
   if (tones.includes('warn')) return 'warn';
   if (tones.includes('info')) return 'info';
   return tones.length ? 'ok' : null;
-}
-
-/** Corta o texto com "…" se passar da largura (em px antes da escala). */
-function fitText(t: Phaser.GameObjects.Text, text: string, maxW: number): void {
-  t.setText(text);
-  // `width` do Text é o tamanho lógico (antes do setScale).
-  if (t.width <= maxW || text.length < 4) return;
-  let s = text;
-  while (s.length > 3 && t.width > maxW) {
-    s = s.slice(0, -1);
-    t.setText(`${s}…`);
-  }
 }

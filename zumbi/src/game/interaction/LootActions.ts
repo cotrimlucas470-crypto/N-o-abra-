@@ -1,17 +1,12 @@
 /**
- * Ações de item no painel: pegar do recipiente, guardar nele, largar no chão
- * e USAR (comer, beber, curar, vestir mochila). Puro, sem Phaser — a cena só
- * repassa os pedidos do HUD e mostra o resultado.
- *
- * Usar respeita o estado do item: comida estragada faz mal, lata precisa de
- * abridor ou faca, remédio vencido rende metade, bebida aberta guarda o que
- * sobrou e a garrafa vazia fica com você (serve para juntar água depois).
+ * Transferências entre o mundo e o jogador: pegar do recipiente aberto (uma
+ * pilha ou tudo), guardar nele e largar no chão. Puro, sem Phaser.
+ * USAR itens (comer, beber, vestir, tratar...) fica em interaction/ItemUse.ts.
  */
 import { hashString } from '../core/Random';
-import { drinkEffect, foodEffect, isBroken, medHeal, doses, type Tone } from '../items/condition';
+import type { Tone } from '../items/condition';
 import { itemDef } from '../items/ItemCatalog';
 import type { ItemContainer } from '../items/ItemContainer';
-import type { ItemDef } from '../items/ItemTypes';
 import type { PlayerInventory } from '../items/PlayerInventory';
 import type { WorldState } from '../sim/WorldState';
 
@@ -21,40 +16,10 @@ export interface ActionResult {
   tone?: Tone;
 }
 
-export interface HealthTarget {
-  health: number;
-  readonly maxHealth: number;
-  setHealth(v: number): void;
-}
-
-export type UseKind = 'comer' | 'beber' | 'curar' | 'equipar';
-
-export const USE_LABEL: Record<UseKind, string> = { comer: 'COMER', beber: 'BEBER', curar: 'USAR', equipar: 'VESTIR' };
-
-/** O que dá para fazer com um item (null = nada, por enquanto). */
-export function useKind(def: ItemDef): UseKind | null {
-  if (def.bag) return 'equipar';
-  if (def.drink) return 'beber';
-  if (def.food) return 'comer';
-  if (def.med?.heal) return 'curar';
-  return null;
-}
-
-/** Garrafa que sobra quando a bebida acaba. */
-function emptyBottleOf(def: ItemDef): string | null {
-  if (def.iconSpec.f !== 'bottle') return null;
-  const k = def.iconSpec.k;
-  if (k === 'glass') return 'garrafaVidro';
-  if (k === 'jug' || k === 'oil' || k === 'thermos' || k === 'milk') return null;
-  return 'garrafaPet';
-}
-
 export class LootActions {
   constructor(
     private readonly state: WorldState,
     private readonly inventory: PlayerInventory,
-    private readonly stats: HealthTarget,
-    private readonly now: () => number,
   ) {}
 
   /** Move uma pilha (ou parte) entre recipientes; o que não couber volta. */
@@ -123,70 +88,11 @@ export class LootActions {
     return { ok: true, message: `Largou ${out.count > 1 ? `${out.count} ` : ''}${def?.name ?? 'item'}`, tone: 'info' };
   }
 
-  /** Tem alguma ferramenta com essa etiqueta (e não quebrada)? */
-  private hasTool(tag: string): boolean {
-    for (const c of this.inventory.containers) {
-      for (const s of c.stacks) {
-        const d = itemDef(s.defId);
-        if (d?.tags.includes(tag) && !isBroken(d, s.st)) return true;
-      }
-    }
-    return false;
-  }
-
-  use(from: ItemContainer, index: number): ActionResult {
-    const s = from.stacks[index];
-    const def = s ? itemDef(s.defId) : null;
-    if (!s || !def) return { ok: false };
-    const kind = useKind(def);
-    const now = this.now();
-    switch (kind) {
-      case 'equipar': {
-        const err = this.inventory.equipBag(from, index);
-        return err ? { ok: false, message: err, tone: 'warn' } : { ok: true, message: `Vestiu: ${def.name} (+${def.bag!.capacity} kg)`, tone: 'ok' };
-      }
-      case 'beber': {
-        const eff = drinkEffect(def, s.st)!;
-        const left = doses(def, s.st) - 1;
-        if (left <= 0) {
-          from.take(index, 1);
-          const empty = emptyBottleOf(def);
-          if (empty) from.add(empty, 1);
-        } else {
-          from.updateOne(index, { ...(s.st ?? {}), open: 1, dose: left });
-        }
-        this.applyHealth(eff.health);
-        this.inventory.changed();
-        return { ok: true, message: eff.message, tone: eff.tone };
-      }
-      case 'comer': {
-        const needs = def.food?.needs;
-        if (needs && !this.hasTool(needs)) return { ok: false, message: 'Precisa de abridor, faca ou canivete.', tone: 'warn' };
-        const eff = foodEffect(def, s.st, now)!;
-        from.take(index, 1);
-        this.applyHealth(eff.health);
-        this.inventory.changed();
-        return { ok: true, message: eff.message, tone: eff.tone };
-      }
-      case 'curar': {
-        if (this.stats.health >= this.stats.maxHealth) return { ok: false, message: 'Você não está ferido.', tone: 'info' };
-        const heal = medHeal(def, s.st, now);
-        const max = def.med?.doses;
-        if (max && max > 1) {
-          const left = doses(def, s.st) - 1;
-          if (left <= 0) from.take(index, 1);
-          else from.updateOne(index, { ...(s.st ?? {}), dose: left });
-        } else from.take(index, 1);
-        this.applyHealth(heal);
-        this.inventory.changed();
-        return { ok: true, message: heal > 0 ? `+${heal} de vida` : 'Não fez efeito.', tone: heal > 0 ? 'ok' : 'warn' };
-      }
-      default:
-        return { ok: false, message: 'Ainda não dá para usar isso.', tone: 'info' };
-    }
-  }
-
-  private applyHealth(delta: number): void {
-    if (delta) this.stats.setHealth(this.stats.health + delta);
+  /** Larga algo que já saiu do inventário (item da mão, resto de ação) aos pés. */
+  dropLoose(defId: string, count: number, st: ItemContainer['stacks'][number]['st'], x: number, y: number): void {
+    const h = hashString(`${defId}:${this.state.itemCount}:${Math.round(x)},${Math.round(y)}`);
+    const a = ((h % 360) * Math.PI) / 180;
+    const r = 4 + (h % 7);
+    this.state.dropItem(defId, count, x + Math.cos(a) * r, y + Math.sin(a) * r, st);
   }
 }

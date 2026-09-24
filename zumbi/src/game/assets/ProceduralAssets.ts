@@ -14,7 +14,7 @@ import type { AssetRegistry } from './AssetRegistry';
 import { makeCanvas, silhouetteShadow } from './procedural/canvas';
 import { drawLegsFrame, drawTorsoFrame, PLAYER_FRAMES } from './procedural/characters';
 import { DECAL_DRAWERS } from './procedural/decals';
-import { drawDust, drawSoftShadow, drawVignette } from './procedural/fx';
+import { drawDust, drawLightCone, drawLightRadial, drawRainDrop, drawSoftShadow, drawVignette } from './procedural/fx';
 import { ITEM_DRAWERS, ITEM_ICON_SIZE } from './procedural/items';
 import { drawItemIcon } from './procedural/itemIcons';
 import { NATURE_OVERLAY_DRAWERS } from './procedural/nature';
@@ -107,6 +107,9 @@ export function generateAssets(textures: Phaser.Textures.TextureManager, registr
   if (!textures.exists(TEX.shadowSoft)) textures.addCanvas(TEX.shadowSoft, drawSoftShadow(64, 44));
   if (!textures.exists(TEX.dust)) textures.addCanvas(TEX.dust, drawDust(24));
   if (!textures.exists(TEX.vignette)) textures.addCanvas(TEX.vignette, drawVignette(256));
+  if (!textures.exists(TEX.lightRadial)) textures.addCanvas(TEX.lightRadial, drawLightRadial(128));
+  if (!textures.exists(TEX.lightCone)) textures.addCanvas(TEX.lightCone, drawLightCone(256, 180));
+  if (!textures.exists(TEX.rainDrop)) textures.addCanvas(TEX.rainDrop, drawRainDrop(4, 22));
 
   lap('padrões+efeitos');
   if (missing.length) console.warn('[assets] sem desenho procedural:', missing.join(', '));

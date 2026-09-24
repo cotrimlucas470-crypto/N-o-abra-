@@ -25,7 +25,10 @@ const FOOTSTEP_FRAMES = new Set([2, 6]);
 
 export class Player {
   readonly stats: PlayerStats;
-  private readonly speedMods: SpeedModifiers;
+  private readonly baseMods: SpeedModifiers;
+  private readonly speedMods: SpeedModifiers = { walk: 1, run: 1 };
+  /** Parado à força (dormindo, sentado): ignora o movimento. */
+  frozen = false;
   readonly sprite: Phaser.Physics.Arcade.Sprite;
   private readonly legs: Phaser.GameObjects.Sprite;
   private readonly shadow: Phaser.GameObjects.Image;
@@ -52,7 +55,9 @@ export class Player {
   ) {
     const t = PLAYER_TUNING;
     this.stats = new PlayerStats({ drain: settings.staminaDrainMultiplier, regen: settings.staminaRegenMultiplier });
-    this.speedMods = { walk: settings.walkSpeedMultiplier, run: settings.runSpeedMultiplier };
+    this.baseMods = { walk: settings.walkSpeedMultiplier, run: settings.runSpeedMultiplier };
+    this.speedMods.walk = this.baseMods.walk;
+    this.speedMods.run = this.baseMods.run;
 
     this.shadow = scene.add.image(x, y, TEX.shadowSoft).setDepth(DEPTH.playerShadow).setAlpha(0.45).setDisplaySize(46, 32);
 
@@ -114,10 +119,22 @@ export class Player {
     return this.sprinting;
   }
 
+  /** Efeitos do estado físico na velocidade (fome, sono, carga, pernas feridas). */
+  setMoveEffects(walk: number, run: number): void {
+    this.speedMods.walk = this.baseMods.walk * walk;
+    this.speedMods.run = this.baseMods.run * run;
+  }
+
+  /** Vira para um ângulo (mira, ataque) sem andar. */
+  face(angle: number): void {
+    this.facing = angle;
+  }
+
   /** Chamado ANTES do passo de física: decide a velocidade. */
-  update(dt: number, intent: PlayerIntent): void {
+  update(dt: number, raw: PlayerIntent): void {
     const t = PLAYER_TUNING;
     const body = this.body;
+    const intent = this.frozen ? { ...raw, moveX: 0, moveY: 0, sprint: false } : raw;
     this.aiming = intent.aiming;
 
     // Correr: exige estar se movendo, não mirando e ter fôlego.
@@ -221,7 +238,16 @@ export class Player {
     }
   }
 
-  /** Estado para o futuro sistema de save. */
+  /** Volta ao estado salvo (posição vem por teleporte). */
+  restore(snap: { facing: number; stats: ReturnType<PlayerStats['snapshot']> }): void {
+    if (Number.isFinite(snap.facing)) {
+      this.facing = snap.facing;
+      this.legsAngle = snap.facing;
+    }
+    if (snap.stats) this.stats.restore(snap.stats);
+  }
+
+  /** Estado para o sistema de save. */
   snapshot(): { x: number; y: number; facing: number; stats: ReturnType<PlayerStats['snapshot']> } {
     return { x: this.x, y: this.y, facing: this.facing, stats: this.stats.snapshot() };
   }

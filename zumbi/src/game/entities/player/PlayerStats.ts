@@ -3,8 +3,8 @@ import { clamp } from '../../core/math';
 
 /**
  * Atributos do personagem — lógica pura, sem Phaser (testada em tests/).
- * Hoje: vida e fôlego. Fome, sede, temperatura e peso (Fase 3) entram aqui
- * nas próximas etapas, cada um com sua própria regra de update.
+ * Vida e fôlego. Fome, sede, sono e temperatura moram em survival/Body.ts;
+ * os efeitos deles no fôlego chegam por `setBodyEffects`.
  */
 export interface PlayerStatsSnapshot {
   health: number;
@@ -21,12 +21,27 @@ export class PlayerStats {
   exhausted = false;
 
   private regenCooldown = 0;
+  /** Efeitos do estado físico (fome, sono, ferimentos, carga) — atualizados pela cena. */
+  private body = { drain: 1, regen: 1, canSprint: true };
 
   constructor(private readonly mods: { drain: number; regen: number } = { drain: 1, regen: 1 }) {}
 
+  setBodyEffects(e: { staminaDrain: number; staminaRegen: number; canSprint: boolean }): void {
+    this.body.drain = e.staminaDrain;
+    this.body.regen = e.staminaRegen;
+    this.body.canSprint = e.canSprint;
+  }
+
   /** Pode começar/continuar a correr agora? */
   canSprint(): boolean {
-    return !this.exhausted && this.stamina > 0;
+    return this.body.canSprint && !this.exhausted && this.stamina > 0;
+  }
+
+  /** Gasta fôlego numa ação (golpe, esforço). */
+  spend(amount: number): void {
+    this.stamina = Math.max(0, this.stamina - amount * this.body.drain);
+    this.regenCooldown = STAMINA_TUNING.regenDelay;
+    if (this.stamina <= 0) this.exhausted = true;
   }
 
   /**
@@ -36,14 +51,14 @@ export class PlayerStats {
   update(dt: number, sprinting: boolean): boolean {
     const t = STAMINA_TUNING;
     if (sprinting && this.canSprint()) {
-      this.stamina = Math.max(0, this.stamina - t.drainPerSecond * this.mods.drain * dt);
+      this.stamina = Math.max(0, this.stamina - t.drainPerSecond * this.mods.drain * this.body.drain * dt);
       this.regenCooldown = t.regenDelay;
       if (this.stamina <= 0) this.exhausted = true;
     } else {
       if (this.regenCooldown > 0) {
         this.regenCooldown = Math.max(0, this.regenCooldown - dt);
       } else {
-        this.stamina = Math.min(this.maxStamina, this.stamina + t.regenPerSecond * this.mods.regen * dt);
+        this.stamina = Math.min(this.maxStamina, this.stamina + t.regenPerSecond * this.mods.regen * this.body.regen * dt);
       }
       if (this.exhausted && this.stamina >= this.maxStamina * t.exhaustedRecoverFraction) {
         this.exhausted = false;

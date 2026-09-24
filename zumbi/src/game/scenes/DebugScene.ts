@@ -98,7 +98,7 @@ export class DebugScene extends Phaser.Scene {
       () => {
         this.timeScaleIndex = (this.timeScaleIndex + 1) % TIME_SCALES.length;
         const clock = this.s.session.clock;
-        if (clock) clock.timeScale = TIME_SCALES[this.timeScaleIndex]!;
+        if (clock) clock.userScale = TIME_SCALES[this.timeScaleIndex]!;
       },
     );
     // Fase 1 · interação (no fim: os anteriores mantêm a posição)

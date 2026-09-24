@@ -93,3 +93,9 @@ export function iconBag(g: G, x: number, y: number, r: number, color: number, al
   g.fillStyle(0x000000, 0.35 * alpha);
   g.fillRoundedRect(x - 4.2 * u, y + 1.2 * u, 8.4 * u, 4.4 * u, 1.6 * u);
 }
+
+/** Três pontos (menu de opções). */
+export function iconDots(g: G, x: number, y: number, r: number, color: number, alpha = 1): void {
+  g.fillStyle(color, alpha);
+  for (const dx of [-0.5, 0, 0.5]) g.fillCircle(x + dx * r, y, r * 0.14);
+}

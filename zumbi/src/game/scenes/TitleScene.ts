@@ -6,6 +6,7 @@ import Phaser from 'phaser';
 import { GAME_STAGE, GAME_TITLE, GAME_VERSION, SCENES } from '../config/GameConfig';
 import { services } from '../core/Services';
 import { requestFullscreenLandscape } from '../systems/fullscreen';
+import { archiveCurrent, loadGame, saveSummary } from '../save/SaveGame';
 import { UiButton } from '../ui/UiButton';
 import { UI, textStyle } from '../ui/theme';
 
@@ -41,10 +42,45 @@ export class TitleScene extends Phaser.Scene {
       .setAlpha(0.85);
     const version = this.add.text(0, 0, `v${GAME_VERSION} · ${GAME_STAGE}`, textStyle(11, '#6f6d67', '600')).setOrigin(1, 1).setResolution(dpr);
 
-    const play = new UiButton(this, 'JOGAR', 200, 52, () => {
+    const summary = saveSummary();
+    const start = (continueGame: boolean) => {
       if (touch) requestFullscreenLandscape();
+      if (continueGame) {
+        const save = loadGame();
+        if (save) {
+          // O mundo salvo usa as opções com que foi criado (mesma semente, mesma cidade).
+          s.settings = save.settings;
+          s.session.pendingLoad = save;
+        }
+      } else {
+        // Jogo novo: o save antigo é ARQUIVADO (nunca apagado sem pedir).
+        archiveCurrent();
+        s.session.pendingLoad = null;
+      }
       this.scene.start(SCENES.game);
-    }, true, dpr);
+    };
+    const play = new UiButton(this, summary ? 'CONTINUAR' : 'JOGAR', 220, 52, () => start(!!summary), true, dpr);
+    const saveInfo = this.add
+      .text(0, 0, summary ? `Dia ${summary.day} · salvo em ${new Date(summary.savedAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : '', textStyle(11, UI.textDim, '600'))
+      .setOrigin(0.5)
+      .setResolution(dpr);
+    // Jogo novo com save existente: pede confirmação antes.
+    const confirmText = this.add
+      .text(0, 0, 'Começar do zero? O jogo atual fica guardado como backup,\nmas CONTINUAR passará a abrir o novo.', textStyle(12, UI.text, '600'))
+      .setOrigin(0.5)
+      .setAlign('center')
+      .setResolution(dpr)
+      .setVisible(false);
+    const yes = new UiButton(this, 'COMEÇAR DO ZERO', 200, 42, () => start(false), true, dpr).setVisible(false);
+    const no = new UiButton(this, 'VOLTAR', 120, 42, () => showConfirm(false), false, dpr).setVisible(false);
+    const fresh = new UiButton(this, 'NOVO JOGO', 170, 42, () => showConfirm(true), false, dpr).setVisible(!!summary);
+    const showConfirm = (v: boolean) => {
+      confirmText.setVisible(v);
+      yes.setVisible(v);
+      no.setVisible(v);
+      play.setVisible(!v);
+      fresh.setVisible(!v && !!summary);
+    };
 
     this.layoutFn = () => {
       const w = s.viewport.cssWidth;
@@ -58,8 +94,13 @@ export class TitleScene extends Phaser.Scene {
       bg.fillStyle(0xffffff, 0.02).fillCircle(w * 0.15, h * 0.95, Math.max(w, h) * 0.3);
       title.setPosition(w / 2, h * 0.36).setScale(k * Math.min(1, (w * 0.9) / (title.width || 1)));
       tagline.setPosition(w / 2, h * 0.36 + 44 * k).setScale(k);
-      play.setPosition(w / 2, h * 0.62).setScale(k);
-      help.setPosition(w / 2, h * 0.62 + 56 * k).setScale(Math.min(k, (w * 0.95) / (help.width || 1)));
+      play.setPosition(w / 2, h * 0.58).setScale(k);
+      saveInfo.setPosition(w / 2, h * 0.58 + 36 * k).setScale(k);
+      fresh.setPosition(w / 2, h * 0.58 + 70 * k).setScale(k);
+      confirmText.setPosition(w / 2, h * 0.58).setScale(Math.min(k, (w * 0.92) / (confirmText.width || 1)));
+      yes.setPosition(w / 2 - 70 * k, h * 0.58 + 56 * k).setScale(k);
+      no.setPosition(w / 2 + 100 * k, h * 0.58 + 56 * k).setScale(k);
+      help.setPosition(w / 2, h * 0.58 + 112 * k).setScale(Math.min(k, (w * 0.95) / (help.width || 1)));
       version.setPosition(w - 12 - s.viewport.insets.right, h - 10 - s.viewport.insets.bottom);
     };
     this.layoutFn();

@@ -10,8 +10,14 @@ import { TEX } from '../assets/AssetKeys';
 import { uiScaleFor } from '../input/touch/ControlsLayout';
 import { TouchControls } from '../input/touch/TouchControls';
 import { toggleFullscreen } from '../systems/fullscreen';
+import { ActionBar } from '../ui/ActionBar';
 import { ActionFeedback } from '../ui/ActionFeedback';
 import { InventoryPanel } from '../ui/InventoryPanel';
+import { OptionsMenu } from '../ui/OptionsMenu';
+import { StatePills } from '../ui/StatePills';
+import { hasClock } from '../ui/tabs/BodyTab';
+import { timeText } from '../ui/tabs/TimeTab';
+import { SKY_LABEL } from '../sim/Weather';
 import { StatusPanel } from '../ui/StatusPanel';
 import { Toast } from '../ui/Toast';
 import { UiButton } from '../ui/UiButton';
@@ -36,6 +42,13 @@ export class HudScene extends Phaser.Scene {
   private keyboardHint!: Phaser.GameObjects.Text;
   private clockText!: Phaser.GameObjects.Text;
   private clockLabel = '';
+  private pills!: StatePills;
+  private actionBar!: ActionBar;
+  private optionsMenu!: OptionsMenu;
+  private savedText!: Phaser.GameObjects.Text;
+  private saveBtn!: UiButton;
+  private menuBtn!: UiButton;
+  private hudTimer = 0;
   private debugText: Phaser.GameObjects.Text | null = null;
   private debugTimer = 0;
   private paused = false;
@@ -53,14 +66,22 @@ export class HudScene extends Phaser.Scene {
 
     this.vignette = this.add.image(0, 0, TEX.vignette).setOrigin(0, 0).setDepth(0);
     this.status = new StatusPanel(this, dpr);
-    this.clockText = this.add.text(0, 0, '', textStyle(12, UI.text, '700')).setDepth(91).setResolution(dpr);
+    this.clockText = this.add.text(0, 0, '', textStyle(12, UI.text, '700')).setDepth(91).setResolution(dpr).setLineSpacing(2);
     this.clockText.setLetterSpacing(1).setShadow(0, 1, 'rgba(0,0,0,0.8)', 3, false, true);
+    this.pills = new StatePills(this, dpr);
+    this.actionBar = new ActionBar(this, dpr, () => s.bus.emit('action:cancel', {}));
+    this.optionsMenu = new OptionsMenu(this, dpr, (i) => {
+      this.optionsMenu.hide();
+      s.bus.emit('interaction:option', { index: i });
+    });
+    this.savedText = this.add.text(0, 0, 'jogo salvo', textStyle(10, UI.textDim, '700')).setDepth(91).setResolution(dpr).setAlpha(0);
     this.toast = new Toast(this, dpr);
 
     this.controls = new TouchControls(this, s, {
       onPause: () => this.setPaused(true, 'button'),
       onFullscreen: () => toggleFullscreen(),
       onInteract: () => s.bus.emit('input:interact', {}),
+      onOptions: () => (this.optionsMenu.open ? this.optionsMenu.hide() : s.bus.emit('interaction:options', {})),
       onInventory: () => this.inventory.toggle(),
     });
     this.feedback = new ActionFeedback(this, dpr);
@@ -70,13 +91,13 @@ export class HudScene extends Phaser.Scene {
       // Fechar o painel também fecha o recipiente aberto.
       if (s.session.openContainer) s.bus.emit('ui:container-close', {});
     });
-    this.controls.setPointerBlocker((x, y) => this.inventory.contains(x, y));
+    this.controls.setPointerBlocker((x, y) => this.inventory.contains(x, y) || this.optionsMenu.contains(x, y) || (this.actionBar.visible && this.actionBarHit(x, y)));
     // Aviso do alvo de interação: acima do botão (toque) ou embaixo, com a tecla (PC).
     this.prompt = this.add.text(0, 0, '', textStyle(12, UI.text, '700')).setOrigin(0.5, 1).setDepth(93).setResolution(dpr);
     this.prompt.setBackgroundColor('rgba(12,13,16,0.62)').setPadding(8, 4, 8, 4).setVisible(false);
 
     this.keyboardHint = this.add
-      .text(0, 0, 'WASD andar · Shift correr · E interagir/abrir/colher · I inventário · segure o mouse para mirar · Esc pausa', textStyle(11, UI.textDim, '600'))
+      .text(0, 0, 'WASD andar · Shift correr · E interagir · Q mais opções · I inventário/corpo/tempo · segure o mouse para mirar · Esc pausa', textStyle(11, UI.textDim, '600'))
       .setOrigin(0.5, 1)
       .setResolution(dpr)
       .setAlpha(0.75)
@@ -111,12 +132,33 @@ export class HudScene extends Phaser.Scene {
       s.bus.on('ui:container-open', () => this.inventory.showContainer()),
       s.bus.on('ui:container-close', () => this.inventory.hideContainer()),
       s.bus.on('ui:container-refresh', () => this.inventory.refresh()),
+      s.bus.on('ui:options-ready', () => this.showOptions()),
+      s.bus.on('game:saved', (e) => {
+        this.savedText.setText(e.ok ? 'jogo salvo' : 'não foi possível salvar').setColor(e.ok ? UI.textDim : '#f07a6a').setAlpha(1);
+        this.tweens.add({ targets: this.savedText, alpha: 0, delay: 1400, duration: 700 });
+      }),
     );
     this.input.on(Phaser.Input.Events.POINTER_WHEEL, (p: Phaser.Input.Pointer, _o: unknown, _dx: number, dy: number) => this.inventory.wheel(p.x / dpr, p.y / dpr, dy * 0.5));
     this.input.keyboard?.on('keydown-I', () => {
       if (!this.paused) this.inventory.toggle();
     });
-    this.input.on(Phaser.Input.Events.POINTER_DOWN, (p: Phaser.Input.Pointer) => this.inventory.pointerDown(p.id, p.x / dpr, p.y / dpr));
+    this.input.on(Phaser.Input.Events.POINTER_DOWN, (p: Phaser.Input.Pointer) => {
+      const x = p.x / dpr;
+      const y = p.y / dpr;
+      // Tocar fora do menu "⋯" fecha o menu (o toque não faz mais nada).
+      if (this.optionsMenu.open && !this.optionsMenu.contains(x, y)) {
+        const ob = this.controls.options;
+        if (Math.hypot(x - ob.x, y - ob.y) > ob.radius * 1.4) this.optionsMenu.hide();
+      }
+      this.inventory.pointerDown(p.id, x, y);
+    });
+    for (let n = 1; n <= 8; n++) {
+      this.input.keyboard?.on(`keydown-${['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT'][n - 1]}`, () => {
+        if (!this.optionsMenu.open) return;
+        this.optionsMenu.hide();
+        s.bus.emit('interaction:option', { index: n - 1 });
+      });
+    }
     this.input.on(Phaser.Input.Events.POINTER_MOVE, (p: Phaser.Input.Pointer) => {
       if (p.isDown) this.inventory.pointerMove(p.id, p.x / dpr, p.y / dpr);
     });
@@ -146,7 +188,23 @@ export class HudScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setResolution(dpr);
     this.resumeBtn = new UiButton(this, 'CONTINUAR', 210, 50, () => this.setPaused(false, 'button'), true, dpr);
-    this.pauseLayer = this.add.container(0, 0, [this.pauseDim, this.pauseTitle, this.pauseHint, this.resumeBtn]);
+    this.saveBtn = new UiButton(this, 'SALVAR', 150, 42, () => this.s.bus.emit('game:save-request', {}), false, dpr);
+    this.menuBtn = new UiButton(
+      this,
+      'MENU',
+      150,
+      42,
+      () => {
+        // Sai para a tela de título salvando antes (nada se perde).
+        this.s.bus.emit('game:save-request', {});
+        this.scene.stop(SCENES.debug);
+        this.scene.stop(SCENES.game);
+        this.scene.start(SCENES.title);
+      },
+      false,
+      dpr,
+    );
+    this.pauseLayer = this.add.container(0, 0, [this.pauseDim, this.pauseTitle, this.pauseHint, this.resumeBtn, this.saveBtn, this.menuBtn]);
     this.pauseLayer.setDepth(150).setVisible(false);
     // Bloqueia toques no que está por baixo enquanto pausado.
     this.pauseDim.setInteractive();
@@ -185,6 +243,9 @@ export class HudScene extends Phaser.Scene {
     this.vignette.setDisplaySize(w, h);
     this.status.setPosition(ins.left + 12, ins.top + 10, k);
     this.clockText.setPosition(ins.left + 16, ins.top + 10 + 56 * k).setScale(k);
+    this.pills.setPosition(ins.left + 14, ins.top + 10 + 94 * k, k, Math.min(360 * k, w * 0.45));
+    this.savedText.setPosition(ins.left + 12 + 216 * k, ins.top + 14 * k).setScale(k);
+    this.actionBar.layout(w, h, h * (s.viewport.isPortrait ? 0.42 : 0.3), k);
     // Em pé, o aviso desce para não cobrir o painel de status e o relógio.
     this.toast.setPosition(w / 2, s.viewport.isPortrait ? ins.top + 150 * k : ins.top + Math.max(14, h * 0.08), k);
     this.controls.layout(w, h);
@@ -197,12 +258,42 @@ export class HudScene extends Phaser.Scene {
     if (this.pauseDim.input?.hitArea instanceof Phaser.Geom.Rectangle) this.pauseDim.input.hitArea.setSize(w, h);
     this.pauseTitle.setPosition(w / 2, h * 0.36).setScale(k);
     this.pauseHint.setPosition(w / 2, h * 0.36 + 34 * k).setScale(k);
-    this.resumeBtn.setPosition(w / 2, h * 0.6).setScale(k);
+    this.resumeBtn.setPosition(w / 2, h * 0.58).setScale(k);
+    this.saveBtn.setPosition(w / 2 - 82 * k, h * 0.58 + 58 * k).setScale(k);
+    this.menuBtn.setPosition(w / 2 + 82 * k, h * 0.58 + 58 * k).setScale(k);
 
     const portraitPhone = s.viewport.isPortrait && this.controls.isTouchMode;
     // Em pé: aviso no meio-alto da tela, longe do nome do local (topo) e dos controles (base).
     this.rotateHint.setVisible(portraitPhone).setPosition(w / 2, h * 0.3).setScale(Math.min(k, (w * 0.92) / Math.max(1, this.rotateHint.width)));
-    this.debugText?.setPosition(ins.left + 12, ins.top + 84 * k);
+    this.debugText?.setPosition(ins.left + 12, ins.top + 150 * k);
+  }
+
+  private showOptions(): void {
+    const opts = this.s.session.options ?? [];
+    if (!opts.length) {
+      this.feedback.show('Nada para fazer por perto.', 'info');
+      return;
+    }
+    const w = this.s.viewport.cssWidth;
+    const h = this.s.viewport.cssHeight;
+    const k = uiScaleFor(w, h);
+    const touch = this.controls.isTouchMode;
+    const b = this.controls.options;
+    this.optionsMenu.show(opts, touch ? b.x + b.radius : w / 2 + 120 * k, touch ? b.y - b.radius : h - 60 * k, w, k);
+  }
+
+  private actionBarHit(x: number, y: number): boolean {
+    const p = this.actionBar.buttonPos();
+    return !!p && Math.abs(x - p.x) < 70 && Math.abs(y - p.y) < 24;
+  }
+
+  /** Posições para testes automáticos. */
+  optionButtonAt(label: string): { x: number; y: number } | null {
+    return this.optionsMenu.buttonAt(label);
+  }
+
+  actionBarButton(): { x: number; y: number } | null {
+    return this.actionBar.buttonPos();
   }
 
   /** Texto do alvo de interação: acima do botão (toque) ou "[E] ..." embaixo (teclado). */
@@ -236,11 +327,23 @@ export class HudScene extends Phaser.Scene {
     const stats = this.s.session.stats;
     this.status.update(stats, dt);
     const clock = this.s.session.clock;
-    const label = clock ? `DIA ${clock.day} · ${clock.timeLabel()}` : '';
+    const sv = this.s.session.survival;
+    const inv = this.s.session.inventory;
+    const exact = !!inv && hasClock(inv);
+    let label = clock ? `DIA ${clock.day} · ${timeText(clock.minuteOfDay, exact)}` : '';
+    if (sv) label += `\n${sv.calendar.shortLabel(clock!.dayIndex)} · ${Math.round(sv.weather.temp)} °C · ${SKY_LABEL[sv.weather.sky]}`;
     if (label !== this.clockLabel) {
       this.clockLabel = label;
       this.clockText.setText(label);
     }
+    this.hudTimer -= dt;
+    if (sv && this.hudTimer <= 0) {
+      this.hudTimer = 0.25;
+      this.pills.update(sv.survivor.states().map((x) => ({ label: x.label, tone: x.tone })));
+    }
+    const act = sv?.runner.current;
+    this.actionBar.update(act ? act.label : null, sv?.runner.progress ?? 0, !!sv?.sleeping, clock ? timeText(clock.minuteOfDay, true) : '');
+    this.inventory.tick(dt);
     const target = this.s.session.interaction;
     if (!this.paused) this.controls.update(stats ? !stats.canSprint() : false, target ? target.enabled : null, this.inventory.isOpen);
     this.updatePrompt();

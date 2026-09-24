@@ -4,6 +4,9 @@ export const TEX = {
   shadowSoft: 'fx.shadow.soft',
   dust: 'fx.dust',
   vignette: 'fx.vignette',
+  lightRadial: 'fx.light.radial',
+  lightCone: 'fx.light.cone',
+  rainDrop: 'fx.rain',
   overridesJson: 'asset-overrides',
 } as const;
 
