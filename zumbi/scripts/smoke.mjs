@@ -201,7 +201,8 @@ try {
     // itens: pega o martelo da bancada do abrigo, abre o inventário e larga
     const hammer = await page.evaluate(() => window.__TDR__.map.items.find((i) => i.defId === 'martelo'));
     await page.evaluate(([x, y]) => window.__TDR__.teleport(x, y), [hammer.x + 10, hammer.y - 40]);
-    await sleep(500);
+    // Headless lento: espera a varredura de interação rodar (até 3 s) em vez de um tempo fixo.
+    await page.waitForFunction(() => window.__TDR__.interaction()?.kind === 'item', null, { timeout: 3000 }).catch(() => undefined);
     const itemTarget = await page.evaluate(() => window.__TDR__.interaction());
     check(itemTarget?.kind === 'item' && itemTarget.label === 'Pegar Martelo', `alvo é o item (${itemTarget?.label})`);
     const itemsBefore = await page.evaluate(() => window.__TDR__.state.itemCount);

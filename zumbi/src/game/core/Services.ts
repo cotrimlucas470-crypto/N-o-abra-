@@ -45,6 +45,8 @@ export interface GameSession {
   pendingLoad: GameSave | null;
   /** Fabricação (a aba FABRICAR confere receitas por aqui). */
   crafting: CraftService | null;
+  /** Modo construir ligado: o que mostrar na barra. */
+  build: import('../ui/BuildBar').BuildInfo | null;
 }
 
 export interface GameServices {
@@ -82,6 +84,7 @@ export function createServices(game: Phaser.Game, viewport: Viewport, bus: Event
       survival: null,
       itemUse: null,
       crafting: null,
+      build: null,
       options: null,
       pendingLoad: null,
     },

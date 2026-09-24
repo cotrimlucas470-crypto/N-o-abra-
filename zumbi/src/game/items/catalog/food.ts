@@ -134,6 +134,8 @@ export const FOOD = category('comida', { stack: 6, cond: 'none', tags: ['comida'
   fresh('cenoura', 'Cenoura', 'verdura', 0.1, { f: 'veg', c: '#e8762a', k: 'carrot' }, { kcal: 40, hunger: 3, thirst: 2, spoil: [10, 20, 30] }, 'Crocante.', { stack: 10, tags: ['verdura', 'natural'] }),
   fresh('abobrinha', 'Abobrinha', 'verdura', 0.3, { f: 'veg', c: '#5a8a3a', k: 'long' }, { kcal: 50, hunger: 4, thirst: 4, spoil: [5, 9, 14] }, 'Melhor cozida.', { stack: 6, tags: ['verdura'] }),
   fresh('repolho', 'Repolho', 'verdura', 0.9, { f: 'veg', c: '#a8d88a', k: 'cabbage' }, { kcal: 220, hunger: 10, thirst: 8, spoil: [10, 20, 30] }, 'Pesado e durável.', { stack: 2, tags: ['verdura'] }),
+  fresh('milhoVerde', 'Espiga de milho', 'verdura', 0.3, { f: 'veg', c: '#e8c83a', k: 'long' }, { kcal: 90, hunger: 7, thirst: 1, spoil: [4, 8, 12] }, 'Da horta. Crua ou cozida.', { stack: 8, craftOnly: true, tags: ['verdura', 'natural'] }),
+  fresh('abobora', 'Abóbora', 'verdura', 2, { f: 'fruit', c: '#e8922a', k: 'round' }, { kcal: 520, hunger: 20, thirst: 2, spoil: [30, 60, 90], raw: true }, 'Grande e durável. Cozida, rende sopa.', { stack: 2, craftOnly: true, tags: ['verdura', 'cozinhar'] }),
   fresh('mandioca', 'Mandioca', 'verdura', 0.5, { f: 'veg', c: '#8a5a3a', k: 'root' }, { kcal: 800, hunger: 16, thirst: 0, spoil: [4, 8, 12], raw: true }, 'Precisa cozinhar.', { stack: 4, tags: ['verdura', 'cozinhar'] }),
   // ---------------- frutas (árvores do mapa e mercados)
   fruit('maca', 'Maçã', '#c8342a', 'apple', 80, 5, 4, [8, 15, 22], 'Colhida do pé ou da fruteira.'),

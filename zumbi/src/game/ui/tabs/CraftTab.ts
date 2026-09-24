@@ -16,7 +16,7 @@ const OK = '#9fd88a';
 const MISSING = '#f07a6a';
 
 function iconOf(r: Recipe): string | undefined {
-  const id = r.out[0]?.id ?? (r.structure ? 'lenha' : undefined);
+  const id = r.icon ?? r.out[0]?.id ?? (r.structure ? 'lenha' : undefined);
   return id ? itemDef(id)?.icon : undefined;
 }
 
@@ -35,7 +35,9 @@ export class CraftTab implements ListSource {
     if (!cs) return [{ kind: 'text', text: 'Sem jogo em andamento.' }];
     const env = cs.env();
     const checks = new Map<string, CraftCheck>();
-    for (const r of RECIPES) checks.set(r.id, cs.check(r, env));
+    // Construção: o lugar se escolhe depois, no modo construir; aqui conta só o material.
+    const envNoPlace = { ...env, canPlace: () => null };
+    for (const r of RECIPES) checks.set(r.id, cs.check(r, r.structure ? envNoPlace : env));
     const rows: ListRow[] = [];
     const near = [...env.stations].map((s) => (s === 'fogo' ? 'fogo' : s === 'forno' ? 'forno' : 'bancada'));
     rows.push({ kind: 'header', text: 'Por perto', right: near.length ? near.join(' · ') : 'nada' });
@@ -83,10 +85,12 @@ export class CraftTab implements ListSource {
       desc: r.desc,
       actions: [
         {
-          label: r.structure ? 'MONTAR' : 'FAZER',
-          enabled: c.ok,
+          label: r.structure ? 'CONSTRUIR' : 'FAZER',
+          // Estrutura: o lugar é escolhido depois; só o material precisa estar ok.
+          enabled: r.structure ? c.lines.every((l) => l.ok || l.kind === 'place') : c.ok,
           ...(c.reason ? { reason: c.reason } : {}),
-          run: () => this.s.bus.emit('craft:start', { recipe: r.id }),
+          // Estrutura: entra no modo construir (escolhe o lugar andando); item: faz já.
+          run: () => (r.structure ? this.s.bus.emit('build:start', { recipe: r.id }) : this.s.bus.emit('craft:start', { recipe: r.id })),
         },
       ],
     };

@@ -24,6 +24,7 @@ import type { DoorPlacement, PropPlacement, WallPiece } from '../world/MapTypes'
 import { PROP_DURABILITY, type Yield } from '../world/PropDurability';
 import { buildingAtPoint } from '../world/shelter';
 import type { InteractionCandidate, InteractionOption, InteractionProvider, InteractionResult, Interactor } from './InteractionSystem';
+import { boardOptions, doorSpot, windowSpot } from './DemolishInteractions';
 
 export interface WorldActionHooks {
   start(spec: TimedActionSpec): void;
@@ -273,6 +274,9 @@ export class ToolInteractions implements InteractionProvider {
     const s = this.state.doorState(d.id);
     if (!s || s.broken) return [];
     const out: InteractionOption[] = [];
+    // Porta fechada (ou já pregada): pregar/arrancar tábuas.
+    if (!s.open || this.state.boardedOn(d.id)) out.push(...boardOptions(this.state, this.inventory, this.survivor, this.hooks, doorSpot(d), 'na porta'));
+    if (this.state.boardedOn(d.id)) return out;
     const name = doorLabel(d);
     if (s.locked) {
       const key = this.keyFor(d);
@@ -335,12 +339,17 @@ export class WindowInteractions implements InteractionProvider {
       const cx = w.wall.x + w.wall.w / 2;
       const cy = w.wall.y + w.wall.h / 2;
       const opts: InteractionOption[] = [];
-      if (broken) {
+      const boards = boardOptions(this.state, this.inventory, this.survivor, this.hooks, windowSpot(w.wall, w.id), 'na janela');
+      if (this.state.boardedOn(w.id)) {
+        // Pregada: só dá para arrancar as tábuas.
+        opts.push(...boards);
+      } else if (broken) {
         opts.push({ label: 'Pular a janela', enabled: true, perform: () => this.climb(w.wall, w.id, who) });
         if (this.state.windowHasShards(w.id)) opts.push({ label: 'Tirar cacos da janela', enabled: true, perform: () => this.clearShards(w.id) });
       } else {
         opts.push({ label: 'Quebrar a janela', enabled: true, perform: () => this.smash(w.wall) });
       }
+      if (!this.state.boardedOn(w.id)) opts.push(...boards);
       const main = opts[0]!;
       out.push({
         target: { key: `janela:${w.id}`, kind: 'window', x: cx, y: cy, rect: { x: w.wall.x, y: w.wall.y, w: w.wall.w, h: w.wall.h }, verb: main.label.split(' ')[0]!.toUpperCase(), label: main.label, enabled: true },

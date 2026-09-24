@@ -15,9 +15,11 @@ import type { SkillId } from '../skills/Skills';
 
 export type Station = 'fogo' | 'forno' | 'bancada';
 
-export type RecipeCat = 'cozinha' | 'bebidas' | 'agua' | 'fogo' | 'curativos' | 'materiais' | 'ferramentas' | 'armas';
+export type RecipeCat = 'construcao' | 'moveis' | 'cozinha' | 'bebidas' | 'agua' | 'fogo' | 'curativos' | 'materiais' | 'ferramentas' | 'armas';
 
 export const RECIPE_CAT_LABEL: Record<RecipeCat, string> = {
+  construcao: 'Construção',
+  moveis: 'Móveis e horta',
   cozinha: 'Cozinha',
   bebidas: 'Bebidas',
   agua: 'Água',
@@ -85,6 +87,8 @@ export interface Recipe {
   keepDoses?: boolean;
   minutes: number;
   skill?: { id: SkillId; xp: number; min?: number };
+  /** Ícone na lista (id de item) quando o resultado não é item. */
+  icon?: string;
 }
 
 // ------------------------------------------------------------------ atalhos
@@ -101,9 +105,44 @@ const HAMMER = tool('Martelo', 'martelar');
 const out = (itemId: string, n = 1): RecipeOut => ({ id: itemId, n });
 const TIE = need('Amarração', tag('barbante'), { tag: 'fita', charge: 0.15 }, id('arame'), id('corda'), id('trapo', 2));
 const HANDLE = need('Cabo', id('galho'), id('rodo'), id('vassoura'), id('bambu'));
+const build = (id: string, name: string, cat: 'construcao' | 'moveis', desc: string, inputs: Ingredient[], tools: ToolReq[], minutes: number, icon: string, xp = 5, skill: SkillId = 'carpintaria', structure = id as StructureType): Recipe => ({
+  id,
+  name,
+  cat,
+  desc,
+  inputs,
+  tools,
+  out: [],
+  structure,
+  minutes,
+  icon,
+  skill: { id: skill, xp },
+});
+const PLANKS = (n: number) => need(`Tábuas (${n})`, id('tabua', n));
+const NAILS = (n: number) => need(`Pregos (${n})`, id('pregos', n));
+const MASON = tool('Colher de pedreiro', 'alvenaria');
 const cook = (r: Omit<Recipe, 'cat' | 'skill'> & { xp?: number }): Recipe => ({ ...r, cat: 'cozinha', skill: { id: 'culinaria', xp: r.xp ?? 5 } });
 
 export const RECIPES: readonly Recipe[] = [
+  // ---------------------------------------------------------------- construção (modo construir)
+  build('paredeMadeira', 'Parede de madeira', 'construcao', 'Na borda do tile em que você está, do lado para onde olha.', [PLANKS(3), NAILS(6)], [HAMMER], 30, 'tabua', 6),
+  build('paredeTijolo', 'Parede de tijolo', 'construcao', 'Resiste muito mais. Tijolo, cimento, areia e água.', [need('Tijolos (6)', id('tijolo', 6)), need('Cimento (um pouco)', { id: 'cimento', charge: 0.15 }), need('Areia (um pouco)', { id: 'areia', charge: 0.15 }), water(2)], [MASON], 45, 'tijolo', 8),
+  build('paredeMetal', 'Parede de chapa', 'construcao', 'Chapas parafusadas. A mais forte.', [need('Chapas de metal (2)', id('chapaMetal', 2)), need('Parafusos (10)', id('parafusos', 10))], [tool('Chave de fenda ou furadeira', 'parafusar')], 30, 'chapaMetal', 6, 'mecanica'),
+  build('cercaMadeira', 'Cerca de madeira', 'construcao', 'Segura passagem, não segura olhar. Só ao ar livre.', [PLANKS(2), NAILS(4)], [HAMMER], 15, 'tabua', 3),
+  build('portaMadeira', 'Porta de madeira', 'construcao', 'Abre e fecha. Zumbi não passa com ela fechada.', [PLANKS(4), NAILS(6), need('Dobradiças (2)', id('dobradica', 2))], [HAMMER], 40, 'dobradica', 8),
+  build('janelaMadeira', 'Janela', 'construcao', 'Luz e vista, sem passagem.', [PLANKS(2), NAILS(4), need('Vidro ou plástico', id('vidroPlaca'), id('sacoPlastico', 4), id('lona'))], [HAMMER], 25, 'vidroPlaca', 5),
+  build('piso', 'Piso de madeira', 'construcao', 'Assoalho no tile à frente.', [PLANKS(2), NAILS(4)], [HAMMER], 15, 'tabua', 3),
+  build('telhado', 'Telhado', 'construcao', 'Cobre um tile: embaixo não chove e esquenta como dentro de casa.', [PLANKS(3), NAILS(6), need('Cobertura', id('telha', 4), id('lona'), id('chapaMetal'))], [HAMMER], 30, 'telha', 5),
+  // ---------------------------------------------------------------- móveis e horta
+  build('camaMadeira', 'Cama', 'moveis', 'Dormir numa cama rende muito mais que no chão.', [PLANKS(4), NAILS(8), need('Colchão', id('cobertor'), id('lencol', 2), id('tecido', 4), id('trapo', 8))], [HAMMER], 40, 'cobertor', 8),
+  build('cadeiraMadeira', 'Cadeira', 'moveis', 'Sentar e descansar.', [PLANKS(2), NAILS(4)], [HAMMER], 15, 'cadeiraDobravel', 3),
+  build('mesaMadeira', 'Mesa', 'moveis', 'Dá para deixar coisas em cima (25 kg).', [PLANKS(4), NAILS(6)], [HAMMER], 25, 'tabua', 5),
+  build('bancadaMadeira', 'Bancada de trabalho', 'moveis', 'Libera as receitas de metal. Gaveta de 20 kg.', [PLANKS(6), NAILS(10)], [HAMMER, tool('Serrote', 'serrar')], 45, 'martelo', 8),
+  build('caixote', 'Caixote', 'moveis', 'Guarda 40 kg.', [PLANKS(3), NAILS(6)], [HAMMER], 20, 'tabua', 4),
+  build('estante', 'Estante', 'moveis', 'Guarda 60 kg.', [PLANKS(5), NAILS(8)], [HAMMER], 30, 'livroRomance', 6),
+  build('fogaoLenha', 'Fogão a lenha', 'moveis', 'Fogo dentro de casa: aquece, cozinha e assa (forno).', [need('Tijolos (8)', id('tijolo', 8)), need('Chapa ou sucata', id('chapaMetal'), id('sucata', 6)), need('Cimento (um pouco)', { id: 'cimento', charge: 0.1 })], [MASON], 60, 'tijolo', 8),
+  build('coletorChuva', 'Coletor de chuva', 'moveis', 'Balde com lona em funil: junta até 40 doses de chuva (ferva antes de beber).', [need('Balde', id('balde')), need('Lona', id('lona')), PLANKS(2), NAILS(4)], [HAMMER], 20, 'balde', 4),
+  build('canteiro', 'Canteiro', 'moveis', 'Terra revolvida para plantar. Só na grama ou na terra.', [], [tool('Pá ou enxada', 'cavar', 'arar')], 20, 'enxada', 3, 'agricultura'),
   // ---------------------------------------------------------------- cozinha
   cook({ id: 'assarCarne', name: 'Carne assada', desc: 'Carne crua na brasa. Tira o risco e sacia mais.', inputs: [need('Carne bovina crua', id('carneBovina'))], station: 'fogo', out: [out('carneAssada')], minutes: 20 }),
   cook({ id: 'assarFrango', name: 'Frango assado', desc: 'Frango cru faz mal; assado, salva o dia.', inputs: [need('Frango cru', id('frango'))], station: 'fogo', out: [out('frangoAssado')], minutes: 30 }),
@@ -151,6 +190,9 @@ export const RECIPES: readonly Recipe[] = [
   { id: 'barbante', name: 'Barbante de capim', desc: 'Capim seco trançado.', cat: 'materiais', inputs: [need('Capim seco (5)', id('capim', 5))], out: [out('barbante')], minutes: 10, skill: { id: 'costura', xp: 2 } },
   { id: 'cordaBarbante', name: 'Corda trançada', desc: 'Quatro barbantes viram uma corda.', cat: 'materiais', inputs: [need('Barbante (4)', id('barbante', 4))], out: [out('corda')], minutes: 15, skill: { id: 'costura', xp: 3 } },
   { id: 'cordaLencol', name: 'Corda de lençol', desc: 'Lençol cortado em tiras e trançado.', cat: 'materiais', inputs: [need('Lençol', id('lencol'))], tools: [tool('Tesoura ou faca', 'cortar-tecido', 'cortar')], out: [out('corda')], minutes: 8, skill: { id: 'costura', xp: 2 } },
+  { id: 'pregosSucata', name: 'Pregos de sucata', cat: 'materiais', desc: 'Sucata cortada e batida em pregos.', inputs: [need('Sucata', id('sucata'))], tools: [tool('Alicate', 'alicate', 'cortar-arame'), HAMMER], station: 'bancada', out: [out('pregos', 12)], minutes: 10, skill: { id: 'mecanica', xp: 2 } },
+  { id: 'chapaSucata', name: 'Chapa de sucata', cat: 'materiais', desc: 'Cinco sucatas marteladas numa chapa.', inputs: [need('Sucata (5)', id('sucata', 5))], tools: [HAMMER], station: 'bancada', out: [out('chapaMetal')], minutes: 30, skill: { id: 'mecanica', xp: 4 } },
+  { id: 'dobradicaSucata', name: 'Dobradiça de sucata', cat: 'materiais', desc: 'Para porta nova.', inputs: [need('Sucata (2)', id('sucata', 2))], tools: [HAMMER, tool('Alicate', 'alicate')], station: 'bancada', out: [out('dobradica')], minutes: 15, skill: { id: 'mecanica', xp: 3 } },
   { id: 'lascarPedra', name: 'Lascar pedra', desc: 'Pedra batendo em pedra: lascas afiadas.', cat: 'materiais', inputs: [need('Pedras (2)', id('pedra', 2))], out: [out('pedraLasca', 3)], minutes: 5 },
   // ---------------------------------------------------------------- ferramentas
   { id: 'facaPedra', name: 'Faca de pedra', desc: 'Lasca afiada com cabo amarrado.', cat: 'ferramentas', inputs: [need('Lasca de pedra', id('pedraLasca')), need('Cabo', id('galho')), TIE], out: [out('facaPedra')], minutes: 10, skill: { id: 'carpintaria', xp: 3 } },

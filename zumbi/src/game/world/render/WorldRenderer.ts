@@ -19,7 +19,7 @@ import { TEX } from '../../assets/AssetKeys';
 import type { AssetRegistry } from '../../assets/AssetRegistry';
 import { propSolids, type Solid } from '../collision';
 import { DECAL_DEFS } from '../DecalCatalog';
-import { GROUND_VARIANTS, type MarkingKind, type WallPiece } from '../MapTypes';
+import { GROUND_VARIANTS, type MarkingKind, type Rect, type WallPiece } from '../MapTypes';
 import { PROP_DEFS, type PropDef } from '../PropCatalog';
 import type { WorldModel } from '../WorldModel';
 import { CanopyFader, type Canopy } from './CanopyFader';
@@ -70,6 +70,8 @@ export interface ChunkListener {
 /** Mudanças do jogador no mundo que o desenho precisa respeitar. */
 export interface WorldEdits {
   isPropRemoved(id: string): boolean;
+  /** Pedaços que sobraram da parede `i` (vão derrubado). */
+  wallPieces?(i: number): Rect[];
 }
 
 export interface ViewRect {
@@ -292,7 +294,17 @@ export class WorldRenderer {
   }
 
   private buildWall(lc: LoadedChunk, i: number): void {
-    const w = this.world.map.walls[i]!;
+    const base = this.world.map.walls[i]!;
+    const pieces = this.edits?.wallPieces?.(i) ?? [base];
+    const horiz = base.w >= base.h;
+    for (const p of pieces) {
+      // Pedaço de cerca continua o desenho de onde a peça inteira estaria.
+      const shift = horiz ? p.x - base.x : p.y - base.y;
+      this.buildWallPiece(lc, { ...base, ...p, offset: (base.offset ?? 0) + shift });
+    }
+  }
+
+  private buildWallPiece(lc: LoadedChunk, w: WallPiece): void {
     const cx = w.x + w.w / 2;
     const cy = w.y + w.h / 2;
     let obj: Phaser.GameObjects.Rectangle | Phaser.GameObjects.TileSprite;

@@ -33,7 +33,7 @@ export const TOOLS = category('ferramenta', { stack: 1, cond: 'durable', tags: [
     melee: { damage: 9, speed: 1.1, reach: 0.9, durability: 120, kind: 'impacto' },
     tags: ['martelar', 'martelo', 'arma-contundente'],
   }),
-  tool('marreta', 'Marreta', 'construcao', 4.5, 'sledge', ['demolir', 'martelar'], 300, 'Derruba parede. Pesada demais para brigar.', {
+  tool('marreta', 'Marreta', 'construcao', 4.5, 'sledge', ['demolir', 'martelar', 'derrubar-parede'], 300, 'Derruba parede. Pesada demais para brigar.', {
     rar: 'incomum',
     melee: { damage: 24, speed: 0.45, reach: 1.1, durability: 150, kind: 'impacto' },
   }),
@@ -70,7 +70,7 @@ export const TOOLS = category('ferramenta', { stack: 1, cond: 'durable', tags: [
     rar: 'incomum',
     melee: { damage: 14, speed: 0.8, reach: 1.2, durability: 90, kind: 'corte' },
   }),
-  tool('picareta', 'Picareta', 'construcao', 3, 'pickaxe', ['quebrar-pedra', 'demolir', 'cavar'], 300, 'Pedra, concreto, asfalto.', {
+  tool('picareta', 'Picareta', 'construcao', 3, 'pickaxe', ['quebrar-pedra', 'demolir', 'cavar', 'derrubar-parede'], 300, 'Pedra, concreto, asfalto.', {
     rar: 'raro',
     melee: { damage: 20, speed: 0.5, reach: 1.2, durability: 140, kind: 'perfuracao' },
   }),

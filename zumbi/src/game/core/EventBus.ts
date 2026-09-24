@@ -48,6 +48,11 @@ export interface GameEvents {
   'ui:options-ready': Record<string, never>;
   /** Abrir o painel numa aba (FABRICAR ao "Cozinhar aqui" na fogueira). */
   'ui:tab': { tab: string };
+  /** Modo construir: escolher a peça, confirmar o lugar, girar, sair. */
+  'build:start': { recipe: string };
+  'build:confirm': Record<string, never>;
+  'build:rotate': Record<string, never>;
+  'build:cancel': Record<string, never>;
   /** Fabricar a receita (aba FABRICAR ou ação COZINHAR no item). */
   'craft:start': { recipe: string };
   /** Cancelar a ação em andamento (ou acordar). */

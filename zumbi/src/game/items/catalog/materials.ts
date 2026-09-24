@@ -51,8 +51,8 @@ export const MATERIALS = category('material', { stack: 10, cond: 'none', tags: [
 ]);
 
 export const CONSTRUCTION = category('construcao', { stack: 4, cond: 'none', tags: ['construcao'] }, [
-  mat('cimento', 'Saco de cimento', 'alvenaria', 25, { f: 'sack', c: '#9a9a9a', c2: '#2a5aa0' }, '25 kg. Com areia e água, vira parede.', ['cimento'], { stack: 1, vol: 18, rar: 'incomum' }),
-  mat('areia', 'Saco de areia', 'alvenaria', 20, { f: 'sack', c: '#d8c08a', c2: '#8a6a3a' }, 'Argamassa ou barricada.', ['areia'], { stack: 1, vol: 14 }),
+  mat('cimento', 'Saco de cimento', 'alvenaria', 25, { f: 'sack', c: '#9a9a9a', c2: '#2a5aa0' }, '25 kg. Com areia e água, vira parede (umas seis).', ['cimento'], { stack: 1, vol: 18, rar: 'incomum', cond: 'battery' }),
+  mat('areia', 'Saco de areia', 'alvenaria', 20, { f: 'sack', c: '#d8c08a', c2: '#8a6a3a' }, 'Argamassa ou barricada.', ['areia'], { stack: 1, vol: 14, cond: 'battery' }),
   mat('tijolo', 'Tijolo', 'alvenaria', 2.5, { f: 'brick', c: '#b8543a' }, 'Parede que zumbi não derruba fácil.', ['tijolo'], { stack: 6 }),
   mat('telha', 'Telha', 'telhado', 2.4, { f: 'brick', c: '#c8643a', k: 'tile' }, 'Conserta telhado.', ['telha'], { stack: 6, rar: 'incomum' }),
   mat('tinta', 'Lata de tinta', 'acabamento', 3.6, { f: 'bucket', c: '#f2f2f2', c2: '#3a8ab0', k: 'paint' }, 'Três litros e meio.', ['tinta'], { stack: 1, rar: 'incomum' }),

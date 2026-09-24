@@ -38,8 +38,8 @@ describe('receitas: dados', () => {
 
   it('todo item "só de fabricação" tem como ser feito', () => {
     const made = new Set(RECIPES.flatMap((r) => r.out.map((o) => o.id)));
-    // Itens que nascem de ações (não de receita).
-    const byAction = new Set(['ataduraSuja', 'aguaSuja', 'baldeAgua']);
+    // Itens que nascem de ações (não de receita): curativo usado, água juntada, colheita.
+    const byAction = new Set(['ataduraSuja', 'aguaSuja', 'baldeAgua', 'milhoVerde', 'abobora']);
     for (const d of Object.values(ITEM_DEFS)) if (d.craftOnly) expect(made.has(d.id) || byAction.has(d.id), d.id).toBe(true);
   });
 
@@ -355,7 +355,7 @@ describe('fogueira em jogo', () => {
     const t = game();
     let now = 100;
     const started: TimedActionSpec[] = [];
-    const si = new StructureInteractions(t.state, t.inv, { start: (s) => started.push(s), minutes: () => now, openCraft: () => undefined, rng: () => rng });
+    const si = new StructureInteractions(t.state, t.inv, t.sv, { start: (s) => started.push(s), minutes: () => now, openCraft: () => undefined, rng: () => rng });
     const f = t.state.structures.add('fogueira', 3000, 3000);
     return { ...t, si, f, started, advance: (m: number) => (now += m), who: { x: 3000, y: 3040, radius: 15, facing: -Math.PI / 2 } };
   }

@@ -11,6 +11,7 @@ import { uiScaleFor } from '../input/touch/ControlsLayout';
 import { TouchControls } from '../input/touch/TouchControls';
 import { toggleFullscreen } from '../systems/fullscreen';
 import { ActionBar } from '../ui/ActionBar';
+import { BuildBar } from '../ui/BuildBar';
 import { ActionFeedback } from '../ui/ActionFeedback';
 import { InventoryPanel } from '../ui/InventoryPanel';
 import { OptionsMenu } from '../ui/OptionsMenu';
@@ -46,6 +47,7 @@ export class HudScene extends Phaser.Scene {
   private clockLabel = '';
   private pills!: StatePills;
   private actionBar!: ActionBar;
+  private buildBar!: BuildBar;
   private optionsMenu!: OptionsMenu;
   private savedText!: Phaser.GameObjects.Text;
   private saveBtn!: UiButton;
@@ -75,6 +77,11 @@ export class HudScene extends Phaser.Scene {
     this.clockText.setLetterSpacing(1).setShadow(0, 1, 'rgba(0,0,0,0.8)', 3, false, true);
     this.pills = new StatePills(this, dpr);
     this.actionBar = new ActionBar(this, dpr, () => s.bus.emit('action:cancel', {}));
+    this.buildBar = new BuildBar(this, dpr, {
+      build: () => s.bus.emit('build:confirm', {}),
+      rotate: () => s.bus.emit('build:rotate', {}),
+      exit: () => s.bus.emit('build:cancel', {}),
+    });
     this.optionsMenu = new OptionsMenu(this, dpr, (i) => {
       this.optionsMenu.hide();
       s.bus.emit('interaction:option', { index: i });
@@ -106,7 +113,7 @@ export class HudScene extends Phaser.Scene {
       // Fechar o painel também fecha o recipiente aberto.
       if (s.session.openContainer) s.bus.emit('ui:container-close', {});
     });
-    this.controls.setPointerBlocker((x, y) => this.mapView.isOpen || this.inventory.contains(x, y) || this.optionsMenu.contains(x, y) || (this.actionBar.visible && this.actionBarHit(x, y)));
+    this.controls.setPointerBlocker((x, y) => this.mapView.isOpen || this.inventory.contains(x, y) || this.optionsMenu.contains(x, y) || this.buildBar.contains(x, y) || (this.actionBar.visible && this.actionBarHit(x, y)));
     // Aviso do alvo de interação: acima do botão (toque) ou embaixo, com a tecla (PC).
     this.prompt = this.add.text(0, 0, '', textStyle(12, UI.text, '700')).setOrigin(0.5, 1).setDepth(93).setResolution(dpr);
     this.prompt.setBackgroundColor('rgba(12,13,16,0.62)').setPadding(8, 4, 8, 4).setVisible(false);
@@ -148,6 +155,11 @@ export class HudScene extends Phaser.Scene {
       s.bus.on('ui:container-close', () => this.inventory.hideContainer()),
       s.bus.on('ui:container-refresh', () => this.inventory.refresh()),
       s.bus.on('ui:options-ready', () => this.showOptions()),
+      // Modo construir: o painel fecha para ver o lugar da peça.
+      s.bus.on('build:start', () => {
+        this.optionsMenu.hide();
+        this.inventory.setOpen(false);
+      }),
       s.bus.on('ui:tab', (e) => {
         this.optionsMenu.hide();
         this.inventory.setOpen(true);
@@ -276,6 +288,8 @@ export class HudScene extends Phaser.Scene {
     this.pills.setPosition(ins.left + 14, ins.top + 10 + 94 * k, k, Math.min(360 * k, w * 0.45));
     this.savedText.setPosition(ins.left + 12 + 216 * k, ins.top + 14 * k).setScale(k);
     this.actionBar.layout(w, h, h * (s.viewport.isPortrait ? 0.42 : 0.3), k);
+    // Barra do modo construir: no alto, no meio, abaixo do nome da região (em pé, abaixo do relógio).
+    this.buildBar.layout(w / 2, s.viewport.isPortrait ? ins.top + 176 * k : ins.top + 78 * k, w - 32, k);
     // Em pé, o aviso desce para não cobrir o painel de status e o relógio.
     this.toast.setPosition(w / 2, s.viewport.isPortrait ? ins.top + 150 * k : ins.top + Math.max(14, h * 0.08), k);
     this.controls.layout(w, h);
@@ -320,6 +334,10 @@ export class HudScene extends Phaser.Scene {
   /** Posições para testes automáticos. */
   optionButtonAt(label: string): { x: number; y: number } | null {
     return this.optionsMenu.buttonAt(label);
+  }
+
+  buildBarButton(which: 'build' | 'rotate' | 'exit'): { x: number; y: number } | null {
+    return this.buildBar.buttonPos(which);
   }
 
   actionBarButton(): { x: number; y: number } | null {
@@ -377,6 +395,7 @@ export class HudScene extends Phaser.Scene {
     const pb = this.inventory.bounds;
     const cx = this.inventory.isOpen && !this.s.viewport.isPortrait ? Math.max(150, (this.s.viewport.insets.left + pb.x) / 2) : vw / 2;
     this.actionBar.update(act ? act.label : null, sv?.runner.progress ?? 0, !!sv?.sleeping, clock ? timeText(clock.minuteOfDay, true) : '', cx);
+    this.buildBar.update(this.inventory.isOpen ? null : this.s.session.build);
     this.inventory.tick(dt);
     this.infoCard.update(dt);
     const handDef = inv?.handDef;

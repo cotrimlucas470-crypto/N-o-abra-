@@ -317,5 +317,7 @@ export function unitWeight(def: ItemDef, st: ItemState | undefined): number {
     const frac = Math.max(0, Math.min(1, st.dose / def.drink.doses));
     return def.weight * (0.12 + 0.88 * frac);
   }
+  // Consumível medido (saco de cimento, sal, gasolina): pesa o que sobrou.
+  if (def.condition === 'battery' && !def.power && !def.tool && st?.ch !== undefined) return def.weight * (0.08 + 0.92 * Math.max(0, Math.min(1, st.ch)));
   return def.weight;
 }

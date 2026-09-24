@@ -27,7 +27,12 @@ import { LootSystem, type LootSave } from '../loot/LootSystem';
 import type { HarvestDef } from '../nature/NatureCatalog';
 import { DEFAULT_NATURE, NatureState, type NatureSave, type NatureSettings } from '../nature/NatureState';
 import { Vehicles, type VehicleState } from '../vehicles/Vehicles';
-import { Structures, type StructuresSave } from '../build/Structures';
+import { Structures, type Structure, type StructuresSave } from '../build/Structures';
+import { STRUCTURE_DEFS } from '../build/StructureCatalog';
+import { rectOf, sightOf, solidOf } from '../build/StructureGeometry';
+import { addCut, alongOf, piecesOf, wallId, wallLength, type Interval } from '../build/WallCuts';
+import type { Rect } from '../world/MapTypes';
+import type { Solid } from '../world/collision';
 
 export interface DoorState {
   open: boolean;
@@ -53,7 +58,9 @@ export type WorldChange =
   | { type: 'nature'; id: string }
   /** Objeto do mapa danificado ou removido (quebrado, desmontado, cortado). */
   | { type: 'prop'; id: string; removed: boolean; x: number; y: number }
-  | { type: 'window'; id: string; x: number; y: number };
+  | { type: 'window'; id: string; x: number; y: number }
+  /** Parede/cerca do mapa com um vão aberto (derrubada). */
+  | { type: 'wall'; id: string; x: number; y: number };
 
 export interface WorldStateOptions {
   loot?: LootSettings;
@@ -86,6 +93,8 @@ export interface WorldStateSave {
   structures?: StructuresSave;
   /** Água usada de pontos finitos (caixa da descarga, banheira): id → doses tiradas. */
   waterUsed?: Record<string, number>;
+  /** Vãos abertos em paredes do mapa: id da parede → trechos cortados. */
+  wallCuts?: Record<string, Interval[]>;
 }
 
 export class WorldState {
@@ -107,6 +116,10 @@ export class WorldState {
   readonly structures: Structures;
   /** Doses já tiradas de fontes finitas de água (id do objeto → doses). */
   readonly waterUsed = new Map<string, number>();
+  /** O que cada construção já aplicou na navegação e na visão (para desfazer certo). */
+  private readonly structApplied = new Map<string, { solid: Solid | null; sight: Rect | null }>();
+  private readonly wallCuts = new Map<string, Interval[]>();
+  private wallIndex: Map<string, number> | null = null;
   private readonly listeners = new Set<(c: WorldChange) => void>();
   private nextItem = 1;
   private readonly removedProps = new Set<string>();
@@ -136,6 +149,7 @@ export class WorldState {
     this.nature = new NatureState(map.seed, opts.nature ?? DEFAULT_NATURE);
     this.vehicles = new Vehicles(map.seed, map.props, { collapseAgeDays: opts.loot?.collapseAgeDays ?? 0 });
     this.structures = new Structures(model.widthPx, model.heightPx);
+    this.structures.onChange(({ s, removed }) => this.syncStructure(s, removed));
     for (const it of [...map.items, ...this.loot.floorItems]) {
       if (!itemDef(it.defId)) continue;
       this.mapItemCount.set(it.id, it.count);
@@ -498,6 +512,121 @@ export class WorldState {
     return this.itemChunk.size;
   }
 
+  // ---------------------------------------------------------------- construções
+
+  /**
+   * A construção mudou (nasceu, abriu/fechou, sumiu): acerta navegação,
+   * visão e o recipiente dela. Só mexe no que mudou de fato.
+   */
+  private syncStructure(s: Structure, removed: boolean): void {
+    const prev = this.structApplied.get(s.id);
+    const solid = removed ? null : solidOf(s);
+    const sight = removed ? null : sightOf(s);
+    const same = prev && JSON.stringify(prev.solid) === JSON.stringify(solid) && JSON.stringify(prev.sight) === JSON.stringify(sight);
+    if (!same) {
+      if (prev?.solid) this.model.nav.removeSolid(prev.solid);
+      if (prev?.sight) this.model.sight.removeBlocker(prev.sight);
+      if (solid) this.model.nav.addSolid(solid);
+      if (sight) this.model.sight.addBlocker(sight);
+    }
+    if (removed) this.structApplied.delete(s.id);
+    else this.structApplied.set(s.id, { solid, sight });
+    const box = STRUCTURE_DEFS[s.type].container;
+    if (box && !removed && !this.loot.ref(s.id)) {
+      this.loot.addRef({ id: s.id, kind: 'construido', name: box.name, verb: box.verb ?? 'ABRIR', table: null, capacity: box.capacity, x: s.x, y: s.y, rect: rectOf(s) });
+    }
+  }
+
+  /** Tira a construção do mundo; o que estava guardado nela cai no chão. */
+  removeStructure(id: string): Structure | null {
+    const s = this.structures.get(id);
+    if (!s) return null;
+    const contents = this.loot.removeForProp(id, true);
+    this.structures.remove(id);
+    for (const it of contents) this.dropItem(it.defId, it.count, s.x, s.y, it.st);
+    return s;
+  }
+
+  /** Tábuas pregadas nesta janela/porta do mapa (ou null). */
+  boardedOn(targetId: string): Structure | null {
+    for (const s of this.structures.list('tabuasPregadas')) if (s.on === targetId) return s;
+    return null;
+  }
+
+  /** Algum telhado construído cobre o ponto? */
+  coveredAt(x: number, y: number): boolean {
+    for (const s of this.structures.near(x, y, 100)) {
+      if (!STRUCTURE_DEFS[s.type].cover) continue;
+      const r = rectOf(s);
+      if (x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h) return true;
+    }
+    return false;
+  }
+
+  // ---------------------------------------------------------------- paredes do mapa (derrubar)
+
+  private wallIdx(id: string): number | undefined {
+    if (!this.wallIndex) {
+      this.wallIndex = new Map();
+      this.model.map.walls.forEach((w, i) => {
+        if (w.kind !== 'window') this.wallIndex!.set(wallId(w), i);
+      });
+    }
+    return this.wallIndex.get(id);
+  }
+
+  /** Paredes e cercas do mapa a até `r` px (borda), com o id. */
+  wallsNear(x: number, y: number, r: number): { wall: WallPiece; index: number; id: string; distance: number }[] {
+    const out: { wall: WallPiece; index: number; id: string; distance: number }[] = [];
+    const map = this.model.map;
+    for (const key of this.model.index.chunksAround(x, y)) {
+      for (const i of this.model.index.get(key)?.walls ?? []) {
+        const w = map.walls[i]!;
+        if (w.kind === 'window') continue;
+        const id = wallId(w);
+        // Distância até o pedaço que sobrou mais perto.
+        let d = Infinity;
+        for (const p of piecesOf(w, this.wallCuts.get(id))) d = Math.min(d, Math.hypot(Math.max(p.x - x, 0, x - (p.x + p.w)), Math.max(p.y - y, 0, y - (p.y + p.h))));
+        if (d <= r) out.push({ wall: w, index: i, id, distance: d });
+      }
+    }
+    return out;
+  }
+
+  /** Pedaços que sobraram da parede `i` do mapa (para desenho e colisão). */
+  wallPieces(i: number): Rect[] {
+    const w = this.model.map.walls[i]!;
+    return piecesOf(w, w.kind === 'window' ? undefined : this.wallCuts.get(wallId(w)));
+  }
+
+  /** Abre um vão na parede no ponto mais perto de (x, y). Devolve false se já não havia parede ali. */
+  cutWall(id: string, x: number, y: number): boolean {
+    const i = this.wallIdx(id);
+    if (i === undefined) return false;
+    const w = this.model.map.walls[i]!;
+    const old = this.wallCuts.get(id) ?? [];
+    const at = alongOf(w, x, y);
+    if (old.some(([a, b]) => at >= a && at <= b)) return false;
+    this.applyCuts(i, addCut(old, at, wallLength(w)));
+    this.emit({ type: 'wall', id, x: w.x + w.w / 2, y: w.y + w.h / 2 });
+    return true;
+  }
+
+  private applyCuts(i: number, cuts: Interval[]): void {
+    const w = this.model.map.walls[i]!;
+    const id = wallId(w);
+    const opaque = w.kind === 'wall' || w.kind === 'fence';
+    for (const p of piecesOf(w, this.wallCuts.get(id))) {
+      this.model.nav.removeSolid({ ...p, kind: 'rect' });
+      if (opaque) this.model.sight.removeBlocker(p);
+    }
+    this.wallCuts.set(id, cuts);
+    for (const p of piecesOf(w, cuts)) {
+      this.model.nav.addSolid({ ...p, kind: 'rect' });
+      if (opaque) this.model.sight.addBlocker(p);
+    }
+  }
+
   // ---------------------------------------------------------------- eventos
 
   onChange(fn: (c: WorldChange) => void): () => void {
@@ -535,6 +664,7 @@ export class WorldState {
     if (Object.keys(veh).length) out.vehicles = veh;
     if (this.structures.count) out.structures = this.structures.serialize();
     if (this.waterUsed.size) out.waterUsed = Object.fromEntries(this.waterUsed);
+    if (this.wallCuts.size) out.wallCuts = Object.fromEntries([...this.wallCuts].map(([k, v]) => [k, v.map((c) => [c[0], c[1]] as Interval)]));
     return out;
   }
 
@@ -544,6 +674,8 @@ export class WorldState {
    */
   restore(save: WorldStateSave): void {
     if (!save || (save.version !== 1 && save.version !== 2)) return;
+    // Construções antes do loot: baú construído precisa existir para receber o conteúdo salvo.
+    this.structures.restore(save.structures);
     this.loot.restore(save.loot);
     this.nature.restore(save.nature);
     this.vehicles.restore(save.vehicles);
@@ -584,8 +716,15 @@ export class WorldState {
     this.nextItem = Math.max(this.nextItem, save.nextItem ?? 1);
     this.glassSpots = (save.glass?.spots ?? []).filter((g) => Number.isFinite(g.x) && Number.isFinite(g.y));
     for (const k of save.glass?.cleared ?? []) this.clearedGlass.add(k);
-    this.structures.restore(save.structures);
     for (const [id, n] of Object.entries(save.waterUsed ?? {})) if (Number.isFinite(n)) this.waterUsed.set(id, n);
+    for (const [id, cuts] of Object.entries(save.wallCuts ?? {})) {
+      const i = this.wallIdx(id);
+      const w = i === undefined ? null : this.model.map.walls[i]!;
+      if (!w || !Array.isArray(cuts)) continue;
+      const len = wallLength(w);
+      const ok = cuts.filter((c) => Array.isArray(c) && Number.isFinite(c[0]) && Number.isFinite(c[1]) && c[0] < c[1]).map((c) => [Math.max(0, c[0]), Math.min(len, c[1])] as Interval);
+      if (ok.length) this.applyCuts(i!, ok);
+    }
   }
 }
 

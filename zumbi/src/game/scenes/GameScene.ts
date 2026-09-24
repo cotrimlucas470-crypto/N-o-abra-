@@ -52,6 +52,10 @@ import { FireSystem } from '../build/FireSystem';
 import { CraftService } from '../crafting/CraftService';
 import { RECIPE_BY_ID } from '../crafting/Recipes';
 import { StructureInteractions } from '../interaction/StructureInteractions';
+import { DemolishInteractions } from '../interaction/DemolishInteractions';
+import { BuildSystem } from '../build/BuildSystem';
+import { STRUCTURE_DEFS } from '../build/StructureCatalog';
+import type { SleepPlace } from '../survival/Sleep';
 import { WaterInteractions } from '../interaction/WaterInteractions';
 import { isSheltered } from '../world/shelter';
 import type { SkillsSave } from '../skills/Skills';
@@ -104,7 +108,11 @@ export class GameScene extends Phaser.Scene {
   private structureViews!: StructureViews;
   private fires!: FireSystem;
   private crafting!: CraftService;
+  private builds!: BuildSystem;
   private fireTimer = 0;
+  private buildTimer = 0;
+  /** Modo construir: receita escolhida (a prévia segue o jogador). */
+  private buildRecipe: string | null = null;
   private alarmTimer = 0;
   private options: InteractionOption[] = [];
   private readonly lightSources: LightSource[] = [];
@@ -132,7 +140,7 @@ export class GameScene extends Phaser.Scene {
     // quebrados já nascem no estado salvo.
     this.state = new WorldState(this.model, { loot: s.settings.loot, nature: s.settings.nature });
     if (load) this.state.restore(load.world);
-    this.world = new WorldRenderer(this, this.model, assets, s.bus, { isPropRemoved: (id) => this.state.isPropRemoved(id) });
+    this.world = new WorldRenderer(this, this.model, assets, s.bus, { isPropRemoved: (id) => this.state.isPropRemoved(id), wallPieces: (i) => this.state.wallPieces(i) });
     this.physics.world.setBounds(0, 0, this.world.widthPx, this.world.heightPx);
 
     this.player = new Player(this, map.spawn.x, map.spawn.y, assets, s.bus, this.world.shadows, s.settings.player);
@@ -159,10 +167,13 @@ export class GameScene extends Phaser.Scene {
     const calendar = new Calendar({ month: s.settings.time.startMonth, day: s.settings.time.startDayOfMonth });
     const weather = new Weather(s.settings.world.seed, calendar, s.settings.climate);
     // Fogos do mundo: calor no corpo, luz, cozinha.
-    this.fires = new FireSystem(this.state, (x, y) => isSheltered(this.model, x, y));
+    const covered = (x: number, y: number) => isSheltered(this.model, x, y, (cx, cy) => this.state.coveredAt(cx, cy));
+    this.fires = new FireSystem(this.state, covered);
+    this.builds = new BuildSystem(this.state, covered, s.settings.farming.growthSpeed);
     this.loop = new SurvivalLoop(this.clock, calendar, weather, this.survivor, new ActionRunner(), this.model, {
       outcome: (o) => this.outcome(o),
       fireHeat: (x, y) => this.fires.heat(x, y, this.clock.minutes),
+      extraCover: (x, y) => this.state.coveredAt(x, y),
     });
     if (typeof load?.modules?.['radioDay'] === 'number') this.loop.radioDay = load.modules['radioDay'] as number;
     s.session.survival = this.loop;
@@ -220,7 +231,7 @@ export class GameScene extends Phaser.Scene {
       moveTo: (x, y) => this.teleport(x, y),
       now: nowDays,
     };
-    this.crafting = new CraftService(this.state, this.inventory, this.survivor, this.fires, {
+    this.crafting = new CraftService(this.state, this.inventory, this.survivor, {
       start: (spec) => this.loop.start(spec),
       drop: worldHooks.drop,
       where: () => ({ x: this.player.x, y: this.player.y, facing: this.player.facingAngle }),
@@ -233,7 +244,7 @@ export class GameScene extends Phaser.Scene {
     const windows = new WindowInteractions(this.state, this.inventory, this.survivor, worldHooks);
     // Objeto quebrado/removido: o chunk é redesenhado (colisão e desenho somem juntos).
     const offProps = this.state.onChange((c) => {
-      if (c.type === 'prop' && c.removed) this.world.refreshChunk(this.model.index.chunkOfPoint(c.x, c.y));
+      if ((c.type === 'prop' && c.removed) || c.type === 'wall') this.world.refreshChunk(this.model.index.chunkOfPoint(c.x, c.y));
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, offProps);
     const playerBody = this.interactor;
@@ -243,7 +254,7 @@ export class GameScene extends Phaser.Scene {
       new ContainerInteractions(this.state, s.bus),
       new NatureInteractions(this.state, this.inventory, nowDays),
       new FurnitureInteractions(this.state, {
-        sleep: (place) => {
+        sleep: (place: SleepPlace) => {
           const why = this.loop.sleep({ place, blanket: this.inventory.hasTag('aquecer') });
           return why ? { ok: false, message: why } : { ok: true };
         },
@@ -266,12 +277,23 @@ export class GameScene extends Phaser.Scene {
       }),
     );
     this.interaction.add(
-      new StructureInteractions(this.state, this.inventory, {
+      new StructureInteractions(this.state, this.inventory, this.survivor, {
         start: (spec) => this.loop.start(spec),
         minutes: () => this.clock.minutes,
         openCraft: () => s.bus.emit('ui:tab', { tab: 'fabricar' }),
+        sleep: (place) => {
+          const why = this.loop.sleep({ place, blanket: this.inventory.hasTag('aquecer') });
+          return why ? { ok: false, message: why } : { ok: true };
+        },
+        rest: (where) => {
+          this.loop.start(restAction(this.survivor, (f) => (this.player.stats.stamina = Math.min(this.player.stats.maxStamina, this.player.stats.stamina + f * this.player.stats.maxStamina)), where));
+          return { ok: true };
+        },
+        noise: worldHooks.noise,
+        drop: (defId, count, st, x, y) => this.lootActions.dropLoose(defId, count, st, x, y),
       }),
     );
+    this.interaction.add(new DemolishInteractions(this.state, this.inventory, this.survivor, worldHooks));
     this.interaction.add(
       new WaterInteractions(this.state, this.inventory, this.survivor, {
         start: (spec) => this.loop.start(spec),
@@ -280,7 +302,7 @@ export class GameScene extends Phaser.Scene {
       }),
     );
     this.vehicleViews = new VehicleViews(this, this.state, this.world);
-    this.structureViews = new StructureViews(this, this.state, this.world, () => this.clock.minutes);
+    this.structureViews = new StructureViews(this, this.state, this.world, () => this.clock.minutes, () => ({ x: this.player.x, y: this.player.y }));
     this.highlight = new InteractionHighlight(this);
     new WindowViews(this, this.state, this.world);
     this.combatFx = new CombatFx(this);
@@ -325,6 +347,13 @@ export class GameScene extends Phaser.Scene {
         if (why) this.outcome({ ok: false, message: why, tone: 'warn' });
       }),
       s.bus.on('health:treat', (e) => this.treat(e.wound, e.option)),
+      s.bus.on('build:start', (e) => {
+        this.buildRecipe = e.recipe;
+        this.crafting.buildRot = 0;
+      }),
+      s.bus.on('build:confirm', () => this.confirmBuild()),
+      s.bus.on('build:rotate', () => (this.crafting.buildRot = (this.crafting.buildRot + 1) % 4)),
+      s.bus.on('build:cancel', () => (this.buildRecipe = null)),
       s.bus.on('craft:start', (e) => {
         const why = this.crafting.start(e.recipe);
         if (why) this.outcome({ ok: false, message: why, tone: 'warn' });
@@ -343,6 +372,7 @@ export class GameScene extends Phaser.Scene {
       s.session.survival = null;
       s.session.itemUse = null;
       s.session.crafting = null;
+      s.session.build = null;
       s.session.options = null;
       this.events.off(Phaser.Scenes.Events.POST_UPDATE, this.afterPhysics, this);
       s.session.stats = null;
@@ -386,7 +416,15 @@ export class GameScene extends Phaser.Scene {
     if (this.fireTimer <= 0) {
       this.fireTimer = 1;
       for (const f of this.fires.tick(this.clock.minutes, this.loop.weather.rain, this.player.x, this.player.y)) {
-        if (Math.hypot(f.x - this.player.x, f.y - this.player.y) < 500) this.outcome({ ok: false, message: 'A fogueira apagou.', tone: 'info' });
+        const fd = STRUCTURE_DEFS[f.type];
+        if (Math.hypot(f.x - this.player.x, f.y - this.player.y) < 500) this.outcome({ ok: false, message: `${fd.masc ? 'O' : 'A'} ${fd.name.toLowerCase()} apagou.`, tone: 'info' });
+      }
+    }
+    this.buildTimer -= delta / 1000;
+    if (this.buildTimer <= 0) {
+      this.buildTimer = 2;
+      for (const p of this.builds.tick(this.clock.minutes, this.loop.weather.rain, this.loop.weather.temp)) {
+        if (Math.hypot(p.x - this.player.x, p.y - this.player.y) < 600) this.outcome({ ok: false, message: 'Uma planta da horta morreu.', tone: 'warn' });
       }
     }
     this.player.setMoveEffects(fx.walk, fx.run);
@@ -417,6 +455,7 @@ export class GameScene extends Phaser.Scene {
     this.combatFx.update(this.dt);
     this.vehicleViews.update(this.dt);
     this.structureViews.update(this.dt);
+    this.updateBuildPreview();
     this.atmosphere.update(this.dt, this.cameras.main, {
       minuteOfDay: this.clock.minuteOfDay,
       weather: this.loop.weather,
@@ -447,6 +486,33 @@ export class GameScene extends Phaser.Scene {
   private lightLevel(): number {
     const lit = !!this.flashlight() || this.lightSources.length > 0;
     return Math.max(1 - this.atmosphere.darkness, lit ? 0.85 : 0);
+  }
+
+  // ---------------------------------------------------------------- modo construir
+
+  /** Prévia verde/vermelha na frente do jogador e o texto da barra. */
+  private updateBuildPreview(): void {
+    const s = this.s;
+    if (!this.buildRecipe) {
+      this.structureViews.hideGhost();
+      s.session.build = null;
+      return;
+    }
+    const p = this.crafting.preview(this.buildRecipe);
+    if (!p) {
+      this.buildRecipe = null;
+      return;
+    }
+    if (this.loop.runner.active) this.structureViews.hideGhost();
+    else this.structureViews.showGhost(p.type, p.at.x, p.at.y, p.at.rot, p.ok);
+    const d = STRUCTURE_DEFS[p.type];
+    s.session.build = { name: p.recipe.name, ok: p.ok, reason: p.reason, rotates: d.place === 'tile' && !!d.tiles && d.tiles[0] !== d.tiles[1] };
+  }
+
+  private confirmBuild(): void {
+    if (!this.buildRecipe || this.loop.runner.active) return;
+    const why = this.crafting.start(this.buildRecipe);
+    if (why) this.outcome({ ok: false, message: why, tone: 'warn' });
   }
 
   // ---------------------------------------------------------------- combate
@@ -734,6 +800,9 @@ export class GameScene extends Phaser.Scene {
       views: () => ({ doors: this.doors.count, doorColliders: this.doors.colliderCount(), items: this.items.count }),
       crafting: this.crafting,
       fires: this.fires,
+      builds: this.builds,
+      build: (recipe: string | null) => (this.buildRecipe = recipe),
+      confirmBuild: () => this.confirmBuild(),
       options: () => (this.requestOptions(), this.options.map((o) => o.label)),
       choose: (i: number) => this.chooseOption(i),
     };

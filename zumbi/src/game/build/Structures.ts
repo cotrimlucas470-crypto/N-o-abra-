@@ -30,9 +30,15 @@ export interface Structure {
   open?: 1;
   locked?: 1;
   /** Canteiro: o que foi plantado, quando, última rega (minutos do relógio) e adubo. */
-  crop?: { id: string; planted: number; watered: number; fert?: 1 };
+  crop?: { seed: string; planted: number; growth: number; watered: number; fert?: 1; dead?: 1 };
   /** Material usado (parede de madeira, tijolo, metal): muda desenho e resistência. */
   mat?: string;
+  /** Comprimento próprio (tábuas pregadas do tamanho da janela/porta). */
+  len?: number;
+  /** Onde foi pregada (janela ou porta do mapa). */
+  on?: string;
+  /** Minuto do relógio da última conta (água, horta). */
+  tickAt?: number;
 }
 
 export interface StructuresSave {

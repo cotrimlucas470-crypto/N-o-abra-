@@ -54,10 +54,11 @@ export class DoorInteractions implements InteractionProvider {
   private candidate(d: DoorPlacement, rect: Rect, distance: number): InteractionCandidate {
     const s = this.state.doorState(d.id)!;
     const name = doorLabel(d);
-    const verb = s.locked ? 'TRANCADA' : s.open ? 'FECHAR' : 'ABRIR';
-    const label = s.locked ? `${capitalize(name)} trancada` : `${s.open ? 'Fechar' : 'Abrir'} ${name}`;
+    const boarded = !!this.state.boardedOn(d.id);
+    const verb = boarded ? 'PREGADA' : s.locked ? 'TRANCADA' : s.open ? 'FECHAR' : 'ABRIR';
+    const label = boarded ? `${capitalize(name)} pregada com tábuas` : s.locked ? `${capitalize(name)} trancada` : `${s.open ? 'Fechar' : 'Abrir'} ${name}`;
     return {
-      target: { key: `porta:${d.id}`, kind: 'door', x: d.x, y: d.y, rect, verb, label, enabled: !s.locked },
+      target: { key: `porta:${d.id}`, kind: 'door', x: d.x, y: d.y, rect, verb, label, enabled: !s.locked && !boarded },
       distance,
       perform: () => this.toggle(d, rect),
     };
@@ -66,6 +67,7 @@ export class DoorInteractions implements InteractionProvider {
   private toggle(d: DoorPlacement, rect: Rect): { ok: boolean; message?: string } {
     const s = this.state.doorState(d.id);
     if (!s) return { ok: false };
+    if (this.state.boardedOn(d.id)) return { ok: false, message: 'Pregada com tábuas. Arranque as tábuas antes (pé de cabra ou martelo).' };
     if (s.locked) {
       this.bus.emit('world:noise', { x: d.x, y: d.y, radius: DOOR_TUNING.lockedRattleRadius, source: 'maçaneta' });
       return { ok: false, message: 'Trancada.' };

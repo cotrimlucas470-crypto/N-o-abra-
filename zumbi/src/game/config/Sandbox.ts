@@ -67,6 +67,10 @@ export interface SandboxSettings {
     /** Dias com gás no fogão (0 = já cortado). Depois, só fogueira e fogão a lenha. */
     gasDays: number;
   };
+  farming: {
+    /** Velocidade da horta (1 = realista: tomate em 60 dias; 4 = 15 dias). */
+    growthSpeed: number;
+  };
   nature: {
     /** Dias para uma árvore frutífera repor um fruto. */
     fruitRegrowDays: number;
@@ -86,6 +90,7 @@ export const SANDBOX_DEFAULTS: SandboxSettings = {
   loot: { abundance: 1, rareMultiplier: 1, alreadyLooted: 0, collapseAgeDays: 0, floorItems: 1 },
   survival: { hungerRate: 1, thirstRate: 1, fatigueRate: 1 },
   utilities: { waterDays: 12, gasDays: 18 },
+  farming: { growthSpeed: 4 },
   nature: { fruitRegrowDays: 3, density: 1 },
 };
 
@@ -152,6 +157,9 @@ export function sanitizeSandbox(input: DeepPartial<SandboxSettings> | null | und
     utilities: {
       waterDays: num(i.utilities?.waterDays, d.utilities.waterDays, 0, 365, true),
       gasDays: num(i.utilities?.gasDays, d.utilities.gasDays, 0, 365, true),
+    },
+    farming: {
+      growthSpeed: num(i.farming?.growthSpeed, d.farming.growthSpeed, 0.25, 30),
     },
     nature: {
       fruitRegrowDays: num(i.nature?.fruitRegrowDays, d.nature.fruitRegrowDays, 0.5, 60),
