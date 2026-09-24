@@ -5,12 +5,17 @@ O desenvolvimento é feito **pelo celular** (Claude Code na nuvem). Toda comunic
 
 ## Regras do projeto
 
-- Uma **fase** por vez (docs/ROADMAP.md; especificação em docs/PLANO-GERAL.md e docs/ZUMBIS.md).
-  Não avançar de fase sem pedido explícito. Fase grande vira subfases.
-- Depois de cada fase: verificar todos os arquivos, procurar e corrigir bugs, checar desempenho e controles,
-  garantir que nada que funcionava quebrou, **registrar em docs/FASES.md**.
-- Filosofia: sandbox emergente. Nada de ondas, hordas por horário, spawn perto do jogador, loot infinito
-  ou evento que obrigue combate. Consequências vêm dos sistemas (som, luz, peso, ferimento, estado do mundo).
+- Uma **etapa** por vez, na ordem de docs/ROADMAP.md (29 etapas; especificação em docs/PLANO-GERAL.md e
+  docs/ZUMBIS.md). Etapa grande vira subetapas. Antes de escrever código, analisar o que já existe;
+  não reescrever o que funciona.
+- Depois de cada etapa: verificar todos os arquivos, procurar e corrigir bugs, checar desempenho e controles,
+  garantir que nada que funcionava quebrou, salvar uma versão funcionando (commit), **registrar em docs/FASES.md**.
+- **Não alterar o traçado do mapa expandido** sem necessidade. O teste "mapa expandido preservado"
+  (`tests/interaction.test.ts`) trava a impressão digital; conteúdo novo entra como camada (portas, itens...).
+- Filosofia: sandbox emergente, profundidade de sobrevivência sistêmica (referência: Project Zomboid, sem
+  copiar nada). Nada de ondas, hordas por horário ou à noite, spawn perto do jogador, loot infinito, item
+  gerado por tempo ou evento que obrigue combate. Consequências vêm dos sistemas (som, luz, peso, ferimento,
+  estado do mundo).
 - **Nunca** destruir sistemas antigos sem necessidade. Arquitetura modular; nada de arquivo gigante.
 - **Nunca apagar um save sem confirmação**; backup automático quando houver save.
 - Jogo **original**: não copiar nomes, personagens, mapas, sprites, interface, sons ou textos de outros jogos.
@@ -35,7 +40,11 @@ Olhe os prints de `smoke-out/` antes de dizer que ficou bonito. Headless roda a 
   mesma malha); plantas em `world/buildings/templates.ts`. Os testes de integridade conferem várias
   cidades: todo cômodo acessível pelo jogador e pela grade de navegação.
 - O mundo como dado é o `WorldModel` (mapa + chunks + `NavGrid` + `SightGrid`); o Phaser só desenha os
-  chunks perto da câmera (`WorldRenderer`). Nada de criar objeto do mundo fora do streaming de chunks.
+  chunks perto da câmera (`WorldRenderer`). Nada de criar objeto do mundo fora do streaming de chunks:
+  conteúdo dinâmico se inscreve em `WorldRenderer.onChunk()` (ver `render/DoorViews.ts`, `ItemViews.ts`).
+- O que muda em jogo é **estado** (`sim/WorldState.ts`), nunca o `MapData`. Tudo serializa (save por diferenças).
+- Item novo = entrada em `items/ItemCatalog.ts` + ícone em `assets/procedural/items.ts`.
+- Coisa interativa nova = provedor em `interaction/` (o botão, o aviso e o destaque já funcionam).
 - Ajustes de partida em `config/Sandbox.ts` (com faixa válida). Nada de número de balanceamento solto.
 - Ferramentas de debug em `debug/` + `scenes/DebugScene.ts` (só com `?debug`). Cada sistema novo ganha a sua camada.
 - Sistemas se falam pelo `EventBus` (tipado em `core/EventBus.ts`).

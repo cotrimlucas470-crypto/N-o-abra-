@@ -64,9 +64,8 @@ export function generateAssets(textures: Phaser.Textures.TextureManager, registr
   }
 
   // Ícones dos itens (chão e inventário).
-  for (const def of Object.values(ITEM_DEFS)) {
-    drawSprite(def.icon, ITEM_ICON_SIZE, ITEM_ICON_SIZE, { [def.icon]: (c, w) => ITEM_DRAWERS[def.icon]?.(c, w) });
-  }
+  const itemDrawers = Object.fromEntries(Object.entries(ITEM_DRAWERS).map(([id, draw]) => [id, (c: CanvasRenderingContext2D, w: number) => draw(c, w)]));
+  for (const def of Object.values(ITEM_DEFS)) drawSprite(def.icon, ITEM_ICON_SIZE, ITEM_ICON_SIZE, itemDrawers);
 
   // Personagem: folhas animadas (a menos que haja spritesheet substituta).
   if (!textures.exists(overrideKey('player.torso'))) {

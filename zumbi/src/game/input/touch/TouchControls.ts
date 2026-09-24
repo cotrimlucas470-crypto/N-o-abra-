@@ -13,7 +13,7 @@ import Phaser from 'phaser';
 import { DEBUG } from '../../core/Debug';
 import { canFullscreen, isFullscreen } from '../../systems/fullscreen';
 import type { GameServices } from '../../core/Services';
-import { iconCrosshair, iconFullscreen, iconPause, iconRun } from '../../ui/icons';
+import { iconBag, iconCrosshair, iconFullscreen, iconHand, iconPause, iconRun } from '../../ui/icons';
 import { UI } from '../../ui/theme';
 import { loadLayout, placementFor, resolvePlacement, uiScaleFor, type ControlId, type ControlsLayoutData } from './ControlsLayout';
 import { TouchButton } from './TouchButton';
@@ -22,6 +22,8 @@ import { VirtualJoystick } from './VirtualJoystick';
 export interface TouchControlsCallbacks {
   onPause: () => void;
   onFullscreen: () => void;
+  onInteract: () => void;
+  onInventory: () => void;
 }
 
 const DEPTH = 100;
@@ -30,6 +32,8 @@ export class TouchControls {
   readonly move: VirtualJoystick;
   readonly aim: VirtualJoystick;
   readonly sprint: TouchButton;
+  readonly interact: TouchButton;
+  readonly inventory: TouchButton;
   readonly pause: TouchButton;
   readonly fullscreen: TouchButton;
   private layoutData: ControlsLayoutData = loadLayout();
@@ -37,6 +41,8 @@ export class TouchControls {
   private enabled = true;
   private cssW = 0;
   private cssH = 0;
+  /** Área ocupada por um painel do HUD: toques ali não viram joystick nem botão. */
+  private blocker: ((x: number, y: number) => boolean) | null = null;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -48,6 +54,8 @@ export class TouchControls {
     this.move = new VirtualJoystick(scene, { deadzone: 0.12, accent: UI.accentNum }, DEPTH);
     this.aim = new VirtualJoystick(scene, { deadzone: 0.18, accent: 0xd8d2c0, drawIcon: iconCrosshair }, DEPTH);
     this.sprint = new TouchButton(scene, iconRun, DEPTH + 1, { accent: UI.accentNum });
+    this.interact = new TouchButton(scene, iconHand, DEPTH + 1, { accent: UI.accentNum });
+    this.inventory = new TouchButton(scene, iconBag, DEPTH + 1, { accent: UI.accentNum, hitScale: 1.4 });
     this.pause = new TouchButton(scene, iconPause, DEPTH + 1, { accent: UI.accentNum, hitScale: 1.5, subtle: true });
     this.fullscreen = new TouchButton(
       scene,
@@ -91,10 +99,18 @@ export class TouchControls {
     this.aim.setLayout(a.x, a.y, a.radius, cssW, cssH);
     const sp = at('sprint');
     this.sprint.setLayout(sp.x, sp.y, sp.radius);
+    const it = at('interact');
+    this.interact.setLayout(it.x, it.y, it.radius);
+    const inv = at('inventory');
+    this.inventory.setLayout(inv.x, inv.y, inv.radius);
     const p = at('pause');
     this.pause.setLayout(p.x, p.y, p.radius);
     const f = at('fullscreen');
     this.fullscreen.setLayout(f.x, f.y, f.radius);
+  }
+
+  setPointerBlocker(fn: ((x: number, y: number) => boolean) | null): void {
+    this.blocker = fn;
   }
 
   /** Desliga os controles (pausa, menus) soltando qualquer dedo. */
@@ -108,6 +124,8 @@ export class TouchControls {
     this.move.end();
     this.aim.end();
     this.sprint.release();
+    this.interact.release();
+    this.inventory.release();
     this.pause.release();
     this.fullscreen.release();
     this.s.touch.reset();
@@ -119,6 +137,8 @@ export class TouchControls {
     this.move.setVisible(t);
     this.aim.setVisible(t);
     this.sprint.setVisible(t);
+    this.interact.setVisible(t);
+    this.inventory.setVisible(t);
     this.pause.setVisible(true);
     // Só mostra o botão onde o navegador realmente permite tela cheia.
     this.fullscreen.setVisible(canFullscreen());
@@ -140,7 +160,13 @@ export class TouchControls {
     const { x, y } = this.toUi(p);
 
     if (!this.enabled) return;
-    for (const b of [this.pause, this.fullscreen, this.sprint]) {
+    // O botão do inventário fecha o painel mesmo que ele esteja por perto.
+    if (this.inventory.pointerId === null && this.inventory.hit(x, y)) {
+      this.inventory.press(p.id);
+      return;
+    }
+    if (this.blocker?.(x, y)) return;
+    for (const b of [this.pause, this.fullscreen, this.sprint, this.interact]) {
       if (b.pointerId === null && b.hit(x, y)) {
         b.press(p.id);
         return;
@@ -178,6 +204,14 @@ export class TouchControls {
       this.sprint.release();
       if (this.sprint.hit(x, y)) this.s.touch.sprintToggled = !this.s.touch.sprintToggled;
     }
+    if (this.interact.pointerId === p.id) {
+      this.interact.release();
+      if (this.interact.hit(x, y)) this.cb.onInteract();
+    }
+    if (this.inventory.pointerId === p.id) {
+      this.inventory.release();
+      if (this.inventory.hit(x, y)) this.cb.onInventory();
+    }
     if (this.pause.pointerId === p.id) {
       this.pause.release();
       if (this.pause.hit(x, y)) this.cb.onPause();
@@ -200,8 +234,11 @@ export class TouchControls {
     t.aim = { ...this.aim.value, active: this.aim.isActive };
   }
 
-  /** 1x por quadro: visual do botão Correr e rede de segurança contra dedo "preso". */
-  update(sprintBlocked: boolean): void {
+  /**
+   * 1x por quadro: visual dos botões e rede de segurança contra dedo "preso".
+   * `interact`: null = nada ao alcance (botão apagado); false = alvo sem ação (trancada).
+   */
+  update(sprintBlocked: boolean, interact: boolean | null = null, inventoryOpen = false): void {
     // Se o sistema engolir o "soltar" (gesto do Android, notificação...),
     // o ponteiro deixa de estar pressionado e o joystick volta ao centro.
     const pointers = this.scene.input.manager.pointers;
@@ -216,6 +253,8 @@ export class TouchControls {
       this.publish();
     }
     this.sprint.setState(this.s.touch.sprintToggled, sprintBlocked);
+    this.interact.setState(interact === true, interact === null);
+    this.inventory.setState(inventoryOpen, false);
   }
 
   refreshFullscreenIcon(): void {

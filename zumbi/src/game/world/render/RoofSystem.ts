@@ -70,6 +70,11 @@ export class RoofSystem {
     this.loaded.delete(id);
   }
 
+  /** Opacidade atual do telhado (1 = fechado, 0 = jogador dentro). */
+  alphaOf(buildingId: string): number {
+    return this.loaded.get(buildingId)?.container.alpha ?? 1;
+  }
+
   get loadedCount(): number {
     return this.loaded.size;
   }

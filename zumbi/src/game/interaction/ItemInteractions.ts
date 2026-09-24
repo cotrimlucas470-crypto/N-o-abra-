@@ -22,6 +22,7 @@ export class ItemInteractions implements InteractionProvider {
       const def = itemDef(it.defId);
       if (!def) continue;
       if (!sight.hasLineOfSight(who.x, who.y, it.x, it.y)) continue;
+      if (this.state.closedDoorBetween(who.x, who.y, it.x, it.y)) continue; // vidro fechado: vê, mas não alcança
       const distance = Math.hypot(it.x - who.x, it.y - who.y);
       const count = it.count > 1 ? ` ×${it.count}` : '';
       out.push({

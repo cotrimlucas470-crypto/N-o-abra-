@@ -19,7 +19,7 @@ import { itemDef } from '../items/ItemCatalog';
 import { doorGapRect } from '../world/doors';
 import type { DoorPlacement } from '../world/MapTypes';
 import type { WorldModel } from '../world/WorldModel';
-import { chunkKeyAt } from './ChunkGrid';
+import { chunkKey, chunkKeyAt, chunkOf } from './ChunkGrid';
 
 export interface DoorState {
   open: boolean;
@@ -112,6 +112,26 @@ export class WorldState {
     s.locked = locked;
     this.emit({ type: 'door', door: this.model.map.doors[i]!, state: s });
     return true;
+  }
+
+  /**
+   * Alguma porta FECHADA corta o segmento A→B? Serve para o que a SightGrid
+   * não pega: porta de vidro fechada deixa ver, mas não deixa passar a mão.
+   * (Segmentos curtos: olha só os chunks das pontas e vizinhos.)
+   */
+  closedDoorBetween(ax: number, ay: number, bx: number, by: number): boolean {
+    const map = this.model.map;
+    const a = chunkOf(Math.min(ax, bx), Math.min(ay, by));
+    const b = chunkOf(Math.max(ax, bx), Math.max(ay, by));
+    for (let cy = a.cy - 1; cy <= b.cy + 1; cy++) {
+      for (let cx = a.cx - 1; cx <= b.cx + 1; cx++) {
+        for (const i of this.model.index.get(chunkKey(cx, cy))?.doors ?? []) {
+          if (this.doors[i]!.open) continue;
+          if (segmentHitsRect(ax, ay, bx, by, doorGapRect(map.doors[i]!))) return true;
+        }
+      }
+    }
+    return false;
   }
 
   /** Porta fechada: obstáculo para quem anda (NavGrid) e, se opaca, para quem olha (SightGrid). */
@@ -257,6 +277,27 @@ export class WorldState {
     }
     this.nextItem = Math.max(this.nextItem, save.nextItem ?? 1);
   }
+}
+
+/** Segmento × retângulo (Liang–Barsky). */
+function segmentHitsRect(ax: number, ay: number, bx: number, by: number, r: { x: number; y: number; w: number; h: number }): boolean {
+  let t0 = 0;
+  let t1 = 1;
+  const dx = bx - ax;
+  const dy = by - ay;
+  const clip = (p: number, q: number): boolean => {
+    if (p === 0) return q >= 0;
+    const t = q / p;
+    if (p < 0) {
+      if (t > t1) return false;
+      if (t > t0) t0 = t;
+    } else {
+      if (t < t0) return false;
+      if (t < t1) t1 = t;
+    }
+    return true;
+  };
+  return clip(-dx, ax - r.x) && clip(dx, r.x + r.w - ax) && clip(-dy, ay - r.y) && clip(dy, r.y + r.h - ay) && t0 <= t1;
 }
 
 /** Estado inicial de uma porta: sorteio determinístico por semente + id. */

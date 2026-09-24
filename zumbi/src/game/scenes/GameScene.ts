@@ -13,6 +13,17 @@ import { CameraDirector } from '../systems/CameraDirector';
 import { createDebugState, type DebugState } from '../debug/DebugState';
 import { DebugWorldLayer } from '../debug/DebugWorldLayer';
 import { GameClock } from '../sim/GameClock';
+import { WorldState } from '../sim/WorldState';
+import { INTERACTION_TUNING } from '../config/WorldTuning';
+import { PLAYER_TUNING } from '../config/PlayerTuning';
+import { DoorInteractions } from '../interaction/DoorInteractions';
+import { InteractionSystem, type Interactor } from '../interaction/InteractionSystem';
+import { ItemInteractions } from '../interaction/ItemInteractions';
+import { allItemIds, itemDef } from '../items/ItemCatalog';
+import { PlayerInventory } from '../items/PlayerInventory';
+import { DoorViews } from '../world/render/DoorViews';
+import { InteractionHighlight } from '../world/render/InteractionHighlight';
+import { ItemViews } from '../world/render/ItemViews';
 import { buildCity } from '../world/districts/CityGenerator';
 import type { RegionData } from '../world/MapTypes';
 import { WorldModel } from '../world/WorldModel';
@@ -33,6 +44,15 @@ export class GameScene extends Phaser.Scene {
   private debugLayer: DebugWorldLayer | null = null;
   /** Tempo de jogo acumulado (s) — soma dos deltas que a física usou. */
   private elapsed = 0;
+  private state!: WorldState;
+  private inventory!: PlayerInventory;
+  private doors!: DoorViews;
+  private items!: ItemViews;
+  private itemActions!: ItemInteractions;
+  private interaction!: InteractionSystem;
+  private highlight!: InteractionHighlight;
+  private scanTimer = 0;
+  private readonly interactor: Interactor = { x: 0, y: 0, radius: PLAYER_TUNING.bodyRadius, facing: 0 };
 
   constructor() {
     super(SCENES.game);
@@ -57,6 +77,18 @@ export class GameScene extends Phaser.Scene {
     this.clock = new GameClock(s.settings.time);
     s.session.clock = this.clock;
 
+    // Estado do mundo (portas, itens) + o que o jogador carrega + interação.
+    // Criados antes de carregar os chunks: o desenho de portas/itens entra junto.
+    this.state = new WorldState(this.model);
+    this.inventory = new PlayerInventory();
+    s.session.inventory = this.inventory;
+    this.doors = new DoorViews(this, this.state, this.world);
+    this.items = new ItemViews(this, this.state, this.world, assets);
+    this.itemActions = new ItemInteractions(this.state, this.inventory);
+    const playerBody = this.interactor;
+    this.interaction = new InteractionSystem([new DoorInteractions(this.state, s.bus, () => [playerBody]), this.itemActions]);
+    this.highlight = new InteractionHighlight(this);
+
     const cam = this.cameras.main;
     cam.setBounds(0, 0, this.world.widthPx, this.world.heightPx);
     cam.setBackgroundColor('#15161a');
@@ -67,6 +99,7 @@ export class GameScene extends Phaser.Scene {
     cam.fadeIn(600, 10, 10, 12);
 
     this.keyboardMouse = new KeyboardMouseInput(this);
+    this.input.keyboard?.on('keydown-E', () => this.interact());
 
     // Depois da física: alinhar visuais, câmera e mundo com a posição final do frame.
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, this.afterPhysics, this);
@@ -76,9 +109,15 @@ export class GameScene extends Phaser.Scene {
       this.director.setZoom(s.viewport.worldZoom());
       this.loadAroundPlayer();
     });
+    const offInteract = s.bus.on('input:interact', () => this.interact());
+    const offDrop = s.bus.on('inventory:drop', (e) => this.drop(e.containerId, e.index, e.count));
     this.events.on(Phaser.Scenes.Events.PAUSE, () => this.keyboardMouse.reset(s.keyboardMouse));
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       offViewport();
+      offInteract();
+      offDrop();
+      s.session.inventory = null;
+      s.session.interaction = null;
       this.events.off(Phaser.Scenes.Events.POST_UPDATE, this.afterPhysics, this);
       s.session.stats = null;
       s.session.clock = null;
@@ -87,7 +126,7 @@ export class GameScene extends Phaser.Scene {
     this.scene.launch(SCENES.hud);
     if (DEBUG.enabled) {
       this.debugState = createDebugState();
-      this.debugLayer = new DebugWorldLayer(this, this.model, this.debugState, () => this.world.loadedChunkKeys());
+      this.debugLayer = new DebugWorldLayer(this, this.model, this.debugState, () => this.world.loadedChunkKeys(), this.state, s.bus);
       this.scene.launch(SCENES.debug);
     }
 
@@ -100,7 +139,7 @@ export class GameScene extends Phaser.Scene {
     this.elapsed += delta / 1000;
     this.clock.update(delta / 1000);
     const s = this.s;
-    this.keyboardMouse.read(s.keyboardMouse, this.player.x, this.player.y, this.cameras.main);
+    this.keyboardMouse.read(s.keyboardMouse, this.player.x, this.player.y, this.cameras.main, s.session.pointerOverUi);
     const intent = resolveIntent(s.touch, s.keyboardMouse);
     this.player.update(this.dt, intent);
   }
@@ -111,7 +150,47 @@ export class GameScene extends Phaser.Scene {
     // Região antes do mundo: o aviso da região sai antes do aviso da construção.
     this.trackRegion();
     this.world.update(this.cameras.main, this.player.x, this.player.y, this.dt);
+    this.doors.update(this.dt);
+    this.scanTimer -= this.dt;
+    if (this.scanTimer <= 0) {
+      this.scanTimer = 1 / INTERACTION_TUNING.scanHz;
+      this.scanInteraction();
+    }
+    this.highlight.update(this.dt);
     this.debugLayer?.update(this.player.x, this.player.y, this.dt);
+  }
+
+  // ---------------------------------------------------------------- interação
+
+  private syncInteractor(): Interactor {
+    const i = this.interactor;
+    i.x = this.player.x;
+    i.y = this.player.y;
+    i.facing = this.player.facingAngle;
+    return i;
+  }
+
+  private scanInteraction(): void {
+    const target = this.interaction.scan(this.syncInteractor());
+    this.s.session.interaction = target;
+    this.highlight.set(target);
+  }
+
+  /** Botão Interagir / tecla E. */
+  interact(): void {
+    if (this.s.session.paused) return;
+    const r = this.interaction.perform(this.syncInteractor());
+    this.s.session.interaction = this.interaction.current;
+    this.highlight.set(this.interaction.current);
+    if (r?.message) this.s.bus.emit('player:feedback', { text: r.message, tone: r.ok ? 'ok' : 'warn' });
+  }
+
+  private drop(containerId: string, index: number, count: number): void {
+    const c = this.inventory.containers.find((x) => x.id === containerId);
+    if (!c) return;
+    const r = this.itemActions.drop(c, index, count, this.player.x, this.player.y);
+    if (r.message) this.s.bus.emit('player:feedback', { text: r.message, tone: 'info' });
+    this.scanInteraction();
   }
 
   // ---------------------------------------------------------------- consultas (debug, testes)
@@ -134,6 +213,34 @@ export class GameScene extends Phaser.Scene {
 
   debugInfo(): string {
     return this.debugLayer?.info ?? '';
+  }
+
+  /** Debug: larga um item qualquer do catálogo aos pés do jogador (não existe no jogo normal). */
+  debugSpawnItem(): string {
+    const ids = allItemIds();
+    const id = ids[Math.floor(Math.random() * ids.length)]!;
+    this.state.dropItem(id, 1, this.player.x + (Math.random() - 0.5) * 20, this.player.y + (Math.random() - 0.5) * 20);
+    this.scanInteraction();
+    return itemDef(id)?.name ?? id;
+  }
+
+  /** Debug: tranca/destranca a porta que está no alvo de interação. */
+  debugToggleLock(): string {
+    const t = this.interaction.current;
+    if (!t || t.kind !== 'door') return 'chegue perto de uma porta';
+    const id = t.key.slice('porta:'.length);
+    const st = this.state.doorState(id);
+    if (!st) return 'porta desconhecida';
+    if (st.open) return 'feche a porta antes';
+    this.state.setDoorLocked(id, !st.locked);
+    this.scanInteraction();
+    return st.locked ? 'trancada' : 'destrancada';
+  }
+
+  /** Números de portas/itens para o painel de debug. */
+  interactionStats(): string {
+    const target = this.interaction.current;
+    return `portas ${this.doors.count} (${this.doors.colliderCount()} fech.) · itens ${this.items.count}/${this.state.itemCount} · ${this.inventory.weight.toFixed(2)} kg` + (target ? `\nalvo: ${target.label}` : '');
   }
 
   /** Carrega de uma vez os chunks da tela (início, teleporte, mudança de tamanho de tela). */
@@ -170,6 +277,11 @@ export class GameScene extends Phaser.Scene {
       teleport: (x: number, y: number) => this.teleport(x, y),
       map: this.model.map,
       model: this.model,
+      state: this.state,
+      inventory: this.inventory,
+      interaction: () => this.interaction.current,
+      interact: () => this.interact(),
+      views: () => ({ doors: this.doors.count, doorColliders: this.doors.colliderCount(), items: this.items.count }),
     };
   }
 }

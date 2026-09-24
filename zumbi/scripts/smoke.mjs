@@ -97,6 +97,39 @@ try {
     const S = await page.evaluate(() => window.__TDR__.map.regions.find((r) => r.id === 'setor-1').rect);
     const at = (tx, ty) => [S.x + tx * 64, S.y + ty * 64];
     const p0 = await pos(page);
+    const scale = Math.max(0.78, Math.min(1.35, 390 / 400));
+    const tap = async (x, y, id = 9) => {
+      await touch('touchStart', [{ x, y, id }]);
+      await sleep(70);
+      await touch('touchEnd', []);
+      await sleep(250);
+    };
+    // A porta do abrigo começa fechada: anda até ela e esbarra.
+    const door = await page.evaluate(() => window.__TDR__.map.doors.find((d) => d.buildingId === 'abrigo' && d.exterior));
+    const doorOpen = () => page.evaluate((id) => window.__TDR__.state.doorState(id).open, door.id);
+    check(!(await doorOpen()), 'porta do abrigo começa fechada');
+    await touch('touchStart', [{ x: 130, y: 250, id: 1 }]);
+    await touch('touchMove', [{ x: 130, y: 310, id: 1 }]);
+    await sleep(1500);
+    await touch('touchEnd', []);
+    const pd = await pos(page);
+    check(pd.y < door.y - 7 - 12, `porta fechada segura o jogador (y=${Math.round(pd.y)}, porta em ${Math.round(door.y)})`);
+    await sleep(300);
+    const tgt = await page.evaluate(() => window.__TDR__.interaction());
+    check(tgt?.kind === 'door' && tgt?.verb === 'ABRIR', `perto da porta o alvo é ABRIR (${tgt?.label})`);
+    await page.screenshot({ path: OUT + '02b-porta-fechada.png' });
+    // botão Interagir: âncora inferior direita (250, 168) * escala
+    await tap(844 - 250 * scale, 390 - 168 * scale);
+    await sleep(400);
+    check(await doorOpen(), 'botão Interagir abre a porta');
+    const noNav = await page.evaluate((d) => {
+      const nav = window.__TDR__.model.nav;
+      const c = nav.cellOf(d.x, d.y);
+      return nav.isBlocked(c.cx, c.cy);
+    }, door);
+    check(!noNav, 'porta aberta libera a grade de navegação');
+    await page.screenshot({ path: OUT + '02c-porta-aberta.png' });
+
     // joystick esquerdo: toca e arrasta para BAIXO (sai pela porta do abrigo)
     await touch('touchStart', [{ x: 130, y: 250, id: 1 }]);
     for (let i = 1; i <= 6; i++) {
@@ -131,7 +164,6 @@ try {
     await page.evaluate(([x, y]) => window.__TDR__.teleport(x, y), at(8, 29));
     await sleep(200);
     // botão correr: âncora inferior direita (262, 70) * escala
-    const scale = Math.max(0.78, Math.min(1.35, 390 / 400));
     const sx = 844 - 262 * scale;
     const sy = 390 - 70 * scale;
     // 1) toca no botão Correr (liga), 2) segura o joystick para a direita
@@ -165,6 +197,47 @@ try {
     check(inside === 'Mercadinho', `detecta interior (${inside})`);
     await sleep(500);
     await page.screenshot({ path: OUT + '06-mercadinho.png' });
+
+    // itens: pega o martelo da bancada do abrigo, abre o inventário e larga
+    const hammer = await page.evaluate(() => window.__TDR__.map.items.find((i) => i.defId === 'martelo'));
+    await page.evaluate(([x, y]) => window.__TDR__.teleport(x, y), [hammer.x + 10, hammer.y - 40]);
+    await sleep(500);
+    const itemTarget = await page.evaluate(() => window.__TDR__.interaction());
+    check(itemTarget?.kind === 'item' && itemTarget.label === 'Pegar Martelo', `alvo é o item (${itemTarget?.label})`);
+    const itemsBefore = await page.evaluate(() => window.__TDR__.state.itemCount);
+    await tap(844 - 250 * scale, 390 - 168 * scale);
+    await sleep(300);
+    const carried = await page.evaluate(() => window.__TDR__.inventory.carried.countOf('martelo'));
+    check(carried === 1, `Interagir pega o item (${carried} martelo)`);
+    check((await page.evaluate(() => window.__TDR__.state.itemCount)) === itemsBefore - 1, 'item saiu do chão');
+    // botão Inventário: âncora inferior direita (46, 246)
+    await tap(844 - 46 * scale, 390 - 246 * scale);
+    await sleep(300);
+    const hud = () => page.evaluate(() => {
+      const h = window.__TDR__.scene.scene.get('Hud');
+      const inv = h.inventory;
+      return { open: inv.isOpen, listTop: inv.listTop, box: inv.box, k: inv.k, drop: { x: inv.dropOne.x, y: inv.dropOne.y, visible: inv.dropOne.visible } };
+    });
+    let panel = await hud();
+    check(panel.open, 'botão Inventário abre o painel');
+    await tap(panel.box.x + panel.box.w / 2, panel.listTop + 20 * panel.k); // primeira linha
+    await sleep(200);
+    panel = await hud();
+    await page.screenshot({ path: OUT + '06b-inventario.png' });
+    check(panel.drop.visible, 'tocar no item mostra LARGAR');
+    await tap(panel.drop.x, panel.drop.y);
+    await sleep(300);
+    const afterDrop = await page.evaluate(() => ({ n: window.__TDR__.inventory.carried.countOf('martelo'), items: window.__TDR__.state.itemCount }));
+    check(afterDrop.n === 0 && afterDrop.items === itemsBefore, `LARGAR devolve o item ao chão (${afterDrop.n} no bolso, ${afterDrop.items} no mundo)`);
+    const moved = await pos(page);
+    await touch('touchStart', [{ x: 130, y: 250, id: 1 }]);
+    await touch('touchMove', [{ x: 190, y: 250, id: 1 }]);
+    await sleep(500);
+    await touch('touchEnd', []);
+    const moved2 = await pos(page);
+    check(Math.abs(moved2.x - moved.x) > 30, `dá para andar com o inventário aberto (dx=${Math.round(moved2.x - moved.x)})`);
+    await tap(844 - 46 * scale, 390 - 246 * scale);
+    check(!(await hud()).open, 'botão Inventário fecha o painel');
 
     // pausa (canto superior direito)
     const pscale = scale;
@@ -207,12 +280,6 @@ try {
     check(far.chunks <= 40, `descarrega o que ficou longe (${far.chunks} chunks carregados)`);
 
     // painel de debug: abrir, ligar camadas, marcar alvo (visão + rota), mapa com teleporte
-    const tap = async (x, y, id = 9) => {
-      await touch('touchStart', [{ x, y, id }]);
-      await sleep(70);
-      await touch('touchEnd', []);
-      await sleep(250);
-    };
     await page.evaluate(([x, y]) => window.__TDR__.teleport(x, y), at(20, 20));
     await sleep(400);
     await tap(844 - 40, 88); // DBG
@@ -238,6 +305,19 @@ try {
     const after = await pos(page);
     check(Math.hypot(after.x - before.x, after.y - before.y) > 200, `debug: teleporte pelo mapa (${Math.round(before.x)},${Math.round(before.y)} → ${Math.round(after.x)},${Math.round(after.y)})`);
     for (const i of [0, 1, 2, 3]) await tap(...btn(i)); // desliga tudo
+    // portas + ruído + gerar item, perto do abrigo
+    await tap(...btn(7)); // portas
+    await tap(...btn(8)); // ruído
+    const sd = await page.evaluate(() => window.__TDR__.map.doors.find((d) => d.buildingId === 'abrigo' && d.exterior));
+    await page.evaluate(([x, y]) => window.__TDR__.teleport(x, y), [sd.x, sd.y + 60]);
+    await sleep(400);
+    await page.evaluate(() => window.__TDR__.interact()); // abre/fecha a porta: faz barulho
+    const n0 = await page.evaluate(() => window.__TDR__.state.itemCount);
+    await tap(...btn(9)); // gerar item
+    const n1 = await page.evaluate(() => window.__TDR__.state.itemCount);
+    check(n1 === n0 + 1, `debug: gerar item larga um item no chão (${n0} → ${n1})`);
+    await page.screenshot({ path: OUT + '17-debug-portas-ruido.png' });
+    for (const i of [7, 8]) await tap(...btn(i));
     await tap(844 - 40, 88); // fecha
 
     const cull = await page.evaluate(() => window.__TDR__.culler());
@@ -283,6 +363,14 @@ try {
     await page.goto(BASE + '?direto#debug');
     await waitGame(page);
     await page.screenshot({ path: OUT + '11-retrato.png' });
+    // inventário em pé: painel em cima, botões embaixo livres
+    const ps = Math.max(0.78, Math.min(1.35, 390 / 400));
+    await page.evaluate(() => window.__TDR__.inventory.add('agua', 3));
+    await page.evaluate(() => window.__TDR__.scene.scene.get('Hud').inventory.toggle());
+    await sleep(400);
+    await page.screenshot({ path: OUT + '11b-retrato-inventario.png' });
+    const pbox = await page.evaluate(() => window.__TDR__.scene.scene.get('Hud').inventory.box);
+    check(pbox.y + pbox.h < 844 - 332 * ps - 25 * ps, `retrato: painel não cobre o botão do inventário (fim ${Math.round(pbox.y + pbox.h)})`);
     check(errors.length === 0, `retrato sem erros (${errors.length}) ${errors.slice(0, 3).join(' | ')}`);
     await ctx.close();
   }
@@ -305,12 +393,22 @@ try {
       throw new Error('PC não iniciou: ' + errors.join(' | '));
     }
     const k0 = await pos(page);
-    await page.keyboard.down('KeyS');
+    await page.keyboard.down('KeyD');
     await sleep(1000);
-    await page.keyboard.up('KeyS');
+    await page.keyboard.up('KeyD');
     const k1 = await pos(page);
-    const kv = (k1.y - k0.y) / (k1.t - k0.t);
+    const kv = (k1.x - k0.x) / (k1.t - k0.t);
     check(kv > 140, `teclado move (${Math.round(kv)} px/s)`);
+    // E abre a porta do abrigo; I abre o inventário
+    const pcDoor = await page.evaluate(() => window.__TDR__.map.doors.find((d) => d.buildingId === 'abrigo' && d.exterior));
+    await page.evaluate(([x, y]) => window.__TDR__.teleport(x, y), [pcDoor.x, pcDoor.y - 40]);
+    await sleep(400);
+    await page.keyboard.press('KeyE');
+    await sleep(300);
+    check(await page.evaluate((id) => window.__TDR__.state.doorState(id).open, pcDoor.id), 'tecla E abre a porta');
+    await page.keyboard.press('KeyI');
+    await sleep(300);
+    check(await page.evaluate(() => window.__TDR__.scene.scene.get('Hud').inventory.isOpen), 'tecla I abre o inventário');
     await page.screenshot({ path: OUT + '12-pc.png' });
     check(errors.length === 0, `PC sem erros (${errors.length}) ${errors.slice(0, 3).join(' | ')}`);
   }

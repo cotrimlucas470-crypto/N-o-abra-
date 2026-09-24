@@ -19,7 +19,8 @@ export class KeyboardMouseInput {
     scene.input.mouse?.disableContextMenu();
   }
 
-  read(out: KeyboardMouseState, playerX: number, playerY: number, camera: Phaser.Cameras.Scene2D.Camera): void {
+  /** `uiBlocked`: o mouse está sobre um painel do HUD — clicar lá não é mirar. */
+  read(out: KeyboardMouseState, playerX: number, playerY: number, camera: Phaser.Cameras.Scene2D.Camera, uiBlocked = false): void {
     const k = this.keys;
     if (k) {
       const x = (k.D.isDown || k.RIGHT.isDown ? 1 : 0) - (k.A.isDown || k.LEFT.isDown ? 1 : 0);
@@ -30,7 +31,7 @@ export class KeyboardMouseInput {
     }
 
     const p = this.scene.input.mousePointer;
-    const mouseAiming = !!p && !p.wasTouch && p.isDown;
+    const mouseAiming = !!p && !p.wasTouch && p.isDown && !uiBlocked;
     if (mouseAiming) {
       const world = p.positionToCamera(camera) as Phaser.Math.Vector2;
       out.aimX = world.x - playerX;

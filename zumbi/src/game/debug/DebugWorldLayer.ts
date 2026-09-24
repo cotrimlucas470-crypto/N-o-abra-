@@ -5,7 +5,10 @@
  * mas mesmo assim só desenha o que está perto da câmera.
  */
 import Phaser from 'phaser';
+import type { EventBus } from '../core/EventBus';
 import { CHUNK_PX, chunkKey } from '../sim/ChunkGrid';
+import type { WorldState } from '../sim/WorldState';
+import { doorGapRect } from '../world/doors';
 import { Pathfinder } from '../world/nav/Pathfinder';
 import type { WorldModel } from '../world/WorldModel';
 import type { DebugState } from './DebugState';
@@ -17,15 +20,23 @@ export class DebugWorldLayer {
   private pathInfo = '';
   private repathIn = 0;
   private lastTarget: { x: number; y: number } | null = null;
+  /** Barulhos recentes (anel que some em NOISE_LIFE s). */
+  private noises: { x: number; y: number; radius: number; age: number }[] = [];
 
   constructor(
     private readonly scene: Phaser.Scene,
     private readonly model: WorldModel,
     private readonly state: DebugState,
     private readonly loadedChunks: () => number[],
+    private readonly world: WorldState,
+    bus: EventBus,
   ) {
     this.g = scene.add.graphics().setDepth(500);
     this.pathfinder = new Pathfinder(model.nav);
+    const off = bus.on('world:noise', (n) => {
+      if (this.state.noise) this.noises.push({ x: n.x, y: n.y, radius: n.radius, age: 0 });
+    });
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, off);
   }
 
   /** Texto curto sobre a última rota (mostrado no painel). */
@@ -46,6 +57,8 @@ export class DebugWorldLayer {
 
     if (s.chunks) this.drawChunks(view);
     if (s.nav) this.drawNav(view);
+    if (s.doors) this.drawDoors(view);
+    this.drawNoises(dt);
     if (s.target) this.drawTarget(px, py, dt);
     else {
       this.path = [];
@@ -66,6 +79,39 @@ export class DebugWorldLayer {
         g.lineStyle(3, on ? 0x5fd35f : 0xd35f5f, 0.8);
         g.strokeRect(cx * CHUNK_PX, cy * CHUNK_PX, CHUNK_PX, CHUNK_PX);
       }
+    }
+  }
+
+  private drawDoors(view: Phaser.Geom.Rectangle): void {
+    const g = this.g;
+    const idx = this.model.index;
+    const cx0 = Math.max(0, Math.floor(view.x / CHUNK_PX) - 1);
+    const cy0 = Math.max(0, Math.floor(view.y / CHUNK_PX) - 1);
+    const cx1 = Math.floor((view.x + view.width) / CHUNK_PX) + 1;
+    const cy1 = Math.floor((view.y + view.height) / CHUNK_PX) + 1;
+    for (let cy = cy0; cy <= cy1; cy++) {
+      for (let cx = cx0; cx <= cx1; cx++) {
+        for (const i of idx.get(chunkKey(cx, cy))?.doors ?? []) {
+          const d = this.model.map.doors[i]!;
+          const st = this.world.doorState(d.id);
+          const color = st?.locked ? 0xffd166 : st?.open ? 0x5fe07a : 0xe05f5f;
+          const r = doorGapRect(d);
+          g.fillStyle(color, 0.55).fillRect(r.x - 3, r.y - 3, r.w + 6, r.h + 6);
+        }
+      }
+    }
+  }
+
+  private drawNoises(dt: number): void {
+    const LIFE = 1.4;
+    const g = this.g;
+    this.noises = this.noises.filter((n) => (n.age += dt) < LIFE);
+    for (const n of this.noises) {
+      const k = n.age / LIFE;
+      g.lineStyle(4, 0xff9f43, 0.9 * (1 - k));
+      g.strokeCircle(n.x, n.y, n.radius * Math.min(1, 0.25 + k * 1.5));
+      g.lineStyle(1.5, 0xff9f43, 0.35 * (1 - k));
+      g.strokeCircle(n.x, n.y, n.radius);
     }
   }
 

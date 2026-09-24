@@ -4,8 +4,8 @@
  */
 
 export const GAME_TITLE = 'Toque de Recolher';
-export const GAME_VERSION = '0.3.0';
-export const GAME_STAGE = 'Fase 1';
+export const GAME_VERSION = '0.4.0';
+export const GAME_STAGE = 'Etapa 1 · interação';
 
 /** Tamanho de um tile do mapa, em pixels de mundo. */
 export const TILE = 64;
@@ -34,6 +34,10 @@ export const DEPTH = {
   shadow: 8,
   floorProp: 10,
   object: 20,
+  /** Itens no chão: acima de mesas e balcões (item "em cima" do móvel), abaixo do jogador. */
+  item: 22,
+  /** Folhas de porta e portões. */
+  door: 24,
   playerShadow: 28,
   playerLegs: 29,
   player: 30,
@@ -42,6 +46,8 @@ export const DEPTH = {
   overhead: 50,
   roofShadow: 55,
   roof: 60,
+  /** Fachada da porta por cima da beirada do telhado: dá para ver da rua se está aberta. */
+  roofDoor: 61,
   fx: 70,
   atmosphere: 80,
 } as const;

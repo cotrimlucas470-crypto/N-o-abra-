@@ -61,3 +61,35 @@ export function iconCrosshair(g: G, x: number, y: number, r: number, color: numb
   g.lineBetween(x, y - b, x, y - a);
   g.lineBetween(x, y + a, x, y + b);
 }
+
+/** Mão aberta (botão Interagir). */
+export function iconHand(g: G, x: number, y: number, r: number, color: number, alpha = 1): void {
+  const u = r / 10;
+  g.fillStyle(color, alpha);
+  // palma
+  g.fillRoundedRect(x - 4.6 * u, y - 1 * u, 9.2 * u, 8.6 * u, 3 * u);
+  // dedos
+  const fw = 2.1 * u;
+  for (const [fx, top] of [[-4.2, -6.2], [-1.6, -8.4], [1, -8.8], [3.6, -7]] as const) {
+    g.fillRoundedRect(x + fx * u - fw / 2 + 0.6 * u, y + top * u, fw, (-top + 1) * u, fw / 2);
+  }
+  // polegar
+  g.beginPath();
+  g.moveTo(x - 4.4 * u, y + 1.4 * u);
+  g.lineTo(x - 8.2 * u, y - 2.2 * u);
+  g.lineTo(x - 6.6 * u, y - 3.6 * u);
+  g.lineTo(x - 3.4 * u, y - 0.6 * u);
+  g.closePath();
+  g.fillPath();
+}
+
+/** Mochila (botão Inventário). */
+export function iconBag(g: G, x: number, y: number, r: number, color: number, alpha = 1): void {
+  const u = r / 10;
+  g.lineStyle(1.8 * u, color, alpha);
+  g.strokeRoundedRect(x - 3 * u, y - 8.4 * u, 6 * u, 5 * u, 2 * u);
+  g.fillStyle(color, alpha);
+  g.fillRoundedRect(x - 6.6 * u, y - 5 * u, 13.2 * u, 12.6 * u, 3.2 * u);
+  g.fillStyle(0x000000, 0.35 * alpha);
+  g.fillRoundedRect(x - 4.2 * u, y + 1.2 * u, 8.4 * u, 4.4 * u, 1.6 * u);
+}

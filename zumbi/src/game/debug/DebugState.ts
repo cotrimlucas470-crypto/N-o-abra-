@@ -10,10 +10,14 @@ export interface DebugState {
   nav: boolean;
   /** Bordas dos chunks e quais estão carregados. */
   chunks: boolean;
+  /** Barulhos (porta, portão...) como anéis do tamanho do alcance. */
+  noise: boolean;
+  /** Estado das portas: verde aberta, vermelha fechada, amarela trancada. */
+  doors: boolean;
   /** Ponto escolhido no mundo: desenha linha de visão e rota do jogador até ele. */
   target: { x: number; y: number } | null;
 }
 
 export function createDebugState(): DebugState {
-  return { colliders: false, nav: false, chunks: false, target: null };
+  return { colliders: false, nav: false, chunks: false, noise: false, doors: false, target: null };
 }

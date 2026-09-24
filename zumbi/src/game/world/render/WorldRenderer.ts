@@ -61,6 +61,12 @@ interface LoadedChunk {
   roofs: string[];
 }
 
+/** Quem desenha conteúdo dinâmico por chunk (portas, itens; depois zumbis, cadáveres). */
+export interface ChunkListener {
+  load(key: number): void;
+  unload(key: number): void;
+}
+
 export interface ViewRect {
   x: number;
   y: number;
@@ -76,6 +82,7 @@ export class WorldRenderer {
   readonly solids: Phaser.Physics.Arcade.StaticGroup;
   private readonly loaded = new Map<number, LoadedChunk>();
   private readonly markingTexH = new Map<string, number>();
+  private readonly chunkListeners = new Set<ChunkListener>();
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -125,6 +132,20 @@ export class WorldRenderer {
     layer.setDepth(DEPTH.ground);
   }
 
+  /**
+   * Avisa quando um chunk é criado/destruído. Quem se inscreve depois de o
+   * mundo já ter chunks carregados recebe os que já existem.
+   */
+  onChunk(l: ChunkListener): () => void {
+    this.chunkListeners.add(l);
+    for (const key of this.loaded.keys()) l.load(key);
+    return () => this.chunkListeners.delete(l);
+  }
+
+  isChunkLoaded(key: number): boolean {
+    return this.loaded.has(key);
+  }
+
   // ------------------------------------------------------------------ streaming
 
   /**
@@ -165,6 +186,7 @@ export class WorldRenderer {
     const content = this.world.index.get(key);
     const lc: LoadedChunk = { objects: [], culls: [], shadows: [], canopies: [], zones: [], roofs: [] };
     this.loaded.set(key, lc);
+    for (const l of this.chunkListeners) l.load(key);
     if (!content) return; // chunk vazio (só chão): nada a criar
     const map = this.world.map;
     for (const i of content.markings) this.buildMarking(lc, i);
@@ -181,6 +203,7 @@ export class WorldRenderer {
   private unloadChunk(key: number): void {
     const lc = this.loaded.get(key);
     if (!lc) return;
+    for (const l of this.chunkListeners) l.unload(key);
     for (const c of lc.culls) this.culler.remove(c);
     for (const s of lc.shadows) this.shadows.remove(s);
     for (const c of lc.canopies) this.canopies.remove(c);

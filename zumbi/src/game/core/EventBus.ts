@@ -20,6 +20,10 @@ export interface GameEvents {
   'game:paused': { reason: 'button' | 'hidden' };
   'game:resumed': Record<string, never>;
   'input:touch-detected': Record<string, never>;
+  /** Pedido de interagir (botão de toque ou tecla E). */
+  'input:interact': Record<string, never>;
+  /** Pedido de largar itens de um recipiente do jogador (painel de inventário). */
+  'inventory:drop': { containerId: string; index: number; count: number };
   'viewport:changed': { cssWidth: number; cssHeight: number; dpr: number };
 }
 

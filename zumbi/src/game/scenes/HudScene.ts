@@ -10,6 +10,8 @@ import { TEX } from '../assets/AssetKeys';
 import { uiScaleFor } from '../input/touch/ControlsLayout';
 import { TouchControls } from '../input/touch/TouchControls';
 import { toggleFullscreen } from '../systems/fullscreen';
+import { ActionFeedback } from '../ui/ActionFeedback';
+import { InventoryPanel } from '../ui/InventoryPanel';
 import { StatusPanel } from '../ui/StatusPanel';
 import { Toast } from '../ui/Toast';
 import { UiButton } from '../ui/UiButton';
@@ -21,6 +23,10 @@ export class HudScene extends Phaser.Scene {
   private status!: StatusPanel;
   private toast!: Toast;
   private controls!: TouchControls;
+  private feedback!: ActionFeedback;
+  private inventory!: InventoryPanel;
+  private prompt!: Phaser.GameObjects.Text;
+  private promptKey = '';
   private pauseLayer!: Phaser.GameObjects.Container;
   private pauseDim!: Phaser.GameObjects.Rectangle;
   private pauseTitle!: Phaser.GameObjects.Text;
@@ -54,10 +60,21 @@ export class HudScene extends Phaser.Scene {
     this.controls = new TouchControls(this, s, {
       onPause: () => this.setPaused(true, 'button'),
       onFullscreen: () => toggleFullscreen(),
+      onInteract: () => s.bus.emit('input:interact', {}),
+      onInventory: () => this.inventory.toggle(),
     });
+    this.feedback = new ActionFeedback(this, dpr);
+    if (!s.assets) throw new Error('Assets não carregados');
+    this.inventory = new InventoryPanel(this, s, s.assets, dpr, () => {
+      s.session.pointerOverUi = false;
+    });
+    this.controls.setPointerBlocker((x, y) => this.inventory.contains(x, y));
+    // Aviso do alvo de interação: acima do botão (toque) ou embaixo, com a tecla (PC).
+    this.prompt = this.add.text(0, 0, '', textStyle(12, UI.text, '700')).setOrigin(0.5, 1).setDepth(93).setResolution(dpr);
+    this.prompt.setBackgroundColor('rgba(12,13,16,0.62)').setPadding(8, 4, 8, 4).setVisible(false);
 
     this.keyboardHint = this.add
-      .text(0, 0, 'WASD andar · Shift correr · segure o mouse para mirar · Esc pausa', textStyle(11, UI.textDim, '600'))
+      .text(0, 0, 'WASD andar · Shift correr · E interagir · I inventário · segure o mouse para mirar · Esc pausa', textStyle(11, UI.textDim, '600'))
       .setOrigin(0.5, 1)
       .setResolution(dpr)
       .setAlpha(0.75)
@@ -84,8 +101,20 @@ export class HudScene extends Phaser.Scene {
       s.bus.on('player:enter-building', (e) => this.toast.show(e.name, e.kind === 'shelter' ? 'sua base · por enquanto, segura' : 'interior')),
       s.bus.on('world:region-entered', (e) => this.toast.show(e.name, `Dia ${s.session.clock?.day ?? 1} · v${GAME_VERSION}`, 2600)),
       s.bus.on('viewport:changed', () => this.layout()),
-      s.bus.on('input:touch-detected', () => this.keyboardHint.setVisible(false)),
+      s.bus.on('input:touch-detected', () => {
+        this.keyboardHint.setVisible(false);
+        this.promptKey = '';
+      }),
+      s.bus.on('player:feedback', (e) => this.feedback.show(e.text, e.tone)),
     );
+    this.input.keyboard?.on('keydown-I', () => {
+      if (!this.paused) this.inventory.toggle();
+    });
+    this.input.on(Phaser.Input.Events.POINTER_DOWN, (p: Phaser.Input.Pointer) => this.inventory.pointerDown(p.id, p.x / dpr, p.y / dpr));
+    this.input.on(Phaser.Input.Events.POINTER_MOVE, (p: Phaser.Input.Pointer) => {
+      if (p.isDown) this.inventory.pointerMove(p.id, p.x / dpr, p.y / dpr);
+    });
+    this.input.on(Phaser.Input.Events.POINTER_UP, (p: Phaser.Input.Pointer) => this.inventory.pointerUp(p.id, p.x / dpr, p.y / dpr));
     this.input.keyboard?.on('keydown-ESC', () => this.setPaused(!this.paused, 'button'));
     this.input.keyboard?.on('keydown-P', () => this.setPaused(!this.paused, 'button'));
     const onHidden = () => this.setPaused(true, 'hidden');
@@ -123,6 +152,7 @@ export class HudScene extends Phaser.Scene {
     this.s.session.paused = paused;
     this.controls.setEnabled(!paused);
     this.pauseLayer.setVisible(paused);
+    if (paused) this.inventory.setOpen(false);
     if (paused) {
       this.scene.pause(SCENES.game);
       this.s.bus.emit('game:paused', { reason });
@@ -149,9 +179,13 @@ export class HudScene extends Phaser.Scene {
     this.vignette.setDisplaySize(w, h);
     this.status.setPosition(ins.left + 12, ins.top + 10, k);
     this.clockText.setPosition(ins.left + 16, ins.top + 10 + 56 * k).setScale(k);
-    this.toast.setPosition(w / 2, ins.top + Math.max(14, h * 0.08), k);
+    // Em pé, o aviso desce para não cobrir o painel de status e o relógio.
+    this.toast.setPosition(w / 2, s.viewport.isPortrait ? ins.top + 150 * k : ins.top + Math.max(14, h * 0.08), k);
     this.controls.layout(w, h);
     this.keyboardHint.setPosition(w / 2, h - 10 - ins.bottom);
+    this.feedback.setPosition(w / 2, h * 0.64, k);
+    this.inventory.layout(w, h, ins, k);
+    this.promptKey = '';
 
     this.pauseDim.setSize(w, h);
     if (this.pauseDim.input?.hitArea instanceof Phaser.Geom.Rectangle) this.pauseDim.input.hitArea.setSize(w, h);
@@ -161,8 +195,34 @@ export class HudScene extends Phaser.Scene {
 
     const portraitPhone = s.viewport.isPortrait && this.controls.isTouchMode;
     // Em pé: aviso no meio-alto da tela, longe do nome do local (topo) e dos controles (base).
-    this.rotateHint.setVisible(portraitPhone).setPosition(w / 2, h * 0.24).setScale(Math.min(k, (w * 0.92) / Math.max(1, this.rotateHint.width)));
+    this.rotateHint.setVisible(portraitPhone).setPosition(w / 2, h * 0.3).setScale(Math.min(k, (w * 0.92) / Math.max(1, this.rotateHint.width)));
     this.debugText?.setPosition(ins.left + 12, ins.top + 84 * k);
+  }
+
+  /** Texto do alvo de interação: acima do botão (toque) ou "[E] ..." embaixo (teclado). */
+  private updatePrompt(): void {
+    // Com o inventário aberto no celular, o botão fica sob o painel: some o aviso também.
+    const touch = this.controls.isTouchMode;
+    const t = this.paused || (touch && this.inventory.isOpen) ? null : this.s.session.interaction;
+    const key = t ? `${t.key}|${t.label}|${touch}` : '';
+    if (key === this.promptKey) return;
+    this.promptKey = key;
+    if (!t) {
+      this.prompt.setVisible(false);
+      return;
+    }
+    const w = this.s.viewport.cssWidth;
+    const h = this.s.viewport.cssHeight;
+    const k = uiScaleFor(w, h);
+    this.prompt.setText(touch ? t.label : `[E]  ${t.label}`).setColor(t.enabled ? UI.text : '#f2a77e').setScale(k).setVisible(true);
+    if (touch) {
+      const b = this.controls.interact;
+      const half = (this.prompt.width * k) / 2;
+      const x = Math.min(b.x, w - this.s.viewport.insets.right - 8 - half);
+      this.prompt.setPosition(x, b.y - b.radius - 8 * k);
+    } else {
+      this.prompt.setPosition(w / 2, h - this.s.viewport.insets.bottom - 34 * k);
+    }
   }
 
   override update(_time: number, delta: number): void {
@@ -175,7 +235,12 @@ export class HudScene extends Phaser.Scene {
       this.clockLabel = label;
       this.clockText.setText(label);
     }
-    if (!this.paused) this.controls.update(stats ? !stats.canSprint() : false);
+    const target = this.s.session.interaction;
+    if (!this.paused) this.controls.update(stats ? !stats.canSprint() : false, target ? target.enabled : null, this.inventory.isOpen);
+    this.updatePrompt();
+    // PC: mouse sobre o painel não mira.
+    const mouse = this.input.mousePointer;
+    this.s.session.pointerOverUi = !!mouse && this.inventory.contains(mouse.x / this.s.viewport.dpr, mouse.y / this.s.viewport.dpr);
 
     if (this.debugText) {
       this.debugTimer -= dt;

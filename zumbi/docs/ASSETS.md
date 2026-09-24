@@ -136,6 +136,17 @@ Camadas: `floor` = no chão, pisável · `object` = sólido · `overhead` = acim
 
 Objetos do telhado: `roof.ac` (62 × 52), `roof.vent` (30 × 30).
 
+### Itens (ícones)
+
+Todos 48 × 48 (aparecem com ~30 px no chão, levemente girados, e maiores no inventário). Fundo transparente;
+uma sombra curta embaixo ajuda o item a "descolar" do chão.
+
+`item.agua`, `item.refrigerante`, `item.feijao`, `item.biscoito`, `item.atadura`, `item.analgesico`,
+`item.lanterna`, `item.pilhas`, `item.martelo`, `item.chaveFenda`, `item.peDeCabra`, `item.faca`,
+`item.pregos`, `item.tabua`, `item.fita`.
+
+Portas e portões são desenhados por código (retângulos na cor do material) e não têm id de sprite ainda.
+
 ## Como funciona por dentro (para programadores)
 
 - O código nunca usa chave de textura direto: sempre `assets.ref('prop.car.red')` (`AssetRegistry`).
@@ -144,3 +155,5 @@ Objetos do telhado: `roof.ac` (62 × 52), `roof.vent` (30 × 30).
   pequenas, o que ajuda o celular.
 - Para **acrescentar** um objeto: nova entrada em `world/PropCatalog.ts` + desenho em `procedural/props.ts`
   (ou só o PNG no overrides.json). O teste avisa se faltar desenho.
+- Para **acrescentar** um item: entrada em `items/ItemCatalog.ts` + desenho em `procedural/items.ts`
+  (ou só o PNG `item.<id>` no overrides.json).

@@ -100,6 +100,11 @@ export class DebugScene extends Phaser.Scene {
         if (clock) clock.timeScale = TIME_SCALES[this.timeScaleIndex]!;
       },
     );
+    // Fase 1 · interação (no fim: os anteriores mantêm a posição)
+    add(() => `${onOff(this.state.doors)} Portas`, () => (this.state.doors = !this.state.doors));
+    add(() => `${onOff(this.state.noise)} Ruído`, () => (this.state.noise = !this.state.noise));
+    add(() => 'Gerar item', () => this.flash(`item: ${this.game_.debugSpawnItem()}`));
+    add(() => 'Trancar porta', () => this.flash(this.game_.debugToggleLock()));
     this.info = this.add.text(0, 0, '', textStyle(10, '#bfe8bf', '600')).setResolution(dpr).setWordWrapWidth(PANEL_W - 16);
     this.panel.add(this.info);
 
@@ -131,6 +136,11 @@ export class DebugScene extends Phaser.Scene {
     this.state.target = { x: w.x, y: w.y };
     this.setPicking(false);
     this.refreshLabels();
+  }
+
+  /** Mensagem curta do debug na linha de aviso do jogo. */
+  private flash(text: string): void {
+    this.s.bus.emit('player:feedback', { text: `[debug] ${text}`, tone: 'info' });
   }
 
   private refreshLabels(): void {
@@ -229,11 +239,10 @@ export class DebugScene extends Phaser.Scene {
     const clock = this.s.session.clock;
     this.info.setText(
       [
-        `pos ${(p.x / TILE).toFixed(1)}, ${(p.y / TILE).toFixed(1)} tiles · chunk ${cx},${cy}`,
-        `${model.regionAt(p.x, p.y)?.name ?? '—'}${building ? ` · ${building}` : ''}`,
-        `chunks ${st.chunks} · colisores ${st.colliders} · telhados ${st.roofs}`,
-        `objetos ${st.culled.visible}/${st.culled.total} · sombras ${st.shadows}`,
-        `mapa ${model.map.widthTiles}×${model.map.heightTiles} · ${model.map.props.length} objetos · ${model.map.buildings.length} construções`,
+        `pos ${(p.x / TILE).toFixed(1)}, ${(p.y / TILE).toFixed(1)} · chunk ${cx},${cy} · ${model.regionAt(p.x, p.y)?.name ?? '—'}${building ? ` · ${building}` : ''}`,
+        `chunks ${st.chunks} · colisores ${st.colliders} · objetos ${st.culled.visible}/${st.culled.total}`,
+        `mapa ${model.map.widthTiles}×${model.map.heightTiles} · ${model.map.buildings.length} constr. · ${model.map.doors.length} portas`,
+        g.interactionStats(),
         clock ? `dia ${clock.day} ${clock.timeLabel()} · ${clock.rate.toFixed(2)} min/s` : '',
         g.debugInfo(),
       ]

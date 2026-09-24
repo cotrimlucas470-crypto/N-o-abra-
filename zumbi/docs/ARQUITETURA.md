@@ -8,16 +8,21 @@ Regras que sustentam isso:
 2. **Dados, não código.** Mapa, objetos, plantas de casas, layout dos botões e substituição de arte são dados.
    Conteúdo novo quase nunca exige mexer em sistemas.
 3. **Sistemas conversam por eventos** (`core/EventBus.ts`), sem se conhecerem.
-   Ex.: o passo do personagem emite `player:footstep` e o sistema de ruído (Fase 5) vai só escutar.
+   Ex.: o passo do personagem emite `player:footstep` e a porta emite `world:noise`; o sistema de ruído
+   (etapa 9) vai só escutar.
 4. **Nada de número mágico espalhado.** Ajustes em `config/`.
 5. **Nunca apagar save sem confirmação** (regra do projeto; o sistema de save virá com backup automático).
+6. **Mapa × estado.** O mapa (`MapData`) é determinístico e não muda em jogo; o que muda (porta aberta,
+   item pego, item largado) é estado (`sim/WorldState.ts`). O save guarda só as diferenças.
 
 ## Camadas
 
 ```
 config/     números e OPÇÕES DE MUNDO (Sandbox.ts) — tudo que ajusta uma partida
 core/       puro: eventos, aleatório com semente, armazenamento, matemática, serviços
-sim/        puro: relógio do jogo, chunks (e, nas próximas fases, entidades e sistemas)
+sim/        puro: relógio do jogo, chunks, ESTADO do mundo (portas, itens no chão)
+items/      puro: catálogo de itens, recipiente por peso, inventário do jogador
+interaction/ puro: sistema de interação por provedores (portas, itens; depois armários, carros...)
 world/      dados do mundo: formato do mapa, catálogos, plantas, cidade, colisão,
             navegação/visão (nav/), WorldModel; e o desenho do mundo (render/)
 entities/   jogador (lógica pura + parte Phaser)
@@ -49,7 +54,8 @@ entrada (toque/teclado) ─→ InputState ─→ resolveIntent() ─→ Player.u
                                         relógio do jogo avança
                                                             física Arcade (passos fixos de 1/120 s)
 POST_UPDATE ─→ Player.syncVisuals() → CameraDirector.update() → região atual →
-               WorldRenderer.update() (carga/descarga de chunks, recorte, copas, telhados) → debug
+               WorldRenderer.update() (carga/descarga de chunks, recorte, copas, telhados) →
+               DoorViews.update() (animação) → alvo de interação (12×/s) → destaque → debug
 ```
 
 - **Física com passo fixo de 1/120 s**: em FPS baixo a física dá vários passos pequenos, então o personagem
@@ -74,7 +80,8 @@ WorldRenderer ── chão: 1 camada de tiles na GPU para o mundo inteiro
 - **Cidade** = grade de setores de 72×56 tiles com a mesma malha (avenida, rua, becos). Ver
   `districts/SectorLayout.ts`. O setor inicial fica no centro; os outros são gerados por zona
   (`SectorBlocks.ts`) a partir das plantas (`buildings/templates.ts`).
-- **Ids estáveis** (`tipo@x,y`) em todo objeto: base para o estado persistente do mundo (Fase 2).
+- **Ids estáveis** (`tipo@x,y`, `porta@x,y`, `item:tipo@x,y`) em todo objeto: o estado do mundo e o
+  save se referem a eles.
 
 | Arquivo | Papel |
 |---|---|
@@ -94,6 +101,30 @@ WorldRenderer ── chão: 1 camada de tiles na GPU para o mundo inteiro
 | `render/RoofSystem.ts` | telhados somem ao entrar; aviso de entrada/saída |
 | `render/ShadowSystem.ts` | sombras por "sol"; pronto para dia/noite |
 | `render/SpatialCuller.ts` | esconde o que está fora da tela |
+| `doors.ts` | geometria pura das portas (vão, folhas, dobradiças) |
+| `render/DoorViews.ts` | folhas/portões animados, colisão da porta fechada, fachada na beirada do telhado |
+| `render/ItemViews.ts` | ícones dos itens no chão, por chunk |
+| `render/InteractionHighlight.ts` | destaque pulsante no alvo de interação |
+
+## Interação, itens e estado do mundo
+
+```
+MapData.doors / MapData.items ──→ WorldState (sim/) ── porta fechada → NavGrid + SightGrid
+                                     │   itens por chunk; serialize()/restore() com diferenças
+                                     │ onChange
+                                     ▼
+                     DoorViews / ItemViews (Phaser, por chunk, via WorldRenderer.onChunk)
+
+InteractionSystem ── provedores: DoorInteractions, ItemInteractions (…armários, carros, bancadas)
+     │ scan(jogador) 12×/s → alvo → session.interaction → botão/aviso do HUD + destaque no mundo
+     │ perform()  ← botão Interagir / tecla E (evento input:interact)
+     ▼
+PlayerInventory (items/) ← pegar;  painel do HUD → inventory:drop → largar aos pés
+```
+
+- Coisa nova interativa = um provedor novo (`collect()` oferece candidatos com distância e ação).
+- Conteúdo dinâmico por chunk (portas, itens; depois zumbis, cadáveres) se inscreve em
+  `WorldRenderer.onChunk()` e cria/destrói os próprios objetos junto com o chunk.
 
 **Testes de integridade**: para várias cidades, confirmam que todo cômodo é alcançável pelo corpo do
 jogador **e** pela grade de navegação dos zumbis, que nenhuma porta está bloqueada e que nenhum móvel
@@ -110,14 +141,14 @@ save guardará as opções junto com o mundo.
 `scenes/DebugScene.ts` + `debug/`: colisões, navegação, chunks, alvo (visão + rota), mapa com teleporte,
 hora, velocidade do tempo, números. Cada fase acrescenta suas camadas (zumbis, ruído, loot...).
 
-## Pronto para as próximas fases
+## Pronto para as próximas etapas
 
-| Fase | Onde encaixa |
+| Etapa | Onde encaixa |
 |---|---|
-| 2 Interação/portas/containers | portas viram entidades com id (`buildingId:n`); porta fechada = obstáculo na `NavGrid` e bloqueio na `SightGrid` (as duas já aceitam acrescentar/remover) |
-| 3 Sobrevivência | `GameClock` + `PlayerStats` (snapshot/restore) + `SpeedModifiers` do movimento |
-| 4 Loot | `BuildingData.kind` e `rooms` (nome + retângulo de cada cômodo) |
-| 5 Zumbis | `WorldModel` (nav, sight, chunks), `Pathfinder`, anéis de chunk para simular por distância, relógio para memória; ver [ZUMBIS.md](ZUMBIS.md) |
-| 11 Dia/noite | `ShadowSystem.setSun()`, `GameClock.dayFraction`, `DEPTH.atmosphere` |
-| 16 Save | ids estáveis, snapshots do relógio e do jogador, `core/Storage.ts` |
-| 17 Controles | `ControlsLayout` já é dado com âncoras e é salvo/carregado |
+| 2 Controles | `ControlsLayout` já é dado (âncora + deslocamento + tamanho) e é salvo/carregado; botões novos só entram na lista |
+| 3 Inventário | `PlayerInventory.containers` (mochila, roupas com bolsos); `ItemContainer` por peso |
+| 4/5 Itens e loot | `ItemCatalog` (tags), `BuildingData.kind` + `rooms`; recipientes do mapa viram provedores de interação |
+| 6 Sobrevivência | `GameClock` + `PlayerStats` (snapshot/restore) + `SpeedModifiers` do movimento |
+| 7–9 Zumbis, percepção, ruído | `WorldModel` (nav, sight, chunks), `Pathfinder`, `world:noise`, portas fechadas na NavGrid/SightGrid; ver [ZUMBIS.md](ZUMBIS.md) |
+| 21 Dia/noite | `ShadowSystem.setSun()`, `GameClock.dayFraction`, `DEPTH.atmosphere` |
+| 25 Save | `WorldState.serialize()`, `PlayerInventory.serialize()`, relógio e jogador com snapshot, `core/Storage.ts` |

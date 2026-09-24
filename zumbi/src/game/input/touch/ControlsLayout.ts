@@ -20,8 +20,8 @@ export interface ControlPlacement {
   size: number;
 }
 
-/** Controles existentes hoje. Ataque, interação, recarregar etc. entram aqui nas próximas etapas. */
-export type ControlId = 'moveStick' | 'aimStick' | 'sprint' | 'pause' | 'fullscreen';
+/** Controles existentes hoje. Ataque, recarregar etc. entram aqui nas próximas etapas. */
+export type ControlId = 'moveStick' | 'aimStick' | 'sprint' | 'interact' | 'inventory' | 'pause' | 'fullscreen';
 
 export interface ControlsLayoutData {
   version: 1;
@@ -36,11 +36,15 @@ export const DEFAULT_LAYOUT: ControlsLayoutData = {
     moveStick: { anchor: 'bottom-left', x: 130, y: 120, size: 64 },
     aimStick: { anchor: 'bottom-right', x: 130, y: 120, size: 64 },
     sprint: { anchor: 'bottom-right', x: 262, y: 70, size: 32 },
+    interact: { anchor: 'bottom-right', x: 250, y: 168, size: 34 },
+    inventory: { anchor: 'bottom-right', x: 46, y: 246, size: 25 },
     pause: { anchor: 'top-right', x: 34, y: 34, size: 22 },
     fullscreen: { anchor: 'top-right', x: 88, y: 34, size: 22 },
   },
   portrait: {
     sprint: { anchor: 'bottom-right', x: 70, y: 250, size: 32 },
+    interact: { anchor: 'bottom-right', x: 152, y: 250, size: 34 },
+    inventory: { anchor: 'bottom-right', x: 70, y: 332, size: 25 },
   },
 };
 

@@ -4,7 +4,7 @@ import { INTERACTION_TUNING } from '../src/game/config/WorldTuning';
 import { EventBus } from '../src/game/core/EventBus';
 import { hashString } from '../src/game/core/Random';
 import { DoorInteractions, type Body } from '../src/game/interaction/DoorInteractions';
-import { InteractionSystem, type Interactor } from '../src/game/interaction/InteractionSystem';
+import { InteractionSystem, type InteractionCandidate, type Interactor } from '../src/game/interaction/InteractionSystem';
 import { ItemInteractions } from '../src/game/interaction/ItemInteractions';
 import { allItemIds, formatKg, itemDef } from '../src/game/items/ItemCatalog';
 import { ItemContainer } from '../src/game/items/ItemContainer';
@@ -423,6 +423,25 @@ describe('InteractionSystem', () => {
     t.player.y = d.y + 70;
     t.sys.scan(t.player);
     expect(t.sys.current?.key).toBe(`item:${outside.id}`);
+  });
+
+  it('não pega item através de porta de vidro fechada (vê, mas não alcança)', () => {
+    const t = interactionWorld();
+    const d = t.map.doors.find((x) => x.material === 'glass')!;
+    t.state.setDoorOpen(d.id, false);
+    const [nx, ny] = d.vertical ? [1, 0] : [0, 1];
+    const it = t.state.dropItem('agua', 1, d.x + nx * 28, d.y + ny * 28)!;
+    t.player.x = d.x - nx * 30;
+    t.player.y = d.y - ny * 30;
+    const offered = () => {
+      const out: InteractionCandidate[] = [];
+      t.items.collect(t.player, out);
+      return out.some((c) => c.target.key === `item:${it.id}`);
+    };
+    expect(t.state.closedDoorBetween(t.player.x, t.player.y, it.x, it.y)).toBe(true);
+    expect(offered()).toBe(false);
+    t.state.setDoorOpen(d.id, true);
+    expect(offered()).toBe(true);
   });
 
   it('inventário do jogador: save e aviso de mudança', () => {

@@ -3,10 +3,11 @@
 Jogo **original** de sobrevivência zumbi em 2D, câmera de cima (top-down), feito para **celular Android**.
 (Nome provisório — muda em `src/game/config/GameConfig.ts`.)
 
-> Estado atual: **Fase 1 (v0.3.0)**: arquitetura, cidade de vários setores carregada em chunks, câmera,
-> movimento, colisões, navegação/visão para a IA, relógio do jogo e painel de debug.
-> Ainda não há zumbis, armas, inventário nem crafting. Veja [docs/ROADMAP.md](docs/ROADMAP.md),
-> o plano completo em [docs/PLANO-GERAL.md](docs/PLANO-GERAL.md) e o que cada fase fez em [docs/FASES.md](docs/FASES.md).
+> Estado atual: **Etapa 1 (v0.4.0)**: cidade de vários setores em chunks, câmera, movimento, colisões,
+> **portas** (abrir, fechar, trancadas; fazem barulho), **itens** no chão (pegar, largar) e **inventário**
+> por peso, navegação/visão para a IA, relógio do jogo e painel de debug.
+> Ainda não há zumbis, armas nem crafting. Veja [docs/ROADMAP.md](docs/ROADMAP.md) (ordem das 29 etapas),
+> o plano completo em [docs/PLANO-GERAL.md](docs/PLANO-GERAL.md) e o que cada etapa fez em [docs/FASES.md](docs/FASES.md).
 
 Este jogo mora na pasta `zumbi/` e é independente do jogo "NÃO ABRA" que está na raiz do repositório.
 
@@ -30,10 +31,12 @@ Há três caminhos, do mais rápido ao mais completo:
 | Polegar esquerdo: andar (joystick que aparece onde você toca) | WASD ou setas |
 | Polegar direito: mirar | segurar um botão do mouse |
 | Botão com o bonequinho: correr (liga/desliga) | Shift |
+| Botão com a mão: interagir (abrir/fechar porta, pegar item) | E |
+| Botão com a mochila: inventário (ver peso, largar itens) | I |
 | ⏸ pausa · ⛶ tela cheia | Esc ou P pausa |
 
 Parâmetros úteis na URL: `?debug` ou `#debug` no fim do link (painel **DBG**: colisões, navegação, chunks, visão/rota, mapa com
-teleporte, hora), `?direto` (pula a tela de título), `?toque` (força os controles de toque no PC),
+teleporte, hora, estado das portas, ruído, gerar item, trancar porta), `?direto` (pula a tela de título), `?toque` (força os controles de toque no PC),
 `?setores=1x1` (cidade menor), `?semente=42` (outra cidade), `?hora=20` (começa às 20h).
 
 ---
@@ -85,7 +88,9 @@ zumbi/
 │   └── game/
 │       ├── config/         números do jogo e OPÇÕES DE MUNDO (Sandbox.ts)
 │       ├── core/           peças sem Phaser: eventos, aleatório com semente, armazenamento, matemática
-│       ├── sim/            relógio do jogo, chunks
+│       ├── sim/            relógio do jogo, chunks, estado do mundo (portas, itens no chão)
+│       ├── items/          catálogo de itens, recipientes por peso, inventário do jogador
+│       ├── interaction/    interação por provedores (portas, itens...)
 │       ├── assets/         registro de sprites, atlas, substituição por PNG, arte procedural
 │       ├── entities/       personagem (lógica pura + parte visual)
 │       ├── input/          intenção do jogador; teclado/mouse; joysticks e botões de toque
@@ -93,7 +98,7 @@ zumbi/
 │       ├── systems/        câmera, tela/DPR, tela cheia
 │       ├── scenes/         Boot → Preload → Título → Jogo (+ HUD e Debug por cima)
 │       ├── debug/          ferramentas de debug (só com ?debug)
-│       └── ui/             painel de status, avisos, botões, ícones
+│       └── ui/             painel de status, avisos, inventário, botões, ícones
 ├── tests/                  testes automáticos (lógica, controles, integridade do mapa)
 ├── scripts/                smoke test no navegador, pacote zip, ícones
 └── docs/                   arquitetura, assets, roteiro
