@@ -5,6 +5,130 @@ O que cada etapa entregou, como foi testado e o que ficou pendente. A ordem das 
 
 ---
 
+## Sobrevivência sandbox: itens com função, corpo, ferimentos, veículos, fabricação e construção (v0.6.0)
+
+Pedido: **função real para todos os itens**, veículos saqueáveis com estado, tempo/calendário/clima,
+temperatura do corpo e roupas, ferimentos por parte do corpo, fabricação com o que se acha, e poder
+**construir e destruir à vontade** (cômodo novo, móveis com função, morar onde quiser). Tudo como
+**estado** salvo por cima do mesmo mapa (a impressão digital do traçado continua travada).
+Desenho técnico em [SOBREVIVENCIA.md](SOBREVIVENCIA.md).
+
+### S1 Tempo, calendário e clima
+- `sim/Calendar.ts`: data (dia, mês, dia da semana, estação do hemisfério sul); começa em 3 de maio (outono).
+- `sim/Weather.ts`: clima por hora, determinístico pela semente: céu, nuvens, chuva, neblina, vento e
+  temperatura (curva do dia + estação + frente fria); `?mes=7`, `?chuva=2`.
+- `render/Atmosphere.ts`: noite escura de verdade com luzes recortadas (aura do jogador, facho da
+  lanterna, vela, tocha, fogueira), sombras seguindo o sol, chuva e neblina na tela.
+- HUD: dia, hora (exata só com relógio/celular; senão aproximada), data, temperatura e céu. Aba TEMPO
+  com previsão quando se ouviu o rádio.
+
+### S2 Corpo, roupas, sono, ações com tempo e save real
+- `survival/Body.ts`: fome, sede, cansaço, temperatura corporal, molhado, enjoo e ânimo, ligados entre si;
+  `survival/Effects.ts` vira tudo em multiplicadores (andar, correr, fôlego, tempo de ação, golpe, mira, tropeço).
+- Roupas por parte do corpo (8 lugares): isolam do frio, protegem de mordida/arranhão, molham, rasgam,
+  sujam; bolsos aumentam a carga; mochila alivia o peso sentido.
+- Ações de item por **registro** (`interaction/itemActions/`): comer, beber, vestir/tirar, segurar,
+  ligar/desligar, trocar pilha, mochila↔bolsos, guardar no recipiente aberto, largar.
+- `sim/Actions.ts`: ações com tempo (barra, cancelar andando, relógio acelerado). Dormir (cama, sofá,
+  chão; alarme com relógio), descansar sentado. Menu **⋯** com todas as ações por perto.
+- `save/SaveGame.ts`: save no aparelho a cada 90 s, ao pausar e no menu; `.bak` (anterior) e `.old`
+  (jogo arquivado ao começar outro). CONTINUAR/NOVO JOGO com confirmação. **Nada é apagado.**
+
+### S3 Ferimentos e medicina
+- 11 partes do corpo × 10 tipos (arranhão, corte, corte fundo, perfuração, mordida, fratura, entorse,
+  queimadura, contusão, caco alojado): sangramento, dor, sujeira, infecção, febre, tempo de cura.
+- Efeitos reais: perna ferida manca/não corre, braço ferido deixa tudo lento e o golpe fraco, dor tira
+  fôlego e ânimo, infecção dá febre e tira vida.
+- Tratamentos com os itens (atadura, gaze, trapo, kit, álcool, iodo, cachaça, sutura, tala, pomada,
+  pinça...) e remédios (analgésico, anti-inflamatório, antibiótico, calmante, vitaminas); atadura suja
+  precisa ser trocada.
+- Perigos sem zumbi: caco de vidro no pé descalço, tropeço correndo exausto ou pesado, **queimadura ao
+  pisar no fogo**.
+
+### S4 Mãos, armas, ferramentas, eletrônicos e leitura
+- Golpe e tiro de verdade (munição na arma, recarregar pelo calibre, emperrar, barulho), dano por arma,
+  condição, corpo e material; mundo destrutível salvo (móveis quebram, portas cedem, janelas estouram).
+- Ferramentas: desmontar móveis, cortar árvore, quebrar pedra, arrombar, chaves que abrem a casa/carro
+  mais perto, trancar por dentro, pular janela, tirar e juntar cacos.
+- Lanterna (de mão e de cabeça), vela, rádio (boletim e previsão), celular, relógio, mapas.
+- Leitura e 9 habilidades (manuais sobem o nível e dobram o aprendizado; ler precisa de luz).
+
+### S5 Veículos
+- Cada carro/van/carcaça com estado da semente e salvo quando mexido: portas, porta-malas, capô,
+  vidros, trancas, gasolina, bateria, motor, 4 pneus, alarme.
+- Porta-luvas, bancos da frente e de trás e porta-malas com loot persistente (só com a porta certa
+  aberta ou o vidro quebrado); tirar gasolina com mangueira, abastecer, bateria e pneus; examinar;
+  "tentar ligar" diz o que falta (dirigir é etapa futura).
+
+### S6 Fabricação, fogo, cozinha e água
+- `crafting/Recipes.ts` (dados) + `crafting/Crafting.ts` (confere reservando item por item, gasta,
+  desgasta ferramentas e entrega): **69 receitas** — cozinha (25), bebidas, água, fogo e luz, curativos,
+  materiais (inclui metal na bancada), ferramentas de pedra, armas improvisadas, construção e móveis.
+  Ingredientes com alternativas, doses (água, álcool) e consumíveis medidos (sal, café, fita, cimento,
+  gasolina: sobra o que não foi usado e o saco pesa menos).
+- Estações: **fogo** (fogueira acesa, fogão a lenha aceso ou fogão do mapa enquanto houver gás),
+  **forno** (fogão com gás ou a lenha) e **bancada** (do mapa ou construída).
+- Aba **FABRICAR**: o que dá para fazer agora primeiro; tocar abre o que leva (✓/✗) e o botão FAZER.
+- 24 pratos e bebidas novos (carne assada, arroz, feijão, sopa, pão, pizza, bolo, café, chá, suco...);
+  prato quente anima, café tira sono, chá acalma; ingrediente estragado não "renasce" cozido.
+- Fogueira (`build/Fire.ts`, `build/FireSystem.ts`): montar ao ar livre, acender (papel/capim ajudam,
+  álcool garante), pôr lenha, apagar; queima pelo relógio, chuva apaga fogo fraco; esquenta o corpo,
+  seca a roupa e ilumina a noite.
+- Água: torneira/hidrante até o corte (`Sandbox.utilities`, 12 dias; `?agua=0`), caixa da descarga finita
+  e suja, juntar chuva no balde/garrafa, purificar com água sanitária, ferver, encher garrafa do balde.
+- Ações novas nos itens: COZINHAR/FERVER, CONSERTAR (fita/cola), REMENDAR (kit de costura + pano),
+  AFIAR (lima ou pedra), LAVAR (água + sabão; tira sangue só com sabão), RASGAR em trapos, DESMONTAR
+  eletrônico em peças, PURIFICAR, ENCHER GARRAFA, JUNTAR CHUVA; tocha.
+
+### S7 Construção, móveis, demolição e horta
+- `build/StructureCatalog.ts` (19 peças) + `build/Structures.ts` (estado salvo, por chunk) +
+  `build/StructureGeometry.ts` (encaixe). **Modo construir**: prévia verde/vermelha na frente do jogador e
+  barra CONSTRUIR/GIRAR/SAIR; parede, porta, janela e cerca encaixam na **borda do tile em que você está**,
+  do lado para onde olha (dá para fechar um cômodo andando por dentro); móveis, piso e telhado nos tiles à frente.
+- Peças: parede de madeira, de tijolo (cimento, areia, água) e de chapa; cerca; porta (abre, fecha,
+  cadeado); janela (vidro ou plástico); piso; **telhado** (abriga da chuva e do frio como dentro de casa);
+  cama, cadeira, mesa (guarda 25 kg), bancada (estação e gaveta), caixote (40 kg), estante (60 kg),
+  **fogão a lenha** (fogo e forno dentro de casa), **coletor de chuva** e **canteiro**.
+- Tudo entra na navegação e na visão dos zumbis, tem colisão e vai para o save (inclusive o que está
+  guardado nos móveis). Desmontar com a ferramenta certa devolve material; derrubar com marreta/machado
+  devolve menos.
+- Mapa: com marreta ou picareta **na mão**, abre-se um vão de um tile em qualquer parede (cerca também com
+  machado, serrote ou alicate) — `build/WallCuts.ts` guarda só os trechos cortados. Janelas e portas do
+  mapa podem ser **pregadas com tábuas** (e arrancadas).
+- Horta (`build/Farm.ts`): plantar sementes, regar (chuva rega), adubar, colher (e ganhar sementes);
+  seca em 2 dias sem água, morre em 5, passa do ponto; frio segura. `Sandbox.farming.growthSpeed` (4:
+  tomate em 15 dias).
+
+### S8 Integração
+- Correções: CONTINUAR quebrava ao restaurar o rádio; fósforo gastava a caixa inteira; desgaste de
+  ferramenta de muitos usos se perdia no arredondamento; o menu ⋯ aberto deixava o toque passar para o painel.
+- Save de ponta a ponta no navegador: construções, conteúdo dos baús, horta, vão na parede e comida
+  voltam depois de recarregar a página e tocar CONTINUAR (save ~2 KB).
+- Smoke: a checagem do alvo de item espera a varredura de interação (headless lento) em vez de 500 ms fixos.
+
+### Testes
+- **296 testes** (20 arquivos). Novos: clima, corpo, save, saúde, combate, veículos, fabricação (25:
+  dados das receitas, reserva de itens, doses, consumíveis medidos, fogo, torneira/descarga, ações de
+  reparo) e construção (17: encaixe, cômodo fechado, porta, telhado, canteiro, baú salvo, derrubar
+  parede, pregar janela, horta, coletor).
+
+### Desempenho
+- Mesmo FPS da versão anterior no navegador de teste (média 14 × 14 medidos lado a lado). Fogo, horta e
+  coletor acertam as contas 1×/2 s, não por quadro; só as construções dos chunks carregados são desenhadas.
+- Headless nesta máquina roda a ~5–14 FPS: alguns testes de velocidade do smoke (correr, teclado,
+  chunks do último setor) falham **também na versão anterior** aqui; não é regressão.
+
+### O que ficou pendente (honesto)
+- **Zumbis** ainda não existem (a navegação e a visão já consideram portas, paredes construídas,
+  tábuas e vãos abertos).
+- **Dirigir** o carro (o estado do motor/gasolina/bateria/pneus já está pronto).
+- **Eletricidade/gerador**, pesca, recarregar munição, NPCs e troca.
+- Carregar móvel do mapa para outro lugar (hoje: desmontar e reconstruir).
+- Prédio de vários andares; telhado construído é por tile (não esconde o interior como o telhado do mapa).
+- Luz de lanterna ainda atravessa paredes (sem oclusão).
+
+---
+
 ## Etapas 4 e 5: itens, loot e natureza (v0.5.0)
 
 Antes de começar: 15 itens, colocados à mão só no setor inicial; nenhum móvel guardava nada. Pedido:

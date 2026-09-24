@@ -198,3 +198,14 @@ Portas e portões são desenhados por código (retângulos na cor do material) e
 - Para **acrescentar** um item: linha no arquivo da categoria em `items/catalog/` com um `iconSpec` de
   família existente (ou desenho próprio em `procedural/items.ts`, ou só o PNG `item.<id>` no overrides.json).
   O teste avisa se algum item ficar sem desenho.
+
+## Construções do jogador (v0.6.0)
+
+Paredes, portas, janelas, cercas, tábuas pregadas, piso, telhado, móveis construídos, fogueira, fogão a
+lenha, coletor de chuva e canteiro são desenhados **por código** em `src/game/world/render/StructureViews.ts`
+(Phaser Graphics, com cor por material e estado: porta aberta, chama, nível da água, planta por fase).
+Ainda não há id de sprite para trocar por PNG; quando houver arte, o caminho é dar a cada peça um id em
+`build/StructureCatalog.ts` e desenhar pelo `AssetRegistry`, como os objetos do mapa.
+
+Ícones novos de item seguem as famílias de `assets/procedural/itemIcons/` (ex.: tocha = `stick` com
+`k: 'torch'`; pratos = `dish`; balde com água = `bucket`).

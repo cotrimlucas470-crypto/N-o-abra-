@@ -27,30 +27,30 @@ por cima do mesmo mapa.
 | # | Etapa | Estado |
 |---|---|---|
 | 1 | **Movimentação e interação** (portas, entrar/sair, pegar/largar, colisões sólidas) | ✅ v0.4.0 |
-| 2 | Controles mobile configuráveis (Configurações → Controles → Personalizar HUD, presets) | ⏳ próxima |
-| 3 | Inventário (mãos, bolsos, mochila, peso e cansaço por carga) | ⏳ (mochila e usar itens prontos; falta cansaço e roupas com bolsos) |
+| 2 | Controles mobile configuráveis (Configurações → Controles → Personalizar HUD, presets) | ⏳ |
+| 3 | Inventário (mãos, bolsos, mochila, peso e cansaço por carga) | ✅ v0.6.0 (mão, roupas com bolsos, mochila, carga pesa no corpo) |
 | 4 | Itens (catálogo ampliado, estado, durabilidade, validade) | ✅ v0.5.0 (371 itens) |
 | 5 | Loot contextual (por tipo de construção e cômodo, finito) | ✅ v0.5.0 (+ frutíferas e recursos renováveis) |
-| 6 | Sobrevivência (fome, sede, sono, cansaço, interligados) | ⏳ |
-| 7 | Zumbis (indivíduos, estados, variação) | ⏳ (desenho em ZUMBIS.md) |
+| 6 | Sobrevivência (fome, sede, sono, cansaço, interligados) | ✅ v0.6.0 (+ temperatura, molhado, enjoo, ânimo) |
+| 7 | Zumbis (indivíduos, estados, variação) | ⏳ próxima (desenho em ZUMBIS.md; navegação já vê construções) |
 | 8 | Percepção (visão, audição, memória) | ⏳ |
 | 9 | Ruído (propagação, paredes, portas) | ⏳ (portas já emitem `world:noise`) |
-| 10 | Combate corpo a corpo | ⏳ |
-| 11 | Armas de fogo | ⏳ |
-| 12 | Ferimentos (por parte do corpo) | ⏳ |
-| 13 | Medicina | ⏳ |
-| 14 | Roupas | ⏳ |
-| 15 | Crafting | ⏳ (itens `craftOnly` e etiquetas prontos; receitas a fazer) |
-| 16 | Bancadas | ⏳ |
-| 17 | Construção (sem ataques programados) | ⏳ |
-| 18 | Agricultura | ⏳ (sementes no catálogo; frutíferas já renovam) |
-| 19 | Água | ⏳ (água contaminada e garrafa vazia no catálogo) |
+| 10 | Combate corpo a corpo | ✅ v0.6.0 (contra objetos, portas e janelas; zumbis na etapa 7) |
+| 11 | Armas de fogo | ✅ v0.6.0 (munição, recarga, emperrar, barulho) |
+| 12 | Ferimentos (por parte do corpo) | ✅ v0.6.0 |
+| 13 | Medicina | ✅ v0.6.0 |
+| 14 | Roupas | ✅ v0.6.0 (isolamento, proteção, molhar, rasgar, remendar, lavar) |
+| 15 | Crafting | ✅ v0.6.0 (69 receitas, aba FABRICAR) |
+| 16 | Bancadas | ✅ v0.6.0 (fogo, forno, bancada do mapa ou construída) |
+| 17 | Construção (sem ataques programados) | ✅ v0.6.0 (modo construir, 19 peças, derrubar parede, pregar tábuas) |
+| 18 | Agricultura | ✅ v0.6.0 (canteiro, rega, chuva, adubo, colheita) |
+| 19 | Água | ✅ v0.6.0 (torneira até o corte, descarga, chuva, ferver, purificar) |
 | 20 | Eletricidade | ⏳ |
-| 21 | Dia/noite (sem hordas noturnas) | ⏳ |
-| 22 | Clima e temperatura | ⏳ |
-| 23 | Veículos | ⏳ |
+| 21 | Dia/noite (sem hordas noturnas) | ✅ v0.6.0 |
+| 22 | Clima e temperatura | ✅ v0.6.0 |
+| 23 | Veículos | 🟡 v0.6.0 (portas, compartimentos, peças, gasolina; falta dirigir) |
 | 24 | NPCs (só depois da base estável) | ⏳ |
-| 25 | Save completo (slots, backup automático, migração) | ⏳ (portas, itens, recipientes, natureza e inventário já serializam; save v2 lê v1) |
+| 25 | Save completo (slots, backup automático, migração) | 🟡 v0.6.0 (save no aparelho, backup, arquivo do jogo antigo; falta escolher slots) |
 | 26 | Configurações | ⏳ |
 | 27 | Debug (ferramentas finais) | ⏳ (cada etapa acrescenta as suas) |
 | 28 | Otimização Android (APK) | ⏳ |
@@ -90,5 +90,6 @@ por cima do mesmo mapa.
 - Sombra do telhado com o formato do telhado de 4 águas.
 - Mais plantas: escola, hospital, delegacia, igreja, posto, prédio de apartamentos (as tabelas de loot de
   hospital e delegacia já existem; falta a construção no mapa).
-- Janelas como entidades (abrir, quebrar, pular) — junto com ruído/combate.
-- Chaves e pé de cabra para portas trancadas (o estado "trancada" já existe; hoje só o debug tranca).
+- Carregar móvel do mapa para outro lugar (hoje: desmontar e reconstruir).
+- Oclusão da luz da lanterna pelas paredes.
+- Andar de cima (prédios de vários andares, telhado construído que esconde o interior).

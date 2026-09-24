@@ -3,14 +3,18 @@
 Jogo **original** de sobrevivência zumbi em 2D, câmera de cima (top-down), feito para **celular Android**.
 (Nome provisório — muda em `src/game/config/GameConfig.ts`.)
 
-> Estado atual: **Etapas 4–5 (v0.5.0)**: cidade de vários setores em chunks, câmera, movimento, colisões,
-> **portas** (abrir, fechar, trancadas; fazem barulho), **371 itens** em 16 categorias com estado
-> (validade, frescor, desgaste, carga, doses), **loot contextual** em geladeiras, armários, prateleiras,
-> porta-malas, lixeiras e no chão (finito e salvo), **frutíferas e recursos naturais** que se renovam
-> com o tempo do jogo, natureza mais densa, **inventário** por peso com mochila, comer/beber/curar,
-> navegação/visão para a IA, relógio do jogo e painel de debug.
-> Ainda não há zumbis, combate nem crafting (os itens e etiquetas já estão prontos para ele). Veja [docs/ROADMAP.md](docs/ROADMAP.md) (ordem das 29 etapas),
-> o plano completo em [docs/PLANO-GERAL.md](docs/PLANO-GERAL.md) e o que cada etapa fez em [docs/FASES.md](docs/FASES.md).
+> Estado atual: **v0.6.0 · sobrevivência sandbox**. Cidade de vários setores em chunks; **406 itens** com
+> função real (comer, beber, vestir, segurar, ligar, tratar ferida, ler, recarregar, cozinhar, consertar,
+> remendar, afiar, lavar, rasgar, desmontar); loot contextual finito; **dia e noite, calendário, clima e
+> temperatura**; corpo (fome, sede, sono, frio/calor, molhado, enjoo, ânimo) e **ferimentos por parte do
+> corpo** com tratamento; golpe e tiro contra um mundo destrutível; **carros** com portas, porta-luvas,
+> bancos, porta-malas, gasolina, bateria e pneus; **69 receitas** (cozinha, curativos, ferramentas, armas);
+> fogueira, água da torneira até o corte, chuva, fervura; **modo construir** (paredes de madeira, tijolo e
+> chapa, portas, janelas, piso, telhado, cama, mesa, baú, estante, bancada, fogão a lenha, coletor de
+> chuva, horta), **derrubar paredes** do mapa e **pregar tábuas** em janelas; save no aparelho com backup.
+> Ainda **não há zumbis** nem direção de veículos. Veja [docs/ROADMAP.md](docs/ROADMAP.md) (ordem das 29 etapas),
+> o plano em [docs/PLANO-GERAL.md](docs/PLANO-GERAL.md), o desenho da sobrevivência em
+> [docs/SOBREVIVENCIA.md](docs/SOBREVIVENCIA.md) e o que cada etapa fez em [docs/FASES.md](docs/FASES.md).
 
 Este jogo mora na pasta `zumbi/` e é independente do jogo "NÃO ABRA" que está na raiz do repositório.
 
@@ -34,14 +38,18 @@ Há três caminhos, do mais rápido ao mais completo:
 | Polegar esquerdo: andar (joystick que aparece onde você toca) | WASD ou setas |
 | Polegar direito: mirar | segurar um botão do mouse |
 | Botão com o bonequinho: correr (liga/desliga) | Shift |
-| Botão com a mão: interagir (porta, pegar item, abrir/vasculhar recipiente, colher fruta, juntar galhos) | E |
-| Botão com a mochila: inventário (peso, estado dos itens, usar, largar, vestir mochila) | I |
-| ⏸ pausa · ⛶ tela cheia | Esc ou P pausa |
+| Botão com a mão: interagir (porta, pegar, abrir, colher, beber na torneira, pôr lenha, dormir...) | E |
+| Botão **⋯**: todas as ações por perto (desmontar, pregar tábuas, cozinhar aqui, plantar, regar...) | Q |
+| Botão de golpe: atacar com o que está na mão (ou atirar) · botão de recarregar com arma de fogo | F ou espaço · R |
+| Botão com a mochila: painel **ITENS / FABRICAR / CORPO / TEMPO** | I |
+| Modo construir (FABRICAR → CONSTRUIR): ande e vire para escolher o lugar; **CONSTRUIR · GIRAR · SAIR** | — |
+| ⏸ pausa (SALVAR, MENU) · ⛶ tela cheia | Esc ou P pausa |
 
 Parâmetros úteis na URL: `?debug` ou `#debug` no fim do link (painel **DBG**: colisões, navegação, chunks, visão/rota, mapa com
 teleporte, hora, estado das portas, ruído, gerar item, trancar porta, loot dos recipientes, Dia +1), `?direto` (pula a tela de título), `?toque` (força os controles de toque no PC),
 `?setores=1x1` (cidade menor), `?semente=42` (outra cidade), `?hora=20` (começa às 20h),
-`?loot=0.5` (metade do loot), `?colapso=90` (mundo 90 dias depois do colapso: comida estragada, remédio vencido).
+`?loot=0.5` (metade do loot), `?colapso=90` (mundo 90 dias depois do colapso: comida estragada, remédio vencido),
+`?mes=7` (começa no inverno), `?chuva=2` (chove o dobro), `?agua=0` e `?gas=0` (água e gás já cortados).
 
 ---
 
@@ -92,11 +100,20 @@ zumbi/
 │   └── game/
 │       ├── config/         números do jogo e OPÇÕES DE MUNDO (Sandbox.ts)
 │       ├── core/           peças sem Phaser: eventos, aleatório com semente, armazenamento, matemática
-│       ├── sim/            relógio do jogo, chunks, estado do mundo (portas, itens, recipientes, natureza)
+│       ├── sim/            relógio, calendário, clima, ações com tempo, chunks, ESTADO do mundo
 │       ├── items/          catálogo de itens (catalog/), estado/condição, recipientes, inventário
 │       ├── loot/           recipientes do mapa, tabelas de loot por lugar, geração persistente
 │       ├── nature/         frutíferas e recursos naturais renováveis
-│       ├── interaction/    interação por provedores (portas, itens, recipientes, natureza) e ações
+│       ├── interaction/    interação por provedores (portas, itens, recipientes, natureza, carros, água,
+│       │                   construções, demolição) e ações de item por registro
+│       ├── survival/       corpo, efeitos, sono, perigos, laço da sobrevivência
+│       ├── health/         ferimentos e tratamentos por parte do corpo
+│       ├── combat/         golpe, tiro, alvos destrutíveis
+│       ├── vehicles/       estado dos carros
+│       ├── crafting/       receitas, fabricação, estações, modo construir
+│       ├── build/          construções do jogador, fogo, horta, coletor, vãos em paredes do mapa
+│       ├── skills/         habilidades
+│       ├── save/           save no aparelho com backup
 │       ├── assets/         registro de sprites, atlas, substituição por PNG, arte procedural
 │       ├── entities/       personagem (lógica pura + parte visual)
 │       ├── input/          intenção do jogador; teclado/mouse; joysticks e botões de toque

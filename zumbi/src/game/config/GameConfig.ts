@@ -4,8 +4,8 @@
  */
 
 export const GAME_TITLE = 'Toque de Recolher';
-export const GAME_VERSION = '0.5.0';
-export const GAME_STAGE = 'Etapas 4–5 · itens e loot';
+export const GAME_VERSION = '0.6.0';
+export const GAME_STAGE = 'Sobrevivência sandbox · fabricar e construir';
 
 /** Tamanho de um tile do mapa, em pixels de mundo. */
 export const TILE = 64;

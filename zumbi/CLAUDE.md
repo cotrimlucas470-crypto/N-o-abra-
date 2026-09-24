@@ -53,6 +53,14 @@ Olhe os prints de `smoke-out/` antes de dizer que ficou bonito. Headless roda a 
 - Densidade visual (árvores, arbustos, grama, lixo) vai na camada de ambiente
   (`districts/Ambience.ts`, `ambient: true`), que não entra na impressão digital do mapa.
 - Coisa interativa nova = provedor em `interaction/` (o botão, o aviso e o destaque já funcionam).
+- Ação nova num item = entrada numa lista de `interaction/itemActions/` (quando aparece, se está liberada,
+  o que faz; ação demorada devolve `timed`). Nada de `if (id === ...)` espalhado pelos sistemas.
+- Receita nova = linha em `crafting/Recipes.ts` (ingredientes por id/etiqueta, doses ou fração de
+  consumível medido, ferramentas, estação). Item só de receita = `craftOnly` (o teste exige a receita).
+- Peça construível nova = `build/StructureCatalog.ts` (encaixe, tamanho, sólido/opaco, função) + receita
+  com `structure` + desenho em `render/StructureViews.ts`. Construção é estado (`build/Structures.ts`);
+  o `WorldState` sincroniza navegação/visão/recipiente sozinho.
+- O mapa continua intocado: parede derrubada é `WallCuts` (trechos cortados) no estado, não no `MapData`.
 - Ajustes de partida em `config/Sandbox.ts` (com faixa válida). Nada de número de balanceamento solto.
 - Ferramentas de debug em `debug/` + `scenes/DebugScene.ts` (só com `?debug`). Cada sistema novo ganha a sua camada.
 - Sistemas se falam pelo `EventBus` (tipado em `core/EventBus.ts`).

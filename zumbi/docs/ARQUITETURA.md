@@ -11,7 +11,8 @@ Regras que sustentam isso:
    Ex.: o passo do personagem emite `player:footstep` e a porta emite `world:noise`; o sistema de ruído
    (etapa 9) vai só escutar.
 4. **Nada de número mágico espalhado.** Ajustes em `config/`.
-5. **Nunca apagar save sem confirmação** (regra do projeto; o sistema de save virá com backup automático).
+5. **Nunca apagar save sem confirmação**: `save/SaveGame.ts` guarda o anterior em `.bak` e arquiva o jogo
+   antigo em `.old` ao começar outro.
 6. **Mapa × estado.** O mapa (`MapData`) é determinístico e não muda em jogo; o que muda (porta aberta,
    item pego, item largado) é estado (`sim/WorldState.ts`). O save guarda só as diferenças.
 
@@ -24,7 +25,16 @@ sim/        puro: relógio do jogo, chunks, ESTADO do mundo (portas, itens no ch
 items/      puro: catálogo de itens (catalog/), condição/estado, recipiente por peso, inventário do jogador
 loot/       puro: recipientes do mapa, tabelas de loot por lugar, geração preguiçosa e persistente
 nature/     puro: frutíferas e recursos naturais que se renovam com o tempo do jogo
-interaction/ puro: interação por provedores (portas, itens, recipientes, natureza) + ações de item
+interaction/ puro: interação por provedores (portas, itens, recipientes, natureza, janelas, carros,
+            água, construções, demolição) + ações de item por registro (itemActions/)
+survival/   puro: corpo, efeitos, sono, perigos, laço da sobrevivência
+health/     puro: ferimentos e tratamentos por parte do corpo
+combat/     puro: golpe e tiro, alvos destrutíveis
+vehicles/   puro: estado dos carros
+crafting/   puro: receitas (dados), conferir/gastar/entregar, estações e modo construir
+build/      puro: construções do jogador (estado, encaixe, fogo, horta, coletor, vãos em paredes do mapa)
+skills/     puro: habilidades
+save/       save no aparelho (backup e arquivo; nunca apaga sem confirmar)
 world/      dados do mundo: formato do mapa, catálogos, plantas, cidade, colisão,
             navegação/visão (nav/), WorldModel; e o desenho do mundo (render/)
 entities/   jogador (lógica pura + parte Phaser)
@@ -187,3 +197,28 @@ suas camadas.
 | 7–9 Zumbis, percepção, ruído | `WorldModel` (nav, sight, chunks), `Pathfinder`, `world:noise`, portas fechadas na NavGrid/SightGrid; ver [ZUMBIS.md](ZUMBIS.md) |
 | 21 Dia/noite | `ShadowSystem.setSun()`, `GameClock.dayFraction`, `DEPTH.atmosphere` |
 | 25 Save | `WorldState.serialize()`, `PlayerInventory.serialize()`, relógio e jogador com snapshot, `core/Storage.ts` |
+
+## Construções do jogador (`build/`)
+
+- **Estado**: `Structures` guarda cada peça (tipo, centro, giro, resistência e o que ela tiver: lenha,
+  porta aberta, água, planta) indexada por chunk. O save guarda a lista inteira (é o que o jogador fez).
+- **Mundo**: `WorldState` escuta as mudanças e acerta a **navegação** e a **visão** (parede fechada
+  bloqueia zumbi e olhar; porta aberta libera), registra baús/estantes/mesas como recipientes do loot e
+  derruba o conteúdo no chão quando a peça some. Telhado construído entra em `coveredAt()` → abrigo.
+- **Desenho**: `render/StructureViews.ts` por chunk (Graphics + colisor da física para peça sólida),
+  prévia do modo construir, chama animada e telhado transparente com o jogador embaixo.
+- **Encaixe**: `StructureGeometry.placementFor()` — borda do tile (parede/porta/janela/cerca), tiles à
+  frente (móveis, piso, telhado, canteiro) ou ponto livre (fogueira). `CraftService.canPlaceAt()` confere
+  com a geometria exata (paredes, portas, janelas e objetos do mapa, outras construções), dentro/fora e chão.
+- **Paredes do mapa**: `WallCuts` guarda só os trechos derrubados; o `WorldRenderer` desenha os pedaços
+  que sobraram (`WorldEdits.wallPieces`) e a navegação/visão trocam a peça inteira pelos pedaços.
+- **Tempo**: `FireSystem` (1×/s) e `BuildSystem` (1×/2 s) acertam lenha, água e horta pelo relógio.
+
+## Fabricação (`crafting/`)
+
+- `Recipes.ts` é só dado: ingredientes com alternativas (unidades, doses ou fração de consumível medido),
+  ferramentas (etiquetas, desgaste), estação, tempo, habilidade, resultado ou estrutura.
+- `Crafting.ts` confere **reservando unidade por unidade** (dois ingredientes nunca contam o mesmo item) e,
+  no fim da ação, gasta (garrafa pela metade antes da cheia), desgasta, devolve o recipiente vazio e
+  entrega (comida nasce fresca; ingrediente estragado deixa o prato contaminado).
+- `CraftService.ts` descobre as estações por perto e faz a ponte com o relógio (ação com tempo).
