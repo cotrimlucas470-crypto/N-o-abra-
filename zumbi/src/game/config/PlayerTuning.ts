@@ -41,3 +41,8 @@ export const STAMINA_TUNING = {
 export const HEALTH_TUNING = {
   max: 100,
 } as const;
+
+export const INVENTORY_TUNING = {
+  /** Quanto dá para levar nas mãos e bolsos, sem mochila (kg). */
+  carryCapacityKg: 8,
+} as const;

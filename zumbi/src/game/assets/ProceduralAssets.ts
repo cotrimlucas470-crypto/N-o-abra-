@@ -4,6 +4,7 @@
  * só ganha a sombra calculada a partir do próprio PNG.
  */
 import Phaser from 'phaser';
+import { ITEM_DEFS } from '../items/ItemCatalog';
 import { allDecalSprites } from '../world/DecalCatalog';
 import { allPropSprites } from '../world/PropCatalog';
 import { TEX } from './AssetKeys';
@@ -14,6 +15,7 @@ import { makeCanvas, silhouetteShadow } from './procedural/canvas';
 import { drawLegsFrame, drawTorsoFrame, PLAYER_FRAMES } from './procedural/characters';
 import { DECAL_DRAWERS } from './procedural/decals';
 import { drawDust, drawSoftShadow, drawVignette } from './procedural/fx';
+import { ITEM_DRAWERS, ITEM_ICON_SIZE } from './procedural/items';
 import { PATTERNS } from './procedural/patterns';
 import { PROP_DRAWERS, ROOF_PROPS, seedFor } from './procedural/props';
 import { drawTileset } from './procedural/tiles';
@@ -59,6 +61,11 @@ export function generateAssets(textures: Phaser.Textures.TextureManager, registr
   for (const s of ROOF_PROPS) {
     const src = drawSprite(s.id, s.width, s.height, PROP_DRAWERS);
     if (src) entries.push({ id: `${s.id}#shadow`, canvas: silhouetteShadow(src, s.width, s.height, 3) });
+  }
+
+  // Ícones dos itens (chão e inventário).
+  for (const def of Object.values(ITEM_DEFS)) {
+    drawSprite(def.icon, ITEM_ICON_SIZE, ITEM_ICON_SIZE, { [def.icon]: (c, w) => ITEM_DRAWERS[def.icon]?.(c, w) });
   }
 
   // Personagem: folhas animadas (a menos que haja spritesheet substituta).

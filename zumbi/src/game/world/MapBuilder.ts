@@ -5,12 +5,17 @@
  * Mapas futuros podem vir de JSON/Tiled — o resto do jogo só conhece MapData.
  */
 import { TILE } from '../config/GameConfig';
-import { Random } from '../core/Random';
+import { Random, hashString } from '../core/Random';
 import type { DecalType } from './DecalCatalog';
 import type {
   BuildingData,
+  BuildingKind,
   DecalPlacement,
+  DoorMaterial,
+  DoorPlacement,
+  DoorStyle,
   GroundId,
+  ItemPlacement,
   MapData,
   MarkingKind,
   MarkingPlacement,
@@ -30,6 +35,16 @@ export const WALL_THICKNESS: Record<WallKind, number> = {
   window: 10,
   fence: 8,
 };
+
+/**
+ * Vãos até este tamanho (tiles) recebem porta simples; até o próximo, porta
+ * dupla; acima, portão de enrolar (oficina, galpão). Vão interno largo de
+ * casa (sala↔cozinha) fica sem porta: é passagem.
+ */
+const SINGLE_MAX = 1.6;
+const DOUBLE_MAX = 2.6;
+const INTERIOR_PASSAGE_MIN = 1.8;
+const SHOP_KINDS: readonly BuildingKind[] = ['store', 'pharmacy', 'restaurant', 'clothing'];
 
 export interface Opening {
   /** Distância (tiles) desde o ponto inicial da parede. */
@@ -58,6 +73,8 @@ export class MapBuilder {
   private readonly props: PropPlacement[] = [];
   private readonly decals: DecalPlacement[] = [];
   private readonly buildings: BuildingData[] = [];
+  private readonly doors: DoorPlacement[] = [];
+  private readonly items: ItemPlacement[] = [];
   private readonly regions: RegionData[] = [];
   private spawn = { x: 0, y: 0 };
 
@@ -147,10 +164,36 @@ export class MapBuilder {
       if (o.at < -1e-6 || oEnd > end + 1e-6) throw new Error(`Abertura fora da parede em (${x1},${y1})-(${x2},${y2})`);
       pushPiece(cursor, oStart, kind, cursor === start, false);
       if (o.type === 'window') pushPiece(oStart, oEnd, 'window', false, false);
+      else this.recordDoor(horizontal, fixed, oStart, oEnd, th);
       cursor = oEnd;
     }
     pushPiece(cursor, end, kind, cursor === start, true);
     return this;
+  }
+
+  /**
+   * Registra a porta de um vão. Estilo, material e lado de abertura são
+   * decididos depois, por `building()`, que sabe de que construção ela é.
+   * Não usa o gerador aleatório: acrescentar portas não muda o resto do mapa.
+   */
+  private recordDoor(horizontal: boolean, fixed: number, from: number, to: number, thickness: number): void {
+    const mid = (from + to) / 2;
+    const x = round2((horizontal ? mid : fixed) * TILE);
+    const y = round2((horizontal ? fixed : mid) * TILE);
+    const lenTiles = round4(to - from);
+    this.doors.push({
+      id: `porta@${Math.round(x)},${Math.round(y)}`,
+      x,
+      y,
+      length: round2(lenTiles * TILE),
+      thickness,
+      vertical: !horizontal,
+      style: lenTiles <= SINGLE_MAX ? 'single' : lenTiles <= DOUBLE_MAX ? 'double' : 'rolling',
+      material: 'wood',
+      buildingId: null,
+      exterior: true,
+      swing: 1,
+    });
   }
 
   /** Contorno retangular de cerca/muro (sem aberturas), em tiles. */
@@ -214,6 +257,14 @@ export class MapBuilder {
     return this;
   }
 
+  /** Item largado no mapa (tiles). Não usa o gerador aleatório. */
+  item(defId: string, tx: number, ty: number, count = 1): this {
+    const x = tx * TILE;
+    const y = ty * TILE;
+    this.items.push({ id: `item:${defId}@${Math.round(x)},${Math.round(y)}`, defId, count, x, y });
+    return this;
+  }
+
   setSpawn(tx: number, ty: number): this {
     this.spawn = { x: tx * TILE, y: ty * TILE };
     return this;
@@ -269,7 +320,8 @@ export class MapBuilder {
       return { name: f.room, rect: { x: r.x * TILE, y: r.y * TILE, w: r.w * TILE, h: r.h * TILE } };
     });
 
-    // paredes
+    // paredes (as portas dos vãos são registradas aqui e completadas abaixo)
+    const firstDoor = this.doors.length;
     for (const w of tpl.walls) this.templateWall(w, toMap);
 
     // móveis
@@ -294,6 +346,7 @@ export class MapBuilder {
     }
 
     const bounds = rectToMap([0, 0, tpl.w, tpl.h]);
+    this.finishDoors(firstDoor, opts.id, tpl.kind, bounds);
     const data: BuildingData = {
       id: opts.id,
       kind: tpl.kind,
@@ -307,6 +360,33 @@ export class MapBuilder {
     return { data, doors, toMap };
   }
 
+  /**
+   * Completa as portas registradas pelas paredes de uma construção: da rua ou
+   * interna, material, lado de abertura. Vão interno largo vira passagem (sem porta).
+   */
+  private finishDoors(first: number, buildingId: string, kind: BuildingKind, b: Rect): void {
+    const near = (a: number, c: number) => Math.abs(a - c) < 0.01;
+    const cx = b.x + b.w / 2;
+    const cy = b.y + b.h / 2;
+    const kept: DoorPlacement[] = [];
+    for (const d of this.doors.splice(first)) {
+      const tx = d.x / TILE;
+      const ty = d.y / TILE;
+      const exterior = near(tx, b.x) || near(tx, b.x + b.w) || near(ty, b.y) || near(ty, b.y + b.h);
+      const lenTiles = d.length / TILE;
+      if (!exterior && lenTiles >= INTERIOR_PASSAGE_MIN) continue;
+      let material: DoorMaterial = 'wood';
+      const style: DoorStyle = d.style;
+      if (kind === 'garage' || kind === 'warehouse') material = exterior ? 'metal' : 'wood';
+      else if (SHOP_KINDS.includes(kind) && exterior) material = style === 'double' ? 'glass' : 'metal';
+      // Da rua: abre para dentro. Interna: lado fixo por id (determinístico, sem sorteio).
+      const inward = d.vertical ? Math.sign(cx - tx) : Math.sign(cy - ty);
+      const swing: 1 | -1 = exterior ? (inward >= 0 ? 1 : -1) : hashString(d.id) % 2 === 0 ? 1 : -1;
+      kept.push({ ...d, buildingId, exterior, material, swing });
+    }
+    this.doors.push(...kept);
+  }
+
   private templateWall(w: TemplateWall, toMap: (x: number, y: number) => [number, number]): void {
     const [ax, ay] = toMap(w.a[0], w.a[1]);
     const [bx, by] = toMap(w.b[0], w.b[1]);
@@ -318,10 +398,12 @@ export class MapBuilder {
   build(): MapData {
     // Dois objetos iguais no mesmo ponto (raro) ganham sufixo — ainda determinístico.
     const seen = new Map<string, number>();
-    for (const p of this.props) {
-      const n = seen.get(p.id) ?? 0;
-      seen.set(p.id, n + 1);
-      if (n > 0) p.id = `${p.id}#${n}`;
+    for (const list of [this.props, this.doors, this.items] as { id: string }[][]) {
+      for (const p of list) {
+        const n = seen.get(p.id) ?? 0;
+        seen.set(p.id, n + 1);
+        if (n > 0) p.id = `${p.id}#${n}`;
+      }
     }
     return {
       id: this.id,
@@ -336,10 +418,16 @@ export class MapBuilder {
       props: this.props,
       decals: this.decals,
       buildings: this.buildings,
+      doors: this.doors,
+      items: this.items,
       regions: this.regions,
       spawn: this.spawn,
     };
   }
+}
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
 }
 
 function round4(n: number): number {

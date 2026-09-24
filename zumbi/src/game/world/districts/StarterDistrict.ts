@@ -35,6 +35,7 @@ export function buildStarterSector(b: SectorBuilder): void {
   southWest(b);
   southEast(b);
   streetLife(b);
+  starterItems(b);
   b.region('setor-1', 'Zona Residencial · Setor 1', 0, 0, W, H);
 }
 
@@ -208,6 +209,38 @@ function southEast(b: SectorBuilder): void {
   b.prop('crate', 64.8, 53.6, 25);
   b.prop('boxes', 69.6, 48.2);
   b.scatterDecals(['oil', 'debris'], 10, 43, 47, 28, 8, [0.7, 1.1], [0.6, 0.9]);
+}
+
+// ---------------------------------------------------------------- itens
+
+/**
+ * Poucos itens colocados à mão, onde fazem sentido (mesa, bancada, balcão),
+ * para a interação existir antes do sistema de loot. Nada disso reaparece:
+ * pegou, acabou. Coordenadas em tiles locais; não mexem no traçado do setor.
+ */
+function starterItems(b: SectorBuilder): void {
+  // Abrigo: o básico que alguém deixou para trás.
+  b.item('agua', 21.95, 15.0, 2);
+  b.item('biscoito', 21.9, 15.5);
+  b.item('martelo', 20.2, 20.2);
+  b.item('pregos', 21.0, 20.15, 24);
+  b.item('atadura', 23.2, 13.7, 2);
+  b.item('lanterna', 24.4, 20.3);
+  // Casa (noroeste): cozinha e banheiro.
+  b.item('feijao', 12.3, 17.0, 2);
+  b.item('faca', 12.3, 17.8);
+  b.item('analgesico', 12.2, 14.3);
+  // Mercadinho: o que sobrou nas prateleiras.
+  b.item('refrigerante', 11.8, 46.05, 3);
+  b.item('biscoito', 13.6, 46.75, 2);
+  b.item('agua', 18.2, 47.95);
+  b.item('feijao', 19.6, 48.65);
+  b.item('pilhas', 12.6, 44.3, 4);
+  b.item('fita', 14.2, 51.2);
+  // Oficina.
+  b.item('chaveFenda', 47.0, 44.15);
+  b.item('peDeCabra', 50.4, 36.7);
+  b.item('tabua', 45.0, 42.8, 2);
 }
 
 // ---------------------------------------------------------------- abandono

@@ -13,6 +13,9 @@ export interface ChunkContent {
   walls: number[];
   markings: number[];
   buildings: number[];
+  doors: number[];
+  /** Itens colocados no mapa (os largados em jogo ficam no WorldState, com a mesma chave). */
+  items: number[];
 }
 
 export class ChunkIndex {
@@ -27,7 +30,7 @@ export class ChunkIndex {
       const k = chunkKeyAt(Math.min(Math.max(x, 0), w - 1), Math.min(Math.max(y, 0), h - 1));
       let c = this.chunks.get(k);
       if (!c) {
-        c = { props: [], decals: [], walls: [], markings: [], buildings: [] };
+        c = { props: [], decals: [], walls: [], markings: [], buildings: [], doors: [], items: [] };
         this.chunks.set(k, c);
       }
       return c;
@@ -37,6 +40,8 @@ export class ChunkIndex {
     map.walls.forEach((w, i) => at(w.x + w.w / 2, w.y + w.h / 2).walls.push(i));
     map.markings.forEach((m, i) => at(m.x, m.y).markings.push(i));
     map.buildings.forEach((b, i) => at(b.bounds.x + b.bounds.w / 2, b.bounds.y + b.bounds.h / 2).buildings.push(i));
+    map.doors.forEach((d, i) => at(d.x, d.y).doors.push(i));
+    map.items.forEach((it, i) => at(it.x, it.y).items.push(i));
   }
 
   get(key: number): ChunkContent | undefined {

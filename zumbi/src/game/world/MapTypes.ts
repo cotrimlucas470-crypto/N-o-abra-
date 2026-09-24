@@ -110,6 +110,49 @@ export interface BuildingData {
   doors: { x: number; y: number }[];
 }
 
+/**
+ * Porta num vão de parede. O vão já existe no mapa (parede com abertura);
+ * a porta é o que pode fechá-lo. Abrir/fechar/trancar é ESTADO do mundo
+ * (sim/WorldState.ts), não do mapa: o mapa diz só onde a porta está.
+ */
+export type DoorStyle = 'single' | 'double' | 'rolling';
+export type DoorMaterial = 'wood' | 'glass' | 'metal';
+
+export interface DoorPlacement {
+  /** Id estável (`porta@x,y`, centro do vão em px). O save guarda o estado por id. */
+  id: string;
+  /** Centro do vão (px). */
+  x: number;
+  y: number;
+  /** Largura do vão ao longo da parede (px). */
+  length: number;
+  /** Espessura da parede onde está (px). */
+  thickness: number;
+  /** true = parede vertical (a porta fecha passagem leste-oeste). */
+  vertical: boolean;
+  style: DoorStyle;
+  material: DoorMaterial;
+  buildingId: string | null;
+  /** Porta da rua (no contorno da construção) ou entre cômodos. */
+  exterior: boolean;
+  /**
+   * Para que lado a folha abre, perpendicular à parede: +1 = para +y (parede
+   * horizontal) ou +x (parede vertical); -1 = o contrário. Portas da rua abrem
+   * para dentro.
+   */
+  swing: 1 | -1;
+}
+
+/** Item colocado no mapa pelo autor (setor feito à mão). Loot gerado vem na fase de loot. */
+export interface ItemPlacement {
+  /** Id estável (`item:tipo@x,y`). Pegar o item fica registrado no estado do mundo. */
+  id: string;
+  defId: string;
+  count: number;
+  x: number;
+  y: number;
+}
+
 export interface RegionData {
   id: string;
   name: string;
@@ -130,6 +173,8 @@ export interface MapData {
   props: PropPlacement[];
   decals: DecalPlacement[];
   buildings: BuildingData[];
+  doors: DoorPlacement[];
+  items: ItemPlacement[];
   regions: RegionData[];
   spawn: { x: number; y: number };
 }

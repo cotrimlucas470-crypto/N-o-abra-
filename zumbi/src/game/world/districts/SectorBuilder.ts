@@ -66,6 +66,11 @@ export class SectorBuilder {
     return this;
   }
 
+  item(defId: string, tx: number, ty: number, count = 1): this {
+    this.b.item(defId, tx + this.ox, ty + this.oy, count);
+    return this;
+  }
+
   setSpawn(tx: number, ty: number): this {
     this.b.setSpawn(tx + this.ox, ty + this.oy);
     return this;
