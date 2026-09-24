@@ -11,6 +11,7 @@
  *   weather/temperature (11), utilities (12), farming (13), vehicles (14).
  */
 import { clamp } from '../core/math';
+import { ZOMBIE_PRESETS, type ZombiePresetId } from '../zombies/Difficulty';
 
 export interface SandboxSettings {
   version: 1;
@@ -71,6 +72,28 @@ export interface SandboxSettings {
     /** Velocidade da horta (1 = realista: tomate em 60 dias; 4 = 15 dias). */
     growthSpeed: number;
   };
+  /** Zumbis: ver zombies/Difficulty.ts (predefinições Passeio/Sobrevivência/Apocalipse/Extinção). */
+  zombies: {
+    /** População inicial (1 = normal; 0 = cidade vazia). */
+    population: number;
+    /** Fração que corre (0..1). */
+    sprinters: number;
+    speed: number;
+    strength: number;
+    toughness: number;
+    vision: number;
+    hearing: number;
+    aggression: number;
+    memory: number;
+    damage: number;
+    grab: number;
+    groups: number;
+    destruction: number;
+    migration: number;
+    /** Multiplicador da chance de infecção (0 = ninguém se infecta). */
+    infection: number;
+    knockdown: number;
+  };
   nature: {
     /** Dias para uma árvore frutífera repor um fruto. */
     fruitRegrowDays: number;
@@ -91,6 +114,7 @@ export const SANDBOX_DEFAULTS: SandboxSettings = {
   survival: { hungerRate: 1, thirstRate: 1, fatigueRate: 1 },
   utilities: { waterDays: 12, gasDays: 18 },
   farming: { growthSpeed: 4 },
+  zombies: { population: 1, sprinters: 0.07, speed: 1, strength: 1, toughness: 1, vision: 1, hearing: 1, aggression: 1, memory: 1, damage: 1, grab: 1, groups: 1, destruction: 1, migration: 1, infection: 1, knockdown: 1 },
   nature: { fruitRegrowDays: 3, density: 1 },
 };
 
@@ -161,6 +185,24 @@ export function sanitizeSandbox(input: DeepPartial<SandboxSettings> | null | und
     farming: {
       growthSpeed: num(i.farming?.growthSpeed, d.farming.growthSpeed, 0.25, 30),
     },
+    zombies: {
+      population: num(i.zombies?.population, d.zombies.population, 0, 6),
+      sprinters: num(i.zombies?.sprinters, d.zombies.sprinters, 0, 1),
+      speed: num(i.zombies?.speed, d.zombies.speed, 0.4, 2),
+      strength: num(i.zombies?.strength, d.zombies.strength, 0.3, 2.5),
+      toughness: num(i.zombies?.toughness, d.zombies.toughness, 0.5, 2),
+      vision: num(i.zombies?.vision, d.zombies.vision, 0.3, 2.5),
+      hearing: num(i.zombies?.hearing, d.zombies.hearing, 0.3, 2.5),
+      aggression: num(i.zombies?.aggression, d.zombies.aggression, 0.3, 2),
+      memory: num(i.zombies?.memory, d.zombies.memory, 0.3, 4),
+      damage: num(i.zombies?.damage, d.zombies.damage, 0.3, 2.5),
+      grab: num(i.zombies?.grab, d.zombies.grab, 0, 2.5),
+      groups: num(i.zombies?.groups, d.zombies.groups, 0, 2.5),
+      destruction: num(i.zombies?.destruction, d.zombies.destruction, 0, 4),
+      migration: num(i.zombies?.migration, d.zombies.migration, 0, 3),
+      infection: num(i.zombies?.infection, d.zombies.infection, 0, 1.2),
+      knockdown: num(i.zombies?.knockdown, d.zombies.knockdown, 0, 2.5),
+    },
     nature: {
       fruitRegrowDays: num(i.nature?.fruitRegrowDays, d.nature.fruitRegrowDays, 0.5, 60),
       density: num(i.nature?.density, d.nature.density, 0, 2),
@@ -174,6 +216,7 @@ export function sanitizeSandbox(input: DeepPartial<SandboxSettings> | null | und
  *   ?loot=2 (abundância)   ?colapso=30 (dias desde o colapso)
  *   ?mes=7 (começa em julho, inverno)   ?chuva=2 (chove o dobro)
  *   ?agua=0 ?gas=0 (água e gás já cortados)
+ *   ?zumbis=0 (sem zumbis) ?zumbis=2 (o dobro)  ?dificuldade=passeio|sobrevivencia|apocalipse|extincao
  */
 export function sandboxFromUrl(search: string, base: SandboxSettings = SANDBOX_DEFAULTS): SandboxSettings {
   let params: URLSearchParams;
@@ -201,6 +244,10 @@ export function sandboxFromUrl(search: string, base: SandboxSettings = SANDBOX_D
   if (water !== null && Number.isFinite(Number(water))) out.utilities = { ...(out.utilities ?? {}), waterDays: Number(water) };
   const gas = params.get('gas');
   if (gas !== null && Number.isFinite(Number(gas))) out.utilities = { ...(out.utilities ?? {}), gasDays: Number(gas) };
+  const zpop = params.get('zumbis');
+  if (zpop !== null && Number.isFinite(Number(zpop))) out.zombies = { ...(out.zombies ?? {}), population: Number(zpop) };
+  const diff = params.get('dificuldade');
+  if (diff && diff in ZOMBIE_PRESETS) out.zombies = { ...ZOMBIE_PRESETS[diff as ZombiePresetId].settings };
   const hour = params.get('hora');
   if (hour !== null && Number.isFinite(Number(hour))) out.time = { ...out.time, startHour: Number(hour) };
   return sanitizeSandbox(out);

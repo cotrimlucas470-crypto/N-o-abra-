@@ -60,7 +60,9 @@ export type WorldChange =
   | { type: 'prop'; id: string; removed: boolean; x: number; y: number }
   | { type: 'window'; id: string; x: number; y: number }
   /** Parede/cerca do mapa com um vão aberto (derrubada). */
-  | { type: 'wall'; id: string; x: number; y: number };
+  | { type: 'wall'; id: string; x: number; y: number }
+  /** Porta/janela/construção apanhando: fração de resistência que sobrou (1 → 0,8 → 0,5 → 0,2 → quebra). */
+  | { type: 'damage'; what: 'door' | 'window' | 'structure'; id: string; x: number; y: number; frac: number };
 
 export interface WorldStateOptions {
   loot?: LootSettings;
@@ -127,6 +129,7 @@ export class WorldState {
   private propIndex: Map<string, number> | null = null;
   private readonly doorHp = new Map<string, number>();
   private readonly brokenWindows = new Set<string>();
+  private readonly windowHp = new Map<string, number>();
   private readonly clearedWindows = new Set<string>();
 
   constructor(
@@ -355,9 +358,13 @@ export class WorldState {
 
   /** Resistência da porta (madeira aguenta menos que metal; vidro, quase nada). */
   doorHealth(id: string): number {
+    return this.doorHp.get(id) ?? this.doorMaxHealth(id);
+  }
+
+  /** Resistência máxima da porta. */
+  doorMaxHealth(id: string): number {
     const d = this.doorById(id);
-    const max = d ? (d.material === 'glass' ? 25 : d.material === 'metal' ? 260 : d.style === 'double' ? 110 : 80) : 0;
-    return this.doorHp.get(id) ?? max;
+    return d ? (d.material === 'glass' ? 25 : d.material === 'metal' ? 260 : d.style === 'double' ? 110 : 80) : 0;
   }
 
   /** Bate na porta fechada. Chegou a zero: quebra (fica aberta para sempre). */
@@ -366,10 +373,56 @@ export class WorldState {
     if (i === undefined) return 0;
     const s = this.doors[i]!;
     if (s.broken || s.open) return this.doorHealth(id);
-    const hp = this.doorHealth(id) - amount;
+    const before = this.doorHealth(id);
+    const hp = before - amount;
     this.doorHp.set(id, hp);
+    const d = this.model.map.doors[i]!;
+    const max = this.doorMaxHealth(id);
+    if (stage(before / max) !== stage(hp / max)) this.emit({ type: 'damage', what: 'door', id, x: d.x, y: d.y, frac: Math.max(0, hp / max) });
     if (hp <= 0) this.breakDoor(id);
     return hp;
+  }
+
+  /** Vidro da janela apanhando (zumbi batendo): pouca resistência. Devolve true se quebrou agora. */
+  damageWindow(w: WallPiece, amount: number): boolean {
+    const id = WorldState.windowId(w);
+    if (this.brokenWindows.has(id)) return false;
+    const max = 10;
+    const before = this.windowHp.get(id) ?? max;
+    const hp = before - amount;
+    this.windowHp.set(id, hp);
+    if (hp <= 0) {
+      this.windowHp.delete(id);
+      return this.breakWindow(w);
+    }
+    if (stage(before / max) !== stage(hp / max)) this.emit({ type: 'damage', what: 'window', id, x: w.x + w.w / 2, y: w.y + w.h / 2, frac: hp / max });
+    return false;
+  }
+
+  /** Resistência que sobrou do vidro (0..1). */
+  windowIntegrity(id: string): number {
+    return this.brokenWindows.has(id) ? 0 : (this.windowHp.get(id) ?? 10) / 10;
+  }
+
+  /**
+   * Construção apanhando (zumbi, golpe). Chegou a zero: cai — o que estava
+   * guardado vai ao chão. Devolve a resistência que sobrou (≤0 = caiu).
+   */
+  damageStructure(id: string, amount: number): number {
+    const s = this.structures.get(id);
+    if (!s) return 0;
+    const max = STRUCTURE_DEFS[s.type].hp;
+    const before = s.hp;
+    s.hp = before - amount;
+    if (s.hp <= 0) {
+      this.removeStructure(id);
+      return s.hp;
+    }
+    if (stage(before / max) !== stage(s.hp / max)) {
+      this.emit({ type: 'damage', what: 'structure', id, x: s.x, y: s.y, frac: s.hp / max });
+      this.structures.changed(s);
+    }
+    return s.hp;
   }
 
   /** Arrombada ou quebrada: destranca, abre e não fecha mais. */
@@ -427,8 +480,8 @@ export class WorldState {
   private applyClosed(d: DoorPlacement, closed: boolean): void {
     const r = doorGapRect(d);
     const solid = { kind: 'rect' as const, ...r };
-    if (closed) this.model.nav.addSolid(solid);
-    else this.model.nav.removeSolid(solid);
+    if (closed) this.model.nav.addSolid(solid, true);
+    else this.model.nav.removeSolid(solid, true);
     if (d.material === 'glass') return;
     if (closed) this.model.sight.addBlocker(r);
     else this.model.sight.removeBlocker(r);
@@ -524,9 +577,9 @@ export class WorldState {
     const sight = removed ? null : sightOf(s);
     const same = prev && JSON.stringify(prev.solid) === JSON.stringify(solid) && JSON.stringify(prev.sight) === JSON.stringify(sight);
     if (!same) {
-      if (prev?.solid) this.model.nav.removeSolid(prev.solid);
+      if (prev?.solid) this.model.nav.removeSolid(prev.solid, true);
       if (prev?.sight) this.model.sight.removeBlocker(prev.sight);
-      if (solid) this.model.nav.addSolid(solid);
+      if (solid) this.model.nav.addSolid(solid, true);
       if (sight) this.model.sight.addBlocker(sight);
     }
     if (removed) this.structApplied.delete(s.id);
@@ -726,6 +779,11 @@ export class WorldState {
       if (ok.length) this.applyCuts(i!, ok);
     }
   }
+}
+
+/** Faixa de estrago: inteira (>0,8), rachada, muito danificada (<0,5), quase caindo (<0,2). */
+function stage(frac: number): number {
+  return frac > 0.8 ? 0 : frac > 0.5 ? 1 : frac > 0.2 ? 2 : 3;
 }
 
 /** Segmento × retângulo (Liang–Barsky). */

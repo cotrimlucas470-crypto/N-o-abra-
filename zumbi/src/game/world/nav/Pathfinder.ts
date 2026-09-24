@@ -15,6 +15,11 @@ export interface PathOptions {
   smooth?: boolean;
   /** Raio do corpo, para o encurtamento não raspar paredes. */
   agentRadius?: number;
+  /**
+   * Passar por obstáculo quebrável (porta fechada, janela, construção) com
+   * este custo extra por célula. Ausente = quebrável bloqueia como parede.
+   */
+  soft?: number;
 }
 
 export interface PathResult {
@@ -56,9 +61,11 @@ export class Pathfinder {
     const maxExpanded = opts.maxExpanded ?? 6000;
     const empty = (found: boolean): PathResult => ({ found, partial: false, points: [], expanded: 0 });
 
+    const soft = opts.soft;
     const s0 = grid.cellOf(sx, sy);
     const t0 = grid.cellOf(tx, ty);
-    const s = grid.nearestWalkable(s0.cx, s0.cy, 2);
+    // Quem está NUMA célula quebrável (encostado na porta, pulando a janela) sai dela.
+    const s = soft !== undefined && grid.isSoftOnly(s0.cx, s0.cy) ? s0 : grid.nearestWalkable(s0.cx, s0.cy, 2);
     const t = grid.nearestWalkable(t0.cx, t0.cy, 3);
     if (!s || !t) return empty(false);
     const start = s.cy * cols + s.cx;
@@ -101,12 +108,18 @@ export class Pathfinder {
       for (const [dx, dy, cost] of DIRS) {
         const nx = ccx + dx;
         const ny = ccy + dy;
-        if (grid.isBlocked(nx, ny)) continue;
+        let extra = 0;
+        if (grid.isBlocked(nx, ny)) {
+          if (soft === undefined || !grid.isSoftOnly(nx, ny)) continue;
+          // Obstáculo quebrável: só de frente (nada de atravessar na diagonal).
+          if (dx !== 0 && dy !== 0) continue;
+          extra = soft;
+        }
         // diagonal só com as duas vizinhas ortogonais livres (não corta quina)
         if (dx !== 0 && dy !== 0 && (grid.isBlocked(ccx + dx, ccy) || grid.isBlocked(ccx, ccy + dy))) continue;
         const ni = ny * cols + nx;
         if (this.closed[ni] === id) continue;
-        const ng = gc + cost;
+        const ng = gc + cost + extra;
         if (this.stamp[ni] === id && ng >= this.g[ni]!) continue;
         this.stamp[ni] = id;
         this.g[ni] = ng;

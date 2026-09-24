@@ -64,9 +64,9 @@ export function propSolids(p: PropPlacement): Solid[] {
   return out;
 }
 
-export function mapSolids(map: MapData): Solid[] {
+export function mapSolids(map: MapData, walls = true): Solid[] {
   const out: Solid[] = [];
-  for (const w of map.walls) out.push({ kind: 'rect', x: w.x, y: w.y, w: w.w, h: w.h });
+  if (walls) for (const w of map.walls) out.push({ kind: 'rect', x: w.x, y: w.y, w: w.w, h: w.h });
   for (const p of map.props) out.push(...propSolids(p));
   return out;
 }

@@ -53,6 +53,18 @@ export interface HealthSave {
   painkiller: number;
   painkillerPower: number;
   antibiotic: number;
+  /** Infecção zumbi: minutos desde que pegou e duração total até matar. */
+  zombie?: { t: number; dur: number };
+}
+
+/**
+ * Infecção ZUMBI (da mordida, às vezes de corte/arranhão): não tem cura.
+ * Fica escondida algumas horas, depois febre, fraqueza, delírio — e mata
+ * em 1,5 a 3 dias de jogo. O jogador só descobre pelos sintomas.
+ */
+export interface ZombieInfection {
+  t: number;
+  dur: number;
 }
 
 /** Atadura limpa fica suja depois deste tempo (min). */
@@ -66,7 +78,21 @@ export class Health implements InjuryModel {
   painkillerPower = 0;
   /** Minutos de antibiótico agindo. */
   antibiotic = 0;
+  /** Infecção zumbi (null = limpo). */
+  zombie: ZombieInfection | null = null;
   private cache: InjuryEffects | null = null;
+
+  /** Pegou a infecção zumbi (se já tinha, nada muda). */
+  infectZombie(rng: () => number = Math.random): void {
+    if (this.zombie) return;
+    this.zombie = { t: 0, dur: (36 + rng() * 36) * 60 };
+    this.cache = null;
+  }
+
+  /** 0 limpo … 1 fim. */
+  get zombieProgress(): number {
+    return this.zombie ? Math.min(1, this.zombie.t / this.zombie.dur) : 0;
+  }
 
   /** Novo ferimento (gravidade 0..1). Devolve o ferimento criado. */
   add(part: BodyPart, kind: WoundKind, sev: number): Wound {
@@ -100,6 +126,12 @@ export class Health implements InjuryModel {
   private step(min: number, ctx: { sleeping: boolean; body: Body }): number {
     const h = min / 60;
     let hp = 0;
+    if (this.zombie) {
+      this.zombie.t += min;
+      const z = this.zombieProgress;
+      // Últimas horas: o corpo apaga.
+      if (z > 0.85) hp -= (z >= 1 ? 400 : 14 + (z - 0.85) * 300) * h;
+    }
     this.painkiller = Math.max(0, this.painkiller - min);
     if (this.painkiller <= 0) this.painkillerPower = 0;
     this.antibiotic = Math.max(0, this.antibiotic - min);
@@ -172,7 +204,7 @@ export class Health implements InjuryModel {
 
   get rawPain(): number {
     let sum = 0;
-    let max = 0;
+    let max = this.zombieProgress > 0.3 ? (this.zombieProgress - 0.3) * 50 : 0;
     for (const w of this.wounds) {
       const p = this.woundPain(w);
       sum += p;
@@ -215,7 +247,8 @@ export class Health implements InjuryModel {
   fever(): number {
     let max = 0;
     for (const w of this.wounds) max = Math.max(max, w.infection);
-    return max * 2.4;
+    const z = this.zombieProgress;
+    return Math.max(max * 2.4, z > 0.15 ? Math.min(3.2, (z - 0.15) * 5) : 0);
   }
 
   get bleeding(): number {
@@ -243,6 +276,9 @@ export class Health implements InjuryModel {
     const e = this.effects();
     if (e.legs > 0.25) out.push({ id: 'mancando', label: e.legFracture ? 'Perna quebrada' : 'Mancando', level: e.legFracture ? 3 : 2, tone: e.legFracture ? 'bad' : 'warn' });
     if (this.wounds.some((w) => w.bandage && !w.bandage.clean)) out.push({ id: 'atadura', label: 'Atadura suja', level: 1, tone: 'warn' });
+    // Infecção zumbi: só os sintomas aparecem (nunca o nome).
+    const z = this.zombieProgress;
+    if (z > 0.15) out.push({ id: 'zumbi', label: z > 0.8 ? 'Delirando' : z > 0.5 ? 'Muito doente' : 'Febre estranha', level: z > 0.5 ? 3 : 2, tone: 'bad' });
     return out;
   }
 
@@ -326,7 +362,15 @@ export class Health implements InjuryModel {
   // ---------------------------------------------------------------- save
 
   serialize(): HealthSave {
-    return { version: 1, wounds: this.wounds.map((w) => ({ ...w, ...(w.bandage ? { bandage: { ...w.bandage } } : {}) })), nextId: this.nextId, painkiller: this.painkiller, painkillerPower: this.painkillerPower, antibiotic: this.antibiotic };
+    return {
+      version: 1,
+      wounds: this.wounds.map((w) => ({ ...w, ...(w.bandage ? { bandage: { ...w.bandage } } : {}) })),
+      nextId: this.nextId,
+      painkiller: this.painkiller,
+      painkillerPower: this.painkillerPower,
+      antibiotic: this.antibiotic,
+      ...(this.zombie ? { zombie: { ...this.zombie } } : {}),
+    };
   }
 
   restore(s: HealthSave | undefined): void {
@@ -336,6 +380,7 @@ export class Health implements InjuryModel {
     this.painkiller = s.painkiller ?? 0;
     this.painkillerPower = s.painkillerPower ?? 0;
     this.antibiotic = s.antibiotic ?? 0;
+    this.zombie = s.zombie && Number.isFinite(s.zombie.t) && Number.isFinite(s.zombie.dur) ? { ...s.zombie } : null;
     this.cache = null;
   }
 }

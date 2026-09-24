@@ -6,6 +6,11 @@
  * dá para acrescentar e remover obstáculos em tempo de jogo — porta que
  * fecha, barricada construída, carro empurrado — sem reconstruir a grade.
  *
+ * Obstáculo QUEBRÁVEL (porta fechada, janela, construção do jogador) conta
+ * também numa segunda camada ("macia"): para quem anda ele bloqueia igual,
+ * mas a rota dos zumbis pode passar por ali com custo — e aí o zumbi para e
+ * bate, empurra ou pula. Parede e objeto do mapa são "duros".
+ *
  * Garantia usada pela IA: o centro de uma célula livre fica a pelo menos
  * ~16 px de qualquer parede, então um corpo de raio ≤ 15 anda pelos centros
  * sem encostar. Diagonal só passa se as duas células vizinhas estiverem
@@ -22,6 +27,8 @@ export class NavGrid {
   readonly cols: number;
   readonly rows: number;
   private readonly counts: Uint16Array;
+  /** Quantos dos sólidos da célula são quebráveis (≤ counts). */
+  private readonly soft: Uint16Array;
 
   constructor(
     readonly widthPx: number,
@@ -31,23 +38,27 @@ export class NavGrid {
     this.cols = Math.ceil(widthPx / cell);
     this.rows = Math.ceil(heightPx / cell);
     this.counts = new Uint16Array(this.cols * this.rows);
+    this.soft = new Uint16Array(this.cols * this.rows);
   }
 
   static fromMap(map: MapData, cell = NAV_CELL): NavGrid {
     const g = new NavGrid(map.widthTiles * map.tileSize, map.heightTiles * map.tileSize, cell);
-    for (const s of mapSolids(map)) g.addSolid(s);
+    // Janelas são quebráveis (vidro); o resto do mapa é duro.
+    for (const w of map.walls) g.addSolid({ kind: 'rect', x: w.x, y: w.y, w: w.w, h: w.h }, w.kind === 'window');
+    for (const s of mapSolids(map, false)) g.addSolid(s);
     return g;
   }
 
-  addSolid(s: Solid): void {
-    this.apply(s, 1);
+  /** `soft` = obstáculo quebrável (porta, janela, construção). */
+  addSolid(s: Solid, soft = false): void {
+    this.apply(s, 1, soft);
   }
 
-  removeSolid(s: Solid): void {
-    this.apply(s, -1);
+  removeSolid(s: Solid, soft = false): void {
+    this.apply(s, -1, soft);
   }
 
-  private apply(s: Solid, delta: number): void {
+  private apply(s: Solid, delta: number, soft: boolean): void {
     const c = this.cell;
     const [x0, y0, x1, y1] = s.kind === 'rect' ? [s.x, s.y, s.x + s.w, s.y + s.h] : [s.x - s.r, s.y - s.r, s.x + s.r, s.y + s.r];
     const cx0 = Math.max(0, Math.floor((x0 + EPS) / c));
@@ -66,6 +77,10 @@ export class NavGrid {
         const i = cy * this.cols + cx;
         const v = this.counts[i]! + delta;
         this.counts[i] = v < 0 ? 0 : v;
+        if (soft) {
+          const f = this.soft[i]! + delta;
+          this.soft[i] = f < 0 ? 0 : f;
+        }
       }
     }
   }
@@ -82,6 +97,19 @@ export class NavGrid {
 
   isBlockedIndex(i: number): boolean {
     return this.counts[i]! > 0;
+  }
+
+  /** Bloqueada só por coisa quebrável (porta, janela, construção)? */
+  isSoftOnly(cx: number, cy: number): boolean {
+    if (!this.inBounds(cx, cy)) return false;
+    const i = cy * this.cols + cx;
+    const c = this.counts[i]!;
+    return c > 0 && this.soft[i]! >= c;
+  }
+
+  isSoftOnlyIndex(i: number): boolean {
+    const c = this.counts[i]!;
+    return c > 0 && this.soft[i]! >= c;
   }
 
   isWalkableAt(x: number, y: number): boolean {
