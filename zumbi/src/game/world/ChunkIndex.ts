@@ -20,10 +20,14 @@ export interface ChunkContent {
 
 export class ChunkIndex {
   private readonly chunks = new Map<number, ChunkContent>();
+  private readonly w: number;
+  private readonly h: number;
 
   constructor(private readonly map: MapData) {
     const w = map.widthTiles * map.tileSize;
     const h = map.heightTiles * map.tileSize;
+    this.w = w;
+    this.h = h;
     const at = (x: number, y: number) => {
       // Objeto com o centro um pouco fora do mapa (árvore na borda) vai para o
       // chunk de borda mais próximo — senão nunca seria carregado.
@@ -42,6 +46,19 @@ export class ChunkIndex {
     map.buildings.forEach((b, i) => at(b.bounds.x + b.bounds.w / 2, b.bounds.y + b.bounds.h / 2).buildings.push(i));
     map.doors.forEach((d, i) => at(d.x, d.y).doors.push(i));
     map.items.forEach((it, i) => at(it.x, it.y).items.push(i));
+  }
+
+  /** Chunk de um ponto, com o mesmo critério de borda usado no índice. */
+  chunkOfPoint(x: number, y: number): number {
+    return chunkKeyAt(Math.min(Math.max(x, 0), this.w - 1), Math.min(Math.max(y, 0), this.h - 1));
+  }
+
+  /** O chunk do ponto e os 8 vizinhos (conteúdo de um chunk alcança um pouco além da borda). */
+  chunksAround(x: number, y: number): number[] {
+    const { cx, cy } = keyToChunk(this.chunkOfPoint(x, y));
+    const out: number[] = [];
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) out.push(chunkKey(cx + dx, cy + dy));
+    return out;
   }
 
   get(key: number): ChunkContent | undefined {

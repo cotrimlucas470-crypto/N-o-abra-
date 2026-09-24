@@ -5,6 +5,7 @@
  * recipientes, não um só.
  */
 import { INVENTORY_TUNING } from '../config/PlayerTuning';
+import type { ItemState } from './condition';
 import { ItemContainer, type ItemContainerSave } from './ItemContainer';
 
 export interface PlayerInventorySave {
@@ -33,11 +34,11 @@ export class PlayerInventory {
   }
 
   /** Guarda onde couber; devolve quantas unidades entraram. */
-  add(defId: string, count: number): number {
+  add(defId: string, count: number, st?: ItemState): number {
     let left = count;
     for (const c of this.containers) {
       if (left <= 0) break;
-      left -= c.add(defId, left);
+      left -= c.add(defId, left, st);
     }
     const added = count - left;
     if (added > 0) this.changed();

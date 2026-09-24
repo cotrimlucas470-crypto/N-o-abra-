@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DECAL_DRAWERS } from '../src/game/assets/procedural/decals';
 import { ITEM_DRAWERS } from '../src/game/assets/procedural/items';
+import { hasIconFamily } from '../src/game/assets/procedural/itemIcons';
 import { ITEM_DEFS } from '../src/game/items/ItemCatalog';
 import { PROP_DRAWERS } from '../src/game/assets/procedural/props';
 import { allDecalSprites } from '../src/game/world/DecalCatalog';
@@ -18,7 +19,7 @@ describe('arte procedural', () => {
   });
 
   it('todo item tem ícone', () => {
-    const missing = Object.values(ITEM_DEFS).filter((d) => !ITEM_DRAWERS[d.icon]).map((d) => d.icon);
+    const missing = Object.values(ITEM_DEFS).filter((d) => !ITEM_DRAWERS[d.icon] && !hasIconFamily(d.iconSpec)).map((d) => `${d.icon} (${d.iconSpec.f})`);
     expect(missing).toEqual([]);
   });
 

@@ -37,7 +37,7 @@ export class ItemInteractions implements InteractionProvider {
   private pick(it: WorldItem): InteractionResult {
     const def = itemDef(it.defId);
     if (!def) return { ok: false };
-    const fits = this.inventory.add(it.defId, it.count);
+    const fits = this.inventory.add(it.defId, it.count, it.st);
     if (fits <= 0) return { ok: false, message: 'Pesado demais para carregar.' };
     this.state.takeItem(it.id, fits);
     const rest = fits < it.count ? ' (o resto não cabe)' : '';
@@ -54,7 +54,7 @@ export class ItemInteractions implements InteractionProvider {
     const h = hashString(`${out.defId}:${this.state.itemCount}:${Math.round(x)},${Math.round(y)}`);
     const a = ((h % 360) * Math.PI) / 180;
     const r = 4 + (h % 7);
-    this.state.dropItem(out.defId, out.count, x + Math.cos(a) * r, y + Math.sin(a) * r);
+    this.state.dropItem(out.defId, out.count, x + Math.cos(a) * r, y + Math.sin(a) * r, out.st);
     const def = itemDef(out.defId);
     return { ok: true, message: `Largou ${out.count > 1 ? `${out.count} ` : ''}${def?.name ?? 'item'}` };
   }

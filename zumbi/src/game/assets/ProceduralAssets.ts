@@ -16,6 +16,7 @@ import { drawLegsFrame, drawTorsoFrame, PLAYER_FRAMES } from './procedural/chara
 import { DECAL_DRAWERS } from './procedural/decals';
 import { drawDust, drawSoftShadow, drawVignette } from './procedural/fx';
 import { ITEM_DRAWERS, ITEM_ICON_SIZE } from './procedural/items';
+import { drawItemIcon } from './procedural/itemIcons';
 import { PATTERNS } from './procedural/patterns';
 import { PROP_DRAWERS, ROOF_PROPS, seedFor } from './procedural/props';
 import { drawTileset } from './procedural/tiles';
@@ -64,8 +65,14 @@ export function generateAssets(textures: Phaser.Textures.TextureManager, registr
   }
 
   // Ícones dos itens (chão e inventário).
-  const itemDrawers = Object.fromEntries(Object.entries(ITEM_DRAWERS).map(([id, draw]) => [id, (c: CanvasRenderingContext2D, w: number) => draw(c, w)]));
+  // Os primeiros ícones foram desenhados à mão (ITEM_DRAWERS); o resto sai das famílias do catálogo.
+  const itemDrawers: Record<string, (c: CanvasRenderingContext2D, w: number) => void> = {};
+  for (const def of Object.values(ITEM_DEFS)) {
+    const hand = ITEM_DRAWERS[def.icon];
+    itemDrawers[def.icon] = hand ? (c, w) => hand(c, w) : (c, w) => drawItemIcon(c, w, def.iconSpec);
+  }
   for (const def of Object.values(ITEM_DEFS)) drawSprite(def.icon, ITEM_ICON_SIZE, ITEM_ICON_SIZE, itemDrawers);
+  lap('itens');
 
   // Personagem: folhas animadas (a menos que haja spritesheet substituta).
   if (!textures.exists(overrideKey('player.torso'))) {

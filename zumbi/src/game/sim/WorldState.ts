@@ -16,10 +16,13 @@
 import { DOOR_TUNING } from '../config/WorldTuning';
 import { hashString } from '../core/Random';
 import { itemDef } from '../items/ItemCatalog';
+import { normalizeState, type ItemState } from '../items/condition';
 import { doorGapRect } from '../world/doors';
 import type { DoorPlacement } from '../world/MapTypes';
 import type { WorldModel } from '../world/WorldModel';
 import { chunkKey, chunkKeyAt, chunkOf } from './ChunkGrid';
+import { DEFAULT_LOOT, type LootSettings } from '../loot/generate';
+import { LootSystem, type LootSave } from '../loot/LootSystem';
 
 export interface DoorState {
   open: boolean;
@@ -32,14 +35,22 @@ export interface WorldItem {
   count: number;
   x: number;
   y: number;
+  /** Estado do item (condição, validade...). Ausente = novo. */
+  st?: ItemState;
 }
 
 export type WorldChange =
   | { type: 'door'; door: DoorPlacement; state: Readonly<DoorState> }
-  | { type: 'items'; chunk: number };
+  | { type: 'items'; chunk: number }
+  | { type: 'container'; id: string };
+
+export interface WorldStateOptions {
+  loot?: LootSettings;
+}
 
 export interface WorldStateSave {
-  version: 1;
+  /** 1 = só portas e itens; 2 = + recipientes (loot). Save antigo continua valendo. */
+  version: 1 | 2;
   /** Portas que diferem do estado inicial: id → [aberta, trancada]. */
   doors: Record<string, [0 | 1, 0 | 1]>;
   /** Itens do mapa que mudaram: id → quantidade que sobrou (0 = pego). */
@@ -47,6 +58,7 @@ export interface WorldStateSave {
   /** Itens que não vieram do mapa (largados pelo jogador etc.). */
   items: WorldItem[];
   nextItem: number;
+  loot?: LootSave;
 }
 
 export class WorldState {
@@ -55,11 +67,18 @@ export class WorldState {
   private readonly doorIndex = new Map<string, number>();
   private readonly items = new Map<number, Map<string, WorldItem>>();
   private readonly itemChunk = new Map<string, number>();
+  /** Itens de base (colocados no mapa ou gerados no chão na criação): id → quantidade agora. */
   private readonly mapItemCount = new Map<string, number>();
+  private readonly baseCount = new Map<string, number>();
+  /** Recipientes do mapa e seu conteúdo (gerado ao abrir). */
+  readonly loot: LootSystem;
   private readonly listeners = new Set<(c: WorldChange) => void>();
   private nextItem = 1;
 
-  constructor(readonly model: WorldModel) {
+  constructor(
+    readonly model: WorldModel,
+    opts: WorldStateOptions = {},
+  ) {
     const map = model.map;
     const kindOf = new Map(map.buildings.map((b) => [b.id, b.kind]));
     this.defaults = map.doors.map((d) => ({ open: startsOpen(d, map.seed, d.buildingId ? kindOf.get(d.buildingId) : undefined), locked: false }));
@@ -68,11 +87,28 @@ export class WorldState {
       this.doorIndex.set(d.id, i);
       if (!this.doors[i]!.open) this.applyClosed(d, true);
     });
-    for (const it of map.items) {
+    this.loot = new LootSystem(model, map.seed, opts.loot ?? DEFAULT_LOOT);
+    for (const it of [...map.items, ...this.loot.floorItems]) {
       if (!itemDef(it.defId)) continue;
       this.mapItemCount.set(it.id, it.count);
+      this.baseCount.set(it.id, it.count);
       this.insertItem({ ...it });
     }
+  }
+
+  // ---------------------------------------------------------------- recipientes
+
+  /** Abre um recipiente (gera o conteúdo na primeira vez). */
+  openContainer(id: string) {
+    const c = this.loot.open(id);
+    if (c) this.emit({ type: 'container', id });
+    return c;
+  }
+
+  /** Avise depois de tirar/pôr algo: o recipiente passa a ser salvo. */
+  containerChanged(id: string): void {
+    this.loot.markTouched(id);
+    this.emit({ type: 'container', id });
   }
 
   // ---------------------------------------------------------------- portas
@@ -191,7 +227,7 @@ export class WorldState {
   }
 
   /** Retira até `count` unidades de um item do chão; devolve o que saiu. */
-  takeItem(id: string, count = Infinity): { defId: string; count: number } | null {
+  takeItem(id: string, count = Infinity): { defId: string; count: number; st?: ItemState } | null {
     const k = this.itemChunk.get(id);
     if (k === undefined) return null;
     const m = this.items.get(k)!;
@@ -205,13 +241,15 @@ export class WorldState {
     }
     if (this.mapItemCount.has(id)) this.mapItemCount.set(id, it.count);
     this.emit({ type: 'items', chunk: k });
-    return { defId: it.defId, count: n };
+    return it.st ? { defId: it.defId, count: n, st: { ...it.st } } : { defId: it.defId, count: n };
   }
 
   /** Larga itens no chão. Nada aparece do nada: só entra no mundo o que alguém largou. */
-  dropItem(defId: string, count: number, x: number, y: number): WorldItem | null {
-    if (!itemDef(defId) || count <= 0) return null;
-    const it: WorldItem = { id: `solto#${this.nextItem++}`, defId, count, x, y };
+  dropItem(defId: string, count: number, x: number, y: number, st?: ItemState): WorldItem | null {
+    const def = itemDef(defId);
+    if (!def || count <= 0) return null;
+    const norm = normalizeState(def, st);
+    const it: WorldItem = { id: `solto#${this.nextItem++}`, defId, count, x, y, ...(norm ? { st: norm } : {}) };
     this.insertItem(it);
     this.emit({ type: 'items', chunk: this.itemChunk.get(it.id)! });
     return it;
@@ -242,13 +280,13 @@ export class WorldState {
       if (s.open !== def.open || s.locked !== def.locked) doors[d.id] = [s.open ? 1 : 0, s.locked ? 1 : 0];
     });
     const mapItems: WorldStateSave['mapItems'] = {};
-    for (const it of this.model.map.items) {
-      const now = this.mapItemCount.get(it.id);
-      if (now !== undefined && now !== it.count) mapItems[it.id] = now;
+    for (const [id, base] of this.baseCount) {
+      const now = this.mapItemCount.get(id);
+      if (now !== undefined && now !== base) mapItems[id] = now;
     }
     const items: WorldItem[] = [];
     for (const m of this.items.values()) for (const it of m.values()) if (!this.mapItemCount.has(it.id)) items.push({ ...it });
-    return { version: 1, doors, mapItems, items, nextItem: this.nextItem };
+    return { version: 2, doors, mapItems, items, nextItem: this.nextItem, loot: this.loot.serialize() };
   }
 
   /**
@@ -256,7 +294,8 @@ export class WorldState {
    * mais (mapa mudou de versão) é ignorado: save antigo não quebra o jogo.
    */
   restore(save: WorldStateSave): void {
-    if (!save || save.version !== 1) return;
+    if (!save || (save.version !== 1 && save.version !== 2)) return;
+    this.loot.restore(save.loot);
     for (const [id, [open, locked]] of Object.entries(save.doors ?? {})) {
       const i = this.doorIndex.get(id);
       if (i === undefined) continue;

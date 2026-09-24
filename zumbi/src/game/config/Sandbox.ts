@@ -7,7 +7,7 @@
  * Sistemas leem `settings.<seção>.<valor>` — nunca números soltos.
  *
  * Seções futuras (entram junto com o sistema que as usa):
- *   zombies (Fase 5), survival (3), loot (4), combat (6/7), medical (8),
+ *   zombies (Fase 5), survival (3), combat (6/7), medical (8),
  *   weather/temperature (11), utilities (12), farming (13), vehicles (14).
  */
 import { clamp } from '../core/math';
@@ -34,6 +34,24 @@ export interface SandboxSettings {
     staminaDrainMultiplier: number;
     staminaRegenMultiplier: number;
   };
+  loot: {
+    /** Quantidade geral de itens nos recipientes (1 = normal). */
+    abundance: number;
+    /** Multiplica a chance de itens raros (0 = nunca, 1 = normal). */
+    rareMultiplier: number;
+    /** Chance extra de um recipiente já ter sido esvaziado por alguém. */
+    alreadyLooted: number;
+    /** Dias entre o colapso e o dia 1: comida já passada, pilhas mais fracas. */
+    collapseAgeDays: number;
+    /** Itens soltos pelo chão das construções (1 = normal, 0 = nenhum). */
+    floorItems: number;
+  };
+  nature: {
+    /** Dias para uma árvore frutífera repor um fruto. */
+    fruitRegrowDays: number;
+    /** Densidade da vegetação/objetos da camada de ambiente (0 = nenhuma). */
+    density: number;
+  };
 }
 
 export type SandboxPresetId = 'padrao' | 'cidade-pequena' | 'cidade-grande';
@@ -43,6 +61,8 @@ export const SANDBOX_DEFAULTS: SandboxSettings = {
   world: { seed: 1337, sectorsX: 3, sectorsY: 3 },
   time: { dayLengthMinutes: 48, startDay: 1, startHour: 8 },
   player: { walkSpeedMultiplier: 1, runSpeedMultiplier: 1, staminaDrainMultiplier: 1, staminaRegenMultiplier: 1 },
+  loot: { abundance: 1, rareMultiplier: 1, alreadyLooted: 0, collapseAgeDays: 0, floorItems: 1 },
+  nature: { fruitRegrowDays: 3, density: 1 },
 };
 
 export const SANDBOX_PRESETS: Record<SandboxPresetId, { name: string; description: string; settings: SandboxSettings }> = {
@@ -87,12 +107,24 @@ export function sanitizeSandbox(input: DeepPartial<SandboxSettings> | null | und
       staminaDrainMultiplier: num(i.player?.staminaDrainMultiplier, d.player.staminaDrainMultiplier, 0, 5),
       staminaRegenMultiplier: num(i.player?.staminaRegenMultiplier, d.player.staminaRegenMultiplier, 0.1, 5),
     },
+    loot: {
+      abundance: num(i.loot?.abundance, d.loot.abundance, 0.1, 4),
+      rareMultiplier: num(i.loot?.rareMultiplier, d.loot.rareMultiplier, 0, 5),
+      alreadyLooted: num(i.loot?.alreadyLooted, d.loot.alreadyLooted, 0, 0.95),
+      collapseAgeDays: num(i.loot?.collapseAgeDays, d.loot.collapseAgeDays, 0, 365),
+      floorItems: num(i.loot?.floorItems, d.loot.floorItems, 0, 3),
+    },
+    nature: {
+      fruitRegrowDays: num(i.nature?.fruitRegrowDays, d.nature.fruitRegrowDays, 0.5, 60),
+      density: num(i.nature?.density, d.nature.density, 0, 2),
+    },
   };
 }
 
 /**
  * Lê ajustes de teste da URL (só para desenvolvimento):
  *   ?setores=1x1   ?semente=42   ?dia=10 (minutos reais por dia)   ?hora=20
+ *   ?loot=2 (abundância)   ?colapso=30 (dias desde o colapso)
  */
 export function sandboxFromUrl(search: string, base: SandboxSettings = SANDBOX_DEFAULTS): SandboxSettings {
   let params: URLSearchParams;
@@ -108,6 +140,10 @@ export function sandboxFromUrl(search: string, base: SandboxSettings = SANDBOX_D
   if (seed !== null && /^\d+$/.test(seed)) out.world = { ...out.world, seed: Number(seed) };
   const day = params.get('dia');
   if (day !== null && Number.isFinite(Number(day))) out.time = { ...out.time, dayLengthMinutes: Number(day) };
+  const loot = params.get('loot');
+  if (loot !== null && Number.isFinite(Number(loot))) out.loot = { ...out.loot, abundance: Number(loot) };
+  const colapso = params.get('colapso');
+  if (colapso !== null && Number.isFinite(Number(colapso))) out.loot = { ...out.loot, collapseAgeDays: Number(colapso) };
   const hour = params.get('hora');
   if (hour !== null && Number.isFinite(Number(hour))) out.time = { ...out.time, startHour: Number(hour) };
   return sanitizeSandbox(out);
