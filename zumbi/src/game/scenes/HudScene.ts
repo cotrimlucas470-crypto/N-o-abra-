@@ -25,7 +25,7 @@ import { StatusPanel } from '../ui/StatusPanel';
 import { Toast } from '../ui/Toast';
 import { UiButton } from '../ui/UiButton';
 import { UI, textStyle } from '../ui/theme';
-import { DeathScreen, ThreatBanner } from '../ui/ThreatUi';
+import { DeathScreen, HearingRing, ThreatBanner } from '../ui/ThreatUi';
 import { loadGame, saveSummary } from '../save/SaveGame';
 
 export class HudScene extends Phaser.Scene {
@@ -36,6 +36,7 @@ export class HudScene extends Phaser.Scene {
   private controls!: TouchControls;
   private feedback!: ActionFeedback;
   private threat!: ThreatBanner;
+  private hearing!: HearingRing;
   private death!: DeathScreen;
   private inventory!: InventoryPanel;
   private prompt!: Phaser.GameObjects.Text;
@@ -114,6 +115,7 @@ export class HudScene extends Phaser.Scene {
     });
     this.feedback = new ActionFeedback(this, dpr);
     this.threat = new ThreatBanner(this, dpr);
+    this.hearing = new HearingRing(this, dpr);
     // Morte: carregar o último save (nunca apagado) ou voltar ao menu.
     const leave = () => {
       this.scene.stop(SCENES.debug);
@@ -183,6 +185,7 @@ export class HudScene extends Phaser.Scene {
         this.promptKey = '';
       }),
       s.bus.on('player:feedback', (e) => this.feedback.show(e.text, e.tone)),
+      s.bus.on('player:heard', (e) => this.hearing.add(e)),
       s.bus.on('player:died', (e) => {
         this.inventory.setOpen(false);
         this.optionsMenu.hide();
@@ -336,6 +339,7 @@ export class HudScene extends Phaser.Scene {
     this.feedback.setPosition(w / 2, h * 0.64, k);
     this.threat.setPosition(w / 2, h * (s.viewport.isPortrait ? 0.5 : 0.72), k, ins.left + 14, ins.top + 10 + 128 * k);
     this.death.layout(w, h, k);
+    this.hearing.layout(w, h);
     this.inventory.layout(w, h, ins, k);
     this.promptKey = '';
 
@@ -451,6 +455,7 @@ export class HudScene extends Phaser.Scene {
     if (!this.paused) this.controls.update(stats ? !stats.canSprint() : false, target ? target.enabled : null, this.inventory.isOpen, !!this.s.session.threat?.sneaking, (this.s.session.threat?.grabbed ?? 0) > 0);
     this.threat.update(dt, this.s.session.threat, this.controls.isTouchMode);
     this.death.update(dt);
+    this.hearing.update(dt);
     this.updatePrompt();
     // PC: mouse sobre o painel não mira.
     const mouse = this.input.mousePointer;

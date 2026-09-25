@@ -21,21 +21,20 @@ import Phaser from 'phaser';
 import { DEPTH } from '../../config/GameConfig';
 import { TEX } from '../../assets/AssetKeys';
 import { CORPSE_SIZE, drawBloodPool, drawCorpse, drawZombieSheet, LEG_FRAMES, sheetLayout, zombieDims, ZOMBIE_RES } from '../../assets/procedural/zombieArt';
+import { SlotAtlas, type SlotRef } from './SlotAtlas';
 import type { ShadowSystem } from './ShadowSystem';
 import type { ZombieSystem } from '../../zombies/ZombieSystem';
 import { isCrawler, isLimping, legs, type Zombie } from '../../zombies/Zombie';
 
 const MARGIN = 220;
-const SHEET_CACHE = 44;
-const CORPSE_CACHE = 70;
-const BLOOD_KEYS = 4;
+const BLOOD_VARIANTS = 4;
+const BLOOD_KEY = 'fx.bloodpool';
 const BASE = DEPTH.player - 1.6;
 
 interface Sheet {
-  key: string;
+  ref: SlotRef;
   ver: number;
   used: number;
-  tex: Phaser.Textures.CanvasTexture;
 }
 
 interface View {
@@ -48,6 +47,8 @@ interface View {
   torso: Phaser.GameObjects.Image;
   head: Phaser.GameObjects.Image;
   key: string;
+  /** Vaga na página (os quadros são "<vaga>:<nome>"). */
+  slot: number;
   /** Ombro (meia largura) e cabeça em px de mundo. */
   W: number;
   seen: number;
@@ -65,23 +66,46 @@ export class ZombieViews {
   private readonly spare: View[] = [];
   private readonly sheets = new Map<string, Sheet>();
   private readonly corpses = new Map<string, CorpseView>();
-  private readonly corpseTex = new Map<string, { used: number; ver: number }>();
+  private readonly corpseTex = new Map<string, { used: number; ver: number; ref: SlotRef }>();
   private readonly layout = sheetLayout();
   private frameNo = 0;
   private readonly near: Zombie[] = [];
-  private readonly bloodKeys: string[] = [];
+  /** Folhas de todos os zumbis numa(s) página(s) só (e corpos em outra). */
+  private readonly sheetAtlas: SlotAtlas;
+  private readonly corpseAtlas: SlotAtlas;
+  private readonly scratch = document.createElement('canvas');
+  private readonly corpseScratch = document.createElement('canvas');
 
   constructor(
     private readonly scene: Phaser.Scene,
     private readonly sys: ZombieSystem,
     private readonly shadows: ShadowSystem,
   ) {
-    for (let i = 0; i < BLOOD_KEYS; i++) {
-      const key = `fx.bloodpool.${i}`;
-      if (!scene.textures.exists(key)) scene.textures.addCanvas(key, drawBloodPool(900 + i * 17));
-      this.bloodKeys.push(key);
+    // Poças de sangue: 4 variações numa textura só.
+    if (!scene.textures.exists(BLOOD_KEY)) {
+      const size = 96;
+      const c = document.createElement('canvas');
+      c.width = size * BLOOD_VARIANTS;
+      c.height = size;
+      const ctx = c.getContext('2d')!;
+      for (let i = 0; i < BLOOD_VARIANTS; i++) ctx.drawImage(drawBloodPool(900 + i * 17, size), i * size, 0);
+      const tex = scene.textures.addCanvas(BLOOD_KEY, c)!;
+      for (let i = 0; i < BLOOD_VARIANTS; i++) tex.add(String(i), 0, i * size, 0, size, size);
     }
+    const L = this.layout;
+    const frames = Object.fromEntries(Object.entries(L.frames).map(([n, f]) => [n, { x: f.x, y: f.y, w: f.w, h: f.h }]));
+    this.sheetAtlas = new SlotAtlas(scene, 'zumbis', L.w, L.h, 1900, 3, frames);
+    this.corpseAtlas = new SlotAtlas(scene, 'corpos', CORPSE_SIZE.w, CORPSE_SIZE.h, 1700, 2, { c: { x: 0, y: 0, w: CORPSE_SIZE.w, h: CORPSE_SIZE.h } });
+    this.scratch.width = L.w;
+    this.scratch.height = L.h;
+    this.corpseScratch.width = CORPSE_SIZE.w;
+    this.corpseScratch.height = CORPSE_SIZE.h;
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.destroy());
+  }
+
+  /** Vagas de textura em uso (debug). */
+  get textureStats(): string {
+    return `folhas ${this.sheetAtlas.used}/${this.sheetAtlas.perPage * 3} · corpos ${this.corpseAtlas.used}/${this.corpseAtlas.perPage * 2}`;
   }
 
   get count(): number {
@@ -125,7 +149,7 @@ export class ZombieViews {
           continue;
         }
         bakes--;
-        this.bake(z);
+        if (!this.bake(z)) continue;
       }
       if (!view) view = this.acquire(z);
       view.seen = this.frameNo;
@@ -145,36 +169,46 @@ export class ZombieViews {
 
   // ---------------------------------------------------------------- texturas
 
-  private bake(z: Zombie): void {
+  /** Desenha a folha do zumbi numa vaga (a mesma se já tinha). false = sem vaga. */
+  private bake(z: Zombie): boolean {
     let s = this.sheets.get(z.id);
     if (!s) {
-      const key = `zumbi:${z.id}`;
-      if (this.scene.textures.exists(key)) this.scene.textures.remove(key);
-      const tex = this.scene.textures.createCanvas(key, this.layout.w, this.layout.h)!;
-      for (const [name, f] of Object.entries(this.layout.frames)) tex.add(name, 0, f.x, f.y, f.w, f.h);
-      s = { key, ver: -1, used: this.frameNo, tex };
+      const ref = this.sheetAtlas.alloc() ?? this.stealSheet();
+      if (!ref) return false;
+      s = { ref, ver: -1, used: this.frameNo };
       this.sheets.set(z.id, s);
     }
-    drawZombieSheet(z, s.tex.getCanvas());
-    s.tex.refresh();
+    drawZombieSheet(z, this.scratch);
+    this.sheetAtlas.upload(s.ref, this.scratch);
     s.ver = z.anim.ver;
     s.used = this.frameNo;
+    return true;
   }
 
-  /** Libera as folhas menos usadas (fora da tela) quando passa do limite. */
+  /** Sem vaga livre: toma a do zumbi visto há mais tempo (que não está na tela). */
+  private stealSheet(): SlotRef | null {
+    let best: [string, Sheet] | null = null;
+    for (const e of this.sheets) if (!this.views.has(e[0]) && (!best || e[1].used < best[1].used)) best = e;
+    if (!best) return null;
+    this.sheets.delete(best[0]);
+    return best[1].ref;
+  }
+
+  private stealCorpse(): SlotRef | null {
+    let best: [string, { used: number; ref: SlotRef }] | null = null;
+    for (const e of this.corpseTex) if (!this.corpses.has(e[0]) && (!best || e[1].used < best[1].used)) best = e;
+    if (!best) return null;
+    this.corpseTex.delete(best[0]);
+    return best[1].ref;
+  }
+
+  /** Vagas presas a zumbis que viraram corpo (a folha viva não serve mais). */
   private evict(): void {
-    if (this.sheets.size > SHEET_CACHE) {
-      const old = [...this.sheets.entries()].filter(([id]) => !this.views.has(id)).sort((a, b) => a[1].used - b[1].used);
-      for (const [id, s] of old.slice(0, this.sheets.size - SHEET_CACHE)) {
-        this.scene.textures.remove(s.key);
+    for (const [id, s] of this.sheets) {
+      const z = this.sys.store.get(id);
+      if (!z || z.dead) {
+        this.sheetAtlas.release(s.ref);
         this.sheets.delete(id);
-      }
-    }
-    if (this.corpseTex.size > CORPSE_CACHE) {
-      const old = [...this.corpseTex.entries()].filter(([id]) => !this.corpses.has(id)).sort((a, b) => a[1].used - b[1].used);
-      for (const [id] of old.slice(0, this.corpseTex.size - CORPSE_CACHE)) {
-        this.scene.textures.remove(`corpo:${id}`);
-        this.corpseTex.delete(id);
       }
     }
   }
@@ -182,11 +216,12 @@ export class ZombieViews {
   // ---------------------------------------------------------------- vivos
 
   private acquire(z: Zombie): View {
-    const key = this.sheets.get(z.id)!.key;
+    const ref = this.sheets.get(z.id)!.ref;
+    const key = ref.key;
     let v = this.spare.pop();
     const sc = 1 / ZOMBIE_RES;
     if (!v) {
-      const img = (frame: string, depth: number) => this.scene.add.image(0, 0, key, frame).setDepth(depth).setScale(sc);
+      const img = (frame: string, depth: number) => this.scene.add.image(0, 0, key, this.sheetAtlas.frame(ref, frame)).setDepth(depth).setScale(sc);
       v = {
         z,
         shadow: this.scene.add.image(0, 0, TEX.shadowSoft).setDepth(DEPTH.playerShadow - 0.5),
@@ -197,6 +232,7 @@ export class ZombieViews {
         torso: img('torso', BASE + 0.3),
         head: img('head', BASE + 0.4),
         key,
+        slot: 0,
         W: 0,
         seen: 0,
       };
@@ -204,10 +240,11 @@ export class ZombieViews {
     v.z = z;
     v.key = key;
     for (const [img, frame] of [[v.lying, 'lying'], [v.legs, 'legs0'], [v.armL, 'armL'], [v.armR, 'armR'], [v.torso, 'torso'], [v.head, 'head']] as const) {
-      img.setTexture(key, frame).setScale(sc).setVisible(true).clearTint().setAlpha(1);
+      img.setTexture(key, this.sheetAtlas.frame(ref, frame)).setScale(sc).setVisible(true).clearTint().setAlpha(1);
       const f = this.layout.frames[frame]!;
       img.setOrigin(f.ox, f.oy);
     }
+    v.slot = ref.slot;
     v.shadow.setVisible(true);
     v.W = zombieDims(z).W;
     this.views.set(z.id, v);
@@ -269,7 +306,7 @@ export class ZombieViews {
     const speed = Math.hypot(z.vx, z.vy);
     const moving = speed > 6;
     const frame = moving ? Math.floor((((z.stride % 1) + 1) % 1) * LEG_FRAMES) % LEG_FRAMES : 0;
-    v.legs.setVisible(true).setFrame(`legs${frame}`).setPosition(bx, by).setRotation(f);
+    v.legs.setVisible(true).setFrame(`${v.slot}:legs${frame}`).setPosition(bx, by).setRotation(f);
     // Balanço: mancando pende para o lado ruim no ritmo do passo.
     const limp = isLimping(z);
     const l = legs(z);
@@ -353,19 +390,18 @@ export class ZombieViews {
 
   // ---------------------------------------------------------------- mortos
 
-  private makeCorpse(z: Zombie): CorpseView {
-    const key = `corpo:${z.id}`;
-    const cached = this.corpseTex.get(z.id);
-    if (!cached || cached.ver !== z.anim.ver || !this.scene.textures.exists(key)) {
-      if (this.scene.textures.exists(key)) this.scene.textures.remove(key);
-      const tex = this.scene.textures.createCanvas(key, CORPSE_SIZE.w, CORPSE_SIZE.h)!;
-      drawCorpse(z, tex.getCanvas());
-      tex.refresh();
-      this.corpseTex.set(z.id, { used: this.frameNo, ver: z.anim.ver });
+  private makeCorpse(z: Zombie): CorpseView | null {
+    let cached = this.corpseTex.get(z.id);
+    if (!cached || cached.ver !== z.anim.ver) {
+      const ref = cached?.ref ?? this.corpseAtlas.alloc() ?? this.stealCorpse();
+      if (!ref) return null;
+      drawCorpse(z, this.corpseScratch);
+      this.corpseAtlas.upload(ref, this.corpseScratch);
+      cached = { used: this.frameNo, ver: z.anim.ver, ref };
+      this.corpseTex.set(z.id, cached);
     } else cached.used = this.frameNo;
-    const blood = this.bloodKeys[Math.abs(z.seed) % this.bloodKeys.length]!;
-    const pool = this.scene.add.image(z.x, z.y, blood).setDepth(DEPTH.decal + 1.5).setRotation(z.seed % 6);
-    const img = this.scene.add.image(z.x, z.y, key).setDepth(DEPTH.decal + 2).setScale(1 / ZOMBIE_RES).setRotation(z.corpseAngle ?? 0);
+    const pool = this.scene.add.image(z.x, z.y, BLOOD_KEY, String(Math.abs(z.seed) % BLOOD_VARIANTS)).setDepth(DEPTH.decal + 1.5).setRotation(z.seed % 6);
+    const img = this.scene.add.image(z.x, z.y, cached.ref.key, this.corpseAtlas.frame(cached.ref, 'c')).setDepth(DEPTH.decal + 2).setScale(1 / ZOMBIE_RES).setRotation(z.corpseAngle ?? 0);
     const c: CorpseView = { z, img, pool, seen: this.frameNo };
     this.corpses.set(z.id, c);
     return c;
@@ -390,8 +426,8 @@ export class ZombieViews {
       c.img.destroy();
       c.pool.destroy();
     }
-    for (const s of this.sheets.values()) this.scene.textures.remove(s.key);
-    for (const id of this.corpseTex.keys()) this.scene.textures.remove(`corpo:${id}`);
+    this.sheetAtlas.destroy();
+    this.corpseAtlas.destroy();
     this.views.clear();
     this.sheets.clear();
     this.corpses.clear();

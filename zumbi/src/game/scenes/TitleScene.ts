@@ -9,6 +9,7 @@ import { requestFullscreenLandscape } from '../systems/fullscreen';
 import { archiveCurrent, loadGame, saveSummary } from '../save/SaveGame';
 import { UiButton } from '../ui/UiButton';
 import { UI, textStyle } from '../ui/theme';
+import { ZOMBIE_PRESETS, type ZombiePresetId } from '../zombies/Difficulty';
 
 export class TitleScene extends Phaser.Scene {
   private layoutFn: (() => void) | null = null;
@@ -43,6 +44,25 @@ export class TitleScene extends Phaser.Scene {
     const version = this.add.text(0, 0, `v${GAME_VERSION} · ${GAME_STAGE}`, textStyle(11, '#6f6d67', '600')).setOrigin(1, 1).setResolution(dpr);
 
     const summary = saveSummary();
+    // Dificuldade dos zumbis (só vale para jogo novo; o save guarda a sua).
+    const presets = Object.keys(ZOMBIE_PRESETS) as ZombiePresetId[];
+    const same = (a: object, b: object) => JSON.stringify(a) === JSON.stringify(b);
+    let preset: ZombiePresetId = presets.find((id) => same(ZOMBIE_PRESETS[id].settings, s.settings.zombies)) ?? 'sobrevivencia';
+    const presetLabel = () => `Zumbis: ${ZOMBIE_PRESETS[preset].name} ▸`;
+    const presetInfo = this.add.text(0, 0, ZOMBIE_PRESETS[preset].description, textStyle(11, UI.textDim, '600')).setOrigin(0.5).setResolution(dpr);
+    const presetBtn = new UiButton(
+      this,
+      presetLabel(),
+      230,
+      34,
+      () => {
+        preset = presets[(presets.indexOf(preset) + 1) % presets.length]!;
+        presetBtn.setLabel(presetLabel());
+        presetInfo.setText(ZOMBIE_PRESETS[preset].description);
+      },
+      false,
+      dpr,
+    );
     const start = (continueGame: boolean) => {
       if (touch) requestFullscreenLandscape();
       if (continueGame) {
@@ -56,6 +76,7 @@ export class TitleScene extends Phaser.Scene {
         // Jogo novo: o save antigo é ARQUIVADO (nunca apagado sem pedir).
         archiveCurrent();
         s.session.pendingLoad = null;
+        s.settings = { ...s.settings, zombies: { ...ZOMBIE_PRESETS[preset].settings } };
       }
       this.scene.start(SCENES.game);
     };
@@ -80,7 +101,15 @@ export class TitleScene extends Phaser.Scene {
       no.setVisible(v);
       play.setVisible(!v);
       fresh.setVisible(!v && !!summary);
+      // A dificuldade aparece quando o próximo passo é um jogo novo.
+      presetBtn.setVisible(v || !summary);
+      presetInfo.setVisible(v || !summary);
+      help.setVisible(!v);
+      confirming = v;
+      this.layoutFn?.();
     };
+    let confirming = false;
+    showConfirm(false);
 
     this.layoutFn = () => {
       const w = s.viewport.cssWidth;
@@ -101,6 +130,11 @@ export class TitleScene extends Phaser.Scene {
       yes.setPosition(w / 2 - 70 * k, h * 0.58 + 56 * k).setScale(k);
       no.setPosition(w / 2 + 100 * k, h * 0.58 + 56 * k).setScale(k);
       help.setPosition(w / 2, h * 0.58 + 112 * k).setScale(Math.min(k, (w * 0.95) / (help.width || 1)));
+      // Novo jogo: dificuldade entre o subtítulo e o botão (no confirmar, acima do texto).
+      const py = confirming ? h * 0.58 + 104 * k : h * 0.58 + 58 * k;
+      presetBtn.setPosition(w / 2, py).setScale(k);
+      presetInfo.setPosition(w / 2, py + 24 * k).setScale(Math.min(k, (w * 0.95) / (presetInfo.width || 1)));
+      if (!summary) help.setPosition(w / 2, h * 0.58 + 122 * k);
       version.setPosition(w - 12 - s.viewport.insets.right, h - 10 - s.viewport.insets.bottom);
     };
     this.layoutFn();

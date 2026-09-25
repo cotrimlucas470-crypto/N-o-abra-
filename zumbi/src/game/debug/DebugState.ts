@@ -16,10 +16,14 @@ export interface DebugState {
   doors: boolean;
   /** Recipientes (azul = não vasculhado, amarelo = vasculhado, cinza = vazio) e recursos (barra = quanto tem). */
   loot: boolean;
+  /** Zumbis: cone de visão (verde vê, amarelo desconfia), estado, alvo, memória (vermelho viu, laranja ouviu), rota. */
+  zombies: boolean;
+  /** Estragos: barras de resistência de portas, janelas e construções apanhando. */
+  damage: boolean;
   /** Ponto escolhido no mundo: desenha linha de visão e rota do jogador até ele. */
   target: { x: number; y: number } | null;
 }
 
 export function createDebugState(): DebugState {
-  return { colliders: false, nav: false, chunks: false, noise: false, doors: false, loot: false, target: null };
+  return { colliders: false, nav: false, chunks: false, noise: false, doors: false, loot: false, zombies: false, damage: false, target: null };
 }

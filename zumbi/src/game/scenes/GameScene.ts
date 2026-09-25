@@ -79,8 +79,27 @@ import { bodyRadius } from '../zombies/ZombieMotion';
 import { ZombieViews } from '../world/render/ZombieViews';
 import { ARCHETYPES, type ArchId } from '../zombies/Archetypes';
 import { createZombie } from '../zombies/ZombieFactory';
+import { corpseLoot } from '../zombies/CorpseLoot';
 import { explainDeath } from '../survival/Death';
 import type { SleepOptions } from '../survival/Sleep';
+
+/** Como o jogador descreve o que ouviu. */
+const HEARD_LABEL: Partial<Record<import('../sim/Noise').NoiseKind, string>> = {
+  zumbi: 'gemido',
+  batida: 'batidas',
+  demolicao: 'algo cedeu',
+  vidro: 'vidro quebrando',
+  tiro: 'tiro',
+  alarme: 'alarme',
+  porta: 'porta',
+  motor: 'motor',
+  buzina: 'buzina',
+  gerador: 'gerador',
+  grito: 'grito',
+  queda: 'algo caiu',
+  golpe: 'pancada',
+  impacto: 'pancada',
+};
 
 /** Roupa com que o personagem começa (é dele, não é loot). */
 const STARTING_OUTFIT = ['camiseta', 'calcaJeans', 'meias', 'tenis'] as const;
@@ -267,12 +286,20 @@ export class GameScene extends Phaser.Scene {
     this.zombies = new ZombieSystem(this.model, this.state, this.noise, diff, {
       attack: (z, kind) => this.zombieAttack(z, kind),
       noise: (x, y, kind, radius, source) => s.bus.emit('world:noise', { x, y, radius: radius ?? NOISE_RADIUS[kind], source: source ?? kind, kind }),
+      killed: (z) => this.registerCorpse(z),
     });
     const zsave = load?.modules?.['zombies'] as (ZombieStoreSave & { kills?: number }) | undefined;
     if (!this.zombies.restore(zsave)) {
       // Jogo novo (ou save de antes dos zumbis): ninguém perto de onde o jogador está.
       const safe = load ? { x: load.player.x, y: load.player.y } : map.spawn;
       this.zombies.populate(generatePopulation(map, this.model.nav, { population: diff.population, collapseDays: s.settings.loot.collapseAgeDays, safe }));
+    }
+    // Corpos viram recipientes (REVISTAR); o que já foi mexido volta do save.
+    for (const z of this.zombies.store.all) if (z.dead) this.registerCorpse(z);
+    const lootSave = load?.world.loot;
+    if (lootSave) {
+      const corpse = (id: string) => id.startsWith('corpo:');
+      this.state.loot.restore({ searched: (lootSave.searched ?? []).filter(corpse), containers: Object.fromEntries(Object.entries(lootSave.containers ?? {}).filter(([id]) => corpse(id))) });
     }
     const worldHooks: WorldActionHooks = {
       start: (spec) => this.loop.start(spec),
@@ -451,6 +478,7 @@ export class GameScene extends Phaser.Scene {
     if (DEBUG.enabled) {
       this.debugState = createDebugState();
       this.debugLayer = new DebugWorldLayer(this, this.model, this.debugState, () => this.world.loadedChunkKeys(), this.state, s.bus, () => this.clock.minutes / MINUTES_PER_DAY);
+      this.debugLayer.zombies = this.zombies;
       this.scene.launch(SCENES.debug);
     }
 
@@ -692,6 +720,24 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /** Corpo de zumbi = recipiente com o que a pessoa carregava (gerado ao revistar). */
+  private registerCorpse(z: Zombie): void {
+    const id = `corpo:${z.id}`;
+    if (this.state.loot.ref(id)) return;
+    this.state.loot.addRef({
+      id,
+      kind: 'corpo',
+      name: `Corpo (${ARCHETYPES[z.arch].label.toLowerCase()})`,
+      verb: 'REVISTAR',
+      table: null,
+      capacity: 25,
+      x: z.x,
+      y: z.y,
+      rect: null,
+      gen: () => corpseLoot(z, this.s.settings.loot),
+    });
+  }
+
   /** Dormir só sem zumbis atrás de você. */
   private trySleep(opts: SleepOptions): string | null {
     if (this.zombies.dangerNear(this.player.x, this.player.y, 900) > 0) return 'Não dá para dormir: tem zumbi atrás de você.';
@@ -773,7 +819,16 @@ export class GameScene extends Phaser.Scene {
     const kind = e.kind ?? kindFromSource(e.source);
     const near = Math.hypot(e.x - this.player.x, e.y - this.player.y) < 120;
     const byPlayer = e.byPlayer ?? (near && kind !== 'zumbi' && kind !== 'batida');
-    this.noise.emit(e.x, e.y, kind, { radius: e.radius, source: e.source, byPlayer });
+    const ev = this.noise.emit(e.x, e.y, kind, { radius: e.radius, source: e.source, byPlayer });
+    // O jogador também ouve (paredes abafam igual): o HUD mostra a direção.
+    if (!byPlayer && !this.dead) {
+      const h = this.noise.heard(ev, this.player.x, this.player.y, 1.15);
+      if (h && h.strength > 0.08) {
+        const label = HEARD_LABEL[kind] ?? e.source;
+        const danger = kind === 'zumbi' || kind === 'batida' || kind === 'demolicao' || kind === 'vidro';
+        this.s.bus.emit('player:heard', { angle: Math.atan2(h.y - this.player.y, h.x - this.player.x), strength: h.strength, label, danger });
+      }
+    }
     if (byPlayer && e.radius >= 700) {
       this.loudNoises.push({ t: this.zombies.now, source: e.source });
       if (this.loudNoises.length > 8) this.loudNoises.shift();
@@ -1001,6 +1056,25 @@ export class GameScene extends Phaser.Scene {
       if (this.model.nav.isWalkableAt(x, y)) this.debugSpawnZombie(x, y);
     }
     return `${n} zumbis`;
+  }
+
+  zombiesFrozen(): boolean {
+    return this.zombies.frozen;
+  }
+
+  toggleZombiesFrozen(): void {
+    this.zombies.frozen = !this.zombies.frozen;
+  }
+
+  /** Linha de zumbis para o painel de debug. */
+  zombieInfo(): string {
+    const st = this.zombies.stats();
+    const states = Object.entries(st.states)
+      .sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))
+      .map(([k, n]) => `${k.toLowerCase()} ${n}`)
+      .join(' · ');
+    const th = this.zombies.threat;
+    return `zumbis ${st.alive} vivos, ${st.dead} corpos · LOD ${st.lod.join('/')} · rotas ${st.paths}/s · fluxo ${st.flow}/s · abatidos ${this.zombies.kills}\n${states}\n${this.zombieViews.textureStats} · vistos ${this.zombieViews.count}${th.grabbed ? ` · AGARRADO ${th.grabbed}` : ''}`;
   }
 
   /** Debug: todo zumbi perto morre. */

@@ -113,6 +113,16 @@ export class DebugScene extends Phaser.Scene {
     add(() => 'Ferir', () => this.flash(this.game_.debugHurt()));
     add(() => 'Curar tudo', () => this.flash(this.game_.debugHealAll()));
     add(() => 'Noite/dia', () => this.s.session.clock?.advance(12 * 60));
+    // Zumbis
+    add(() => `${onOff(this.state.zombies)} Zumbis (IA)`, () => (this.state.zombies = !this.state.zombies));
+    add(() => `${onOff(this.state.damage)} Estragos`, () => (this.state.damage = !this.state.damage));
+    add(() => 'Zumbi aqui', () => {
+      const p = this.game_.playerPosition();
+      this.flash(this.game_.debugSpawnZombie(p.x + 220, p.y));
+    });
+    add(() => 'Bando atrás', () => this.flash(this.game_.debugHorde(12)));
+    add(() => 'Matar perto', () => this.flash(this.game_.debugKillNear()));
+    add(() => `${this.game_.zombiesFrozen() ? '✓' : '·'} Congelar IA`, () => this.game_.toggleZombiesFrozen());
     this.info = this.add.text(0, 0, '', textStyle(10, '#bfe8bf', '600')).setResolution(dpr);
     this.panel.add(this.info);
 
@@ -256,6 +266,7 @@ export class DebugScene extends Phaser.Scene {
         g.interactionStats(),
         clock ? `dia ${clock.day} ${clock.timeLabel()} · ${clock.rate.toFixed(2)} min/s` : '',
         g.debugInfo(),
+        g.zombieInfo(),
       ]
         .filter(Boolean)
         .join('\n'),

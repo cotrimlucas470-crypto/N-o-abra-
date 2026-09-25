@@ -121,3 +121,83 @@ export class DeathScreen {
     this.menuBtn.setPosition(this.hasLoad ? cx + 130 * k : cx, by + 10 * k).setScale(k);
   }
 }
+
+/**
+ * AUDIÇÃO na tela (o jogo não tem som): cada coisa ouvida vira um arco na
+ * borda da tela, na direção de onde veio (o palpite, não o ponto exato),
+ * com o nome curto. Vermelho = perigo (gemido, batidas, vidro); claro = o resto.
+ */
+export class HearingRing {
+  private readonly g: Phaser.GameObjects.Graphics;
+  private readonly pool: Phaser.GameObjects.Text[] = [];
+  private readonly list: { angle: number; strength: number; label: string; danger: boolean; t: number }[] = [];
+  private cx = 0;
+  private cy = 0;
+  private rx = 100;
+  private ry = 100;
+
+  constructor(private readonly scene: Phaser.Scene, private readonly dpr: number) {
+    this.g = scene.add.graphics().setDepth(94);
+  }
+
+  add(e: { angle: number; strength: number; label: string; danger: boolean }): void {
+    // Mesma direção e rótulo: reforça em vez de empilhar.
+    const same = this.list.find((x) => x.label === e.label && Math.abs(Math.atan2(Math.sin(x.angle - e.angle), Math.cos(x.angle - e.angle))) < 0.35);
+    if (same) {
+      same.t = 0;
+      same.strength = Math.max(same.strength, e.strength);
+      same.angle = e.angle;
+      return;
+    }
+    this.list.push({ ...e, t: 0 });
+    if (this.list.length > 8) this.list.shift();
+  }
+
+  layout(w: number, h: number): void {
+    this.cx = w / 2;
+    this.cy = h / 2;
+    this.rx = w / 2 - 34;
+    this.ry = h / 2 - 34;
+  }
+
+  update(dt: number): void {
+    const g = this.g;
+    g.clear();
+    const LIFE = 1.8;
+    let ti = 0;
+    for (let i = this.list.length - 1; i >= 0; i--) {
+      const e = this.list[i]!;
+      e.t += dt;
+      if (e.t > LIFE) {
+        this.list.splice(i, 1);
+        continue;
+      }
+      const a = 1 - e.t / LIFE;
+      const x = this.cx + Math.cos(e.angle) * this.rx;
+      const y = this.cy + Math.sin(e.angle) * this.ry;
+      const color = e.danger ? 0xff6a55 : 0xe8e0c8;
+      const size = 10 + e.strength * 14;
+      g.lineStyle(3, color, 0.85 * a);
+      g.beginPath();
+      g.arc(x, y, size, e.angle - 0.9, e.angle + 0.9);
+      g.strokePath();
+      g.lineStyle(2, color, 0.5 * a);
+      g.beginPath();
+      g.arc(x, y, size + 7, e.angle - 0.7, e.angle + 0.7);
+      g.strokePath();
+      let t = this.pool[ti];
+      if (!t) {
+        t = this.scene.add.text(0, 0, '', { fontFamily: 'system-ui, sans-serif', fontSize: '11px', color: '#f2ead6', fontStyle: '700' }).setOrigin(0.5).setDepth(94).setResolution(this.dpr);
+        t.setShadow(0, 1, 'rgba(0,0,0,0.9)', 3, false, true);
+        this.pool.push(t);
+      }
+      t.setText(e.label)
+        .setPosition(x - Math.cos(e.angle) * (size + 14), y - Math.sin(e.angle) * (size + 14))
+        .setAlpha(a)
+        .setColor(e.danger ? '#ffb0a0' : '#f2ead6')
+        .setVisible(true);
+      ti++;
+    }
+    for (let i = ti; i < this.pool.length; i++) this.pool[i]!.setVisible(false);
+  }
+}

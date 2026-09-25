@@ -36,6 +36,8 @@ export interface ContainerRef {
   y: number;
   /** Área do objeto (alcance medido até a borda); null = só o ponto de acesso. */
   rect: Rect | null;
+  /** Conteúdo gerado por quem registrou (corpo de zumbi), em vez de tabela. */
+  gen?: () => ItemStack[];
 }
 
 export interface FloorItem {
@@ -158,6 +160,7 @@ export class LootSystem {
     if (!ref) return null;
     const c = new ItemContainer(id, ref.name, ref.capacity);
     const table = ref.table ? lootTable(ref.table) : null;
+    if (!table && ref.gen) for (const s of ref.gen()) c.add(s.defId, s.count, s.st);
     if (table) {
       const rng = new Random(hashString(`${this.seed}:loot:${id}`));
       for (const s of generateLoot(table, rng, { capacity: ref.capacity, settings: this.settings })) {

@@ -7,12 +7,17 @@
 import Phaser from 'phaser';
 import type { EventBus } from '../core/EventBus';
 import { CHUNK_PX, chunkKey } from '../sim/ChunkGrid';
-import type { WorldState } from '../sim/WorldState';
+
 import { doorGapRect } from '../world/doors';
 import { PROP_HARVEST, RESOURCE_HARVEST } from '../nature/NatureCatalog';
 import { Pathfinder } from '../world/nav/Pathfinder';
 import type { WorldModel } from '../world/WorldModel';
 import type { DebugState } from './DebugState';
+import { ZOMBIE_TUNING } from '../config/ZombieTuning';
+import { STRUCTURE_DEFS } from '../build/StructureCatalog';
+import { WorldState } from '../sim/WorldState';
+import type { ZombieSystem } from '../zombies/ZombieSystem';
+import { ZSTATE_LABEL, integrity } from '../zombies/Zombie';
 
 export class DebugWorldLayer {
   private readonly g: Phaser.GameObjects.Graphics;
@@ -23,6 +28,9 @@ export class DebugWorldLayer {
   private lastTarget: { x: number; y: number } | null = null;
   /** Barulhos recentes (anel que some em NOISE_LIFE s). */
   private noises: { x: number; y: number; radius: number; age: number }[] = [];
+  /** Zumbis (camada de IA). */
+  zombies: ZombieSystem | null = null;
+  private readonly labels: Phaser.GameObjects.Text[] = [];
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -63,6 +71,9 @@ export class DebugWorldLayer {
     if (s.doors) this.drawDoors(view);
     if (s.loot) this.drawLoot(view);
     this.drawNoises(dt);
+    if (s.zombies) this.drawZombies(view);
+    else for (const t of this.labels) t.setVisible(false);
+    if (s.damage) this.drawDamage(view);
     if (s.target) this.drawTarget(px, py, dt);
     else {
       this.path = [];
@@ -155,6 +166,105 @@ export class DebugWorldLayer {
       g.strokeCircle(n.x, n.y, n.radius * Math.min(1, 0.25 + k * 1.5));
       g.lineStyle(1.5, 0xff9f43, 0.35 * (1 - k));
       g.strokeCircle(n.x, n.y, n.radius);
+    }
+  }
+
+  /** Cone de visão, estado, alvo, memória e rota de cada zumbi na tela. */
+  private drawZombies(view: Phaser.Geom.Rectangle): void {
+    const sys = this.zombies;
+    if (!sys) return;
+    const g = this.g;
+    const T = ZOMBIE_TUNING;
+    const cx = view.centerX;
+    const cy = view.centerY;
+    const list = sys.store.aliveNear(cx, cy, Math.hypot(view.width, view.height) / 2 + 60);
+    let li = 0;
+    for (const z of list) {
+      const m = z.mind;
+      const v = sys.visionOf(z);
+      const color = v.sees ? 0x5fe07a : m.alert >= T.alertAt ? 0xffd166 : 0x9aa0a8;
+      // Cone central e periferia.
+      g.fillStyle(color, v.sees ? 0.16 : 0.08);
+      g.beginPath();
+      g.moveTo(z.x, z.y);
+      g.arc(z.x, z.y, v.range, z.facing - T.fovHalf, z.facing + T.fovHalf);
+      g.closePath();
+      g.fillPath();
+      g.lineStyle(1, color, 0.35);
+      g.beginPath();
+      g.arc(z.x, z.y, v.range * 0.5, z.facing - T.peripheralHalf, z.facing + T.peripheralHalf);
+      g.strokePath();
+      // Memória: viu (vermelho) e ouviu (laranja, palpite).
+      if (m.lastSeen) {
+        g.lineStyle(1.5, 0xff5050, 0.7).lineBetween(z.x, z.y, m.lastSeen.x, m.lastSeen.y);
+        g.fillStyle(0xff5050, 0.9).fillCircle(m.lastSeen.x, m.lastSeen.y, 6);
+      }
+      if (m.lastHeard) {
+        g.lineStyle(1, 0xff9f43, 0.6).lineBetween(z.x, z.y, m.lastHeard.x, m.lastHeard.y);
+        g.lineStyle(2, 0xff9f43, 0.9).strokeCircle(m.lastHeard.x, m.lastHeard.y, 8);
+      }
+      if (m.target) g.lineStyle(1, 0xffffff, 0.45).lineBetween(z.x, z.y, m.target.x, m.target.y);
+      if (m.searchCenter && m.state === 'SEARCH') g.lineStyle(1, 0xc080ff, 0.5).strokeCircle(m.searchCenter.x, m.searchCenter.y, T.searchRadius);
+      if (z.path.length) {
+        g.lineStyle(2, 0x66b3ff, 0.8);
+        g.beginPath();
+        g.moveTo(z.x, z.y);
+        for (const p of z.path) g.lineTo(p.x, p.y);
+        g.strokePath();
+      }
+      if (m.bang) g.lineStyle(3, 0xff3030, 0.9).lineBetween(z.x, z.y, m.bang.x, m.bang.y);
+      if (m.leader) {
+        const l = sys.store.get(m.leader);
+        if (l) g.lineStyle(1, 0x80ffff, 0.6).lineBetween(z.x, z.y, l.x, l.y);
+      }
+      // Rótulo: estado, certeza, integridade do corpo.
+      if (li < 40) {
+        let t = this.labels[li];
+        if (!t) {
+          t = this.scene.add.text(0, 0, '', { fontFamily: 'monospace', fontSize: '11px', color: '#ffffff' }).setDepth(501).setOrigin(0.5, 1);
+          t.setShadow(0, 1, '#000', 2, false, true);
+          this.labels.push(t);
+        }
+        t.setText(`${ZSTATE_LABEL[m.state]} ${Math.round(m.alert * 100)}% · ${Math.round(integrity(z) * 100)}%${z.traits.sprint ? ' ⚡' : ''} L${z.lod}`).setPosition(z.x, z.y - 30).setVisible(true);
+        li++;
+      }
+    }
+    for (let i = li; i < this.labels.length; i++) this.labels[i]!.setVisible(false);
+  }
+
+  /** Barras de resistência de portas, janelas e construções danificadas. */
+  private drawDamage(view: Phaser.Geom.Rectangle): void {
+    const g = this.g;
+    const bar = (x: number, y: number, frac: number) => {
+      g.fillStyle(0x000000, 0.75).fillRect(x - 24, y - 20, 48, 8);
+      g.fillStyle(frac > 0.8 ? 0x7fd35f : frac > 0.5 ? 0xe0d060 : frac > 0.2 ? 0xf0a040 : 0xf05040, 1).fillRect(x - 23, y - 19, Math.max(2, 46 * frac), 6);
+    };
+    const idx = this.model.index;
+    const cx0 = Math.max(0, Math.floor(view.x / CHUNK_PX) - 1);
+    const cy0 = Math.max(0, Math.floor(view.y / CHUNK_PX) - 1);
+    const cx1 = Math.floor((view.x + view.width) / CHUNK_PX) + 1;
+    const cy1 = Math.floor((view.y + view.height) / CHUNK_PX) + 1;
+    for (let cy = cy0; cy <= cy1; cy++) {
+      for (let cx = cx0; cx <= cx1; cx++) {
+        const c = idx.get(chunkKey(cx, cy));
+        if (!c) continue;
+        for (const i of c.doors) {
+          const d = this.model.map.doors[i]!;
+          const max = this.world.doorMaxHealth(d.id);
+          const hp = this.world.doorHealth(d.id);
+          if (hp < max) bar(d.x, d.y, Math.max(0, hp / max));
+        }
+        for (const i of c.walls) {
+          const w = this.model.map.walls[i]!;
+          if (w.kind !== 'window') continue;
+          const f = this.world.windowIntegrity(WorldState.windowId(w));
+          if (f < 1) bar(w.x + w.w / 2, w.y + w.h / 2, f);
+        }
+        for (const s of this.world.structures.inChunk(chunkKey(cx, cy))) {
+          const max = STRUCTURE_DEFS[s.type].hp;
+          if (s.hp < max) bar(s.x, s.y, Math.max(0, s.hp / max));
+        }
+      }
     }
   }
 

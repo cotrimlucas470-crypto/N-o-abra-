@@ -41,6 +41,8 @@ export interface GameEvents {
   'input:shove': Record<string, never>;
   /** Liga/desliga o andar furtivo (agachado). */
   'input:sneak': Record<string, never>;
+  /** O jogador ouviu algo (sem áudio no jogo: o HUD mostra de onde veio). angle em rad, strength 0..1. */
+  'player:heard': { angle: number; strength: number; label: string; danger: boolean };
   /** O jogador morreu: relatório da causa (a tela de morte mostra). */
   'player:died': { report: import('../survival/Death').DeathReport };
   /** Cartão de informação (examinar veículo...). */

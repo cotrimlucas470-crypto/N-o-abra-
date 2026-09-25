@@ -137,6 +137,8 @@ export class ZombieSystem {
   focus: string | null = null;
   /** Abatidos pelo jogador nesta partida. */
   kills = 0;
+  /** Debug: IA parada (ninguém se mexe nem ataca). */
+  frozen = false;
   private readonly pf: Pathfinder;
   private readonly flow: FlowField;
   private flowAt = -1;
@@ -176,7 +178,7 @@ export class ZombieSystem {
     this.player = f.player;
     this.light = f.light;
     const push = { x: 0, y: 0 };
-    if (dt <= 0) return push;
+    if (dt <= 0 || this.frozen) return push;
     const p = this.player;
     const th = this.threat;
     if (th.downT > 0) {
@@ -447,8 +449,16 @@ export class ZombieSystem {
 
   // ---------------------------------------------------------------- estados calmos
 
+  /** Gemido baixo de quem está parado/vagando perto do jogador (dá para ouvir atrás da parede). */
+  private idleMoan(z: Zombie): void {
+    if (z.lod !== 0 || z.mind.moan > 0) return;
+    z.mind.moan = T.moanIdle * (0.5 + this.rng());
+    this.hooks.noise(z.x, z.y, 'zumbi', 150, 'gemido');
+  }
+
   private idle(z: Zombie, dt: number): void {
     const m = z.mind;
+    this.idleMoan(z);
     z.vx = z.vy = 0;
     // Balança e vira devagar de vez em quando.
     if (this.rng() < dt * 0.15) m.heading = z.facing + (this.rng() - 0.5) * 2.2;
@@ -490,6 +500,7 @@ export class ZombieSystem {
 
   private wander(z: Zombie, dt: number): void {
     const m = z.mind;
+    this.idleMoan(z);
     m.timer -= dt;
     this.social(z, dt);
     if (m.state !== 'WANDER') return;

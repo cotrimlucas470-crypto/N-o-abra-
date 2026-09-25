@@ -401,3 +401,23 @@ describe('campo de fluxo', () => {
     expect(Math.hypot(x - o.x, y - o.y)).toBeLessThan(40);
   });
 });
+
+describe('corpos', () => {
+  it('bolsos e roupas: itens existentes, sempre iguais para o mesmo zumbi, pelo arquétipo', async () => {
+    const { corpseLoot, CORPSE_TABLES } = await import('../src/game/zombies/CorpseLoot');
+    const { itemDef } = await import('../src/game/items/ItemCatalog');
+    for (const t of CORPSE_TABLES) for (const e of t.entries) if (e.item) expect(itemDef(e.item), e.item).toBeTruthy();
+    const z = createZombie({ id: 'c', seed: 77, arch: 'policial', x: 0, y: 0, collapseDays: 0 }, DIFF);
+    expect(corpseLoot(z)).toEqual(corpseLoot(z));
+    let police = 0;
+    let bloody = 0;
+    for (let s = 0; s < 60; s++) {
+      const p = createZombie({ id: 'p', seed: s, arch: 'policial', x: 0, y: 0, collapseDays: 0 }, DIFF);
+      const loot = corpseLoot(p);
+      if (loot.some((x) => ['cassetete', 'municao40', 'radioComunicador', 'carregador40', 'pistola40'].includes(x.defId))) police++;
+      if (loot.some((x) => ((x.st?.f ?? 0) & 32) !== 0)) bloody++;
+    }
+    expect(police).toBeGreaterThan(18);
+    expect(bloody).toBeGreaterThan(20);
+  });
+});

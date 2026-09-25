@@ -13,6 +13,8 @@ import type { BuildingKind } from '../world/MapTypes';
 export type ContainerKind =
   /** Móvel construído pelo jogador (baú, estante, mesa, bancada). */
   | 'construido'
+  /** Corpo de zumbi (bolsos e roupas). */
+  | 'corpo'
   | 'geladeira'
   | 'fogao'
   | 'armarioCozinha'

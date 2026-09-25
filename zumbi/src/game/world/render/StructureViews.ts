@@ -144,6 +144,12 @@ export class StructureViews {
     const d = STRUCTURE_DEFS[s.type];
     const r = rectOf(s);
     g.clear();
+    this.drawKind(g, s, d, r);
+    // Estrago em tudo que é sólido (parede já desenha o seu).
+    if (d.solid && d.kind !== 'parede') this.damage(g, s, d, r);
+  }
+
+  private drawKind(g: Phaser.GameObjects.Graphics, s: Structure, d: StructureDef, r: Rect): void {
     switch (d.kind) {
       case 'fogo':
         if (d.solid) this.drawStove(g, s, r);
@@ -202,12 +208,22 @@ export class StructureViews {
     this.damage(g, s, d, r);
   }
 
-  /** Rachaduras quando a peça está bem danificada. */
+  /** Rachaduras por faixa de estrago (80% → 50% → 20%): cada vez mais. */
   private damage(g: Phaser.GameObjects.Graphics, s: Structure, d: StructureDef, r: Rect): void {
-    if (s.hp >= d.hp * 0.5) return;
+    const f = s.hp / d.hp;
+    if (f >= 0.8) return;
+    const n = f > 0.5 ? 1 : f > 0.2 ? 3 : 5;
+    const horiz = r.w >= r.h;
     g.lineStyle(1.5, 0x101010, 0.8);
-    g.lineBetween(r.x + r.w * 0.3, r.y, r.x + r.w * 0.45, r.y + r.h);
-    if (s.hp < d.hp * 0.25) g.lineBetween(r.x + r.w * 0.7, r.y, r.x + r.w * 0.6, r.y + r.h);
+    for (let i = 0; i < n; i++) {
+      const t = (i + 0.5) / n + (((s.x * 7 + s.y * 13 + i * 31) % 17) - 8) / 100;
+      if (horiz) g.lineBetween(r.x + r.w * t, r.y, r.x + r.w * (t + 0.08), r.y + r.h);
+      else g.lineBetween(r.x, r.y + r.h * t, r.x + r.w, r.y + r.h * (t + 0.08));
+    }
+    if (f <= 0.2) {
+      g.fillStyle(0x0a0806, 0.85);
+      g.fillEllipse(r.x + r.w * 0.5, r.y + r.h * 0.5, Math.min(10, r.w * 0.6), Math.min(10, r.h * 0.6));
+    }
   }
 
   private drawDoor(g: Phaser.GameObjects.Graphics, s: Structure, d: StructureDef, r: Rect): void {

@@ -71,10 +71,14 @@ export const ZOMBIE_TUNING = {
   partHp: { cabeca: 26, pescoco: 20, tronco: 70, bracoE: 32, bracoD: 32, maoE: 14, maoD: 14, pernaE: 36, pernaD: 36, peE: 16, peD: 16 },
 
   // ------------------------------------------------ ambiente
-  /** Dano por segundo de um zumbi médio batendo (antes do material). */
-  bangDps: 5,
+  /**
+   * Dano por segundo de um zumbi médio batendo (antes do material).
+   * Porta de madeira (80): 1 zumbi ≈ 80 s; 5 ≈ 11 s; 10 ≈ 4 s.
+   * Metal (260 × 0,28): 1 zumbi ≈ 15 min. Tábuas pregadas (260): 1 ≈ 4 min.
+   */
+  bangDps: 1,
   /** Cada zumbi a mais no mesmo alvo soma este bônus (pressão do grupo). */
-  groupPressure: 0.18,
+  groupPressure: 0.12,
   /** Chance por segundo de empurrar uma porta destrancada que abre para o lado dele (× coordenação). */
   pushDoorChance: 0.55,
   /** Pular janela quebrada (s, antes da coordenação). */

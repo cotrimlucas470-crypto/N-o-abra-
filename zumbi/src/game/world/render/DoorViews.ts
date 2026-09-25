@@ -34,6 +34,8 @@ interface DoorView {
   housing: Phaser.GameObjects.Rectangle | null;
   facade: Phaser.GameObjects.Graphics | null;
   zone: Phaser.GameObjects.Zone | null;
+  /** Rachaduras e lascas (porta apanhando). */
+  cracks: Phaser.GameObjects.Graphics | null;
   /** 0 = fechada, 1 = aberta (animação). */
   t: number;
   target: number;
@@ -53,6 +55,10 @@ export class DoorViews {
     this.unsubs.push(
       state.onChange((c) => {
         if (c.type === 'door') this.refresh(c.door.id);
+        else if (c.type === 'damage' && c.what === 'door') {
+          const v = this.byId.get(c.id);
+          if (v) this.drawCracks(v);
+        }
       }),
       renderer.onChunk({ load: (k) => this.load(k), unload: (k) => this.unload(k) }),
     );
@@ -74,6 +80,7 @@ export class DoorViews {
       v.shutter?.destroy();
       v.housing?.destroy();
       v.facade?.destroy();
+      v.cracks?.destroy();
       if (v.zone) this.renderer.solids.remove(v.zone, true, true);
       this.animating.delete(v);
       this.byId.delete(v.door.id);
@@ -108,12 +115,79 @@ export class DoorViews {
     }
 
     const facade = d.exterior ? s.add.graphics().setDepth(DEPTH.roofDoor) : null;
-    const v: DoorView = { door: d, leaves, shutter, housing, facade, zone: null, t: open ? 1 : 0, target: open ? 1 : 0 };
+    const v: DoorView = { door: d, leaves, shutter, housing, facade, zone: null, cracks: null, t: open ? 1 : 0, target: open ? 1 : 0 };
     this.byId.set(d.id, v);
     this.setSolid(v, !open);
     this.pose(v);
     this.drawFacade(v, open);
+    this.drawCracks(v);
     return v;
+  }
+
+  /**
+   * Estrago visível: rachaduras e lascas que aumentam com as faixas de
+   * resistência (80% → 50% → 20%); vidro trinca em estrela. Some com a
+   * porta aberta (a folha sai do vão) e com a porta quebrada.
+   */
+  private drawCracks(v: DoorView): void {
+    const d = v.door;
+    const max = this.state.doorMaxHealth(d.id);
+    const hp = this.state.doorHealth(d.id);
+    const frac = max > 0 ? hp / max : 1;
+    const st = this.state.doorState(d.id);
+    if (frac >= 0.8 || !st || st.broken) {
+      v.cracks?.destroy();
+      v.cracks = null;
+      return;
+    }
+    const g = v.cracks ?? this.scene.add.graphics().setDepth(DEPTH.door + 0.2);
+    v.cracks = g;
+    g.clear();
+    const stage = frac > 0.5 ? 1 : frac > 0.2 ? 2 : 3;
+    const r = doorGapRect(d);
+    // Semente fixa pela porta: as rachaduras não "pulam" de lugar ao redesenhar.
+    let seed = 0;
+    for (let i = 0; i < d.id.length; i++) seed = (seed * 31 + d.id.charCodeAt(i)) | 0;
+    const rnd = () => {
+      seed = (seed * 1103515245 + 12345) | 0;
+      return ((seed >>> 8) & 0xffff) / 0xffff;
+    };
+    const along = d.vertical ? r.h : r.w;
+    const at = (t: number, off: number) => (d.vertical ? { x: r.x + r.w / 2 + off, y: r.y + t * along } : { x: r.x + t * along, y: r.y + r.h / 2 + off });
+    if (d.material === 'glass') {
+      for (let k = 0; k < stage; k++) {
+        const c = at(0.2 + rnd() * 0.6, 0);
+        g.lineStyle(1, 0xf2fbff, 0.9);
+        for (let i = 0; i < 6 + stage * 2; i++) {
+          const a = rnd() * Math.PI * 2;
+          const l = 6 + rnd() * 14;
+          g.lineBetween(c.x, c.y, c.x + Math.cos(a) * l, c.y + Math.sin(a) * l);
+        }
+      }
+    } else {
+      const n = stage === 1 ? 2 : stage === 2 ? 5 : 9;
+      g.lineStyle(1.5, 0x140e08, 0.85);
+      for (let i = 0; i < n; i++) {
+        const t0 = rnd();
+        const p0 = at(t0, (rnd() - 0.5) * 4);
+        const p1 = at(Math.min(1, Math.max(0, t0 + (rnd() - 0.5) * 0.35)), (rnd() - 0.5) * 6);
+        g.lineBetween(p0.x, p0.y, p1.x, p1.y);
+      }
+      // Lascas claras (madeira arrancada) e, quase caindo, buracos.
+      g.fillStyle(d.material === 'metal' ? 0xb8c0c8 : 0xd8b890, 0.9);
+      for (let i = 0; i < stage * 2; i++) {
+        const p = at(rnd(), (rnd() - 0.5) * 5);
+        g.fillRect(p.x - 1.5, p.y - 1, 3, 2);
+      }
+      if (stage === 3) {
+        g.fillStyle(0x0a0806, 0.9);
+        for (let i = 0; i < 2; i++) {
+          const p = at(0.25 + rnd() * 0.5, 0);
+          g.fillEllipse(p.x, p.y, d.vertical ? 5 : 9, d.vertical ? 9 : 5);
+        }
+      }
+    }
+    g.setVisible(!st.open);
   }
 
   /** Estado mudou: colisão na hora, desenho anima. */
@@ -124,6 +198,7 @@ export class DoorViews {
     v.target = open ? 1 : 0;
     this.setSolid(v, !open);
     this.drawFacade(v, open);
+    this.drawCracks(v);
     this.animating.add(v);
   }
 

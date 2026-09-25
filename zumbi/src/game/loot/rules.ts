@@ -17,6 +17,7 @@ export function tableFor(kind: ContainerKind, ctx: LootContext, prop?: PropType)
   const room = ctx.room;
   switch (kind) {
     case 'construido':
+    case 'corpo':
       return null;
     case 'geladeira':
       return b === 'restaurant' ? 'geladeira-restaurante' : 'geladeira-casa';

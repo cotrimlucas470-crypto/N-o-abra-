@@ -9,6 +9,7 @@ import type { ContainerDef, ContainerKind } from './LootTypes';
 
 export const CONTAINER_DEFS: Record<ContainerKind, ContainerDef> = {
   construido: { name: 'Móvel', capacity: 30, verb: 'ABRIR' },
+  corpo: { name: 'Corpo', capacity: 25, verb: 'REVISTAR' },
   geladeira: { name: 'Geladeira', capacity: 30, verb: 'ABRIR' },
   fogao: { name: 'Forno', capacity: 12, verb: 'ABRIR' },
   armarioCozinha: { name: 'Armário da cozinha', capacity: 30, verb: 'ABRIR' },

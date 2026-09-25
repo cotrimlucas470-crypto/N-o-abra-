@@ -19,7 +19,7 @@ export class WindowViews {
     this.unsubs.push(
       renderer.onChunk({ load: (k) => this.load(k), unload: (k) => this.unload(k) }),
       state.onChange((c) => {
-        if (c.type !== 'window') return;
+        if (c.type !== 'window' && !(c.type === 'damage' && c.what === 'window')) return;
         const k = state.model.index.chunkOfPoint(c.x, c.y);
         if (!renderer.isChunkLoaded(k)) return;
         this.unload(k);
@@ -36,7 +36,28 @@ export class WindowViews {
       const w = map.walls[i]!;
       if (w.kind !== 'window') continue;
       const id = WorldState.windowId(w);
-      if (!this.state.isWindowBroken(id)) continue;
+      if (!this.state.isWindowBroken(id)) {
+        // Vidro trincado (zumbi batendo): estrelas de rachadura.
+        const f = this.state.windowIntegrity(id);
+        if (f >= 1) continue;
+        const g = this.scene.add.graphics().setDepth(DEPTH.wall + 0.5);
+        const vertical = w.h > w.w;
+        const len = vertical ? w.h : w.w;
+        const stars = f > 0.5 ? 1 : f > 0.2 ? 2 : 3;
+        g.lineStyle(1, 0xf4fcff, 0.95);
+        for (let k = 0; k < stars; k++) {
+          const t = ((k + 1) / (stars + 1)) * len;
+          const cx = vertical ? w.x + w.w / 2 : w.x + t;
+          const cy = vertical ? w.y + t : w.y + w.h / 2;
+          for (let i = 0; i < 7; i++) {
+            const a = (i / 7) * Math.PI * 2 + k;
+            const l = 5 + ((i * 13 + k * 7) % 9);
+            g.lineBetween(cx, cy, cx + Math.cos(a) * l, cy + Math.sin(a) * l);
+          }
+        }
+        list.push(g);
+        continue;
+      }
       const g = this.scene.add.graphics().setDepth(DEPTH.wall + 0.5);
       // Vão escuro + batente.
       g.fillStyle(0x15171a, 1).fillRect(w.x, w.y, w.w, w.h);
