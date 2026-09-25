@@ -1,0 +1,23 @@
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+let chromium;
+try { ({ chromium } = require('playwright')); } catch { ({ chromium } = require('/opt/node22/lib/node_modules/playwright')); }
+const [base, out] = process.argv.slice(2);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const ctx = await b.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 2 });
+const p = await ctx.newPage();
+p.on('pageerror', (e) => console.log('ERR', String(e)));
+await p.goto(base + '?debug&direto');
+await p.waitForFunction(() => !!window.__TDR__, null, { timeout: 30000 });
+await p.evaluate(() => { const l = window.__TDR__.scene.game.loop; l.inFocus = true; l.panicMax = 0; });
+await sleep(1500);
+const T = (fn, ...a) => p.evaluate(fn, ...a);
+const clip = { x: 272, y: 95, width: 300, height: 200 };
+await T(() => { const t = window.__TDR__; const me = t.player(); t.spawnZombie(me.x + 150, me.y + 40); t.zombies.store.all.at(-1).traits.walk = 0; });
+await sleep(1500);
+await p.screenshot({ path: out + '/p1.png', clip });
+await T(() => { const t = window.__TDR__; t.scene.combatFx.note(t.player().x, t.player().y, 'teste'); });
+await sleep(800);
+await p.screenshot({ path: out + '/p2.png', clip });
+await b.close();

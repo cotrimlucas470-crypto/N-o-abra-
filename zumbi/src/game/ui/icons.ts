@@ -125,3 +125,38 @@ export function iconReload(g: G, x: number, y: number, r: number, color: number,
   g.fillStyle(color, alpha);
   g.fillTriangle(ax - 3 * u, ay - 1 * u, ax + 2.4 * u, ay - 2.6 * u, ax + 0.6 * u, ay + 2.8 * u);
 }
+
+/** Empurrar: duas mãos abertas empurrando. */
+export function iconShove(g: G, x: number, y: number, r: number, color: number, alpha = 1): void {
+  const u = r / 10;
+  g.lineStyle(2 * u, color, alpha);
+  for (const s of [-1, 1]) {
+    const cx = x + 1.5 * u;
+    const cy = y + s * 3.2 * u;
+    g.fillStyle(color, alpha);
+    g.fillRoundedRect(cx - 1.5 * u, cy - 2.4 * u, 4 * u, 4.8 * u, 1.2 * u);
+    for (let i = 0; i < 3; i++) g.lineBetween(cx + 2.5 * u, cy + (i - 1) * 1.5 * u, cx + 5 * u, cy + (i - 1) * 1.7 * u);
+    g.lineBetween(cx - 1.5 * u, cy, cx - 6 * u, cy + s * 0.6 * u);
+  }
+  // Setinhas de força.
+  g.lineStyle(1.4 * u, color, alpha * 0.8);
+  g.lineBetween(x - 7.5 * u, y, x - 4.5 * u, y);
+}
+
+/** Furtivo: pessoa agachada. */
+export function iconSneak(g: G, x: number, y: number, r: number, color: number, alpha = 1): void {
+  const u = r / 10;
+  g.fillStyle(color, alpha);
+  g.fillCircle(x + 1.6 * u, y - 4.2 * u, 1.9 * u);
+  g.lineStyle(2.1 * u, color, alpha);
+  const path = (pts: [number, number][]) => {
+    g.beginPath();
+    g.moveTo(x + pts[0]![0] * u, y + pts[0]![1] * u);
+    for (let i = 1; i < pts.length; i++) g.lineTo(x + pts[i]![0] * u, y + pts[i]![1] * u);
+    g.strokePath();
+  };
+  path([[0.4, -2.2], [-2.6, 1.6]]); // costas curvadas
+  path([[-2.6, 1.6], [0.8, 2.6], [0.4, 6]]); // perna dobrada
+  path([[-2.6, 1.6], [-4.6, 5.8]]); // perna de trás
+  path([[0, -1.6], [3.4, 0.6]]); // braço
+}

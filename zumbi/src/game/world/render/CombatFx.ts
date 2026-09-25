@@ -24,6 +24,7 @@ export class CombatFx {
   private readonly g: Phaser.GameObjects.Graphics;
   private readonly dust: Phaser.GameObjects.Particles.ParticleEmitter;
   private readonly list: Fx[] = [];
+  private readonly bloodFx: Phaser.GameObjects.Particles.ParticleEmitter;
 
   constructor(scene: Phaser.Scene) {
     this.g = scene.add.graphics().setDepth(DEPTH.fx);
@@ -35,7 +36,38 @@ export class CombatFx {
       emitting: false,
     });
     this.dust.setDepth(DEPTH.fx);
+    // Sangue: gotas escuras que espirram na direção do golpe.
+    this.bloodFx = scene.add.particles(0, 0, TEX.dust, {
+      lifespan: { min: 180, max: 420 },
+      speed: { min: 60, max: 190 },
+      scale: { start: 0.55, end: 0.15 },
+      alpha: { start: 0.95, end: 0 },
+      tint: [0x7a0e0a, 0x5a0a08, 0x9a1a12],
+      emitting: false,
+    });
+    this.bloodFx.setDepth(DEPTH.fx - 1);
   }
+
+  /** Espirro de sangue (golpe/tiro/mordida) na direção `dir`. */
+  blood(x: number, y: number, dir: number, amount = 6): void {
+    this.bloodFx.setConfig({
+      lifespan: { min: 180, max: 420 },
+      speed: { min: 60, max: 190 },
+      angle: { min: (dir * 180) / Math.PI - 35, max: (dir * 180) / Math.PI + 35 },
+      scale: { start: 0.55, end: 0.15 },
+      alpha: { start: 0.95, end: 0 },
+      tint: [0x7a0e0a, 0x5a0a08, 0x9a1a12],
+      emitting: false,
+    });
+    this.bloodFx.emitParticleAt(x, y, amount);
+  }
+
+  /** Texto curto que sobe no lugar ("cabeça esmagada"). */
+  note(x: number, y: number, text: string): void {
+    this.notes.push({ x, y, text, t: 0 });
+  }
+
+  private readonly notes: { x: number; y: number; text: string; t: number; obj?: Phaser.GameObjects.Text }[] = [];
 
   swing(x: number, y: number, angle: number, reach: number): void {
     this.list.push({ kind: 'swing', t: 0, life: 0.16, x, y, angle, reach });
@@ -58,6 +90,19 @@ export class CombatFx {
   update(dt: number): void {
     const g = this.g;
     g.clear();
+    for (let i = this.notes.length - 1; i >= 0; i--) {
+      const n = this.notes[i]!;
+      n.t += dt;
+      if (!n.obj) {
+        n.obj = this.g.scene.add.text(n.x, n.y - 30, n.text, { fontFamily: 'system-ui, sans-serif', fontSize: '15px', color: '#ffd8c8', fontStyle: '800' }).setOrigin(0.5).setDepth(DEPTH.fx + 1);
+        n.obj.setShadow(0, 1, 'rgba(0,0,0,0.9)', 3, false, true);
+      }
+      n.obj.setPosition(n.x, n.y - 30 - n.t * 22).setAlpha(Math.max(0, 1 - n.t / 1.3));
+      if (n.t > 1.3) {
+        n.obj.destroy();
+        this.notes.splice(i, 1);
+      }
+    }
     for (let i = this.list.length - 1; i >= 0; i--) {
       const f = this.list[i]!;
       f.t += dt;

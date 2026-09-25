@@ -54,7 +54,7 @@ export interface HealthSave {
   painkillerPower: number;
   antibiotic: number;
   /** Infecção zumbi: minutos desde que pegou e duração total até matar. */
-  zombie?: { t: number; dur: number };
+  zombie?: { t: number; dur: number; src?: string };
 }
 
 /**
@@ -65,6 +65,8 @@ export interface HealthSave {
 export interface ZombieInfection {
   t: number;
   dur: number;
+  /** De onde veio ("Mordida no braço esquerdo"): para o relatório da morte. */
+  src?: string;
 }
 
 /** Atadura limpa fica suja depois deste tempo (min). */
@@ -83,9 +85,9 @@ export class Health implements InjuryModel {
   private cache: InjuryEffects | null = null;
 
   /** Pegou a infecção zumbi (se já tinha, nada muda). */
-  infectZombie(rng: () => number = Math.random): void {
+  infectZombie(rng: () => number = Math.random, src?: string): void {
     if (this.zombie) return;
-    this.zombie = { t: 0, dur: (36 + rng() * 36) * 60 };
+    this.zombie = { t: 0, dur: (36 + rng() * 36) * 60, ...(src ? { src } : {}) };
     this.cache = null;
   }
 

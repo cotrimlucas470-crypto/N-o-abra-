@@ -47,6 +47,10 @@ export interface GameSession {
   crafting: CraftService | null;
   /** Modo construir ligado: o que mostrar na barra. */
   build: import('../ui/BuildBar').BuildInfo | null;
+  /** Ameaça dos zumbis para o HUD (furtivo, agarrado, caído, quantos perto). */
+  threat: { sneaking: boolean; grabbed: number; down: boolean; escape: number } | null;
+  /** Morreu: relatório (a tela de morte mostra). */
+  death: import('../survival/Death').DeathReport | null;
 }
 
 export interface GameServices {
@@ -85,6 +89,8 @@ export function createServices(game: Phaser.Game, viewport: Viewport, bus: Event
       itemUse: null,
       crafting: null,
       build: null,
+      threat: null,
+      death: null,
       options: null,
       pendingLoad: null,
     },

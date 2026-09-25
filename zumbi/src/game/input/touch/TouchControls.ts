@@ -13,7 +13,7 @@ import Phaser from 'phaser';
 import { DEBUG } from '../../core/Debug';
 import { canFullscreen, isFullscreen } from '../../systems/fullscreen';
 import type { GameServices } from '../../core/Services';
-import { iconAttack, iconBag, iconCrosshair, iconDots, iconFullscreen, iconHand, iconPause, iconReload, iconRun } from '../../ui/icons';
+import { iconAttack, iconBag, iconCrosshair, iconDots, iconFullscreen, iconHand, iconPause, iconReload, iconRun, iconShove, iconSneak } from '../../ui/icons';
 import { UI } from '../../ui/theme';
 import { loadLayout, placementFor, resolvePlacement, uiScaleFor, type ControlId, type ControlsLayoutData } from './ControlsLayout';
 import { TouchButton } from './TouchButton';
@@ -27,6 +27,8 @@ export interface TouchControlsCallbacks {
   onAttack: () => void;
   onReload: () => void;
   onInventory: () => void;
+  onShove: () => void;
+  onSneak: () => void;
 }
 
 const DEPTH = 100;
@@ -40,6 +42,8 @@ export class TouchControls {
   readonly attack: TouchButton;
   readonly reload: TouchButton;
   readonly inventory: TouchButton;
+  readonly shove: TouchButton;
+  readonly sneak: TouchButton;
   /** Mostra o botão de recarregar (arma de fogo na mão). */
   private showReload = false;
   readonly pause: TouchButton;
@@ -67,6 +71,8 @@ export class TouchControls {
     this.attack = new TouchButton(scene, iconAttack, DEPTH + 1, { accent: UI.accentNum, hitScale: 1.2 });
     this.reload = new TouchButton(scene, iconReload, DEPTH + 1, { accent: UI.accentNum, hitScale: 1.4 });
     this.inventory = new TouchButton(scene, iconBag, DEPTH + 1, { accent: UI.accentNum, hitScale: 1.4 });
+    this.shove = new TouchButton(scene, iconShove, DEPTH + 1, { accent: UI.accentNum, hitScale: 1.3 });
+    this.sneak = new TouchButton(scene, iconSneak, DEPTH + 1, { accent: UI.accentNum, hitScale: 1.3 });
     this.pause = new TouchButton(scene, iconPause, DEPTH + 1, { accent: UI.accentNum, hitScale: 1.5, subtle: true });
     this.fullscreen = new TouchButton(
       scene,
@@ -120,6 +126,10 @@ export class TouchControls {
     this.reload.setLayout(rl.x, rl.y, rl.radius);
     const inv = at('inventory');
     this.inventory.setLayout(inv.x, inv.y, inv.radius);
+    const sh = at('shove');
+    this.shove.setLayout(sh.x, sh.y, sh.radius);
+    const sn = at('sneak');
+    this.sneak.setLayout(sn.x, sn.y, sn.radius);
     const p = at('pause');
     this.pause.setLayout(p.x, p.y, p.radius);
     const f = at('fullscreen');
@@ -146,6 +156,8 @@ export class TouchControls {
     this.attack.release();
     this.reload.release();
     this.inventory.release();
+    this.shove.release();
+    this.sneak.release();
     this.pause.release();
     this.fullscreen.release();
     this.s.touch.reset();
@@ -162,6 +174,8 @@ export class TouchControls {
     this.attack.setVisible(t);
     this.reload.setVisible(t && this.showReload);
     this.inventory.setVisible(t);
+    this.shove.setVisible(t);
+    this.sneak.setVisible(t);
     this.pause.setVisible(true);
     // Só mostra o botão onde o navegador realmente permite tela cheia.
     this.fullscreen.setVisible(canFullscreen());
@@ -189,7 +203,7 @@ export class TouchControls {
       return;
     }
     if (this.blocker?.(x, y)) return;
-    for (const b of [this.pause, this.fullscreen, this.sprint, this.interact, this.options, this.attack, this.reload]) {
+    for (const b of [this.pause, this.fullscreen, this.sprint, this.interact, this.options, this.attack, this.reload, this.shove, this.sneak]) {
       if (b.pointerId === null && b.hit(x, y)) {
         b.press(p.id);
         return;
@@ -247,6 +261,14 @@ export class TouchControls {
       this.inventory.release();
       if (this.inventory.hit(x, y)) this.cb.onInventory();
     }
+    if (this.shove.pointerId === p.id) {
+      this.shove.release();
+      if (this.shove.hit(x, y)) this.cb.onShove();
+    }
+    if (this.sneak.pointerId === p.id) {
+      this.sneak.release();
+      if (this.sneak.hit(x, y)) this.cb.onSneak();
+    }
     if (this.pause.pointerId === p.id) {
       this.pause.release();
       if (this.pause.hit(x, y)) this.cb.onPause();
@@ -273,7 +295,7 @@ export class TouchControls {
    * 1x por quadro: visual dos botões e rede de segurança contra dedo "preso".
    * `interact`: null = nada ao alcance (botão apagado); false = alvo sem ação (trancada).
    */
-  update(sprintBlocked: boolean, interact: boolean | null = null, inventoryOpen = false): void {
+  update(sprintBlocked: boolean, interact: boolean | null = null, inventoryOpen = false, sneaking = false, grabbed = false): void {
     // Se o sistema engolir o "soltar" (gesto do Android, notificação...),
     // o ponteiro deixa de estar pressionado e o joystick volta ao centro.
     const pointers = this.scene.input.manager.pointers;
@@ -291,6 +313,8 @@ export class TouchControls {
     this.interact.setState(interact === true, interact === null);
     this.options.setState(false, interact === null);
     this.inventory.setState(inventoryOpen, false);
+    this.sneak.setState(sneaking, false);
+    this.shove.setState(grabbed, false);
   }
 
   /** Arma de fogo na mão: aparece o botão de recarregar. */

@@ -32,7 +32,8 @@ import { hitZombie, shoveZombie, type ZombieHit, type ZombieHitResult } from './
 import { bodyRadius, farStep, moveBy, pressPlayer, separate, stepToward } from './ZombieMotion';
 import { bangOnce, climbTarget, obstacleFrom, obstacleKey, obstacleStands, tryPushDoor, windowOf, type ObstacleCtx } from './ZombieObstacles';
 import { seesZombie, sightRate, sightRange, beamHits, type LightEnv, type PlayerSense } from './Senses';
-import { ZombieStore } from './ZombieStore';
+import { ZombieStore, type ZombieStoreSave } from './ZombieStore';
+import type { PopulationSpawn } from './Population';
 import { canGrab, isCrawler, moveSpeed, type Point, type Zombie, type ZState } from './Zombie';
 
 export interface ZombieHooks {
@@ -134,6 +135,8 @@ export class ZombieSystem {
   light: LightEnv = { ambient: 1, beam: null, glow: 0, rain: 0, fog: 0 };
   /** Zumbi em que o debug está de olho. */
   focus: string | null = null;
+  /** Abatidos pelo jogador nesta partida. */
+  kills = 0;
   private readonly pf: Pathfinder;
   private readonly flow: FlowField;
   private flowAt = -1;
@@ -1199,6 +1202,7 @@ export class ZombieSystem {
   }
 
   private kill(z: Zombie, dir: number): void {
+    this.kills++;
     this.threat.release(z);
     z.dead = true;
     z.deadAt = this.now;
@@ -1231,6 +1235,40 @@ export class ZombieSystem {
     z.rt.next = this.now + this.rng() * T.farTick;
     z.rt.last = this.now;
     this.store.add(z);
+  }
+
+  /** População inicial da partida. */
+  populate(spawns: readonly PopulationSpawn[]): void {
+    this.store.populate(spawns, this.diff);
+    for (const z of this.store.all) {
+      z.rt.next = this.now + this.rng() * T.farTick;
+      z.rt.last = this.now;
+    }
+  }
+
+  serialize(collapseDays: number): ZombieStoreSave & { kills: number } {
+    return { ...this.store.serialize(collapseDays), kills: this.kills };
+  }
+
+  /** Volta do save. false = save sem zumbis (versão antiga): quem chama gera a população. */
+  restore(save: (ZombieStoreSave & { kills?: number }) | undefined): boolean {
+    if (!save || !this.store.restore(save, this.diff, this.now)) return false;
+    this.kills = Number.isFinite(save.kills) ? save.kills! : 0;
+    for (const z of this.store.all) {
+      z.rt.next = this.now + this.rng() * T.farTick;
+      z.rt.last = this.now;
+    }
+    return true;
+  }
+
+  /** Zumbis que sabem do jogador (perseguindo, atacando, agarrando) a até r px. */
+  dangerNear(x: number, y: number, r: number): number {
+    let n = 0;
+    for (const z of this.store.aliveNear(x, y, r, this.near2)) {
+      const s = z.mind.state;
+      if (s === 'CHASE' || s === 'ATTACK' || s === 'GRAB' || s === 'BITE' || (s === 'INVESTIGATE' && Math.hypot(z.x - x, z.y - y) < r * 0.5) || z.mind.bang) n++;
+    }
+    return n;
   }
 }
 

@@ -37,6 +37,12 @@ export interface GameEvents {
   'input:attack': Record<string, never>;
   /** Recarregar a arma da mão. */
   'input:reload': Record<string, never>;
+  /** Empurrar quem está na frente (solta agarrão, derruba zumbi). */
+  'input:shove': Record<string, never>;
+  /** Liga/desliga o andar furtivo (agachado). */
+  'input:sneak': Record<string, never>;
+  /** O jogador morreu: relatório da causa (a tela de morte mostra). */
+  'player:died': { report: import('../survival/Death').DeathReport };
   /** Cartão de informação (examinar veículo...). */
   'ui:info': { title: string; lines: string[] };
   /** Abrir o mapa da cidade (item mapa). */

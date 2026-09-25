@@ -59,6 +59,8 @@ export interface AttackOutcome {
   stamina?: number;
   /** Pegou a infecção (o jogador não sabe na hora). */
   infected?: boolean;
+  /** Vida perdida na hora (trauma); o sangramento continua depois. */
+  trauma?: number;
   /** Frase para a tela e para o registro de morte. */
   text: string;
   tone: 'info' | 'warn' | 'bad';
@@ -117,7 +119,7 @@ export function resolveAttack(z: Zombie, kind: AttackKind, d: PlayerDefense, dif
       const part = pick(SWIPE, rng);
       const prot = d.protection(PART_INFO[part].slots).scratch;
       if (rng() < prot) {
-        return { kind, landed: true, blocked: true, part, stamina: 0.03, text: `Unhada ${where(part)}: a roupa segurou.`, tone: 'info' };
+        return { kind, landed: true, blocked: true, part, stamina: 0.03, trauma: 0.5, text: `Unhada ${where(part)}: a roupa segurou.`, tone: 'info' };
       }
       const roll = rng() * (0.8 + 0.4 * str * dmg);
       const wound: WoundKind = roll > 1.05 ? 'laceracao' : roll > 0.75 ? 'corte' : 'arranhao';
@@ -125,7 +127,8 @@ export function resolveAttack(z: Zombie, kind: AttackKind, d: PlayerDefense, dif
       d.health.add(part, wound, sev);
       const infected = infect(wound, diff, rng);
       const label = wound === 'arranhao' ? 'Arranhão' : wound === 'corte' ? 'Corte' : 'Corte fundo';
-      return { kind, landed: true, part, wound, infected, stamina: 0.04, text: `${label} ${where(part)}!`, tone: wound === 'arranhao' ? 'warn' : 'bad' };
+      const trauma = wound === 'arranhao' ? 1.5 + 2 * sev : wound === 'corte' ? 4 + 6 * sev : 8 + 10 * sev;
+      return { kind, landed: true, part, wound, infected, stamina: 0.04, trauma, text: `${label} ${where(part)}!`, tone: wound === 'arranhao' ? 'warn' : 'bad' };
     }
     case 'grab': {
       const hold = grabPower(z) * diff.grab;
@@ -138,13 +141,13 @@ export function resolveAttack(z: Zombie, kind: AttackKind, d: PlayerDefense, dif
       const pk = knockChance(d, 0.07 * str, diff);
       if (rng() < pk) {
         const t = 1.8 + rng() * 1.2;
-        return { kind, landed: true, knockdown: t, stamina: 0.12, text: d.crowd > 1 ? `Derrubado pelo grupo (${d.crowd} em volta)!` : 'Derrubado!', tone: 'bad' };
+        return { kind, landed: true, knockdown: t, stamina: 0.12, trauma: 3, text: d.crowd > 1 ? `Derrubado pelo grupo (${d.crowd} em volta)!` : 'Derrubado!', tone: 'bad' };
       }
       return { kind, landed: true, push: 18 + 16 * str, stamina: 0.05, text: 'Empurrão.', tone: 'warn' };
     }
     case 'lunge': {
       const pk = knockChance(d, 0.3 * str, diff);
-      if (rng() < pk) return { kind, landed: true, knockdown: 2 + rng() * 1.5, stamina: 0.15, text: 'Ele pulou em cima e derrubou você!', tone: 'bad' };
+      if (rng() < pk) return { kind, landed: true, knockdown: 2 + rng() * 1.5, stamina: 0.15, trauma: 4, text: 'Ele pulou em cima e derrubou você!', tone: 'bad' };
       return resolveAttack(z, 'grab', d, diff, rng);
     }
     case 'bite': {
@@ -152,23 +155,25 @@ export function resolveAttack(z: Zombie, kind: AttackKind, d: PlayerDefense, dif
       const prot = d.protection(PART_INFO[part].slots).bite;
       if (rng() < prot) {
         d.health.add(part, 'contusao', 0.25 + rng() * 0.2);
-        return { kind, landed: true, blocked: true, part, wound: 'contusao', text: `Mordida ${where(part)}: não atravessou a roupa.`, tone: 'warn' };
+        return { kind, landed: true, blocked: true, part, wound: 'contusao', trauma: 1.5, text: `Mordida ${where(part)}: não atravessou a roupa.`, tone: 'warn' };
       }
       const sev = clamp((0.45 + rng() * 0.45) * dmg * (part === 'pescoco' ? 1.25 : 1), 0.2, 1);
       d.health.add(part, 'mordida', sev);
       const infected = infect('mordida', diff, rng);
-      return { kind, landed: true, part, wound: 'mordida', infected, stamina: 0.05, text: part === 'pescoco' ? 'MORDIDA NO PESCOÇO!' : `Mordida ${where(part)}!`, tone: 'bad' };
+      const trauma = (9 + 12 * sev) * (part === 'pescoco' ? 2.2 : part === 'cabeca' ? 1.5 : 1) * (d.down ? 1.3 : 1);
+      return { kind, landed: true, part, wound: 'mordida', infected, stamina: 0.05, trauma, text: part === 'pescoco' ? 'MORDIDA NO PESCOÇO!' : `Mordida ${where(part)}!`, tone: 'bad' };
     }
     case 'ankle': {
       if (!d.down && d.fleeing && rng() < clamp(0.25 * diff.knockdown * (1.5 - d.stamina), 0, 0.6)) {
-        return { kind, landed: true, knockdown: 1.2 + rng() * 0.8, text: 'Agarrou seu tornozelo — você caiu!', tone: 'bad' };
+        return { kind, landed: true, knockdown: 1.2 + rng() * 0.8, trauma: 2, text: 'Agarrou seu tornozelo — você caiu!', tone: 'bad' };
       }
       const part = pick(ANKLE, rng);
       const prot = d.protection(PART_INFO[part].slots).bite;
       if (rng() < prot) return { kind, landed: true, blocked: true, part, text: `Mordeu ${where(part).replace(/^n[oa] /, 'o ')}: a bota/calça segurou.`, tone: 'info' };
-      d.health.add(part, 'mordida', clamp((0.35 + rng() * 0.35) * dmg, 0.15, 1));
+      const sev = clamp((0.35 + rng() * 0.35) * dmg, 0.15, 1);
+      d.health.add(part, 'mordida', sev);
       const infected = infect('mordida', diff, rng);
-      return { kind, landed: true, part, wound: 'mordida', infected, text: `Mordida ${where(part)} (ele estava no chão)!`, tone: 'bad' };
+      return { kind, landed: true, part, wound: 'mordida', infected, trauma: 6 + 8 * sev, text: `Mordida ${where(part)} (ele estava no chão)!`, tone: 'bad' };
     }
   }
 }

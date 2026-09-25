@@ -25,6 +25,8 @@ import { StatusPanel } from '../ui/StatusPanel';
 import { Toast } from '../ui/Toast';
 import { UiButton } from '../ui/UiButton';
 import { UI, textStyle } from '../ui/theme';
+import { DeathScreen, ThreatBanner } from '../ui/ThreatUi';
+import { loadGame, saveSummary } from '../save/SaveGame';
 
 export class HudScene extends Phaser.Scene {
   private s!: GameServices;
@@ -33,6 +35,8 @@ export class HudScene extends Phaser.Scene {
   private toast!: Toast;
   private controls!: TouchControls;
   private feedback!: ActionFeedback;
+  private threat!: ThreatBanner;
+  private death!: DeathScreen;
   private inventory!: InventoryPanel;
   private prompt!: Phaser.GameObjects.Text;
   private promptKey = '';
@@ -100,6 +104,8 @@ export class HudScene extends Phaser.Scene {
       onOptions: () => (this.optionsMenu.open ? this.optionsMenu.hide() : s.bus.emit('interaction:options', {})),
       onAttack: () => s.bus.emit('input:attack', {}),
       onReload: () => s.bus.emit('input:reload', {}),
+      onShove: () => s.bus.emit('input:shove', {}),
+      onSneak: () => s.bus.emit('input:sneak', {}),
       onInventory: () => {
         // Um painel por vez: o menu "⋯" fecha ao abrir a bolsa (o toque não passa para os dois).
         this.optionsMenu.hide();
@@ -107,6 +113,32 @@ export class HudScene extends Phaser.Scene {
       },
     });
     this.feedback = new ActionFeedback(this, dpr);
+    this.threat = new ThreatBanner(this, dpr);
+    // Morte: carregar o último save (nunca apagado) ou voltar ao menu.
+    const leave = () => {
+      this.scene.stop(SCENES.debug);
+      this.scene.stop(SCENES.game);
+    };
+    this.death = new DeathScreen(
+      this,
+      dpr,
+      saveSummary()
+        ? () => {
+            const save = loadGame();
+            if (!save) return;
+            s.settings = save.settings;
+            s.session.pendingLoad = save;
+            s.session.death = null;
+            leave();
+            this.scene.start(SCENES.game);
+          }
+        : null,
+      () => {
+        s.session.death = null;
+        leave();
+        this.scene.start(SCENES.title);
+      },
+    );
     if (!s.assets) throw new Error('Assets não carregados');
     this.inventory = new InventoryPanel(this, s, s.assets, dpr, () => {
       s.session.pointerOverUi = false;
@@ -119,7 +151,7 @@ export class HudScene extends Phaser.Scene {
     this.prompt.setBackgroundColor('rgba(12,13,16,0.62)').setPadding(8, 4, 8, 4).setVisible(false);
 
     this.keyboardHint = this.add
-      .text(0, 0, 'WASD andar · Shift correr · E interagir · Q opções · F atacar · R recarregar · I painel · mouse mira · Esc pausa', textStyle(11, UI.textDim, '600'))
+      .text(0, 0, 'WASD andar · Shift correr · C furtivo · E interagir · Q opções · F atacar · G empurrar · R recarregar · I painel · Esc pausa', textStyle(11, UI.textDim, '600'))
       .setOrigin(0.5, 1)
       .setResolution(dpr)
       .setAlpha(0.75)
@@ -151,6 +183,13 @@ export class HudScene extends Phaser.Scene {
         this.promptKey = '';
       }),
       s.bus.on('player:feedback', (e) => this.feedback.show(e.text, e.tone)),
+      s.bus.on('player:died', (e) => {
+        this.inventory.setOpen(false);
+        this.optionsMenu.hide();
+        this.controls.setEnabled(false);
+        this.death.show(e.report);
+        this.layout();
+      }),
       s.bus.on('ui:container-open', () => this.inventory.showContainer()),
       s.bus.on('ui:container-close', () => this.inventory.hideContainer()),
       s.bus.on('ui:container-refresh', () => this.inventory.refresh()),
@@ -295,6 +334,8 @@ export class HudScene extends Phaser.Scene {
     this.controls.layout(w, h);
     this.keyboardHint.setPosition(w / 2, h - 10 - ins.bottom);
     this.feedback.setPosition(w / 2, h * 0.64, k);
+    this.threat.setPosition(w / 2, h * (s.viewport.isPortrait ? 0.5 : 0.72), k, ins.left + 14, ins.top + 10 + 128 * k);
+    this.death.layout(w, h, k);
     this.inventory.layout(w, h, ins, k);
     this.promptKey = '';
 
@@ -407,7 +448,9 @@ export class HudScene extends Phaser.Scene {
       this.ammoText.setText(`${handDef.name}: ${inv?.hand?.st?.am ?? 0}/${handDef.gun.capacity} · F atira · R recarrega`).setPosition(this.s.viewport.cssWidth / 2, this.s.viewport.cssHeight - 58).setVisible(true);
     } else this.ammoText.setVisible(false);
     const target = this.s.session.interaction;
-    if (!this.paused) this.controls.update(stats ? !stats.canSprint() : false, target ? target.enabled : null, this.inventory.isOpen);
+    if (!this.paused) this.controls.update(stats ? !stats.canSprint() : false, target ? target.enabled : null, this.inventory.isOpen, !!this.s.session.threat?.sneaking, (this.s.session.threat?.grabbed ?? 0) > 0);
+    this.threat.update(dt, this.s.session.threat, this.controls.isTouchMode);
+    this.death.update(dt);
     this.updatePrompt();
     // PC: mouse sobre o painel não mira.
     const mouse = this.input.mousePointer;

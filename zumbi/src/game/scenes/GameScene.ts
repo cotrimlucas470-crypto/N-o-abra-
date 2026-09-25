@@ -66,6 +66,21 @@ import { buildCity } from '../world/districts/CityGenerator';
 import type { RegionData } from '../world/MapTypes';
 import { WorldModel } from '../world/WorldModel';
 import { WorldRenderer } from '../world/render/WorldRenderer';
+import { NOISE_RADIUS } from '../config/NoiseTuning';
+import { kindFromSource, NoiseSystem } from '../sim/Noise';
+import { ZombieSystem } from '../zombies/ZombieSystem';
+import { difficultyFrom } from '../zombies/Difficulty';
+import { generatePopulation } from '../zombies/Population';
+import { resolveAttack, type AttackKind, type AttackOutcome, type PlayerDefense } from '../zombies/Assault';
+import type { LightEnv, PlayerSense } from '../zombies/Senses';
+import type { Zombie } from '../zombies/Zombie';
+import type { ZombieStoreSave } from '../zombies/ZombieStore';
+import { bodyRadius } from '../zombies/ZombieMotion';
+import { ZombieViews } from '../world/render/ZombieViews';
+import { ARCHETYPES, type ArchId } from '../zombies/Archetypes';
+import { createZombie } from '../zombies/ZombieFactory';
+import { explainDeath } from '../survival/Death';
+import type { SleepOptions } from '../survival/Sleep';
 
 /** Roupa com que o personagem começa (é dele, não é loot). */
 const STARTING_OUTFIT = ['camiseta', 'calcaJeans', 'meias', 'tenis'] as const;
@@ -119,6 +134,14 @@ export class GameScene extends Phaser.Scene {
   private scanTimer = 0;
   private autosaveTimer = AUTOSAVE_SECONDS;
   private readonly interactor: Interactor = { x: 0, y: 0, radius: PLAYER_TUNING.bodyRadius, facing: 0 };
+  private noise!: NoiseSystem;
+  private zombies!: ZombieSystem;
+  private zombieViews!: ZombieViews;
+  /** Morreu: nada mais salva nem responde; a tela de morte assume. */
+  private dead = false;
+  /** Barulhos fortes do jogador (tiro, vidro...) nos últimos minutos: explicam a morte. */
+  private readonly loudNoises: { t: number; source: string }[] = [];
+  private dangerTimer = 0;
 
   constructor() {
     super(SCENES.game);
@@ -221,7 +244,36 @@ export class GameScene extends Phaser.Scene {
     this.combat = new Combat(this.state, this.survivor, this.inventory, {
       stamina: () => this.player.stats.stamina,
       spendStamina: (n) => this.player.stats.spend(n),
+      creatures: {
+        melee: (x, y, f, reach) => {
+          const z = this.zombies.meleeTarget(x, y, f, reach);
+          return z ? { id: z.id, dist: Math.max(0, Math.hypot(z.x - x, z.y - y) - bodyRadius(z)), x: z.x, y: z.y } : null;
+        },
+        ray: (x, y, a, max) => {
+          const r = this.zombies.rayTarget(x, y, a, max);
+          return r ? { id: r.z.id, dist: r.dist, x: r.z.x, y: r.z.y } : null;
+        },
+        hit: (id, h) => {
+          const z = this.zombies.store.get(id);
+          if (!z || z.dead) return null;
+          const r = this.zombies.hit(z, h);
+          return { x: z.x, y: z.y, killed: r.killed, frac: r.after, part: r.part, ...(r.note ? { note: r.note } : {}) };
+        },
+      },
     });
+    // Ruído e zumbis: tudo que faz barulho passa pelo barramento e chega aqui.
+    this.noise = new NoiseSystem(this.model.sight, () => ({ rain: this.loop.weather.rain, wind: this.loop.weather.wind }));
+    const diff = difficultyFrom(s.settings.zombies);
+    this.zombies = new ZombieSystem(this.model, this.state, this.noise, diff, {
+      attack: (z, kind) => this.zombieAttack(z, kind),
+      noise: (x, y, kind, radius, source) => s.bus.emit('world:noise', { x, y, radius: radius ?? NOISE_RADIUS[kind], source: source ?? kind, kind }),
+    });
+    const zsave = load?.modules?.['zombies'] as (ZombieStoreSave & { kills?: number }) | undefined;
+    if (!this.zombies.restore(zsave)) {
+      // Jogo novo (ou save de antes dos zumbis): ninguém perto de onde o jogador está.
+      const safe = load ? { x: load.player.x, y: load.player.y } : map.spawn;
+      this.zombies.populate(generatePopulation(map, this.model.nav, { population: diff.population, collapseDays: s.settings.loot.collapseAgeDays, safe }));
+    }
     const worldHooks: WorldActionHooks = {
       start: (spec) => this.loop.start(spec),
       drop: (items, x, y) => {
@@ -249,13 +301,18 @@ export class GameScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, offProps);
     const playerBody = this.interactor;
     this.interaction = new InteractionSystem([
-      new DoorInteractions(this.state, s.bus, () => [playerBody], (d, who) => tools.doorOptions(d, who)),
+      new DoorInteractions(
+        this.state,
+        s.bus,
+        () => [playerBody, ...this.zombies.store.aliveNear(this.player.x, this.player.y, 260).map((z) => ({ x: z.x, y: z.y, radius: bodyRadius(z), facing: z.facing }))],
+        (d, who) => tools.doorOptions(d, who),
+      ),
       this.itemActions,
       new ContainerInteractions(this.state, s.bus),
       new NatureInteractions(this.state, this.inventory, nowDays),
       new FurnitureInteractions(this.state, {
         sleep: (place: SleepPlace) => {
-          const why = this.loop.sleep({ place, blanket: this.inventory.hasTag('aquecer') });
+          const why = this.trySleep({ place, blanket: this.inventory.hasTag('aquecer') });
           return why ? { ok: false, message: why } : { ok: true };
         },
         rest: (where) => {
@@ -282,7 +339,7 @@ export class GameScene extends Phaser.Scene {
         minutes: () => this.clock.minutes,
         openCraft: () => s.bus.emit('ui:tab', { tab: 'fabricar' }),
         sleep: (place) => {
-          const why = this.loop.sleep({ place, blanket: this.inventory.hasTag('aquecer') });
+          const why = this.trySleep({ place, blanket: this.inventory.hasTag('aquecer') });
           return why ? { ok: false, message: why } : { ok: true };
         },
         rest: (where) => {
@@ -306,6 +363,7 @@ export class GameScene extends Phaser.Scene {
     this.highlight = new InteractionHighlight(this);
     new WindowViews(this, this.state, this.world);
     this.combatFx = new CombatFx(this);
+    this.zombieViews = new ZombieViews(this, this.zombies, this.world.shadows);
     this.atmosphere = new Atmosphere(this, this.world.shadows);
 
     const cam = this.cameras.main;
@@ -324,6 +382,8 @@ export class GameScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-F', () => this.attack());
     this.input.keyboard?.on('keydown-SPACE', () => this.attack());
     this.input.keyboard?.on('keydown-R', () => this.reload());
+    this.input.keyboard?.on('keydown-G', () => this.shove());
+    this.input.keyboard?.on('keydown-C', () => this.toggleSneak());
 
     // Depois da física: alinhar visuais, câmera e mundo com a posição final do frame.
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, this.afterPhysics, this);
@@ -343,7 +403,7 @@ export class GameScene extends Phaser.Scene {
       s.bus.on('interaction:option', (e) => this.chooseOption(e.index)),
       s.bus.on('action:cancel', () => this.loop.cancelAction()),
       s.bus.on('body:sleep', (e) => {
-        const why = this.loop.sleep({ place: e.place, blanket: this.inventory.hasTag('aquecer'), ...(e.wakeAt !== undefined ? { wakeAt: e.wakeAt } : {}) });
+        const why = this.trySleep({ place: e.place, blanket: this.inventory.hasTag('aquecer'), ...(e.wakeAt !== undefined ? { wakeAt: e.wakeAt } : {}) });
         if (why) this.outcome({ ok: false, message: why, tone: 'warn' });
       }),
       s.bus.on('health:treat', (e) => this.treat(e.wound, e.option)),
@@ -359,6 +419,13 @@ export class GameScene extends Phaser.Scene {
         if (why) this.outcome({ ok: false, message: why, tone: 'warn' });
       }),
       s.bus.on('input:attack', () => this.attack()),
+      s.bus.on('input:shove', () => this.shove()),
+      s.bus.on('input:sneak', () => this.toggleSneak()),
+      s.bus.on('world:noise', (e) => this.onNoise(e)),
+      s.bus.on('player:footstep', (e) => {
+        if (this.dead) return;
+        this.noise.emit(e.x, e.y, e.loudness >= 2 ? 'corrida' : e.loudness < 1 ? 'furtivo' : 'passo', { byPlayer: true, source: 'passos' });
+      }),
       s.bus.on('input:reload', () => this.reload()),
       s.bus.on('game:save-request', () => this.save()),
       s.bus.on('game:paused', () => this.save()),
@@ -373,6 +440,7 @@ export class GameScene extends Phaser.Scene {
       s.session.itemUse = null;
       s.session.crafting = null;
       s.session.build = null;
+      s.session.threat = null;
       s.session.options = null;
       this.events.off(Phaser.Scenes.Events.POST_UPDATE, this.afterPhysics, this);
       s.session.stats = null;
@@ -429,7 +497,11 @@ export class GameScene extends Phaser.Scene {
     }
     this.player.setMoveEffects(fx.walk, fx.run);
     this.player.stats.setBodyEffects(fx);
+    const th = this.zombies.threat;
+    this.player.drag = th.moveFactor();
+    if (th.down || this.dead) this.player.frozen = true;
     this.player.update(this.dt, intent);
+    this.updateZombies(delta / 1000, moving);
 
     this.attackCooldown = Math.max(0, this.attackCooldown - delta / 1000);
     // Alarme de carro: barulho alto de tempos em tempos enquanto toca.
@@ -440,7 +512,8 @@ export class GameScene extends Phaser.Scene {
       for (const v of alarms) s.bus.emit('world:noise', { x: v.x, y: v.y, radius: 950, source: 'alarme de carro' });
     }
     this.autosaveTimer -= delta / 1000;
-    if (this.autosaveTimer <= 0 && !this.loop.runner.active) this.save();
+    if (this.autosaveTimer <= 0 && !this.loop.runner.active && !this.zombies.threat.grabbed) this.save();
+    if (!this.dead && this.player.stats.health <= 0) this.die();
   }
 
   private afterPhysics(): void {
@@ -453,6 +526,7 @@ export class GameScene extends Phaser.Scene {
     this.nature.update(this.dt);
     this.updateHeldLight();
     this.combatFx.update(this.dt);
+    this.zombieViews.update(this.cameras.main);
     this.vehicleViews.update(this.dt);
     this.structureViews.update(this.dt);
     this.updateBuildPreview();
@@ -519,7 +593,7 @@ export class GameScene extends Phaser.Scene {
 
   /** Botão Atacar / F / espaço: golpe ou tiro para onde o jogador olha. */
   attack(): void {
-    if (this.s.session.paused || this.attackCooldown > 0 || this.loop.sleeping) return;
+    if (this.s.session.paused || this.attackCooldown > 0 || this.loop.sleeping || this.dead || this.zombies.threat.down) return;
     if (this.loop.runner.active) this.loop.cancelAction();
     const gun = !!this.inventory.handDef?.gun;
     const r: AttackResult = gun ? this.combat.shoot(this.player.x, this.player.y, this.player.facingAngle) : this.combat.melee(this.player.x, this.player.y, this.player.facingAngle);
@@ -527,6 +601,11 @@ export class GameScene extends Phaser.Scene {
     if (r.swing) this.combatFx.swing(r.swing.x, r.swing.y, r.swing.angle, r.swing.reach);
     if (r.tracer) this.combatFx.shot(r.tracer.x1, r.tracer.y1, r.tracer.x2, r.tracer.y2);
     if (r.hit) this.combatFx.impact(r.hit.x, r.hit.y, r.hit.hp, r.hit.max);
+    if (r.creature) {
+      const c = r.creature;
+      this.combatFx.blood(c.x, c.y, c.dir, c.killed ? 14 : 7);
+      if (c.note) this.combatFx.note(c.x, c.y, c.note);
+    }
     if (r.noise) this.s.bus.emit('world:noise', r.noise);
     for (const d of r.drops ?? []) this.lootActions.dropLoose(d.defId, d.count, d.st, d.x, d.y);
     if (r.message) this.outcome({ ok: r.ok, message: r.message, ...(r.tone ? { tone: r.tone } : {}) });
@@ -550,6 +629,185 @@ export class GameScene extends Phaser.Scene {
     if (!lit) return null;
     const phone = hd?.id === 'celular' && h?.st?.on;
     return { angle: this.player.facingAngle, range: phone ? 230 : 420 };
+  }
+
+  // ---------------------------------------------------------------- zumbis
+
+  /** Um quadro dos zumbis (com tempo acelerado em passos) e o que isso faz no jogador. */
+  private updateZombies(dtReal: number, moving: boolean): void {
+    const s = this.s;
+    const th = this.zombies.threat;
+    const body = this.player.body;
+    const sense: PlayerSense = {
+      x: this.player.x,
+      y: this.player.y,
+      floor: 0,
+      vx: body.velocity.x,
+      vy: body.velocity.y,
+      radius: PLAYER_TUNING.bodyRadius,
+      posture: this.player.sneaking ? 'furtivo' : this.player.isSprinting ? 'correndo' : moving ? 'andando' : 'parado',
+      inVehicle: false,
+      alive: !this.dead,
+      down: th.down,
+    };
+    const indoor = !!this.world.roofs.buildingAt(this.player.x, this.player.y);
+    const beam = this.flashlight();
+    const light: LightEnv = {
+      ambient: (1 - this.atmosphere.darkness) * (indoor ? 0.6 : 1),
+      beam: beam ? { angle: beam.angle, range: beam.range } : null,
+      glow: this.lightSources.some((l) => Math.hypot(l.x - this.player.x, l.y - this.player.y) < l.radius) ? 0.9 : 0,
+      rain: this.loop.weather.rain,
+      fog: this.loop.weather.fog,
+    };
+    // Tempo acelerado (ação demorada, dormir): o mundo anda junto, em passos.
+    const accel = this.loop.runner.active ? this.clock.timeScale / Math.max(0.01, this.clock.userScale) : 1;
+    let left = Math.min(dtReal * accel, 2);
+    let push = { x: 0, y: 0 };
+    while (left > 1e-4) {
+      const step = Math.min(left, 0.1);
+      left -= step;
+      const p = this.zombies.update({ dt: step, player: sense, light });
+      push = { x: push.x + p.x, y: push.y + p.y };
+    }
+    if (push.x || push.y) {
+      this.player.sprite.x += push.x;
+      this.player.sprite.y += push.y;
+    }
+    // Agarrado: puxar (andar) ajuda a soltar; parado quase não.
+    if (th.grabbed > 0) {
+      if (moving) this.player.stats.spend(7 * dtReal);
+      if (this.zombies.struggle(dtReal, this.defense(null), moving ? 'puxando' : 'parado')) this.outcome({ ok: true, message: 'Soltou-se!', tone: 'ok' });
+    }
+    s.session.threat = { sneaking: this.player.sneaking, grabbed: th.grabbed, down: th.down, escape: th.escape };
+    // Perigo perto: acorda / interrompe o que estiver fazendo.
+    this.dangerTimer -= dtReal;
+    if (this.dangerTimer <= 0 && this.loop.runner.active) {
+      this.dangerTimer = 0.4;
+      const sleeping = this.loop.sleeping;
+      const n = this.zombies.dangerNear(this.player.x, this.player.y, sleeping ? 700 : 420);
+      if (n > 0) {
+        this.loop.cancelAction();
+        this.outcome({ ok: false, message: sleeping ? 'Acordou com barulho: tem zumbi por perto!' : 'Zumbi chegando!', tone: 'bad' });
+      }
+    }
+  }
+
+  /** Dormir só sem zumbis atrás de você. */
+  private trySleep(opts: SleepOptions): string | null {
+    if (this.zombies.dangerNear(this.player.x, this.player.y, 900) > 0) return 'Não dá para dormir: tem zumbi atrás de você.';
+    return this.loop.sleep(opts);
+  }
+
+  /** O que o ataque de um zumbi precisa saber do jogador agora. */
+  private defense(z: Zombie | null): PlayerDefense {
+    const st = this.player.stats;
+    const v = this.player.body.velocity;
+    let fleeing = false;
+    if (z) {
+      const dx = this.player.x - z.x;
+      const dy = this.player.y - z.y;
+      const d = Math.hypot(dx, dy) || 1;
+      fleeing = (v.x * dx + v.y * dy) / d > 90;
+    }
+    return {
+      health: this.survivor.health,
+      protection: (slots) => this.inventory.protection(slots),
+      stamina: st.stamina / st.maxStamina,
+      fx: this.loop.effects,
+      load: this.inventory.capacity > 0 ? this.inventory.effectiveLoad / this.inventory.capacity : 0,
+      fleeing,
+      down: this.zombies.threat.down,
+      grabbed: this.zombies.threat.grabbed,
+      crowd: this.zombies.crowdAround(this.player.x, this.player.y),
+    };
+  }
+
+  /** Um zumbi alcançou o jogador: resolve, aplica e mostra. */
+  private zombieAttack(z: Zombie, kind: AttackKind): AttackOutcome | null {
+    if (this.dead) return null;
+    const out = resolveAttack(z, kind, this.defense(z), this.zombies.diff);
+    const st = this.player.stats;
+    if (out.trauma) st.setHealth(st.health - out.trauma);
+    if (out.stamina) st.spend(out.stamina * st.maxStamina);
+    if (out.infected) this.survivor.health.infectZombie(Math.random, out.text.replace(/[!.]+$/, '').replace(/^MORDIDA NO PESCOÇO$/, 'Mordida no pescoço'));
+    const a = Math.atan2(this.player.y - z.y, this.player.x - z.x);
+    if (out.push) {
+      const b = this.player.body;
+      b.velocity.x += Math.cos(a) * out.push * 9;
+      b.velocity.y += Math.sin(a) * out.push * 9;
+    }
+    if (out.landed && !out.blocked && out.wound) this.combatFx.blood(this.player.x, this.player.y, a, out.wound === 'mordida' ? 10 : 5);
+    if (out.landed) {
+      if (this.loop.runner.active) this.loop.cancelAction();
+      if (out.knockdown || out.wound === 'mordida') this.cameras.main.shake(140, 0.005);
+    }
+    if (out.landed || kind === 'grab' || kind === 'lunge') this.outcome({ ok: false, message: out.text, tone: out.tone === 'bad' ? 'bad' : out.tone === 'warn' ? 'warn' : 'info' });
+    return out;
+  }
+
+  /** Empurrão (botão/tecla G): afasta quem está na frente e ajuda a se soltar. */
+  shove(): void {
+    if (this.s.session.paused || this.attackCooldown > 0 || this.loop.sleeping || this.dead || this.zombies.threat.down) return;
+    if (this.loop.runner.active) this.loop.cancelAction();
+    const st = this.player.stats;
+    if (st.stamina < 4) {
+      this.outcome({ ok: false, message: 'Sem fôlego para empurrar.', tone: 'warn' });
+      return;
+    }
+    st.spend(6);
+    const strength = this.loop.effects.melee * (0.55 + 0.45 * (st.stamina / st.maxStamina));
+    const r = this.zombies.shove(this.player.x, this.player.y, this.player.facingAngle, strength, this.defense(null));
+    this.combatFx.swing(this.player.x, this.player.y, this.player.facingAngle, 40);
+    this.attackCooldown = 0.75;
+    if (r.freed) this.outcome({ ok: true, message: 'Soltou-se!', tone: 'ok' });
+  }
+
+  private toggleSneak(): void {
+    if (this.dead) return;
+    this.player.sneaking = !this.player.sneaking;
+    this.outcome({ ok: true, message: this.player.sneaking ? 'Andando agachado: mais devagar, quase sem barulho.' : 'De pé.', tone: 'info' });
+  }
+
+  /** Todo barulho do mundo chega aos ouvidos dos zumbis. */
+  private onNoise(e: { x: number; y: number; radius: number; source: string; kind?: import('../sim/Noise').NoiseKind; byPlayer?: boolean }): void {
+    const kind = e.kind ?? kindFromSource(e.source);
+    const near = Math.hypot(e.x - this.player.x, e.y - this.player.y) < 120;
+    const byPlayer = e.byPlayer ?? (near && kind !== 'zumbi' && kind !== 'batida');
+    this.noise.emit(e.x, e.y, kind, { radius: e.radius, source: e.source, byPlayer });
+    if (byPlayer && e.radius >= 700) {
+      this.loudNoises.push({ t: this.zombies.now, source: e.source });
+      if (this.loudNoises.length > 8) this.loudNoises.shift();
+    }
+  }
+
+  /** Vida acabou: relatório da causa e tela de morte (o save de antes fica). */
+  private die(): void {
+    this.dead = true;
+    this.player.frozen = true;
+    this.loop.cancelAction();
+    const th = this.zombies.threat;
+    const st = this.player.stats;
+    const report = explainDeath({
+      health: this.survivor.health,
+      body: this.survivor.body,
+      log: th.log,
+      now: this.zombies.now,
+      lastHarm: th.lastHarm,
+      grabbed: th.grabbed,
+      down: th.down,
+      crowd: this.zombies.crowdAround(this.player.x, this.player.y),
+      load: this.inventory.capacity > 0 ? this.inventory.effectiveLoad / this.inventory.capacity : 0,
+      stamina: st.stamina / st.maxStamina,
+      darkness: this.atmosphere.darkness,
+      loudNoises: this.loudNoises.filter((n) => this.zombies.now - n.t < 180).map((n) => n.source),
+      day: this.clock.day,
+      kills: this.zombies.kills,
+    });
+    this.s.session.death = report;
+    this.player.sprite.setTint(0x8a5050);
+    this.cameras.main.shake(300, 0.008);
+    this.cameras.main.fade(2400, 30, 4, 4, true);
+    this.s.bus.emit('player:died', { report });
   }
 
   // ---------------------------------------------------------------- interação
@@ -606,7 +864,7 @@ export class GameScene extends Phaser.Scene {
 
   /** Botão Interagir / tecla E. */
   interact(): void {
-    if (this.s.session.paused) return;
+    if (this.s.session.paused || this.dead || this.zombies.threat.down) return;
     const r = this.interaction.perform(this.syncInteractor());
     this.s.session.interaction = this.interaction.current;
     this.highlight.set(this.interaction.current);
@@ -615,7 +873,7 @@ export class GameScene extends Phaser.Scene {
 
   /** Botão "⋯" / tecla Q: monta a lista de ações por perto. */
   private requestOptions(): void {
-    if (this.s.session.paused) return;
+    if (this.s.session.paused || this.dead) return;
     this.options = this.interaction.options(this.syncInteractor());
     this.s.session.options = this.options.map((o) => ({ label: o.label, enabled: o.enabled }));
     this.s.bus.emit('ui:options-ready', {});
@@ -681,13 +939,20 @@ export class GameScene extends Phaser.Scene {
       body: this.survivor.body.snapshot(),
       inventory: this.inventory.serialize(),
       world: this.state.serialize(),
-      modules: { health: this.survivor.health.serialize(), skills: this.survivor.skills.serialize(), radioDay: this.loop.radioDay },
+      modules: {
+        health: this.survivor.health.serialize(),
+        skills: this.survivor.skills.serialize(),
+        radioDay: this.loop.radioDay,
+        zombies: this.zombies.serialize(this.s.settings.loot.collapseAgeDays),
+      },
     };
   }
 
   /** Salva agora (automático, pausa, menu). */
   save(): boolean {
     this.autosaveTimer = AUTOSAVE_SECONDS;
+    // Morto não salva: o último save (de antes) continua lá para carregar.
+    if (this.dead) return false;
     const ok = saveGame(this.gatherSave());
     this.s.bus.emit('game:saved', { ok });
     return ok;
@@ -713,6 +978,39 @@ export class GameScene extends Phaser.Scene {
 
   debugInfo(): string {
     return this.debugLayer?.info ?? '';
+  }
+
+  /** Debug: um zumbi num ponto (não existe no jogo normal — a população é fixa). */
+  debugSpawnZombie(x: number, y: number, arch?: ArchId): string {
+    const archs = Object.keys(ARCHETYPES) as ArchId[];
+    const a = arch ?? archs[Math.floor(Math.random() * archs.length)]!;
+    const id = `dbg${Date.now().toString(36)}${Math.floor(Math.random() * 1000)}`;
+    const z = createZombie({ id, seed: Math.floor(Math.random() * 1e9), arch: a, x, y, collapseDays: this.s.settings.loot.collapseAgeDays }, this.zombies.diff);
+    this.zombies.add(z);
+    return `${ARCHETYPES[a].label} (${id})`;
+  }
+
+  /** Debug: bando atrás do jogador, longe, fora da vista (teste de horda). */
+  debugHorde(n = 12): string {
+    const a = this.player.facingAngle + Math.PI;
+    for (let i = 0; i < n; i++) {
+      const r = 650 + Math.random() * 250;
+      const b = a + (Math.random() - 0.5) * 0.9;
+      const x = this.player.x + Math.cos(b) * r;
+      const y = this.player.y + Math.sin(b) * r;
+      if (this.model.nav.isWalkableAt(x, y)) this.debugSpawnZombie(x, y);
+    }
+    return `${n} zumbis`;
+  }
+
+  /** Debug: todo zumbi perto morre. */
+  debugKillNear(r = 500): string {
+    let n = 0;
+    for (const z of this.zombies.store.aliveNear(this.player.x, this.player.y, r)) {
+      this.zombies.hit(z, { kind: 'impacto', damage: 999, dir: 0, part: 'cabeca' });
+      n++;
+    }
+    return `${n} abatidos`;
   }
 
   /** Debug: larga um item qualquer do catálogo aos pés do jogador (não existe no jogo normal). */
@@ -805,6 +1103,12 @@ export class GameScene extends Phaser.Scene {
       confirmBuild: () => this.confirmBuild(),
       options: () => (this.requestOptions(), this.options.map((o) => o.label)),
       choose: (i: number) => this.chooseOption(i),
+      zombies: this.zombies,
+      zombieViews: () => ({ views: this.zombieViews.count, corpses: this.zombieViews.corpseCount }),
+      spawnZombie: (x?: number, y?: number, arch?: ArchId) => this.debugSpawnZombie(x ?? this.player.x + 300, y ?? this.player.y, arch),
+      shove: () => this.shove(),
+      sneak: () => this.toggleSneak(),
+      dead: () => this.dead,
     };
   }
 }

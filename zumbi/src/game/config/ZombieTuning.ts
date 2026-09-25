@@ -6,7 +6,7 @@
 
 export const ZOMBIE_TUNING = {
   /** Raio do corpo (colisão) e alcance do braço. */
-  bodyRadius: 14,
+  bodyRadius: 15,
   reachMin: 36,
   reachMax: 52,
 

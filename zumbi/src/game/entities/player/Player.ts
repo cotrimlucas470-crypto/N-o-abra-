@@ -27,8 +27,12 @@ export class Player {
   readonly stats: PlayerStats;
   private readonly baseMods: SpeedModifiers;
   private readonly speedMods: SpeedModifiers = { walk: 1, run: 1 };
-  /** Parado à força (dormindo, sentado): ignora o movimento. */
+  /** Parado à força (dormindo, sentado, derrubado): ignora o movimento. */
   frozen = false;
+  /** Andando agachado, devagar e quase sem barulho (zumbis veem e ouvem menos). */
+  sneaking = false;
+  /** Freio externo (agarrado por zumbis: arrasta o corpo). 1 = livre. */
+  drag = 1;
   readonly sprite: Phaser.Physics.Arcade.Sprite;
   private readonly legs: Phaser.GameObjects.Sprite;
   private readonly shadow: Phaser.GameObjects.Image;
@@ -139,8 +143,12 @@ export class Player {
 
     // Correr: exige estar se movendo, não mirando e ter fôlego.
     const moveMag = length(intent.moveX, intent.moveY);
-    const wantsSprint = intent.sprint && !intent.aiming && moveMag > 0.5;
-    const target = targetVelocity({ x: intent.moveX, y: intent.moveY, sprint: wantsSprint }, this.stats.canSprint(), this.speedMods);
+    const wantsSprint = intent.sprint && !intent.aiming && moveMag > 0.5 && this.drag >= 1;
+    // Correr desfaz o furtivo.
+    if (wantsSprint && this.sneaking) this.sneaking = false;
+    const sneak = this.sneaking ? 0.5 : 1;
+    const mods = sneak !== 1 || this.drag !== 1 ? { walk: this.speedMods.walk * sneak * this.drag, run: this.speedMods.run * this.drag } : this.speedMods;
+    const target = targetVelocity({ x: intent.moveX, y: intent.moveY, sprint: wantsSprint }, this.stats.canSprint(), mods);
     const v = stepVelocity({ x: body.velocity.x, y: body.velocity.y }, target, dt);
     body.setVelocity(v.x, v.y);
 
@@ -202,7 +210,7 @@ export class Player {
     if (index === this.lastLegFrame) return;
     this.lastLegFrame = index;
     if (!FOOTSTEP_FRAMES.has(index)) return;
-    const loudness = this.sprinting ? 2 : 1;
+    const loudness = this.sprinting ? 2 : this.sneaking ? 0.5 : 1;
     this.bus.emit('player:footstep', { x: this.x, y: this.y, loudness });
     if (this.sprinting) {
       const back = this.legsAngle + Math.PI;

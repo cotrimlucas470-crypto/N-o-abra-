@@ -45,7 +45,7 @@ function world() {
   const noise = new NoiseSystem(model.sight, () => ({ rain: 0, wind: 0 }), seeded(3));
   const attacks: string[] = [];
   const sys = new ZombieSystem(model, state, noise, DIFF, {
-    attack: (z, kind) => {
+    attack: (_z, kind) => {
       attacks.push(kind);
       return { kind, landed: true, text: kind, tone: 'warn' };
     },

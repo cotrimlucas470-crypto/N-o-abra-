@@ -44,6 +44,8 @@ export interface AttackResult {
   tracer?: { x1: number; y1: number; x2: number; y2: number };
   /** Golpe: arco do movimento. */
   swing?: { x: number; y: number; angle: number; reach: number };
+  /** Acertou uma criatura (zumbi). */
+  creature?: CreatureHit & { dir: number };
   /** Segundos até poder bater de novo. */
   cooldown: number;
 }
@@ -51,6 +53,28 @@ export interface AttackResult {
 export interface CombatHooks {
   stamina(): number;
   spendStamina(n: number): void;
+  /** Criaturas (zumbis) que podem levar o golpe/tiro. */
+  creatures?: CreatureTargets;
+}
+
+/** O combate não conhece zumbis: só pergunta quem está na frente e manda o golpe. */
+export interface CreatureTargets {
+  /** Mais à frente no alcance do golpe (distância até a borda do corpo). */
+  melee(x: number, y: number, facing: number, reach: number): { id: string; dist: number; x: number; y: number } | null;
+  /** Primeiro na linha do tiro (distância até o corpo). */
+  ray(x: number, y: number, angle: number, max: number): { id: string; dist: number; x: number; y: number } | null;
+  /** Aplica o golpe; devolve o que aconteceu (para efeito e mensagem). */
+  hit(id: string, h: { kind: 'corte' | 'impacto' | 'perfuracao' | 'tiro'; damage: number; dir: number; reach?: number; aim?: number }): CreatureHit | null;
+}
+
+export interface CreatureHit {
+  x: number;
+  y: number;
+  killed: boolean;
+  note?: string;
+  /** Integridade que sobrou na parte atingida (0..1). */
+  frac: number;
+  part: string;
 }
 
 /** Soco: arma "invisível". */
@@ -155,9 +179,28 @@ export class Combat {
     const cooldown = clamp(0.95 / (m.speed * (0.6 + 0.4 * fx.melee)), 0.35, 2.2);
     const swing = { x, y, angle: facing, reach };
     const t = this.findTarget(x, y, facing, reach);
-    if (!t) return { ok: true, swing, cooldown };
     const tags = def?.tags ?? [];
     const base = m.damage * (def ? effectiveness(def, st) : 1) * fx.melee;
+    // Zumbi na frente (mais perto que o objeto): o golpe vai nele.
+    const c = this.hooks.creatures?.melee(x, y, facing, reach);
+    if (c && (!t || c.dist <= t.dist)) {
+      const h = this.hooks.creatures!.hit(c.id, { kind: m.kind, damage: base, dir: Math.atan2(c.y - y, c.x - x), reach: m.reach });
+      this.wearWeapon(1);
+      let message: string | undefined;
+      if (!def && this.rng() < 0.12) {
+        this.survivor.health.add(this.rng() < 0.5 ? 'maoE' : 'maoD', 'contusao', 0.15 + this.rng() * 0.2);
+        message = 'Machucou a mão no soco.';
+      }
+      return {
+        ok: true,
+        swing,
+        cooldown,
+        noise: { x: c.x, y: c.y, radius: m.kind === 'impacto' ? 300 : 220, source: 'golpe' },
+        ...(h ? { creature: { ...h, dir: Math.atan2(c.y - y, c.x - x) } } : {}),
+        ...(message ? { message, tone: 'warn' as const } : {}),
+      };
+    }
+    if (!t) return { ok: true, swing, cooldown };
     return { ...this.hitTarget(t, base, m.kind, tags, !def, 'golpe'), swing, cooldown };
   }
 
@@ -254,7 +297,16 @@ export class Combat {
     const near = this.state.propsNear(x + (dx * range) / 2, y + (dy * range) / 2, range / 2 + 120).filter(({ prop }) => PROP_DURABILITY[prop.type]);
     let end = { x: x + dx * range, y: y + dy * range };
     let hit: AttackResult | null = null;
+    const creature = this.hooks.creatures?.ray(x, y, a, range) ?? null;
+    let creatureHit: (CreatureHit & { dir: number }) | undefined;
     for (let d = 20; d <= range; d += 8) {
+      // Zumbi na linha antes de parede/objeto: a bala para nele.
+      if (creature && creature.dist <= d) {
+        const h = this.hooks.creatures!.hit(creature.id, { kind: 'tiro', damage: g.damage, dir: a, aim: Math.max(0, 0.35 - fx.aimShake) });
+        if (h) creatureHit = { ...h, dir: a };
+        end = { x: x + dx * creature.dist, y: y + dy * creature.dist };
+        break;
+      }
       const px = x + dx * d;
       const py = y + dy * d;
       // Janela: estoura e a bala segue.
@@ -284,6 +336,7 @@ export class Combat {
       tracer: { x1: x + dx * 18, y1: y + dy * 18, x2: end.x, y2: end.y },
       noise,
       cooldown,
+      ...(creatureHit ? { creature: creatureHit } : {}),
       ...(hit?.hit ? { hit: hit.hit } : {}),
       ...(hit?.drops?.length ? { drops: hit.drops } : {}),
       ...(hit?.message ? { message: hit.message, tone: hit.tone } : {}),
