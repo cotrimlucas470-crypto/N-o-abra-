@@ -5,6 +5,7 @@
  */
 import { INTERACTION_TUNING } from '../config/WorldTuning';
 import type { EventBus } from '../core/EventBus';
+import { STRUCTURE_DEFS } from '../build/StructureCatalog';
 import type { ContainerRef } from '../loot/LootSystem';
 import type { WorldState } from '../sim/WorldState';
 import type { InteractionCandidate, InteractionProvider, InteractionResult, Interactor } from './InteractionSystem';
@@ -42,8 +43,16 @@ export class ContainerInteractions implements InteractionProvider {
         // Item à vista em cima do móvel vence o móvel (+20); recipiente já vazio perde para o resto.
         distance: d + 20 + (empty ? 16 : 0),
         perform: () => this.open(ref),
+        // Bancada: além de vasculhar a gaveta, dá para trabalhar nela.
+        ...(this.isBench(ref) ? { more: () => [{ label: 'Trabalhar aqui (abre FABRICAR)', enabled: true, perform: () => (this.bus.emit('ui:tab', { tab: 'fabricar' }), { ok: true }) }] } : {}),
       });
     }
+  }
+
+  private isBench(ref: ContainerRef): boolean {
+    if (ref.kind === 'bancada') return true;
+    const st = ref.kind === 'construido' ? this.state.structures.get(ref.id) : null;
+    return !!st && STRUCTURE_DEFS[st.type].station === 'bancada';
   }
 
   private open(ref: ContainerRef): InteractionResult {

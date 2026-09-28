@@ -66,6 +66,17 @@ describe('fabricação', () => {
     expect(st?.born).toBe(3);
   });
 
+  it('arma e tábua serrada só na bancada; fogueira, curativo e ferramenta de pedra à mão', () => {
+    const i = inv(['tabua', 1], ['pregos', 5], ['martelo', 1]);
+    const no = checkRecipe(R('tabuaPregos'), i, env());
+    expect(no.ok).toBe(false);
+    expect(no.reason).toMatch(/bancada/i);
+    expect(craftRecipe(R('tabuaPregos'), i, env('bancada')).ok).toBe(true);
+    expect(i.countOf('tabuaPregos')).toBe(1);
+    for (const id of ['lancaMadeira', 'lancaImprovisada', 'tacoPregos', 'tabuaPregos', 'serrarTora']) expect(R(id).station, id).toBe('bancada');
+    for (const id of ['fogueira', 'tocha', 'talaImprovisada', 'facaPedra', 'marteloPedra', 'machadoPedra', 'cordaLencol', 'lascarPedra']) expect(R(id).station, id).toBeUndefined();
+  });
+
   it('carne estragada cozida continua fazendo mal (sai contaminada)', () => {
     const i = inv(['carneBovina', 1, { born: 0 }]);
     craftRecipe(R('assarCarne'), i, { stations: new Set(['fogo']), now: 3.5 });
@@ -96,7 +107,7 @@ describe('fabricação', () => {
 
   it('ferramenta desgasta e não é gasta; consumível medido gasta só a fração', () => {
     const i = inv(['tora', 1], ['serrote', 1]);
-    craftRecipe(R('serrarTora'), i, env());
+    craftRecipe(R('serrarTora'), i, env('bancada'));
     expect(i.countOf('tabua')).toBe(3);
     const saw = [...i.stacks()].find((s) => s.def.id === 'serrote')!;
     expect(saw.stack.st?.c).toBeLessThan(1);

@@ -29,6 +29,8 @@ export interface ListSource {
   /** Linhas da lista; `selected` deixa a fonte abrir detalhes embaixo da linha tocada. */
   rows(selected: string | null): ListRow[];
   detail(selected: string | null): ListDetail;
+  /** Toque numa linha; devolve true se a fonte tratou (ex.: abrir/fechar categoria) e não é seleção. */
+  tap?(id: string): boolean;
 }
 
 export interface Box {
@@ -247,7 +249,7 @@ export class ListView {
       const rh = H[r.kind] * k;
       if (y >= cy && y < cy + rh) {
         if (r.kind === 'line' && r.id) {
-          this.selected = this.selected === r.id ? null : r.id;
+          if (!this.source?.tap?.(r.id)) this.selected = this.selected === r.id ? null : r.id;
           this.refresh();
         }
         return;

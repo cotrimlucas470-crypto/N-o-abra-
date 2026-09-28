@@ -1,6 +1,7 @@
 /**
- * Aba FABRICAR: o que dá para fazer agora primeiro, depois todas as receitas
- * por categoria (apagadas quando falta algo). Tocar numa receita abre, logo
+ * Aba FABRICAR: o que dá para fazer agora primeiro (por categoria), depois
+ * todas as receitas em categorias que abrem e fecham com um toque (começam
+ * fechadas: a lista não vira um paredão). Tocar numa receita abre, logo
  * abaixo dela, o que ela leva (✓ tem, ✗ falta) e libera o botão FAZER.
  * Só lê e pede pelo EventBus ('craft:start'); quem faz é a cena.
  */
@@ -28,7 +29,18 @@ function timeText(min: number): string {
 }
 
 export class CraftTab implements ListSource {
+  /** Categorias abertas na lista "Todas as receitas". */
+  private readonly open = new Set<RecipeCat>();
+
   constructor(private readonly s: GameServices) {}
+
+  tap(id: string): boolean {
+    if (!id.startsWith('cat:')) return false;
+    const cat = id.slice(4) as RecipeCat;
+    if (this.open.has(cat)) this.open.delete(cat);
+    else this.open.add(cat);
+    return true;
+  }
 
   rows(selected: string | null): ListRow[] {
     const cs = this.s.session.crafting;
@@ -41,7 +53,7 @@ export class CraftTab implements ListSource {
     const rows: ListRow[] = [];
     const near = [...env.stations].map((s) => (s === 'fogo' ? 'fogo' : s === 'forno' ? 'forno' : 'bancada'));
     rows.push({ kind: 'header', text: 'Por perto', right: near.length ? near.join(' · ') : 'nada' });
-    if (!near.length) rows.push({ kind: 'text', text: 'Fogueira acesa ou fogão com gás liberam a cozinha.', color: UI.textDim });
+    if (!near.length) rows.push({ kind: 'text', text: 'Fogo aceso libera a cozinha; bancada, armas e peças.', color: UI.textDim });
 
     const line = (r: Recipe, c: CraftCheck) => {
       const missing = c.lines.filter((l) => !l.ok);
@@ -50,17 +62,27 @@ export class CraftTab implements ListSource {
       if (selected === `r:${r.id}`) for (const l of c.lines) rows.push({ kind: 'text', text: `   ${l.ok ? '✓' : '✗'} ${l.label}`, color: l.ok ? OK : MISSING });
     };
 
+    const cats = Object.keys(RECIPE_CAT_LABEL) as RecipeCat[];
     const ready = RECIPES.filter((r) => checks.get(r.id)!.ok);
     if (ready.length) {
       rows.push({ kind: 'header', text: 'Dá para fazer agora', right: String(ready.length) });
-      for (const r of ready) line(r, checks.get(r.id)!);
+      for (const cat of cats) {
+        const list = ready.filter((r) => r.cat === cat);
+        if (!list.length) continue;
+        rows.push({ kind: 'text', text: RECIPE_CAT_LABEL[cat], color: UI.textDim });
+        for (const r of list) line(r, checks.get(r.id)!);
+      }
     }
-    const cats = Object.keys(RECIPE_CAT_LABEL) as RecipeCat[];
+    rows.push({ kind: 'header', text: 'Todas as receitas', right: 'toque para abrir' });
     for (const cat of cats) {
-      const list = RECIPES.filter((r) => r.cat === cat && !checks.get(r.id)!.ok);
-      if (!list.length) continue;
-      rows.push({ kind: 'header', text: RECIPE_CAT_LABEL[cat] });
-      for (const r of list) line(r, checks.get(r.id)!);
+      const all = RECIPES.filter((r) => r.cat === cat);
+      if (!all.length) continue;
+      const okN = all.filter((r) => checks.get(r.id)!.ok).length;
+      // Receita aberta dentro de uma categoria fechada: a categoria fica aberta.
+      const isOpen = this.open.has(cat) || (!!selected && all.some((r) => `r:${r.id}` === selected && !checks.get(r.id)!.ok));
+      rows.push({ kind: 'line', id: `cat:${cat}`, text: `${isOpen ? '▾' : '▸'}  ${RECIPE_CAT_LABEL[cat]}`, right: okN ? `${okN}/${all.length} dá` : `${all.length}` });
+      if (!isOpen) continue;
+      for (const r of all) if (!checks.get(r.id)!.ok) line(r, checks.get(r.id)!);
     }
     return rows;
   }
