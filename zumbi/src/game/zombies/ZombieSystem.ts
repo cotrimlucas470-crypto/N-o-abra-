@@ -737,8 +737,9 @@ export class ZombieSystem {
       stepToward(z, p.x, p.y, sp, dt, this.solids, 1.5);
     } else z.vx = z.vy = 0;
     if (a.t < a.windup) return;
-    // Golpe: confere se ainda alcança (dá para desviar recuando).
-    const inReach = p.alive && d <= reach && Math.abs(angleDelta(z.facing, ang)) < 1.1 && this.canReach(z, p.x, p.y);
+    // Golpe: confere se ainda alcança (dá para desviar recuando). O acerto pede o jogador ao alcance
+    // da mão desenhada — sem "patada de longe".
+    const inReach = p.alive && d <= reach - T.hitInset && Math.abs(angleDelta(z.facing, ang)) < 1.1 && this.canReach(z, p.x, p.y);
     m.attack = null;
     m.cooldown = T.attackCooldown * (1.35 - 0.4 * clamp(z.traits.aggression, 0, 1)) * (0.85 + this.rng() * 0.3);
     if (!inReach) {
@@ -1302,6 +1303,8 @@ export class ZombieSystem {
     if (r.fall) this.setState(z, 'FALL', (T.knockdownMin + (T.knockdownMax - T.knockdownMin) * this.rng()) * (1.2 - z.traits.coordination * 0.4));
     else if (r.stagger) this.setState(z, 'STAGGER', 0.35 + this.rng() * 0.5);
     else if (m.state === 'ATTACK' && h.kind !== 'tiro' && this.rng() < 0.4) this.setState(z, 'STAGGER', 0.25);
+    // Apanhou no meio da preparação: o tranco atrasa a patada (bater primeiro compensa).
+    else if (m.state === 'ATTACK' && m.attack) m.attack.t = Math.max(0, m.attack.t - T.hitDelay);
     if (r.severed && (r.part === 'bracoE' || r.part === 'bracoD') && !canGrab(z)) this.threat.release(z);
     return r;
   }

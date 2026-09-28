@@ -148,6 +148,9 @@ export class GameScene extends Phaser.Scene {
   private combat!: Combat;
   private combatFx!: CombatFx;
   private attackCooldown = 0;
+  /** Último aviso de ataque de zumbi (não repetir o mesmo texto de vários ao mesmo tempo). */
+  private lastAttackText = { text: '', t: -99 };
+  private lastMissNote = -99;
   private vehicleViews!: VehicleViews;
   private structureViews!: StructureViews;
   private fires!: FireSystem;
@@ -1018,12 +1021,25 @@ export class GameScene extends Phaser.Scene {
       b.velocity.x += Math.cos(a) * out.push * 9;
       b.velocity.y += Math.sin(a) * out.push * 9;
     }
-    if (out.landed && !out.blocked && out.wound) this.combatFx.blood(this.player.x, this.player.y, a, out.wound === 'mordida' ? 10 : 5);
+    const bleeds = out.landed && !out.blocked && !!out.wound && out.wound !== 'contusao';
+    if (bleeds) {
+      this.combatFx.blood(this.player.x, this.player.y, a, out.wound === 'mordida' ? 10 : 5);
+      this.combatFx.splat(this.player.x, this.player.y, a, out.wound === 'mordida' ? 0.6 : 0.4);
+    }
     if (out.landed) {
       if (this.loop.runner.active) this.loop.cancelAction();
       if (out.knockdown || out.wound === 'mordida') this.cameras.main.shake(140, 0.005);
     }
-    if (out.landed || kind === 'grab' || kind === 'lunge') this.outcome({ ok: false, message: out.text, tone: out.tone === 'bad' ? 'bad' : out.tone === 'warn' ? 'warn' : 'info' });
+    // Aviso só do que aconteceu: acerto (ferida, agarrão, derrubada, empurrão) sempre; tentativa de
+    // agarrar que falhou só de vez em quando; o mesmo texto de vários zumbis juntos, uma vez só.
+    const now = this.zombies.now;
+    const missedGrab = !out.landed && (kind === 'grab' || kind === 'lunge');
+    const repeat = out.text === this.lastAttackText.text && now - this.lastAttackText.t < 1.2;
+    if ((out.landed || (missedGrab && now - this.lastMissNote > 4)) && !repeat) {
+      if (missedGrab) this.lastMissNote = now;
+      this.lastAttackText = { text: out.text, t: now };
+      this.outcome({ ok: false, message: out.text, tone: out.tone === 'bad' ? 'bad' : out.tone === 'warn' ? 'warn' : 'info' });
+    }
     return out;
   }
 

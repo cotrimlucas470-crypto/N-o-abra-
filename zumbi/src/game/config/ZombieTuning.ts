@@ -58,6 +58,10 @@ export const ZOMBIE_TUNING = {
   windupMin: 0.35,
   windupMax: 0.8,
   attackCooldown: 1.1,
+  /** A patada só pega se o jogador está ao alcance do BRAÇO desenhado (px a menos que o alcance de começar). */
+  hitInset: 8,
+  /** Golpe do jogador durante a preparação da patada atrasa a patada (s). */
+  hitDelay: 0.25,
   /** Agarrão: segura por este tempo antes de morder (s). */
   biteDelayMin: 0.9,
   biteDelayMax: 1.7,

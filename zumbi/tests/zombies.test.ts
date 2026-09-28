@@ -345,6 +345,46 @@ describe('golpe do jogador recuando', () => {
   });
 });
 
+describe('patada do zumbi: só quando alcança de verdade', () => {
+  const armed = (sys: ZombieSystem, x: number, y: number, seed: number) =>
+    zombieAt(sys, x, y, seed, (z) => {
+      z.facing = 0;
+      z.mind.state = 'ATTACK';
+      z.mind.cooldown = 0;
+      z.mind.attack = { kind: 'swipe', t: 5, windup: 0.5 };
+    });
+
+  it('na beira do alcance de começar, a patada passa no vazio; perto, pega', () => {
+    const far = world();
+    const o = openSpot(far.model);
+    const z = armed(far.sys, o.x, o.y, 21);
+    const edge = z.traits.reach + 15 - 2; // começa, mas o braço não chega
+    far.sys.update({ dt: 1 / 30, player: player(o.x + edge, o.y), light: DAY });
+    expect(far.attacks).toEqual([]);
+    const near = world();
+    const z2 = armed(near.sys, o.x, o.y, 21);
+    near.sys.update({ dt: 1 / 30, player: player(o.x + z2.traits.reach + 15 - 14, o.y), light: DAY });
+    expect(near.attacks).toEqual(['swipe']);
+  });
+
+  it('golpe do jogador na preparação atrasa a patada', () => {
+    const { model, sys } = world();
+    const o = openSpot(model);
+    let delayed = 0;
+    for (let i = 0; i < 30; i++) {
+      const z = zombieAt(sys, o.x + 40 + i * 30, o.y, 100 + i);
+      z.mind.state = 'ATTACK';
+      z.mind.attack = { kind: 'swipe', t: 0.3, windup: 0.6 };
+      sys.hit(z, { kind: 'impacto', damage: 0.5, dir: Math.PI });
+      if (z.mind.state === 'ATTACK') {
+        expect(z.mind.attack!.t).toBeCloseTo(0.3 - ZOMBIE_TUNING.hitDelay);
+        delayed++;
+      }
+    }
+    expect(delayed).toBeGreaterThan(5);
+  });
+});
+
 describe('ataques no jogador', () => {
   const defense = (h: Health, prot = 0): PlayerDefense => ({
     health: h,
