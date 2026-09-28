@@ -705,6 +705,7 @@ export class GameScene extends Phaser.Scene {
       player: { x: this.player.x, y: this.player.y },
       flashlight: this.flashlight(),
       lights: this.muzzleFlash ? [...this.lightSources, { x: this.muzzleFlash.x, y: this.muzzleFlash.y, radius: 300 * Math.min(1, Math.max(0.3, this.muzzleFlash.t / 0.09)), intensity: 0.95 }] : this.lightSources,
+      inside: this.insideBuilding(),
     });
     // Raio: trovão longe do jogador (zumbis de lá ouvem e vão ver).
     if (this.atmosphere.bolt) this.thunder();
@@ -1644,6 +1645,13 @@ export class GameScene extends Phaser.Scene {
     const next = this.model.regionAt(x, y);
     if (next && next !== this.region) this.s.bus.emit('world:region-entered', { regionId: next.id, name: next.name });
     this.region = next;
+  }
+
+  /** Construção em que o jogador está e quanto o telhado dela já sumiu (a neblina não entra). */
+  private insideBuilding(): { x: number; y: number; w: number; h: number; k: number } | null {
+    const b = this.world.roofs.currentBuilding;
+    if (!b) return null;
+    return { x: b.bounds.x, y: b.bounds.y, w: b.bounds.w, h: b.bounds.h, k: 1 - this.world.roofs.alphaOf(b.id) };
   }
 
   /** window.__TDR__ para testes automatizados e depuração (?debug). */

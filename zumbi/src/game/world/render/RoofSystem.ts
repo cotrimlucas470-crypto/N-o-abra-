@@ -124,6 +124,11 @@ export class RoofSystem {
     this.loaded.delete(id);
   }
 
+  /** Construção em que o jogador está agora (null = fora). */
+  get currentBuilding(): BuildingData | null {
+    return this.current;
+  }
+
   /** Opacidade atual do telhado (1 = fechado, 0 = jogador dentro). */
   alphaOf(buildingId: string): number {
     return this.loaded.get(buildingId)?.container.alpha ?? 1;

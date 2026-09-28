@@ -94,6 +94,7 @@ const CASES = [
   ['chuva-dentro', [1, 15], W.chuva, { wet: 0.9 }, 'dentro'],
   ['chuva-rua', [1, 15], W.chuva, { wet: 0.9 }, 'rua'],
   ['tempestade', [1, 15], W.tempestade, { wet: 1 }, 'ref'],
+  ['tempestade-fora', [1, 15], W.tempestade, { wet: 1 }, 'fora'],
   ['depois-chuva', [1, 15], W.sol, { wet: 0.55 }, 'ref'],
   ['neblina', [1, 15], W.neblina, { wet: 0.2 }, 'ref'],
 ];
@@ -103,6 +104,12 @@ for (const [name, date, w, g, where, zoom = 0.53, hour = 10] of CASES) {
   await place(where, zoom);
   await set(w, g, hour);
   await shot(name);
+  if (name.startsWith('tempestade')) {
+    // Um raio forte na hora do print (clarão + risco no céu).
+    await T(() => { const a = window.__TDR__.scene.atmosphere; a.boltT = 0.0; a.boltStrong = true; a.boltImage.setVisible(false); });
+    await sleep(260);
+    await p.screenshot({ path: `${out}/r-${name}-raio.png` });
+  }
 }
 console.log('erros', JSON.stringify(errors.slice(0, 6)));
 await b.close();

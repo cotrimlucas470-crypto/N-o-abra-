@@ -8,7 +8,6 @@
  */
 import { hash2, Random } from '../../core/Random';
 import { makeCanvas } from './canvas';
-import { periodicNoise } from './weatherNoise';
 
 const sstep = (e0: number, e1: number, x: number) => {
   const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
@@ -171,12 +170,15 @@ export function drawObjectSnow(src: HTMLCanvasElement, seed: number, kind: SnowO
 
 /** Floco de neve (ponto macio). */
 export function drawSnowFlake(size: number): HTMLCanvasElement {
+  // Miolo branco com uma borda cinza-azulada bem fraca: o floco aparece até
+  // por cima do chão nevado.
   const { canvas, ctx } = makeCanvas(size, size);
   const r = size / 2;
   const g = ctx.createRadialGradient(r, r, 0, r, r, r);
   g.addColorStop(0, 'rgba(255,255,255,1)');
-  g.addColorStop(0.45, 'rgba(245,249,255,0.9)');
-  g.addColorStop(1, 'rgba(235,242,250,0)');
+  g.addColorStop(0.42, 'rgba(250,252,255,0.95)');
+  g.addColorStop(0.62, 'rgba(160,176,200,0.3)');
+  g.addColorStop(1, 'rgba(160,176,200,0)');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, size, size);
   return canvas;
@@ -269,58 +271,64 @@ export function drawTireTrack(): HTMLCanvasElement {
   return canvas;
 }
 
-/** Neblina: fiapos macios que emendam (512 px). */
-export function drawFogNoise(): HTMLCanvasElement {
-  const S = 512;
-  const { canvas, ctx } = makeCanvas(S, S);
-  const img = ctx.createImageData(S, S);
-  const N = periodicNoise(S, 9700, [
-    [256, 0.5],
-    [128, 0.3],
-    [64, 0.2],
-  ]);
-  for (let i = 0; i < S * S; i++) {
-    img.data[i * 4] = 214;
-    img.data[i * 4 + 1] = 219;
-    img.data[i * 4 + 2] = 224;
-    img.data[i * 4 + 3] = Math.round(sstep(0.15, 1, N[i]!) * 255);
-  }
-  ctx.putImageData(img, 0, 0);
+/** Floco perto da "câmera": grande, macio e meio transparente (desfocado). */
+export function drawSnowBokeh(size: number): HTMLCanvasElement {
+  const { canvas, ctx } = makeCanvas(size, size);
+  const r = size / 2;
+  const g = ctx.createRadialGradient(r, r, 0, r, r, r);
+  g.addColorStop(0, 'rgba(255,255,255,0.75)');
+  g.addColorStop(0.35, 'rgba(248,251,255,0.55)');
+  g.addColorStop(0.75, 'rgba(240,246,252,0.16)');
+  g.addColorStop(1, 'rgba(240,246,252,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, size, size);
   return canvas;
 }
 
-/** Sombra de nuvem passando (manchas escuras macias, 512 px, emenda). */
-export function drawCloudShadow(): HTMLCanvasElement {
-  const S = 512;
-  const { canvas, ctx } = makeCanvas(S, S);
-  const img = ctx.createImageData(S, S);
-  const N = periodicNoise(S, 9800, [
-    [256, 0.55],
-    [128, 0.3],
-    [64, 0.15],
-  ]);
-  for (let i = 0; i < S * S; i++) {
-    img.data[i * 4] = 8;
-    img.data[i * 4 + 1] = 12;
-    img.data[i * 4 + 2] = 22;
-    img.data[i * 4 + 3] = Math.round(sstep(0.5, 0.8, N[i]!) * 255);
-  }
-  ctx.putImageData(img, 0, 0);
-  return canvas;
-}
-
-/** Neve pousada num corpo caído (mancha genérica do tamanho de um corpo). */
-export function drawCorpseSnow(): HTMLCanvasElement {
-  const { canvas, ctx } = makeCanvas(64, 40);
-  const rng = new Random(9900);
-  for (let i = 0; i < 70; i++) {
-    const x = 32 + rng.range(-22, 22);
-    const y = 20 + rng.range(-10, 10);
-    const r = rng.range(1, 3.2);
-    ctx.fillStyle = rng.chance(0.7) ? 'rgba(240,245,251,0.9)' : 'rgba(200,212,228,0.8)';
+/**
+ * Raio (visto de cima, no céu da tempestade): caminho em zigue-zague com
+ * galhos, halo largo e fraco, miolo branco-azulado. Desenhado uma vez; a
+ * tela mostra por décimos de segundo junto com o clarão.
+ */
+export function drawBolt(): HTMLCanvasElement {
+  const W = 180;
+  const H = 440;
+  const { canvas, ctx } = makeCanvas(W, H);
+  const rng = new Random(9911);
+  const path = (x: number, y: number, len: number, spread: number, depth: number): [number, number][] => {
+    const pts: [number, number][] = [[x, y]];
+    let cx = x;
+    let cy = y;
+    const steps = Math.max(4, Math.round(len / 18));
+    for (let i = 0; i < steps; i++) {
+      cx += rng.range(-spread, spread);
+      cy += len / steps;
+      cx = Math.max(8, Math.min(W - 8, cx));
+      pts.push([cx, cy]);
+      if (depth > 0 && rng.chance(0.18)) branches.push(path(cx, cy, len * rng.range(0.25, 0.45), spread * 0.8, depth - 1));
+    }
+    return pts;
+  };
+  const branches: [number, number][][] = [];
+  const main = path(W / 2 + rng.range(-20, 20), 0, H - 10, 22, 2);
+  const stroke = (pts: [number, number][], width: number, color: string) => {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.ellipse(x, y, r, r * 0.8, 0, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.moveTo(pts[0]![0], pts[0]![1]);
+    for (const [x, y] of pts.slice(1)) ctx.lineTo(x, y);
+    ctx.stroke();
+  };
+  for (const [w, c] of [
+    [16, 'rgba(150,170,255,0.08)'],
+    [8, 'rgba(180,200,255,0.2)'],
+    [3.2, 'rgba(215,228,255,0.7)'],
+    [1.4, 'rgba(255,255,255,1)'],
+  ] as const) {
+    stroke(main, w, c);
+    for (const b of branches) stroke(b, w * 0.6, c);
   }
   return canvas;
 }

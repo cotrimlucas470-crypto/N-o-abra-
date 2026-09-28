@@ -17,9 +17,8 @@ export const TEX = {
   leaf: 'fx.leaf',
   footprint: 'fx.footprint',
   tireTrack: 'fx.tiretrack',
-  fogNoise: 'fx.fog.noise',
-  cloudShadow: 'fx.cloud.shadow',
-  corpseSnow: 'fx.corpse.snow',
+  snowBokeh: 'fx.snow.bokeh',
+  bolt: 'fx.bolt',
   overridesJson: 'asset-overrides',
 } as const;
 

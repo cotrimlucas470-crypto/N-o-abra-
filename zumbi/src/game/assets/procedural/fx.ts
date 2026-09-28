@@ -85,12 +85,16 @@ export function drawLightCone(w: number, h: number): HTMLCanvasElement {
 
 /** Pingo de chuva (traço fino, claro no meio). */
 export function drawRainDrop(w: number, h: number): HTMLCanvasElement {
+  // Risco de chuva: miolo claro com borda macia (fica visível no celular, sem virar barra).
   const { canvas, ctx } = makeCanvas(w, h);
   const g = ctx.createLinearGradient(0, 0, 0, h);
   g.addColorStop(0, 'rgba(200,215,235,0)');
-  g.addColorStop(0.6, 'rgba(200,215,235,0.55)');
-  g.addColorStop(1, 'rgba(225,235,250,0.85)');
+  g.addColorStop(0.55, 'rgba(205,218,238,0.5)');
+  g.addColorStop(1, 'rgba(232,240,252,0.95)');
   ctx.fillStyle = g;
-  ctx.fillRect(w / 2 - 0.75, 0, 1.5, h);
+  ctx.globalAlpha = 0.35;
+  ctx.fillRect(w / 2 - 1.5, 0, 3, h);
+  ctx.globalAlpha = 1;
+  ctx.fillRect(w / 2 - 0.8, 0, 1.6, h);
   return canvas;
 }

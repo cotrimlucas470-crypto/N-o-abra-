@@ -132,7 +132,8 @@ void main() {
   vec4 acc = vec4(0.0);
   if (gG > 0.5 && uGrassA.x + uGrassA.y > 0.0) {
     float gt = smoothstep(0.3, 0.7, uGrassT + (b1.r - 0.5) * 0.8 + (a2.r - 0.5) * 0.3);
-    acc = over(acc, mix(uGrassFrom, uGrassTo, gt) * (lum / 0.405), mix(uGrassA.x, uGrassA.y, gt) * 0.95);
+    // Cobre ~80%: um pouco do verde original continua aparecendo nos tufos.
+    acc = over(acc, mix(uGrassFrom, uGrassTo, gt) * (lum / 0.405), mix(uGrassA.x, uGrassA.y, gt) * (0.72 + a2.r * 0.16));
   }
   if (uWeatherOn < 0.5) { gl_FragColor = acc; return; }
   vec4 a1 = noiseA(wp * 0.55);
@@ -224,7 +225,7 @@ void main() {
 
   // ------------------------------------------------------------ folhas do outono
   float lf = uLeaves * cell.b * (gG + gD + gS * 0.7 + gC * 0.6 + gA * 0.35);
-  float leafK = smoothstep(1.0 - lf * 0.32, 1.0 - lf * 0.32 + 0.03, a1.b) * step(0.01, lf);
+  float leafK = smoothstep(1.0 - lf * 0.5, 1.0 - lf * 0.5 + 0.03, a1.b) * step(0.01, lf);
   vec3 leafC = mix(mix(vec3(0.78, 0.47, 0.13), vec3(0.62, 0.24, 0.09), b1.g), vec3(0.42, 0.3, 0.17), uLeafTone);
 
   // ------------------------------------------------------------ composição (de baixo para cima)
@@ -296,5 +297,53 @@ void main() {
   sc += step(0.992, a3.b) * (1.0 - old) * uDay * t * 0.12;
   a *= uAlpha * (1.0 - uMelt * (1.0 - t) * 0.3);
   gl_FragColor = vec4(sc * a, a);
+}
+`;
+
+/**
+ * CÉU: sombras de nuvem que andam com o vento e NEBLINA em camadas (o que
+ * está longe some primeiro; fiapos que andam devagar). Um quad do tamanho
+ * da tela, no mundo, abaixo da noite (que escurece a neblina à noite).
+ * Dentro da construção em que o jogador está quase não entra neblina.
+ */
+export const SKY_FRAG = `${HEADER}${COMMON}
+uniform vec2 uWind;        // quanto as nuvens já andaram (px)
+uniform vec2 uFogDrift;    // quanto a neblina já andou (px)
+uniform float uCloud;      // força das sombras de nuvem 0..1
+uniform float uFog;        // densidade da neblina 0..1
+uniform vec3 uFogColor;
+uniform vec2 uPlayer;
+uniform float uClear;      // raio (px) em que a neblina fecha de vez
+uniform vec4 uInside;      // construção do jogador (x, y, largura, altura); largura 0 = nenhuma
+uniform float uInsideK;    // quanto o telhado dela já sumiu (1 = jogador dentro)
+
+void main() {
+  vec2 wp = outTexCoord;
+  vec4 acc = vec4(0.0);
+  if (uCloud > 0.001) {
+    vec2 cp = wp + uWind;
+    float c1 = noiseB(cp * 0.055).r;
+    float c2 = noiseB(rot(cp) * 0.11 + vec2(33.0, 71.0)).r;
+    float cs = smoothstep(0.52, 0.8, c1 * 0.7 + c2 * 0.3);
+    acc = over(acc, vec3(0.07, 0.09, 0.13), cs * uCloud);
+  }
+  if (uFog > 0.001) {
+    float d = length(wp - uPlayer);
+    float far = smoothstep(uClear * 0.3, uClear, d);
+    vec2 fp = wp + uFogDrift;
+    float l1 = noiseB(fp * 0.09 + vec2(11.0, 3.0)).r;
+    float l2 = noiseB(rot(wp + uFogDrift * 0.55) * 0.21 + vec2(5.0, 9.0)).r;
+    float wisp = noiseB(rot(fp) * vec2(0.05, 0.11) + vec2(17.0, 41.0)).b;
+    // Camadas: um véu que engrossa em bancos largos, com fiapos leves.
+    float layers = 0.42 + 0.38 * l1 + 0.25 * l2 + 0.14 * smoothstep(0.4, 0.9, wisp);
+    float fa = uFog * mix(0.2, 1.0, far) * layers;
+    if (uInside.z > 0.0) {
+      vec2 q = wp - uInside.xy;
+      float inside = step(0.0, q.x) * step(0.0, q.y) * step(q.x, uInside.z) * step(q.y, uInside.w);
+      fa *= 1.0 - inside * uInsideK * 0.92;
+    }
+    acc = over(acc, uFogColor, clamp(fa, 0.0, 0.93));
+  }
+  gl_FragColor = acc;
 }
 `;

@@ -5,26 +5,30 @@
  *
  * - NOITE: textura pequena (1/5 da tela) pintada de escuro e "apagada" onde há
  *   luz (em volta do jogador, lanterna, fogueiras). Neve no chão clareia a noite.
- * - CÉU: sombras de NUVENS passando pelo mapa com o vento (dia de poucas nuvens)
- *   e uma GRADAÇÃO de cor por multiplicação (céu pesado, chuva, frio de neve) —
- *   muda a cor da cena sem pôr véu por cima. Antes da tempestade, escurece.
+ * - CÉU: um shader (weatherShaders SKY_FRAG) com sombras de NUVENS passando
+ *   pelo mapa com o vento (dia de poucas nuvens) e a NEBLINA em camadas; mais
+ *   uma GRADAÇÃO de cor por multiplicação (sol quente, nublado frio, chuva
+ *   azul-esverdeada, neve azulada, fim de tarde alaranjado) — muda a cor da
+ *   cena sem pôr véu por cima. Antes da tempestade, escurece.
  * - CHUVA: riscos inclinados pelo vento (mais e mais longos com a força), gotas
  *   grandes perto da "câmera" na chuva forte e RESPINGOS só no chão de fora
  *   (dentro de casa, vê-se a chuva batendo lá fora pela área aberta).
- * - NEVE: flocos longe (pequenos, lentos) e perto (grandes), empurrados pelo
- *   vento; na nevasca, neve arrastada rente ao chão.
+ * - NEVE: flocos longe (pequenos, lentos) e perto (grandes e desfocados),
+ *   empurrados pelo vento; na nevasca, neve arrastada rente ao chão.
  * - VENTO: folhas voando (cor da estação); árvores balançam (SeasonDressing).
  * - NEBLINA: some primeiro o que está longe (clareira em volta do jogador que
- *   encolhe com a densidade) + fiapos irregulares que andam com o vento; dentro
- *   de casa quase não entra.
- * - RELÂMPAGO: raro e forte — dois clarões rápidos que iluminam tudo e somem.
+ *   encolhe com a densidade), bancos e fiapos que andam com o vento; dentro da
+ *   casa em que o jogador está quase não entra.
+ * - RELÂMPAGO: raro e forte — dois clarões rápidos que iluminam tudo e o
+ *   risco do raio no céu por um instante.
  *
  * Barato no celular: partículas só na área da tela, quantidade pela
- * intensidade (nunca milhares), texturas pequenas repetidas.
+ * intensidade (nunca milhares); o céu é 1 quad, escondido sem nuvem nem neblina.
  */
 import Phaser from 'phaser';
 import { DEPTH } from '../../config/GameConfig';
 import { TEX } from '../../assets/AssetKeys';
+import { SKY_FRAG } from './weatherShaders';
 import { daylight, type WeatherSample } from '../../sim/Weather';
 import type { ShadowSystem } from './ShadowSystem';
 
@@ -55,18 +59,19 @@ export interface AtmosphereInput {
   /** Lanterna ligada: direção (rad) e alcance (px). */
   flashlight: { angle: number; range: number } | null;
   lights: readonly LightSource[];
+  /** Construção em que o jogador está e quanto o telhado dela já sumiu (1 = dentro): a neblina não entra. */
+  inside: { x: number; y: number; w: number; h: number; k: number } | null;
 }
 
-/** Resolução da textura da noite e da neblina: 1 px para cada N px de tela. */
+/** Resolução da textura da noite: 1 px para cada N px de tela. */
 const DARK_DOWNSCALE = 5;
-const FOG_DOWNSCALE = 6;
-const NIGHT_COLOR = 0x03050c;
+/** Noite azulada (luar), não preta. */
+const NIGHT_COLOR = 0x060b1d;
 const DUSK_COLOR = 0x1c1008;
 /** Escuridão máxima (lua e céu ainda deixam ver um pouco). */
 const NIGHT_ALPHA = 0.84;
-const FOG_COLOR = 0xd2d8de;
-/** Sombra de nuvem: escala da textura (512 px → ~1800 px de mundo). */
-const CLOUD_SCALE = 3.5;
+const FOG_COLOR = [0.82, 0.85, 0.88];
+const FOG_WHITE = [0.9, 0.92, 0.95];
 
 type Emitter = Phaser.GameObjects.Particles.ParticleEmitter;
 
@@ -74,13 +79,22 @@ const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 
 export class Atmosphere {
   private readonly darkKey = 'fx.darkness';
-  private readonly fogKey = 'fx.fogdist';
   private dark: Phaser.Textures.DynamicTexture;
-  private fogRt: Phaser.Textures.DynamicTexture;
   private readonly darkImage: Phaser.GameObjects.Image;
-  private readonly fogImage: Phaser.GameObjects.Image;
-  private readonly fogWisps: Phaser.GameObjects.TileSprite;
-  private readonly clouds: Phaser.GameObjects.TileSprite;
+  /** Nuvens e neblina (shader do tamanho da tela). */
+  private readonly sky: Phaser.GameObjects.Shader | null = null;
+  private readonly boltImage: Phaser.GameObjects.Image;
+  private readonly skyU = {
+    wind: [0, 0],
+    drift: [0, 0],
+    cloud: 0,
+    fog: 0,
+    fogColor: FOG_COLOR,
+    player: [0, 0],
+    clear: 1000,
+    inside: [0, 0, 0, 0],
+    insideK: 0,
+  };
   private readonly stampRadial: Phaser.GameObjects.Image;
   private readonly stampCone: Phaser.GameObjects.Image;
   private readonly grade: Phaser.GameObjects.Rectangle;
@@ -93,6 +107,8 @@ export class Atmosphere {
   private readonly drift: Emitter;
   private readonly leaves: Emitter;
   private rainRot = 0;
+  /** Construção em que o jogador está (com o telhado já sumindo): chuva e neve não caem lá dentro. */
+  private insideRect: { x: number; y: number; w: number; h: number } | null = null;
   private leafTints: number[] = [0x6f8a4a];
   /** Área da tela agora (os respingos nascem nela). */
   private view = new Phaser.Geom.Rectangle(0, 0, 1, 1);
@@ -103,10 +119,9 @@ export class Atmosphere {
   private cloudX = 0;
   private cloudY = 0;
   private fogX = 0;
+  private fogY = 0;
   private rtW = 0;
   private rtH = 0;
-  private fogW = 0;
-  private fogH = 0;
   private sunTimer = 0;
   private lastSun = '';
   private time = 0;
@@ -123,13 +138,40 @@ export class Atmosphere {
   ) {
     this.dark = scene.textures.addDynamicTexture(this.darkKey, 16, 16)!;
     this.darkImage = scene.add.image(0, 0, this.darkKey).setOrigin(0, 0).setDepth(DEPTH.atmosphere).setVisible(false);
-    this.fogRt = scene.textures.addDynamicTexture(this.fogKey, 16, 16)!;
-    this.fogImage = scene.add.image(0, 0, this.fogKey).setOrigin(0, 0).setDepth(DEPTH.atmosphere + 1).setVisible(false);
-    this.fogWisps = scene.add.tileSprite(0, 0, 16, 16, TEX.fogNoise).setOrigin(0, 0).setDepth(DEPTH.atmosphere + 1.1).setVisible(false);
-    this.fogWisps.setTileScale(2.2, 2.2);
-    // Sombras de nuvem por cima de tudo do mundo (inclusive telhados), abaixo da noite.
-    this.clouds = scene.add.tileSprite(0, 0, 16, 16, TEX.cloudShadow).setOrigin(0, 0).setDepth(DEPTH.roofDoor + 1).setVisible(false);
-    this.clouds.setTileScale(CLOUD_SCALE, CLOUD_SCALE);
+    // Nuvens e neblina por cima de tudo do mundo (inclusive telhados), abaixo da noite.
+    if (scene.game.renderer.type === Phaser.WEBGL) {
+      const u = this.skyU;
+      this.sky = scene.add
+        .shader(
+          {
+            name: 'WeatherSky',
+            fragmentSource: SKY_FRAG,
+            setupUniforms: (set: (name: string, value: unknown) => void) => {
+              set('uNoiseA', 0);
+              set('uNoiseB', 1);
+              set('uWind', u.wind);
+              set('uFogDrift', u.drift);
+              set('uCloud', u.cloud);
+              set('uFog', u.fog);
+              set('uFogColor', u.fogColor);
+              set('uPlayer', u.player);
+              set('uClear', u.clear);
+              set('uInside', u.inside);
+              set('uInsideK', u.insideK);
+            },
+          },
+          0,
+          0,
+          16,
+          16,
+          [TEX.noiseA, TEX.noiseB],
+        )
+        .setOrigin(0, 0)
+        .setDepth(DEPTH.roofDoor + 1)
+        .setVisible(false);
+    }
+    // Risco do raio no céu (só no golpe forte, por um instante).
+    this.boltImage = scene.add.image(0, 0, TEX.bolt).setDepth(DEPTH.atmosphere + 2.6).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
     // Carimbos (não vão para a tela: só servem para apagar a escuridão/neblina).
     this.stampRadial = new Phaser.GameObjects.Image(scene, 0, 0, TEX.lightRadial);
     this.stampCone = new Phaser.GameObjects.Image(scene, 0, 0, TEX.lightCone).setOrigin(0, 0.5);
@@ -138,14 +180,43 @@ export class Atmosphere {
     this.flash = scene.add.rectangle(0, 0, 10, 10, 0xeef3ff, 0).setOrigin(0, 0).setDepth(DEPTH.atmosphere + 3).setBlendMode(Phaser.BlendModes.ADD);
 
     const rot = { onEmit: () => this.rainRot };
+    // Chuva e neve nascem em pontos do MUNDO na tela, fora da construção em que o
+    // jogador está (e morrem se entrarem nela): de dentro, vê-se a chuva lá fora.
+    const self0 = this;
+    const skyPoint = {
+      getRandomPoint(p: Phaser.Types.Math.Vector2Like) {
+        const v = self0.view;
+        const r = self0.insideRect;
+        let x = v.x;
+        let y = v.y;
+        for (let k = 0; k < 5; k++) {
+          x = v.x - 60 + Math.random() * (v.width + 120);
+          y = v.y - 60 + Math.random() * (v.height + 80);
+          if (!r || x < r.x || y < r.y || x > r.x + r.w || y > r.y + r.h) break;
+        }
+        p.x = x;
+        p.y = y;
+      },
+    };
+    const indoors = {
+      contains(x: number, y: number) {
+        const r = self0.insideRect;
+        return !!r && x > r.x && y > r.y && x < r.x + r.w && y < r.y + r.h;
+      },
+    };
+    const zone = { type: 'random', source: skyPoint } as unknown as Phaser.Types.GameObjects.Particles.EmitZoneData;
+    const death = { type: 'onEnter', source: indoors } as unknown as Phaser.Types.GameObjects.Particles.DeathZoneObject;
+    // Riscos finos e compridos, uns mais fortes que outros.
     this.rain = scene.add.particles(0, 0, TEX.rainDrop, {
-      lifespan: 520,
+      lifespan: 240,
+      emitZone: zone,
+      deathZone: death,
       speedY: { min: 900, max: 1150 },
       speedX: -100,
       rotate: rot,
-      scaleX: { min: 0.7, max: 1.1 },
-      scaleY: { min: 0.9, max: 1.4 },
-      alpha: { start: 0.7, end: 0.25 },
+      scaleX: { min: 0.8, max: 1.2 },
+      scaleY: { min: 0.8, max: 1.5 },
+      alpha: { start: 0.7, end: 0.22 },
       frequency: 20,
       emitting: false,
     });
@@ -188,20 +259,23 @@ export class Atmosphere {
     this.splash.setDepth(DEPTH.decal + 0.3);
     this.snow = scene.add.particles(0, 0, TEX.snowFlake, {
       lifespan: 2600,
+      emitZone: zone,
+      deathZone: death,
       speedY: { min: 45, max: 95 },
       speedX: { min: -25, max: 25 },
-      scale: { min: 0.3, max: 0.7 },
-      alpha: { start: 0.9, end: 0.05 },
+      scale: { min: 0.35, max: 0.9 },
+      alpha: { start: 1, end: 0.15 },
       frequency: 50,
       emitting: false,
     });
     this.snow.setDepth(DEPTH.atmosphere + 2);
-    this.snowNear = scene.add.particles(0, 0, TEX.snowFlake, {
+    // Perto da "câmera": flocos grandes e desfocados, poucos.
+    this.snowNear = scene.add.particles(0, 0, TEX.snowBokeh, {
       lifespan: 1500,
-      speedY: { min: 110, max: 170 },
+      speedY: { min: 120, max: 190 },
       speedX: { min: -30, max: 30 },
-      scale: { min: 0.9, max: 1.6 },
-      alpha: { start: 0.85, end: 0 },
+      scale: { min: 0.45, max: 1.1 },
+      alpha: { start: 0.8, end: 0 },
       frequency: 200,
       emitting: false,
     });
@@ -232,13 +306,14 @@ export class Atmosphere {
       this.stampRadial.destroy();
       this.stampCone.destroy();
       if (scene.textures.exists(this.darkKey)) scene.textures.remove(this.darkKey);
-      if (scene.textures.exists(this.fogKey)) scene.textures.remove(this.fogKey);
     });
   }
 
   /** O que é da tela (noite, céu, neblina, partículas): outra câmera não desenha. */
   screenObjects(): Phaser.GameObjects.GameObject[] {
-    return [this.darkImage, this.fogImage, this.fogWisps, this.clouds, this.grade, this.flash, this.rain, this.rainNear, this.splash, this.snow, this.snowNear, this.drift, this.leaves];
+    const list: Phaser.GameObjects.GameObject[] = [this.darkImage, this.grade, this.flash, this.boltImage, this.rain, this.rainNear, this.splash, this.snow, this.snowNear, this.drift, this.leaves];
+    if (this.sky) list.push(this.sky);
+    return list;
   }
 
   update(dt: number, cam: Phaser.Cameras.Scene2D.Camera, input: AtmosphereInput): void {
@@ -257,7 +332,7 @@ export class Atmosphere {
     this.updateSun(dt, input.minuteOfDay, w, input.dayHours);
     this.updateDarkness(cam, input);
     this.updateSky(dt, v, input, day);
-    this.updateFog(dt, cam, input);
+    this.updateFog(dt, v, input);
     this.updateRain(v, input);
     this.updateSnow(v, input);
     this.updateLeaves(v, input);
@@ -366,83 +441,95 @@ export class Atmosphere {
 
   private updateSky(dt: number, v: Phaser.Geom.Rectangle, input: AtmosphereInput, day: number): void {
     const w = input.weather;
+    const u = this.skyU;
     // Nuvens andam com o vento (para a esquerda, como a chuva).
     const speed = 18 + w.wind * 110;
     this.cloudX += dt * speed;
     this.cloudY += dt * speed * 0.25;
+    u.wind = [this.cloudX, this.cloudY];
     // Sombras de nuvem: aparecem no dia de nuvens soltas; no céu fechado viram uma sombra só (gradação).
     const broken = clamp01(w.cloud * 2.4 - 0.2) * clamp01((0.95 - w.cloud) * 3.2);
-    const ca = broken * 0.3 * day;
-    this.clouds.setVisible(ca > 0.01);
-    if (ca > 0.01) {
-      this.clouds.setPosition(v.x, v.y).setSize(v.width, v.height).setAlpha(ca);
-      this.clouds.setTilePosition((v.x + this.cloudX) / CLOUD_SCALE, (v.y + this.cloudY) / CLOUD_SCALE);
-    }
-    // Gradação (multiplica): céu pesado/chuva esfria e escurece; neve deixa tudo azulado e frio.
-    // Céu fechado com neve no chão continua claro (a neve devolve a luz).
+    u.cloud = broken * 0.34 * day;
+    // Gradação (multiplica): céu pesado/chuva esfria e escurece; neve deixa tudo azulado e claro.
     const heavy = clamp01(w.cloud * 0.35 + w.rain * 0.3 + w.thunder * 0.3 + w.front * 0.12 - 0.12 - input.snowCover * 0.15);
     const cold = clamp01(input.snowCover * 0.55 + w.snow * 0.35);
+    const wetK = clamp01(w.rain * 1.4);
     let r = 1 - heavy * 0.3;
     let g = 1 - heavy * 0.25;
     let b = 1 - heavy * 0.15;
-    r *= 1 - cold * 0.14;
-    g *= 1 - cold * 0.08;
-    b *= 1 - cold * 0.0;
-    const col = (Math.round(r * 255) << 16) | (Math.round(g * 255) << 8) | Math.round(b * 255);
+    // Chuva: verde-azulado frio (a grama molhada fica mais verde, o resto apaga).
+    r *= 1 - wetK * 0.1;
+    g *= 1 - wetK * 0.03;
+    r *= 1 - cold * 0.12;
+    g *= 1 - cold * 0.06;
+    // Sol baixo e céu limpo: luz dourada no começo e no fim do dia.
+    const hr = input.minuteOfDay / 60;
+    const half = input.dayHours / 2;
+    const toEdge = Math.min(Math.abs(hr - (12.3 - half)), Math.abs(hr - (12.3 + half)));
+    const golden = clamp01(1 - toEdge / 1.6) * clamp01(1 - w.cloud * 1.3) * day;
+    r *= 1 - golden * 0.02;
+    g *= 1 - golden * 0.14;
+    b *= 1 - golden * 0.32;
+    // Sol forte de verão: um pouco mais quente.
+    const warm = clamp01(1 - w.cloud * 2) * day * (1 - cold) * 0.5;
+    b *= 1 - warm * 0.08;
+    g *= 1 - warm * 0.02;
+    const col = (Math.round(clamp01(r) * 255) << 16) | (Math.round(clamp01(g) * 255) << 8) | Math.round(clamp01(b) * 255);
     this.grade.setVisible(col !== 0xffffff);
     if (col !== 0xffffff) this.grade.setPosition(v.x, v.y).setSize(v.width, v.height).setFillStyle(col, 1);
-    // Relâmpago: tudo clareia um instante (dentro de casa, a luz que entra).
+    // Relâmpago: tudo clareia um instante (dentro de casa, a luz que entra) e o risco aparece no céu.
     this.flash.setVisible(this.flashNow > 0.01);
     if (this.flashNow > 0.01) this.flash.setPosition(v.x, v.y).setSize(v.width, v.height).setFillStyle(0xdfe8ff, this.flashNow * (input.sheltered ? 0.12 : 0.42));
+    const showBolt = this.boltStrong && this.boltT >= 0 && this.boltT < 0.35 && !input.sheltered;
+    if (showBolt) {
+      if (!this.boltImage.visible) {
+        const sc = (v.height / 440) * (0.7 + Math.random() * 0.5);
+        this.boltImage
+          .setScale(sc)
+          .setFlipX(Math.random() < 0.5)
+          .setPosition(v.x + v.width * (0.15 + Math.random() * 0.7), v.y + 220 * sc);
+      }
+      this.boltImage.setVisible(true).setAlpha(Math.min(1, this.flashNow * 1.3));
+    } else if (this.boltImage.visible) this.boltImage.setVisible(false);
   }
 
   // ---------------------------------------------------------------- neblina
 
   /**
-   * Neblina de verdade: o que está LONGE some primeiro (clareira em volta do
-   * jogador, menor quanto mais densa) e fiapos irregulares andando com o
-   * vento. Nevasca e chuva forte também fecham a vista (mais leve).
+   * Neblina de verdade (no shader do céu): o que está LONGE some primeiro
+   * (clareira em volta do jogador, menor quanto mais densa), bancos e fiapos
+   * andando com o vento. Nevasca e chuva forte também fecham a vista (mais
+   * leve). Dentro da casa em que o jogador está quase não entra.
    */
-  private updateFog(dt: number, cam: Phaser.Cameras.Scene2D.Camera, input: AtmosphereInput): void {
+  private updateFog(dt: number, v: Phaser.Geom.Rectangle, input: AtmosphereInput): void {
     const w = input.weather;
-    const inside = input.sheltered ? 0.25 : 1;
-    // Neve caindo fecha a vista pouco (quem mostra a neve são os flocos); nevasca fecha bem.
-    const dens = clamp01(Math.max(w.fog, w.snow * w.snow * w.snow * 0.55, w.rain * w.rain * 0.12)) * inside;
-    if (dens < 0.02) {
-      this.fogImage.setVisible(false);
-      this.fogWisps.setVisible(false);
-      return;
-    }
-    const view = cam.worldView;
-    const white = w.snow > w.fog;
-    const color = white ? 0xe6ebf1 : FOG_COLOR;
-    // Distância: preenche e abre a clareira em volta do jogador.
-    const rw = Math.max(8, Math.ceil(cam.width / FOG_DOWNSCALE));
-    const rh = Math.max(8, Math.ceil(cam.height / FOG_DOWNSCALE));
-    if (rw !== this.fogW || rh !== this.fogH) {
-      this.fogW = rw;
-      this.fogH = rh;
-      this.fogRt.setSize(rw, rh);
-    }
-    const sx = view.width / rw;
-    const sy = view.height / rh;
-    const far = Math.min(0.88, 0.25 + dens * 0.7);
-    const clear = 1000 - dens * 760;
-    this.fogRt.clear();
-    this.fogRt.fill(color, far);
-    this.eraseLight(this.fogRt, this.stampRadial, input.player.x, input.player.y, clear, 0.95, view.x, view.y, sx, sy);
-    this.eraseLight(this.fogRt, this.stampRadial, input.player.x, input.player.y, clear * 0.55, 0.7, view.x, view.y, sx, sy);
-    this.fogRt.render();
-    this.fogImage.setVisible(true).setPosition(view.x, view.y).setDisplaySize(view.width, view.height).setTint(color);
-    // Fiapos: textura que anda devagar com o vento (mundo, não tela).
+    const u = this.skyU;
+    const dens = clamp01(Math.max(w.fog, w.snow * w.snow * w.snow * 0.55, w.rain * w.rain * 0.12));
+    u.fog = dens < 0.02 ? 0 : Math.min(0.95, dens * 1.05);
+    u.fogColor = w.snow > w.fog ? FOG_WHITE : FOG_COLOR;
+    u.clear = 1000 - dens * 760;
+    u.player = [input.player.x, input.player.y];
     this.fogX += dt * (8 + w.wind * 60);
-    this.fogWisps
-      .setVisible(true)
-      .setPosition(view.x, view.y)
-      .setSize(view.width, view.height)
-      .setTint(color)
-      .setAlpha(dens * 0.4)
-      .setTilePosition((view.x + this.fogX) / 2.2, view.y / 2.2);
+    this.fogY += dt * (2 + w.wind * 8);
+    u.drift = [this.fogX, this.fogY];
+    const ins = input.inside;
+    u.inside = ins ? [ins.x, ins.y, ins.w, ins.h] : [0, 0, 0, 0];
+    u.insideK = ins?.k ?? 0;
+    const sky = this.sky;
+    if (!sky) return;
+    const on = u.fog > 0 || u.cloud > 0.01;
+    sky.setVisible(on);
+    if (!on) return;
+    // O quad cobre a tela (com folga) e a coordenada de textura é o mundo.
+    const x0 = v.x - 8;
+    const y0 = v.y - 8;
+    const x1 = v.x + v.width + 8;
+    const y1 = v.y + v.height + 8;
+    sky.setPosition(x0, y0).setSize(x1 - x0, y1 - y0);
+    sky.textureCoordinateTopLeft.set(x0, y0);
+    sky.textureCoordinateTopRight.set(x1, y0);
+    sky.textureCoordinateBottomLeft.set(x0, y1);
+    sky.textureCoordinateBottomRight.set(x1, y1);
   }
 
   // ---------------------------------------------------------------- chuva
@@ -450,19 +537,19 @@ export class Atmosphere {
   private updateRain(v: Phaser.Geom.Rectangle, input: AtmosphereInput): void {
     const w = input.weather;
     this.resizeZones(v);
+    const ins = input.inside;
+    this.insideRect = ins && ins.k > 0.3 ? ins : null;
     // Inclinação pelo vento: a gota vem de cima e o vento empurra para a esquerda.
     const vx = -60 - w.wind * 420;
     this.rainRot = (Math.atan2(1050, vx) * 180) / Math.PI - 90;
     const raining = w.rain > 0;
-    const show = raining && !input.sheltered;
-    this.rain.setPosition(v.x, v.y);
-    this.rainNear.setPosition(v.x, v.y);
-    if (show) {
+    if (raining) {
       this.rain.speedX = vx;
-      this.rain.setFrequency(1000 / (40 + w.rain * 520), 1);
+      // Muitos riscos curtos espalhados pela tela (vivem ~0,25 s).
+      this.rain.setFrequency(1000 / (120 + w.rain * 1500), 1);
       if (!this.rain.emitting) this.rain.start();
-      // Gotas grandes perto: só na chuva forte.
-      if (w.rain > 0.3) {
+      // Gotas grandes perto da "câmera": só na chuva forte e com o jogador fora.
+      if (w.rain > 0.3 && !input.sheltered) {
         this.rainNear.speedX = vx * 1.5;
         this.rainNear.setFrequency(1000 / (w.rain * 70), 1);
         if (!this.rainNear.emitting) this.rainNear.start();
@@ -471,9 +558,7 @@ export class Atmosphere {
       if (this.rain.emitting) this.rain.stop();
       if (this.rainNear.emitting) this.rainNear.stop();
     }
-    // Debaixo de telhado a chuva continua lá fora, mas não em cima de você.
-    this.rain.setVisible(!input.sheltered);
-    this.rainNear.setVisible(!input.sheltered);
+    this.rainNear.setPosition(v.x, v.y).setVisible(!input.sheltered);
     // Respingos no chão de fora (vistos de dentro também).
     if (raining) {
       this.splash.setFrequency(1000 / (12 + w.rain * 150), 1);
@@ -488,12 +573,7 @@ export class Atmosphere {
       e.clearEmitZones();
       e.addEmitZone({ type: 'random', source: r, quantity: 1 } as Phaser.Types.GameObjects.Particles.EmitZoneData);
     };
-    // Chuva nasce numa faixa acima da tela (mais larga: o vento puxa de lado).
-    zone(this.rain, new Phaser.Geom.Rectangle(-v.width * 0.1, -60, v.width * 1.6, 30));
-    this.rain.lifespan = ((v.height + 120) / 1000) * 1000;
     zone(this.rainNear, new Phaser.Geom.Rectangle(0, -v.height * 0.1, v.width * 1.3, v.height * 1.1));
-    // Neve nasce espalhada pela tela (poucos flocos vivos de cada vez).
-    zone(this.snow, new Phaser.Geom.Rectangle(-v.width * 0.1, -v.height * 0.1, v.width * 1.4, v.height * 1.05));
     zone(this.snowNear, new Phaser.Geom.Rectangle(-v.width * 0.1, -v.height * 0.1, v.width * 1.4, v.height * 1.05));
     zone(this.drift, new Phaser.Geom.Rectangle(v.width * 0.3, 0, v.width * 0.9, v.height));
     zone(this.leaves, new Phaser.Geom.Rectangle(v.width * 0.5, -v.height * 0.1, v.width * 0.7, v.height * 1.2));
@@ -503,17 +583,19 @@ export class Atmosphere {
 
   private updateSnow(v: Phaser.Geom.Rectangle, input: AtmosphereInput): void {
     const w = input.weather;
-    const falling = w.snow > 0 && !input.sheltered;
-    for (const e of [this.snow, this.snowNear, this.drift]) e.setPosition(v.x, v.y).setVisible(!input.sheltered);
+    const falling = w.snow > 0;
+    // Flocos de longe: no mundo, fora da casa do jogador; perto e arrastados: só com o jogador fora.
+    for (const e of [this.snowNear, this.drift]) e.setPosition(v.x, v.y).setVisible(!input.sheltered);
     // Vento empurra os flocos de lado (nevasca quase na horizontal): aceleração lateral.
     const push = (-15 - w.wind * 240) / 1.2;
     if (falling) {
       this.snow.gravityX = push;
-      this.snow.setFrequency(1000 / (25 + w.snow * 110), 1);
+      this.snow.setFrequency(1000 / (30 + w.snow * 180), 1);
       if (!this.snow.emitting) this.snow.start();
       this.snowNear.gravityX = push * 1.3;
       this.snowNear.setFrequency(1000 / (4 + w.snow * 32), 1);
-      if (!this.snowNear.emitting) this.snowNear.start();
+      if (!input.sheltered && !this.snowNear.emitting) this.snowNear.start();
+      else if (input.sheltered && this.snowNear.emitting) this.snowNear.stop();
     } else {
       if (this.snow.emitting) this.snow.stop();
       if (this.snowNear.emitting) this.snowNear.stop();

@@ -5,9 +5,6 @@
  */
 import Phaser from 'phaser';
 import {
-  drawCloudShadow,
-  drawCorpseSnow,
-  drawFogNoise,
   drawFootprint,
   drawLeaf,
   drawRainNear,
@@ -15,6 +12,8 @@ import {
   drawSnowStreak,
   drawSplash,
   drawTireTrack,
+  drawSnowBokeh,
+  drawBolt,
 } from './procedural/weatherArt';
 import { NOISE_SIZE, weatherNoiseA, weatherNoiseB } from './procedural/weatherNoise';
 import { ITEM_DEFS } from '../items/ItemCatalog';
@@ -132,19 +131,18 @@ export function generateAssets(textures: Phaser.Textures.TextureManager, registr
   if (!textures.exists(TEX.vignette)) textures.addCanvas(TEX.vignette, drawVignette(256));
   if (!textures.exists(TEX.lightRadial)) textures.addCanvas(TEX.lightRadial, drawLightRadial(128));
   if (!textures.exists(TEX.lightCone)) textures.addCanvas(TEX.lightCone, drawLightCone(256, 180));
-  if (!textures.exists(TEX.rainDrop)) textures.addCanvas(TEX.rainDrop, drawRainDrop(4, 22));
+  if (!textures.exists(TEX.rainDrop)) textures.addCanvas(TEX.rainDrop, drawRainDrop(4, 40));
   // Clima: neve e água no chão por material, neve nos telhados, partículas, marcas, neblina, nuvens.
   const fx: [string, () => HTMLCanvasElement][] = [
-    [TEX.snowFlake, () => drawSnowFlake(8)],
+    [TEX.snowFlake, () => drawSnowFlake(10)],
     [TEX.snowStreak, drawSnowStreak],
     [TEX.rainNear, drawRainNear],
     [TEX.splash, drawSplash],
     [TEX.leaf, drawLeaf],
     [TEX.footprint, drawFootprint],
     [TEX.tireTrack, drawTireTrack],
-    [TEX.fogNoise, drawFogNoise],
-    [TEX.cloudShadow, drawCloudShadow],
-    [TEX.corpseSnow, drawCorpseSnow],
+    [TEX.snowBokeh, () => drawSnowBokeh(28)],
+    [TEX.bolt, drawBolt],
   ];
   for (const [key, draw] of fx) if (!textures.exists(key)) textures.addCanvas(key, draw());
   // Ruídos dos shaders do clima: periódicos (REPEAT, potência de 2) e interpolados.
