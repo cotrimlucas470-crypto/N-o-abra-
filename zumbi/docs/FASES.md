@@ -5,6 +5,47 @@ O que cada etapa entregou, como foi testado e o que ficou pendente. A ordem das 
 
 ---
 
+## Clima: estações graduais, neve que acumula e visual do clima refeito
+
+### Núcleo (tempo, calendário, estações)
+- 1 dia de jogo ≈ 15 min reais (save antigo de 48 min migra). Calendário persistente (dia, mês, ano,
+  dia da semana, estação); pular 5–12 dias no debug simula hora a hora.
+- Estações graduais (`sim/Climate.ts`): curvas por data com aviso de aproximação (30/20/14/7/3/1 dias),
+  temperatura, chuva, tempestade, neblina, vento, folhas e fase da grama contínuas.
+- Frentes com aproximação, auge e dissipação (`sim/Weather.ts`); neve quando esfria; o chão
+  (`sim/Ground.ts`) acumula e derrete neve em cm, molha, seca e congela, e tudo vai no save.
+- Integrações: corpo molhado, ruído e visão pela chuva/neve, fogo, plantação (geada mata), carro
+  (aderência), zumbis e jogador mais lentos na neve funda.
+
+### Visual (refeito para ficar perto das referências, sem textura repetida)
+- **Chão pixel a pixel** (`render/weatherShaders.ts`, `render/GroundWeatherLayer.ts`): um shader do tamanho
+  da cidade lê o próprio desenho do chão, dados por tile suavizados (`world/weatherCells.ts`) e ruído
+  periódico do mundo em várias escalas giradas (`procedural/weatherNoise.ts`). Neve em torrões com lado
+  claro e sombra azulada, por material (grama, terra, asfalto com lama e faixas, calçada com juntas);
+  velha e derretendo em manchas; geada; chão molhado com brilho; poças esparsas com anéis de gota; gelo;
+  folhas caídas no outono; cor da grama por época em manchas (antes trocava tile a tile, em quadrados).
+- **Telhados**: um shader por telhado lendo a telha (neve nas fileiras, beiral, cumeeira mais rala).
+- **Objetos**: neve seguindo o desenho (tufos de folha, placas no teto/capô), numa folha única (atlas);
+  mato, flores e lixo somem debaixo da neve.
+- **Céu**: um shader com sombras de nuvem e neblina em camadas (longe some primeiro; dentro da casa do
+  jogador não entra). Chuva e neve caem só fora da construção do jogador (vê-se a chuva lá fora sem
+  partícula no interior). Raio visível no céu na tempestade. Gradação por clima e hora (luz dourada,
+  chuva verde-azulada, neve azulada, noite azulada).
+- Desligado quando não há efeito: dia seco de verão não custa nada.
+
+### Testes
+- `tests/seasons.test.ts` (1/5/12 dias, transições, neve, derretimento, save) e
+  `tests/weatherVisual.test.ts` (ruído periódico sem costura, uniformizado, dados do chão: material,
+  fora/dentro, abrigo sem degrau, frente das portas).
+- `dev/wxref.mjs`: prints no mesmo enquadramento das imagens de referência (casa inicial, zoom 0,53):
+  outono, geada, neve (primeira, fraca, moderada, intensa, acumulada, velha, rua, cidade), degelo,
+  primavera, sol, nublado, chuva (fora, dentro, rua), tempestade com raio, neblina.
+
+### Fora deste trabalho
+- Tornado, granizo, onda de calor, arco-íris, aurora, poeira e fumaça (eventos novos).
+
+---
+
 ## Correções: combate, zumbis, janelas, itens, veículos
 
 ### 0. Erro ao abrir com save antigo

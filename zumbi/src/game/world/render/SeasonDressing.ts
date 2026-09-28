@@ -14,8 +14,10 @@
  *   só os que estão na tela.
  */
 import Phaser from 'phaser';
+import { TEX } from '../../assets/AssetKeys';
 import { drawObjectSnow, type SnowObjKind } from '../../assets/procedural/weatherArt';
-import { hashString } from '../../core/Random';
+import { DEPTH } from '../../config/GameConfig';
+import { hashString, Random } from '../../core/Random';
 import type { PropPlacement } from '../MapTypes';
 import type { PropDef, PropType } from '../PropCatalog';
 import { buildingAtPoint } from '../shelter';
@@ -25,6 +27,9 @@ import type { WorldModel } from '../WorldModel';
 export const DECIDUOUS = new Set<PropType>(['tree', 'treeSmall', 'treeApple', 'treeBroad', 'treeYoung'] as PropType[]);
 /** Objetos pequenos demais (ou rente ao chão) não ganham neve própria: o chão já cobre. */
 const MIN_AREA = 700;
+/** Folhas caídas por árvore que perde folha, e as cores delas. */
+const LITTER = 9;
+const LITTER_TINTS = [0xd9892f, 0xc9a23c, 0xb86a2c, 0x9c4a26, 0xc98a3a, 0x8a6a3a];
 /** Balanço máximo (graus) com vento forte. */
 const SWAY_TREE = 2.6;
 const SWAY_BUSH = 3.4;
@@ -32,6 +37,8 @@ const SWAY_BUSH = 3.4;
 interface Dressed {
   base: Phaser.GameObjects.Image;
   snow: Phaser.GameObjects.Image | null;
+  /** Folhas caídas em volta (só árvore que perde folha). */
+  litter: Phaser.GameObjects.Image[];
   /** Chave do desenho (as 3 texturas de neve dele). */
   frameKey: string;
   deciduous: boolean;
@@ -119,6 +126,8 @@ export class SeasonDressing {
   private snowAlpha = 0;
   private leafColor = 0;
   private leafCover = 1;
+  /** Quanto de folha caída aparece no chão (0..1). */
+  private litter = 0;
   private wet = 0;
   private key = '';
   private time = 0;
@@ -148,9 +157,29 @@ export class SeasonDressing {
     const tree = !!def.fadeWhenNear;
     const bush = p.type.startsWith('bush');
     const kind: SnowObjKind = tree || bush || p.type === 'hedge' ? 'foliage' : 'solid';
+    // Folhas caídas em volta da árvore que perde folha (outono), no chão, abaixo do sangue.
+    const litter: Phaser.GameObjects.Image[] = [];
+    if (tree && DECIDUOUS.has(p.type)) {
+      const rng = new Random(hashString(`folhas:${p.id}`));
+      const r = Math.min(def.width, def.height) * 0.55;
+      for (let k = 0; k < LITTER; k++) {
+        const a = rng.range(0, Math.PI * 2);
+        const dist = Math.sqrt(rng.next()) * r;
+        litter.push(
+          this.scene.add
+            .image(p.x + Math.cos(a) * dist, p.y + Math.sin(a) * dist, TEX.leaf)
+            .setAngle(rng.range(0, 360))
+            .setScale(rng.range(0.7, 1.15))
+            .setTint(rng.pick(LITTER_TINTS))
+            .setDepth(DEPTH.decal - 0.1)
+            .setAlpha(0),
+        );
+      }
+    }
     const d: Dressed = {
       base: img,
       snow,
+      litter,
       frameKey,
       deciduous: DECIDUOUS.has(p.type),
       angle: p.angle,
@@ -163,7 +192,7 @@ export class SeasonDressing {
       this.queue.push({ tex: img.texture.key, frame: String(img.frame.name), key: frameKey, kind });
     }
     this.apply(d);
-    return [snow];
+    return [snow, ...litter];
   }
 
   /** Desenha a neve de um desenho por quadro; envia a folha quando a fila esvazia. */
@@ -215,7 +244,10 @@ export class SeasonDressing {
     const c = look.snow;
     const stage = c < 0.2 ? -1 : c < 0.45 ? 0 : c < 0.75 ? 1 : 2;
     const alpha = stage < 0 ? 0 : Math.min(1, (c - 0.2) * 5);
-    const key = `${stage}|${Math.round(alpha * 10)}|${Math.round(look.wet * 10)}|${Math.round(look.leafColor * 20)}|${Math.round(look.leafCover * 20)}`;
+    // Folhas no chão: caem no outono, escurecem no inverno, a neve cobre, somem na primavera.
+    const fallen = Math.min(1, Math.max(0, (look.leafColor - 0.25) * 1.6)) * Math.min(1, Math.max(0, (1 - look.leafCover) * 2.2));
+    const litter = Math.round(fallen * Math.max(0, 1 - c * 1.6) * 10) / 10;
+    const key = `${stage}|${Math.round(alpha * 10)}|${Math.round(look.wet * 10)}|${Math.round(look.leafColor * 20)}|${Math.round(look.leafCover * 20)}|${litter}`;
     if (key !== this.key) {
       this.key = key;
       this.snowStage = stage;
@@ -223,6 +255,7 @@ export class SeasonDressing {
       this.wet = look.wet;
       this.leafColor = look.leafColor;
       this.leafCover = look.leafCover;
+      this.litter = litter;
       for (const d of this.items) {
         if (!d.base.active) this.items.delete(d);
         else this.apply(d);
@@ -261,6 +294,8 @@ export class SeasonDressing {
       if (show) s.setTexture(this.sheetOf.get(d.frameKey)!, `${d.frameKey}:${this.snowStage}`);
       s.setVisible(show).setAlpha(this.snowAlpha * d.base.alpha);
     }
+    // Alfa 0 não desenha (a visibilidade é do culling).
+    for (const l of d.litter) l.setAlpha(this.litter * 0.92);
     // Cor: folhas da estação × superfície molhada (multiplica a cor do desenho).
     let r = 255;
     let g = 255;

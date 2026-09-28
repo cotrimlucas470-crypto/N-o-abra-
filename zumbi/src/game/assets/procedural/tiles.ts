@@ -214,6 +214,59 @@ const DRAWERS: Record<GroundId, TileDrawer> = {
   [Ground.GarageFloor]: garage,
 };
 
+/**
+ * Cor da grama pela ÉPOCA (fase 0..6 de sim/Climate grassStage, circular):
+ * 0 verão (a original), 1 seca, 2 amarelando, 3 marrom-oliva, 4 morta
+ * (inverno), 5 rebrotando. Pares: grama e grama escura.
+ */
+const GRASS_TONES: readonly (readonly [string, string])[] = [
+  [PALETTE.grass, PALETTE.grassDark],
+  ['#63734a', '#55633f'],
+  ['#6c7447', '#5c633d'],
+  ['#727048', '#615f3e'],
+  ['#6b6852', '#5b5846'],
+  ['#5a7e42', '#4b6a38'],
+];
+
+const hexRgb = (h: string) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)] as const;
+const mixHex = (a: string, b: string, t: number) => {
+  const x = hexRgb(a);
+  const y = hexRgb(b);
+  return `#${[0, 1, 2].map((i) => Math.round(x[i]! + (y[i]! - x[i]!) * t).toString(16).padStart(2, '0')).join('')}`;
+};
+
+/** As duas cores da grama numa fase da época (mistura contínua entre as fases vizinhas). */
+export function grassToneAt(stage: number): readonly [string, string] {
+  const n = GRASS_TONES.length;
+  const g = ((stage % n) + n) % n;
+  const p0 = Math.floor(g);
+  const p1 = (p0 + 1) % n;
+  const t = g - p0;
+  return [mixHex(GRASS_TONES[p0]![0], GRASS_TONES[p1]![0], t), mixHex(GRASS_TONES[p0]![1], GRASS_TONES[p1]![1], t)];
+}
+
+/**
+ * Redesenha só as linhas da grama no tileset (mesmo desenho, mesma semente,
+ * outra cor): a cidade inteira muda junto, aos pouquinhos — sem tile
+ * trocando sozinho (que fazia quadrados).
+ */
+export function paintGrass(canvas: HTMLCanvasElement, tones: readonly [string, string]): void {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  const tile = makeCanvas(S, S);
+  for (const [g, color] of [
+    [Ground.Grass, tones[0]],
+    [Ground.GrassDark, tones[1]],
+  ] as const) {
+    for (let v = 0; v < GROUND_VARIANTS; v++) {
+      tile.ctx.clearRect(0, 0, S, S);
+      grass(color)(tile.ctx, v, new Random(1000 + g * 31 + v * 7));
+      ctx.clearRect(v * S, g * S, S, S);
+      ctx.drawImage(tile.canvas, v * S, g * S);
+    }
+  }
+}
+
 export function drawTileset(): HTMLCanvasElement {
   const { canvas, ctx } = makeCanvas(S * GROUND_VARIANTS, S * GROUND_COUNT);
   const tile = makeCanvas(S, S);

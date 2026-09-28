@@ -1,8 +1,8 @@
 /**
  * Clima no CHÃO (parte Phaser): um shader só, do tamanho da cidade, logo
  * acima do chão e da pintura da rua (abaixo de sangue, pegadas, objetos e
- * paredes). Ele calcula neve, geada, chão molhado, poças com anéis de gota,
- * gelo e folhas caídas pixel a pixel (ver weatherShaders.ts), lendo:
+ * paredes). Ele calcula neve, geada, chão molhado, poças com anéis de gota
+ * e gelo pixel a pixel (ver weatherShaders.ts), lendo:
  *
  * - os dados por tile da cidade (world/weatherCells.ts), suavizados;
  * - o PISADO: onde o jogador anda e o carro passa, a neve fica compactada e
@@ -11,7 +11,7 @@
  * - o estado do clima (números por quadro, nada é redesenhado).
  *
  * Dentro das construções e na faixa dos andares não desenha nada. Sem neve,
- * água, geada nem folhas, o shader fica escondido (custo zero).
+ * água nem geada, o shader fica escondido (custo zero).
  */
 import Phaser from 'phaser';
 import { DEPTH, TILE } from '../../config/GameConfig';
@@ -39,26 +39,7 @@ export interface GroundLook {
   rain: number;
   /** Luz do dia 0..1. */
   day: number;
-  /** Folhas caídas no chão (outono) 0..1 e tom (0 amarelo → 1 marrom). */
-  leaves: number;
-  leafTone: number;
-  /** Fase da grama na época (0..6, circular; ver sim/Climate grassStage). */
-  grass: number;
 }
-
-/**
- * Cor da grama por fase (a de verão é a do próprio desenho): 0 verão,
- * 1 seca, 2 amarelando, 3 marrom, 4 morta (inverno), 5 rebrotando.
- */
-const GRASS_TONES: readonly (readonly [number, number, number])[] = [
-  [0x5d, 0x72, 0x49],
-  [0x66, 0x74, 0x46],
-  [0x74, 0x76, 0x47],
-  [0x76, 0x6e, 0x4a],
-  [0x6e, 0x69, 0x53],
-  [0x5a, 0x7e, 0x42],
-];
-const tone = (p: number) => GRASS_TONES[p]!.map((v) => v / 255);
 
 const KEY_CELLS = 'weather.cells';
 const KEY_MATS = 'weather.mats';
@@ -77,12 +58,7 @@ export class GroundWeatherLayer {
   private trampDirty = false;
   private trampClock = 0;
   private time = 0;
-  private look: GroundLook = { snow: 0, frost: 0, wet: 0, puddle: 0, ice: 0, sinceSnow: 999, melting: 0, rain: 0, day: 1, leaves: 0, leafTone: 0, grass: 0 };
-  private grassFrom = tone(0);
-  private grassTo = tone(1);
-  private grassA = [0, 1];
-  private grassT = 0;
-  private weatherOn = false;
+  private look: GroundLook = { snow: 0, frost: 0, wet: 0, puddle: 0, ice: 0, sinceSnow: 999, melting: 0, rain: 0, day: 1 };
   private old = 0;
   /** Mostrar os dados por tile no lugar do clima (debug). */
   debugView = false;
@@ -135,13 +111,6 @@ export class GroundWeatherLayer {
           set('uRain', l.rain);
           set('uTime', this.time);
           set('uDay', l.day);
-          set('uLeaves', l.leaves);
-          set('uLeafTone', l.leafTone);
-          set('uGrassFrom', this.grassFrom);
-          set('uGrassTo', this.grassTo);
-          set('uGrassA', this.grassA);
-          set('uGrassT', this.grassT);
-          set('uWeatherOn', this.weatherOn ? 1 : 0);
           set('uDebug', this.debugView ? 1 : 0);
         },
       },
@@ -231,17 +200,8 @@ export class GroundWeatherLayer {
     this.old = clamp((look.sinceSnow - 18) / 60, 0, 1) * 0.8 + look.melting * 0.5;
     const s = this.shader;
     if (!s) return;
-    // Grama: da fase atual para a próxima (circular: depois de "rebrotando" volta ao verão).
-    const g = ((look.grass % 6) + 6) % 6;
-    const p0 = Math.floor(g);
-    const p1 = (p0 + 1) % 6;
-    this.grassFrom = tone(p0);
-    this.grassTo = tone(p1);
-    this.grassA = [p0 === 0 ? 0 : 1, p1 === 0 ? 0 : 1];
-    this.grassT = g - p0;
-    const grassOn = this.grassA[0]! + this.grassA[1]! > 0;
-    this.weatherOn = look.snow > 0.004 || look.frost > 0.02 || look.wet > 0.02 || look.puddle > 0.01 || look.ice > 0.02 || look.leaves > 0.02;
-    s.setVisible(this.weatherOn || grassOn || this.debugView);
+    const active = look.snow > 0.004 || look.frost > 0.02 || look.wet > 0.02 || look.puddle > 0.01 || look.ice > 0.02;
+    s.setVisible(active || this.debugView);
     this.trampClock += dt;
     if (this.trampDirty && this.trampClock >= TRAMP_UPLOAD) {
       this.trampClock = 0;

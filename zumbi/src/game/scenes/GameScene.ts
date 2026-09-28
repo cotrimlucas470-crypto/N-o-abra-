@@ -666,7 +666,7 @@ export class GameScene extends Phaser.Scene {
     const ground = this.loop.ground;
     const w = this.loop.weather;
     const dayLight = daylight(this.clock.minuteOfDay, w.cloud, season.dayHours);
-    // Chão: molha na hora que a chuva começa; poça só com água acumulada; folhas caem no outono.
+    // Chão: molha na hora que a chuva começa; poça só com água acumulada.
     this.groundWeather.update(this.dt, {
       snow: ground.snow,
       frost: ground.frost(w, this.clock.minuteOfDay),
@@ -677,12 +677,10 @@ export class GameScene extends Phaser.Scene {
       melting: ground.melting,
       rain: w.rain,
       day: dayLight,
-      leaves: Math.min(1, Math.max(0, (season.leafColor - 0.25) * 1.6)) * Math.min(1, Math.max(0, (1 - season.leafCover) * 2.2)),
-      leafTone: Math.min(1, Math.max(0, (0.85 - season.leafCover) * 2)),
-      grass: season.grass,
     });
     this.world.roofs.setSnow(ground.snow, this.groundWeather.oldness, ground.melting, dayLight);
     this.world.setSnowCover(ground.snow);
+    this.world.setGrassSeason(season.grass);
     this.dressing.update(this.dt, { snow: ground.snow, wet: Math.max(ground.wet, w.rain), wind: w.wind, leafColor: season.leafColor, leafCover: season.leafCover });
     this.world.canopies.leaf = season.leafCover;
     this.tracks.update(this.dt, {

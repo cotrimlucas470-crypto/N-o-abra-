@@ -20,6 +20,7 @@ import type { AssetRegistry } from '../../assets/AssetRegistry';
 import { propSolids, type Solid } from '../collision';
 import { DECAL_DEFS } from '../DecalCatalog';
 import { GROUND_VARIANTS, VOID_GROUND, pickVariant, type FloorData, type MarkingKind, type PropPlacement, type Rect, type WallPiece } from '../MapTypes';
+import { grassToneAt, paintGrass } from '../../assets/procedural/tiles';
 import { PROP_DEFS, type PropDef } from '../PropCatalog';
 import { buildingAtPoint } from '../shelter';
 import type { WorldModel } from '../WorldModel';
@@ -108,6 +109,8 @@ export class WorldRenderer {
   /** Decalques de fora que a neve cobre, e quanto ela cobre agora (0..1). */
   private readonly buried = new Set<{ img: Phaser.GameObjects.Image; alpha: number }>();
   private buryLevel = 0;
+  /** Fase da grama já pintada no tileset (×24). */
+  private grassKey = 0;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -158,6 +161,22 @@ export class WorldRenderer {
     const layer = tilemap.createLayer(0, tileset, 0, 0, gpu);
     if (!layer) throw new Error('Falha ao criar a camada do chão');
     layer.setDepth(DEPTH.ground);
+  }
+
+  /**
+   * Cor da grama pela época (fase 0..6): o desenho da grama do tileset é
+   * repintado (a cidade toda junto, em passos pequenos — 24 por fase), sem
+   * custo por quadro. Um tileset de PNG substituto fica como está.
+   */
+  setGrassSeason(stage: number): void {
+    const key = Math.round(stage * 24);
+    if (key === this.grassKey) return;
+    this.grassKey = key;
+    const tex = this.scene.textures.get(TEX.tiles);
+    const src = tex.getSourceImage();
+    if (!(src instanceof HTMLCanvasElement)) return;
+    paintGrass(src, grassToneAt(key / 24));
+    tex.source[0]?.update();
   }
 
   /** Neve no chão (0..1): mato, flores e lixo de fora vão sumindo debaixo dela. */

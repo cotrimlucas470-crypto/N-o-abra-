@@ -59,7 +59,7 @@ vec4 over(vec4 acc, vec3 c, float a) {
 
 /**
  * CHÃO: neve por material, geada, chão molhado com brilho, poças com anéis
- * de gota, gelo e folhas caídas do outono. 1 quad do tamanho da cidade
+ * de gota e gelo. 1 quad do tamanho da cidade
  * (coordenada de textura = px do mundo).
  */
 export const GROUND_FRAG = `${HEADER}${COMMON}
@@ -79,13 +79,6 @@ uniform float uMelt;        // derretendo 0..1
 uniform float uRain;        // chuva caindo agora 0..1 (anéis nas poças)
 uniform float uTime;        // segundos
 uniform float uDay;         // luz do dia 0..1
-uniform float uLeaves;      // folhas caídas no chão (outono) 0..1
-uniform float uLeafTone;    // 0 amarelo/laranja → 1 marrom
-uniform vec3 uGrassFrom;    // cor da grama na fase atual da época
-uniform vec3 uGrassTo;      // ... e na próxima
-uniform vec2 uGrassA;       // quanto cada uma cobre (0 = a grama original de verão)
-uniform float uGrassT;      // quanto já passou da atual para a próxima 0..1
-uniform float uWeatherOn;   // 0 = sem neve/água/geada/folhas: só a cor da grama
 uniform float uDebug;
 
 vec2 gridUv(vec2 c) { return vec2(c.x / uGrid.x, 1.0 - c.y / uGrid.y); }
@@ -106,8 +99,6 @@ void main() {
   float gS = step(3.5, mat) - step(4.5, mat);
   float gC = step(4.5, mat);
   float hard = gA + gS + gC;
-  // Tempo seco e limpo: só a grama muda de cor; o resto sai daqui (barato).
-  if (uWeatherOn < 0.5 && gG < 0.5 && uDebug < 0.5) { gl_FragColor = vec4(0.0); return; }
 
   vec3 cell = texture2D(uCells, gridUv(c)).rgb;
   float tramp = texture2D(uTramp, gridUv(c)).r;
@@ -126,16 +117,6 @@ void main() {
   vec4 a2 = noiseA(rot(wp) * 0.23 + vec2(91.0, 37.0));
   vec4 b1 = noiseB(wp * 0.45 + vec2(5.0, 11.0));
 
-  // ------------------------------------------------------------ cor da grama pela época
-  // Amarela/seca/volta em MANCHAS que avançam aos poucos (nunca tile a tile);
-  // o claro/escuro do desenho original continua (tufo, grama escura).
-  vec4 acc = vec4(0.0);
-  if (gG > 0.5 && uGrassA.x + uGrassA.y > 0.0) {
-    float gt = smoothstep(0.3, 0.7, uGrassT + (b1.r - 0.5) * 0.8 + (a2.r - 0.5) * 0.3);
-    // Cobre ~80%: um pouco do verde original continua aparecendo nos tufos.
-    acc = over(acc, mix(uGrassFrom, uGrassTo, gt) * (lum / 0.405), mix(uGrassA.x, uGrassA.y, gt) * (0.72 + a2.r * 0.16));
-  }
-  if (uWeatherOn < 0.5) { gl_FragColor = acc; return; }
   vec4 a1 = noiseA(wp * 0.55);
   vec4 a3 = noiseA(rot(wp.yx) * 1.05 + vec2(13.0, 71.0));
   float grain = a3.b;
@@ -223,13 +204,8 @@ void main() {
   float crack = 1.0 - smoothstep(0.0, 0.03, abs(a1.r - 0.5));
   vec3 iceC = vec3(0.6, 0.66, 0.72) + crack * 0.16 + inner * 0.08;
 
-  // ------------------------------------------------------------ folhas do outono
-  float lf = uLeaves * cell.b * (gG + gD + gS * 0.7 + gC * 0.6 + gA * 0.35);
-  float leafK = smoothstep(1.0 - lf * 0.5, 1.0 - lf * 0.5 + 0.03, a1.b) * step(0.01, lf);
-  vec3 leafC = mix(mix(vec3(0.78, 0.47, 0.13), vec3(0.62, 0.24, 0.09), b1.g), vec3(0.42, 0.3, 0.17), uLeafTone);
-
   // ------------------------------------------------------------ composição (de baixo para cima)
-  acc = over(acc, leafC * (0.85 + grain * 0.3), leafK * 0.9);
+  vec4 acc = vec4(0.0);
   acc = over(acc, wetC, clamp(wetA + rim * 0.3, 0.0, 0.8));
   acc = over(acc, sheenC, sheen);
   acc = over(acc, water, pa * 0.8 * (1.0 - iceMode));
