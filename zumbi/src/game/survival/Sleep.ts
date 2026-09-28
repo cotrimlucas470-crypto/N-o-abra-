@@ -15,6 +15,8 @@ import type { Survivor } from './Survivor';
 export type SleepPlace = 'cama' | 'sofa' | 'chao';
 
 export const SLEEP_QUALITY: Record<SleepPlace, number> = { cama: 1, sofa: 0.8, chao: 0.55 };
+/** Travesseiro junto: o sono rende mais (descansa em menos horas). */
+export const PILLOW_BONUS = 1.15;
 const PLACE_LABEL: Record<SleepPlace, string> = { cama: 'na cama', sofa: 'no sofá', chao: 'no chão' };
 
 export interface SleepInfo {
@@ -25,6 +27,8 @@ export interface SleepInfo {
 export interface SleepOptions {
   place: SleepPlace;
   blanket: boolean;
+  /** Tem travesseiro na bolsa. */
+  pillow?: boolean;
   /** Acordar neste minuto do dia (alarme do relógio). */
   wakeAt?: number;
 }
@@ -60,6 +64,7 @@ export function sleepAction(survivor: Survivor, clock: GameClock, opts: SleepOpt
       onEnd(null);
       if (opts.place === 'chao') b.cheer(-5);
       else if (opts.place === 'cama') b.cheer(4);
+      if (opts.pillow) b.comfort(2, 85);
       const rested = Math.round(startFatigue - b.fatigue);
       return reason ? { ok: true, message: reason, tone: 'warn' } : { ok: true, message: `Acordou. ${rested > 0 ? 'Descansou.' : ''}`.trim(), tone: 'ok' };
     },

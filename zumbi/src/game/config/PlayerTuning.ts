@@ -48,3 +48,18 @@ export const INVENTORY_TUNING = {
   /** Item deste peso para cima não vai no bolso: vai NOS BRAÇOS (na mão), devagar e sem correr. */
   armsKg: 8,
 } as const;
+
+/**
+ * Roupa que protege também gasta: cada unhada/mordida numa parte coberta tira condição da peça
+ * de fora (a de baixo, metade). Se o golpe atravessou, pode rasgar (protege menos até remendar).
+ * Peça mais protetora (couro, colete) gasta mais devagar.
+ */
+export const CLOTHING_WEAR = {
+  scratchBlocked: 0.03,
+  scratchThrough: 0.06,
+  biteBlocked: 0.06,
+  biteThrough: 0.1,
+  /** Chance de rasgar quando o ataque atravessa / quando a roupa segurou. */
+  tearThrough: 0.35,
+  tearBlocked: 0.04,
+} as const;

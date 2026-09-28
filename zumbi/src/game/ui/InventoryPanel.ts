@@ -17,6 +17,7 @@ import type { AssetRegistry } from '../assets/AssetRegistry';
 import type { GameServices } from '../core/Services';
 import type { ItemWhere } from '../interaction/itemActions/types';
 import { conditionTags, type Tone } from '../items/condition';
+import { itemStats } from '../items/describe';
 import { formatKg, itemDef } from '../items/ItemCatalog';
 import type { ItemContainer } from '../items/ItemContainer';
 import { CATEGORY_INFO, RARITY_INFO } from '../items/ItemTypes';
@@ -516,7 +517,9 @@ export class InventoryPanel {
       this.detailTags
         .setText([CATEGORY_INFO[def.category].label, rar.label, formatKg(def.weight) + (ctx.count > 1 ? ' cada' : ''), extra, tags.map((t) => t.text).join(' · ')].filter(Boolean).join(' · '))
         .setColor(TONE_COLOR[tone ?? 'info']);
-      this.detailDesc.setText(def.description);
+      // Atributos primeiro (o que protege, quanto bate), depois a descrição.
+      const stats = itemStats(def, ctx.st);
+      this.detailDesc.setText(stats ? `${stats}\n${def.description}` : def.description);
       actions = this.actionsFor(sel.loc);
       if (sel.pane === 'loot' && loot && !loot.container.isEmpty) actions.push({ label: 'PEGAR TUDO', run: () => this.s.bus.emit('loot:take', { index: 0, all: true }) });
     } else {

@@ -27,8 +27,14 @@ function eat(c: ItemActionContext): ItemResult {
   consumeOne(c);
   // Na hora só o engulho; a doença tira vida aos poucos (Body).
   if (eff.health < 0) c.survivor.body.cheer(-2);
-  // Comida feita na hora levanta o ânimo (a lata fria, não).
-  else if (c.def.tags.includes('preparada')) c.survivor.body.cheer(3);
+  // Comida feita na hora levanta o ânimo (a lata fria, não); num prato, com talher, mais ainda.
+  else if (c.def.tags.includes('preparada')) {
+    c.survivor.body.cheer(3);
+    if (c.inventory.hasTag('utensilio')) {
+      c.survivor.body.comfort(2, 85);
+      return { ok: true, message: `${eff.message} Servido direito, como antes.`, tone: eff.tone };
+    }
+  }
   return { ok: true, message: eff.message, tone: eff.tone };
 }
 
@@ -45,6 +51,8 @@ function drink(c: ItemActionContext): ItemResult {
   if (c.def.tags.includes('calmante')) b.cheer(5);
   if (c.def.tags.includes('quente')) {
     b.cheer(2);
+    // Numa caneca (ou garrafa térmica), bebida quente conforta mais.
+    if (c.inventory.hasTag('utensilio')) b.comfort(1, 85);
     if (b.temp < 36.8) b.temp = Math.min(36.8, b.temp + 0.3);
   }
   const left = doses(c.def, c.st) - 1;

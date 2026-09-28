@@ -117,10 +117,13 @@ export const GEAR_ACTIONS: ItemActionDef[] = [
     id: 'olharFoto',
     label: 'OLHAR',
     order: 14,
-    when: (c) => c.def.id === 'fotografia' && inHandOrInv(c),
+    when: (c) => c.def.tags.includes('lembranca') && inHandOrInv(c),
     run: (c) => {
-      c.survivor.body.cheer(3);
-      return ok('Uma família sorrindo num churrasco. Parece outro mundo.', 'info');
+      // Lembrança ajuda um pouco, mas não passa de um teto (olhar sem parar não deixa ninguém feliz).
+      const before = c.survivor.body.morale;
+      c.survivor.body.comfort(3, 75);
+      const text = c.def.id === 'fotografia' ? 'Uma família sorrindo num churrasco. Parece outro mundo.' : c.def.id === 'alianca' ? 'O nome gravado por dentro. Alguém esperou por essa pessoa.' : 'O pingente ainda brilha. Lembra de quando isso importava.';
+      return ok(c.survivor.body.morale > before ? text : `${text} Mas já não muda nada hoje.`, 'info');
     },
   },
   // ---------------------------------------------------------------- aparelhos

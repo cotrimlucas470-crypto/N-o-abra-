@@ -115,6 +115,29 @@ function stillThere(c: ItemActionContext): boolean {
   return false;
 }
 
+/** O próprio item da ação como consumível (xampu, sabonete gastam a si mesmos). */
+function self(c: ItemActionContext): Found {
+  return {
+    def: c.def,
+    st: c.st,
+    take: () => {
+      if (c.loc.where === 'inv') c.container!.take(c.loc.index, 1);
+      c.inventory.changed();
+    },
+    update: (st) => setState(c, st),
+  };
+}
+
+// ------------------------------------------------------------------ higiene (ânimo)
+
+/** Higiene com um gole de água: conforto pequeno (o ânimo sobe até um teto). */
+const HYGIENE: Record<string, { label: string; with?: string; spend: number; minutes: number; text: string }> = {
+  escovaDentes: { label: 'ESCOVAR OS DENTES', with: 'pastaDentes', spend: 0.05, minutes: 3, text: 'Dentes escovados. Parece bobagem, mas ajuda.' },
+  shampoo: { label: 'LAVAR O CABELO', spend: 0.1, minutes: 8, text: 'Cabelo limpo. Um pedaço da vida normal.' },
+  sabonete: { label: 'LAVAR-SE', spend: 0.08, minutes: 6, text: 'Rosto e mãos limpos. Bem melhor.' },
+  sabaoBarra: { label: 'LAVAR-SE', spend: 0.08, minutes: 6, text: 'Rosto e mãos limpos. Bem melhor.' },
+};
+
 // ------------------------------------------------------------------ cozinhar (atalho de receita)
 
 const VERB: Partial<Record<Recipe['cat'], string>> = { cozinha: 'COZINHAR', agua: 'FERVER', bebidas: 'PREPARAR', curativos: 'LAVAR' };
@@ -255,6 +278,34 @@ export const CRAFT_ACTIONS: ItemActionDef[] = [
         const blood = (f & Flag.Ensanguentado) !== 0;
         return ok(blood ? 'Tirou a sujeira. O sangue só sai com sabão.' : c.def.condition === 'clothing' ? 'Limpa. E molhada: deixe secar.' : 'Limpo.', blood ? 'warn' : 'ok');
       }),
+  },
+  {
+    id: 'higiene',
+    label: (c) => HYGIENE[c.def.id]?.label ?? 'LAVAR-SE',
+    order: 46,
+    when: (c) => c.loc.where === 'inv' && !!HYGIENE[c.def.id],
+    can: (c) => {
+      const h = HYGIENE[c.def.id]!;
+      if (c.def.condition === 'battery' && charge(c.def, c.st) <= 0.01) return 'Acabou.';
+      if (h.with && !find(c, (d, st) => d.id === h.with && charge(d, st) > 0.01)) return `Precisa de ${(itemDef(h.with)?.name ?? h.with).toLowerCase()}.`;
+      return find(c, waterDose) ? true : 'Precisa de água (um gole).';
+    },
+    run: (c) => {
+      const h = HYGIENE[c.def.id]!;
+      return timed(c, 'higiene', h.label.charAt(0) + h.label.slice(1).toLowerCase(), h.minutes, () => {
+        if (!stillThere(c)) return fail('O item não está mais aí.');
+        if (!useWater(c)) return fail('Acabou a água.');
+        if (h.with) {
+          const w = find(c, (d, st) => d.id === h.with && charge(d, st) > 0.01);
+          if (!w) return fail(`Sem ${(itemDef(h.with)?.name ?? h.with).toLowerCase()}.`);
+          spend(w, h.spend);
+        } else if (c.def.condition === 'battery') spend(self(c), h.spend);
+        const before = c.survivor.body.morale;
+        c.survivor.body.comfort(4, 80);
+        c.inventory.changed();
+        return ok(c.survivor.body.morale > before ? h.text : `${h.text} (O ânimo já está bom.)`);
+      });
+    },
   },
   // ---------------------------------------------------------------- transformar
   {

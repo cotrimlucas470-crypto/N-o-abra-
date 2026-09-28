@@ -16,7 +16,7 @@ import { DebugWorldLayer } from '../debug/DebugWorldLayer';
 import { GameClock, MINUTES_PER_DAY } from '../sim/GameClock';
 import { WorldState } from '../sim/WorldState';
 import { INTERACTION_TUNING } from '../config/WorldTuning';
-import { PLAYER_TUNING } from '../config/PlayerTuning';
+import { CLOTHING_WEAR, PLAYER_TUNING } from '../config/PlayerTuning';
 import { DoorInteractions } from '../interaction/DoorInteractions';
 import { InteractionSystem, type InteractionOption, type InteractionResult, type Interactor } from '../interaction/InteractionSystem';
 import { ItemInteractions } from '../interaction/ItemInteractions';
@@ -37,7 +37,7 @@ import { restAction } from '../survival/Sleep';
 import { Hazards } from '../survival/Hazards';
 import { treatmentsFor } from '../health/Treatments';
 import { woundTitle, type HealthSave } from '../health/Health';
-import { BODY_PARTS, type BodyPart, type WoundKind } from '../health/Wounds';
+import { BODY_PARTS, PART_INFO, type BodyPart, type WoundKind } from '../health/Wounds';
 import { SurvivalLoop } from '../survival/SurvivalLoop';
 import { Survivor } from '../survival/Survivor';
 import { Atmosphere, type LightSource } from '../world/render/Atmosphere';
@@ -387,7 +387,7 @@ export class GameScene extends Phaser.Scene {
       new NatureInteractions(this.state, this.inventory, nowDays),
       new FurnitureInteractions(this.state, {
         sleep: (place: SleepPlace) => {
-          const why = this.trySleep({ place, blanket: this.inventory.hasTag('aquecer') });
+          const why = this.trySleep({ place, blanket: this.inventory.hasTag('aquecer'), pillow: this.inventory.hasTag('travesseiro') });
           return why ? { ok: false, message: why } : { ok: true };
         },
         rest: (where) => {
@@ -415,7 +415,7 @@ export class GameScene extends Phaser.Scene {
         minutes: () => this.clock.minutes,
         openCraft: () => s.bus.emit('ui:tab', { tab: 'fabricar' }),
         sleep: (place) => {
-          const why = this.trySleep({ place, blanket: this.inventory.hasTag('aquecer') });
+          const why = this.trySleep({ place, blanket: this.inventory.hasTag('aquecer'), pillow: this.inventory.hasTag('travesseiro') });
           return why ? { ok: false, message: why } : { ok: true };
         },
         rest: (where) => {
@@ -485,7 +485,7 @@ export class GameScene extends Phaser.Scene {
       s.bus.on('interaction:option', (e) => this.chooseOption(e.index)),
       s.bus.on('action:cancel', () => this.loop.cancelAction()),
       s.bus.on('body:sleep', (e) => {
-        const why = this.trySleep({ place: e.place, blanket: this.inventory.hasTag('aquecer'), ...(e.wakeAt !== undefined ? { wakeAt: e.wakeAt } : {}) });
+        const why = this.trySleep({ place: e.place, blanket: this.inventory.hasTag('aquecer'), pillow: this.inventory.hasTag('travesseiro'), ...(e.wakeAt !== undefined ? { wakeAt: e.wakeAt } : {}) });
         if (why) this.outcome({ ok: false, message: why, tone: 'warn' });
       }),
       s.bus.on('health:treat', (e) => this.treat(e.wound, e.option)),
@@ -1012,6 +1012,14 @@ export class GameScene extends Phaser.Scene {
   private zombieAttack(z: Zombie, kind: AttackKind): AttackOutcome | null {
     if (this.dead) return null;
     const out = resolveAttack(z, kind, this.defense(z), this.zombies.diff);
+    // A roupa daquela parte segurou (ou não): gasta e, com azar, rasga.
+    let torn: string | null = null;
+    if (out.landed && out.part && (out.blocked || out.wound)) {
+      const W = CLOTHING_WEAR;
+      const bite = kind === 'bite' || kind === 'ankle' || out.wound === 'mordida';
+      const through = !out.blocked;
+      torn = this.inventory.wearDown(PART_INFO[out.part].slots, bite ? (through ? W.biteThrough : W.biteBlocked) : through ? W.scratchThrough : W.scratchBlocked, through ? W.tearThrough : W.tearBlocked, Math.random);
+    }
     const st = this.player.stats;
     if (out.trauma) st.setHealth(st.health - out.trauma);
     if (out.stamina) st.spend(out.stamina * st.maxStamina);
@@ -1039,8 +1047,8 @@ export class GameScene extends Phaser.Scene {
     if ((out.landed || (missedGrab && now - this.lastMissNote > 4)) && !repeat) {
       if (missedGrab) this.lastMissNote = now;
       this.lastAttackText = { text: out.text, t: now };
-      this.outcome({ ok: false, message: out.text, tone: out.tone === 'bad' ? 'bad' : out.tone === 'warn' ? 'warn' : 'info' });
-    }
+      this.outcome({ ok: false, message: torn ? `${out.text} ${torn} rasgou.` : out.text, tone: out.tone === 'bad' ? 'bad' : out.tone === 'warn' ? 'warn' : 'info' });
+    } else if (torn) this.outcome({ ok: false, message: `${torn} rasgou.`, tone: 'warn' });
     return out;
   }
 

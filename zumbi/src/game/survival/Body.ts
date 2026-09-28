@@ -206,6 +206,12 @@ export class Body {
     this.morale = clamp(this.morale + amount, 0, 100);
   }
 
+  /** Conforto pequeno (higiene, lembrança, prato de verdade): ajuda, mas não passa de `cap` — nada de ânimo infinito. */
+  comfort(amount: number, cap = 80): void {
+    if (this.morale >= cap) return;
+    this.morale = Math.min(cap, this.morale + amount);
+  }
+
   /** Estados que aparecem na tela (só os que importam agora). */
   states(): BodyState[] {
     const L = STATE_LEVELS;

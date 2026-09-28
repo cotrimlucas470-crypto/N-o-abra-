@@ -9,7 +9,7 @@
  *   (`bag.reduction`), o que alivia o cansaço por carga.
  */
 import { INVENTORY_TUNING } from '../config/PlayerTuning';
-import { condition, isBroken, normalizeState, unitWeight, wearFactors, type ItemState } from './condition';
+import { condition, Flag, isBroken, normalizeState, unitWeight, wearFactors, type ItemState } from './condition';
 import { itemDef } from './ItemCatalog';
 import { ItemContainer, type ItemContainerSave, type ItemStack } from './ItemContainer';
 import type { ItemDef, WearSlot } from './ItemTypes';
@@ -278,6 +278,32 @@ export class PlayerInventory {
       scratch = 1 - (1 - scratch) * (1 - f.scratch);
     }
     return { bite: Math.min(0.95, bite), scratch: Math.min(0.95, scratch) };
+  }
+
+  /**
+   * A roupa daquela parte do corpo apanhou: gasta (a de fora inteira, a de baixo metade; peça mais
+   * protetora gasta mais devagar) e, com azar, rasga. Devolve o nome da peça que rasgou agora, ou null.
+   */
+  wearDown(slots: readonly WearSlot[], amount: number, tearChance: number, rng: () => number): string | null {
+    let torn: string | null = null;
+    let outer = true;
+    // A última da lista é a camada de fora (tronco-externo cobre o tronco).
+    for (const slot of [...slots].reverse()) {
+      const e = this.wornSlots.get(slot);
+      const d = e ? itemDef(e.defId) : null;
+      if (!e || !d?.wear || d.condition !== 'clothing') continue;
+      const tough = Math.max(d.wear.bite, d.wear.scratch);
+      const loss = amount * (outer ? 1 : 0.5) * (1 - 0.6 * tough);
+      let f = e.st?.f ?? 0;
+      if (outer && (f & Flag.Rasgado) === 0 && rng() < tearChance) {
+        f |= Flag.Rasgado;
+        torn = d.name;
+      }
+      this.updateWorn(slot, { ...(e.st ?? {}), c: Math.max(0, condition(e.st) - loss), f });
+      outer = false;
+    }
+    if (torn) this.changed();
+    return torn;
   }
 
   /** Veste algo com a etiqueta (ex.: 'impermeavel'). */

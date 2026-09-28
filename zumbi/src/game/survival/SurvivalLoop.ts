@@ -15,7 +15,7 @@ import { isSheltered, type ExtraCover } from '../world/shelter';
 import type { WorldModel } from '../world/WorldModel';
 import type { Activity } from './Body';
 import type { PhysicalEffects } from './Effects';
-import { sleepAction, type SleepInfo, type SleepOptions, SLEEP_QUALITY } from './Sleep';
+import { sleepAction, type SleepInfo, type SleepOptions, PILLOW_BONUS, SLEEP_QUALITY } from './Sleep';
 import type { Survivor } from './Survivor';
 
 export interface PlayerFrame {
@@ -105,7 +105,7 @@ export class SurvivalLoop {
   sleep(opts: SleepOptions): string | null {
     const why = this.survivor.cantSleep();
     if (why) return why;
-    this.sleepInfo = { quality: SLEEP_QUALITY[opts.place], blanket: opts.blanket };
+    this.sleepInfo = { quality: SLEEP_QUALITY[opts.place] * (opts.pillow ? PILLOW_BONUS : 1), blanket: opts.blanket };
     this.start(sleepAction(this.survivor, this.clock, opts, () => (this.sleepInfo = null)));
     return null;
   }
