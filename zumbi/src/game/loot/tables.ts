@@ -51,7 +51,7 @@ export const LOOT_TABLES = {
       i('farinhaMandioca', 3), i('fuba', 2), i('acucar', 4), i('sal', 3), i('cafePo', 4), i('oleoSoja', 4), i('azeite', 2),
       i('biscoito', 5), i('bolachaAgua', 4), i('cereal', 3), i('aveia', 2), i('achocolatado', 3), i('leitePo', 2), i('mel', 1),
       i('geleia', 2), i('pipocaMicro', 2), i('gelatinaPo', 2), i('chocolate', 2), i('farofaPronta', 2), i('racaoCao', 1),
-      i('abridor', 3), i('faca', 2), i('prato', 2, [1, 4]), i('tigela', 2, [1, 3]), i('copo', 2, [1, 4]), i('caneca', 2),
+      i('abridor', 3), i('faca', 15), i('prato', 2, [1, 4]), i('tigela', 2, [1, 3]), i('copo', 2, [1, 4]), i('caneca', 2),
       i('garfo', 2, [1, 4]), i('colher', 2, [1, 4]), i('conchaCozinha', 1), i('pilhaPratos', 2), i('garrafaTermica', 1),
       i('detergente', 3), i('fosforos', 3), i('vela', 2, [1, 4]), i('isqueiro', 1), i('sacoPlastico', 2, [2, 6]),
     ],
@@ -71,7 +71,7 @@ export const LOOT_TABLES = {
     rolls: [1, 2],
     empty: 0.35,
     wear: 'casa',
-    entries: [i('panela', 5), i('frigideira', 5), i('panelaPressao', 3), i('chaleira', 3), i('conchaCozinha', 1), i('fosforos', 2), i('bolo', 0.5)],
+    entries: [i('panela', 5), i('frigideira', 5), i('panelaPressao', 3), i('chaleira', 3), i('conchaCozinha', 1), i('fosforos', 2), i('bolo', 0.5), i('faca', 1.5)],
   },
   // ------------------------------------------------------------------ casa
   'armario-casa': {
@@ -97,7 +97,7 @@ export const LOOT_TABLES = {
       i('gorro', 2), i('luvasLa', 1), i('cachecol', 1), i('mochilaEscolar', 2), i('mochilaTrilha', 1), i('bolsaLateral', 2),
       i('bolsaEsportiva', 1), i('malaViagem', 1), i('cobertor', 3), i('lencol', 3), i('travesseiro', 2), i('toalha', 2),
       i('dinheiro', 2, [10, 150]), i('anelOuro', 0.6), i('colar', 0.6), i('relogioPulso', 0.6), i('fotografia', 1),
-      i('caixaFerramentas', 0.5), i('mochilaMilitar', 0.5),
+      i('caixaFerramentas', 0.5), i('mochilaMilitar', 0.5), i('tacoBeisebol', 3),
       // Arma guardada em casa: rara, mas acontece. Munição um pouco mais comum que a arma.
       i('revolver38', 3.5), i('municao38', 4, [4, 18]), i('pistola9', 1.5), i('municao9', 2, [5, 20]), i('carregador9', 0.8),
       i('espingarda12', 1.5), i('espingardaDupla', 1.5), i('cartucho12', 2.5, [2, 10]), i('rifle22', 1.5), i('municao22', 2, [10, 40]),
@@ -113,7 +113,8 @@ export const LOOT_TABLES = {
       i('revista', 3), i('gibi', 1), i('diario', 1), i('fotografia', 2), i('carteira', 2), i('dinheiro', 2, [5, 60]),
       i('relogioDigital', 2), i('alianca', 0.8), i('lanterna', 2), i('pilhas', 3, [2, 4]), i('vela', 2, [1, 2]), i('isqueiro', 1),
       i('celular', 2), i('carregadorCelular', 2), i('chaveCasa', 1), i('bilhete', 1), i('baralho', 1), i('agua', 1),
-      i('revolver38', 1.2), i('municao38', 1.5, [3, 12]), i('pistola9', 0.6), i('municao9', 0.8, [4, 12]),
+      // Onde se guarda arma em casa de verdade: na gaveta, perto da cama. Munição um pouco mais comum.
+      i('revolver38', 6), i('municao38', 8, [3, 12]), i('pistola9', 3), i('municao9', 5, [4, 12]),
     ],
   },
   banheiro: {
@@ -251,8 +252,8 @@ export const LOOT_TABLES = {
     empty: 0.15,
     wear: 'trabalho',
     entries: [
-      i('chaveFenda', 5), i('chaveInglesa', 5), i('chaveRoda', 3), i('alicate', 4), i('alicateCorte', 2), i('martelo', 4), i('marreta', 1),
-      i('serraArco', 2), i('lima', 2), i('furadeira', 1), i('bateriaFerramenta', 1), i('macaco', 1.5), i('peDeCabra', 1.5),
+      i('chaveFenda', 5), i('chaveInglesa', 5), i('chaveRoda', 4), i('alicate', 4), i('alicateCorte', 2), i('martelo', 5), i('marreta', 1.5),
+      i('serraArco', 2), i('lima', 2), i('furadeira', 1), i('bateriaFerramenta', 1), i('macaco', 1.5), i('peDeCabra', 3), i('cano', 1), i('tacoBeisebol', 1),
       i('parafusos', 5, [10, 50]), i('pregos', 3, [10, 40]), i('fitaIsolante', 4), i('fita', 3), i('oleoMotor', 4), i('pecasMotor', 3),
       i('velaIgnicao', 3, [1, 4]), i('mangueira', 1.5), i('lanterna', 2), i('luvasTrabalho', 3), i('oculosProtecao', 2), i('trapo', 4, [1, 5]),
       i('fioEletrico', 2), i('combustivel', 0.8), i('caixaFerramentas', 1), i('bateriaCarro', 0.8),
@@ -279,8 +280,8 @@ export const LOOT_TABLES = {
       i('corda', 4, [1, 2]), i('lona', 3), i('chapaMetal', 3, [1, 2]), i('sucata', 3, [2, 6]), i('cimento', 2), i('areia', 2),
       i('tijolo', 2, [4, 12]), i('tinta', 2), i('gesso', 1), i('telaArame', 1.5), i('arameFarpado', 1), i('corrente', 1.5), i('cadeado', 2),
       i('sacoVazio', 3, [3, 10]), i('fita', 3, [1, 2]), i('colaMadeira', 2), i('luvasTrabalho', 3), i('capaceteObra', 2),
-      i('calcaBrim', 1), i('botaTrabalho', 1), i('picareta', 1), i('pa', 2), i('machado', 1), i('serrote', 2), i('marreta', 1),
-      i('colherPedreiro', 2), i('gerador', 0.8), i('combustivel', 0.8), i('extensao', 1), i('facao', 1),
+      i('calcaBrim', 1), i('botaTrabalho', 1), i('picareta', 1), i('pa', 2), i('machado', 2), i('serrote', 2), i('marreta', 1.5), i('peDeCabra', 1.5),
+      i('colherPedreiro', 2), i('gerador', 0.8), i('combustivel', 0.8), i('extensao', 1), i('facao', 1.5),
     ],
   },
   'galpao-caixas': {
@@ -383,7 +384,7 @@ export const LOOT_TABLES = {
       i('chaveRoda', 5), i('macaco', 4), i('pneu', 2), i('combustivel', 1.2), i('oleoMotor', 2), i('trapo', 2), i('lona', 1.5), i('corda', 1.5),
       i('cobertor', 1.5), i('agua', 3, [1, 4]), i('aguaGalao', 1), i('sacolaMercado', 2), i('sacolaPlastica', 2, [1, 3]), tag('enlatado', 2, [1, 3]),
       i('refrigerante2l', 1), i('mochilaEscolar', 1), i('mochilaTrilha', 0.6), i('bolsaEsportiva', 1), i('malaViagem', 1),
-      i('caixaFerramentas', 1), i('chaveInglesa', 1), i('alicate', 1), i('tacoBeisebol', 0.6), i('cano', 0.5),
+      i('caixaFerramentas', 1), i('chaveInglesa', 1), i('alicate', 1), i('tacoBeisebol', 1.5), i('cano', 0.8),
       i('kitPrimeirosSocorros', 0.6), i('camiseta', 1), i('tenis', 0.6), i('mochilaMilitar', 1), i('facao', 1.5),
       i('espingarda12', 2.6), i('cartucho12', 3.5, [2, 10]), i('rifle22', 0.6), i('municao22', 1.2, [10, 30]),
     ],

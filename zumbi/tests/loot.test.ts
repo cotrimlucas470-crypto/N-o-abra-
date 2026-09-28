@@ -231,3 +231,41 @@ describe('loot no mundo', () => {
     expect(w.itemById(starter.map.items[0]!.id)).not.toBeNull();
   });
 });
+
+describe('armas e munição dá para achar (realista)', () => {
+  const isMelee = (id: string) => (itemDef(id)?.melee?.damage ?? 0) >= 8;
+  const isGun = (id: string) => !!itemDef(id)?.gun;
+  const isAmmo = (id: string) => !!itemDef(id)?.ammo && itemDef(id)!.sub !== 'carregador';
+  /** Chance de o recipiente ter pelo menos um item que passa no filtro. */
+  const chance = (table: string, f: (id: string) => boolean) => {
+    const runs = sample(table, 3000);
+    return runs.filter((st) => st.some((s) => f(s.defId))).length / runs.length;
+  };
+  // Casa térrea típica: balcão da cozinha, fogão, guarda-roupa, criado-mudo.
+  const HOUSE = ['despensa', 'fogao', 'guarda-roupa', 'criado-mudo'];
+  const house = (f: (id: string) => boolean) => 1 - HOUSE.reduce((p, t) => p * (1 - chance(t, f)), 1);
+
+  it('faca na gaveta da cozinha é comum', () => {
+    const p = chance('despensa', (id) => id === 'faca');
+    expect(p).toBeGreaterThan(0.28);
+    expect(p).toBeLessThan(0.45);
+  });
+
+  it('casa: arma branca na maioria; arma de fogo rara mas achável; munição mais comum que arma', () => {
+    const melee = house(isMelee);
+    const gun = house(isGun);
+    const ammo = house(isAmmo);
+    expect(melee).toBeGreaterThan(0.5);
+    expect(gun).toBeGreaterThan(0.11);
+    expect(gun).toBeLessThan(0.19);
+    expect(ammo).toBeGreaterThan(gun);
+    expect(ammo).toBeGreaterThan(0.17);
+    expect(ammo).toBeLessThan(0.27);
+  });
+
+  it('oficina: ferramenta pesada que serve de arma na maioria', () => {
+    const heavy = (id: string) => ['martelo', 'peDeCabra', 'chaveRoda', 'marreta', 'cano', 'tacoBeisebol'].includes(id);
+    const p = 1 - (1 - chance('oficina-prateleira', heavy)) * (1 - chance('bancada', heavy));
+    expect(p).toBeGreaterThan(0.6);
+  });
+});
