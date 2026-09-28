@@ -113,7 +113,8 @@ export const SANDBOX_DEFAULTS: SandboxSettings = {
   version: 1,
   // Jogo novo: a cidade de sempre (3×3) no meio de arredores novos (5×5).
   world: { seed: 1337, sectorsX: 5, sectorsY: 5, core: 3 },
-  time: { dayLengthMinutes: 48, startDay: 1, startHour: 8, startMonth: 5, startDayOfMonth: 3 },
+  // Um dia do jogo ≈ 15 min reais (as estações andam com o "passar dias no abrigo").
+  time: { dayLengthMinutes: 15, startDay: 1, startHour: 8, startMonth: 5, startDayOfMonth: 3 },
   climate: { temperatureOffset: 0, rainMultiplier: 1 },
   player: { walkSpeedMultiplier: 1, runSpeedMultiplier: 1, staminaDrainMultiplier: 1, staminaRegenMultiplier: 1 },
   loot: { abundance: 1, rareMultiplier: 1, alreadyLooted: 0, collapseAgeDays: 0, floorItems: 1 },

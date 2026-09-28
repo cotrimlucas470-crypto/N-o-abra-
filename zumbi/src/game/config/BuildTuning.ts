@@ -34,4 +34,10 @@ export const FARM_TUNING = {
   rotAfter: 1.8,
   /** Chuva enche o coletor: doses por hora com chuva 1. */
   collectorPerHour: 10,
+  /** Geada: ar abaixo disso mata a planta ao relento (coberta, aguenta). */
+  frostKill: -3,
+  /** Debaixo de cobertura o ar da horta fica uns graus mais ameno. */
+  coverWarmth: 4,
+  /** Neve derretida rende menos água que chuva no coletor. */
+  snowWater: 0.3,
 } as const;

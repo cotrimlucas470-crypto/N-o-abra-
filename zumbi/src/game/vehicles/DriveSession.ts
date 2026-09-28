@@ -36,6 +36,8 @@ export class DriveSession {
   private fuelWarned = false;
   /** Motor fraco morreu andando: acelerar tenta pegar de novo de tempos em tempos. */
   stalled = false;
+  /** Aderência do chão agora (a cena atualiza pelo clima: molhado, neve, gelo). */
+  grip = 1;
   private restartT = 0;
   private readonly near: Zombie[] = [];
 
@@ -91,7 +93,7 @@ export class DriveSession {
     const s = this.st;
     this.hornT = Math.max(0, this.hornT - dt);
     const tires = s.tires.map((t) => t ?? 0);
-    const cond = { engine: this.stalled ? 0 : s.engine, tires: tires.reduce((a, b) => a + b, 0) / 4, body: s.body, fuel: s.fuel };
+    const cond = { engine: this.stalled ? 0 : s.engine, tires: tires.reduce((a, b) => a + b, 0) / 4, body: s.body, fuel: s.fuel, grip: this.grip };
     const want = held ? { throttle: 0, steer: 0 } : driveControls(this.car, stick.x, stick.y, stick.mag);
     // Motor morto: ainda dá para esterçar, mas não acelera.
     const ctl = this.stalled ? { throttle: 0, steer: want.steer } : want;

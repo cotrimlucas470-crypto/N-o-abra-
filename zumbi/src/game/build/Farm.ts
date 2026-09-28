@@ -75,7 +75,8 @@ export function tickPlot(s: Structure, now: number, rain: number, temp: number, 
     c.growth += dtDays * speed * cold * (c.fert ? T.fertBoost : 1);
   }
   const ripe = spec(c.seed)?.growDays ?? 60;
-  if (dry >= T.dryDieDays || c.growth >= ripe * T.rotAfter) {
+  // Geada queima a planta (a horta coberta recebe o ar já mais ameno).
+  if (dry >= T.dryDieDays || c.growth >= ripe * T.rotAfter || temp <= T.frostKill) {
     c.dead = 1;
     return 'morreu';
   }

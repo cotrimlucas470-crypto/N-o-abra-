@@ -21,6 +21,15 @@ export function bodyRadius(z: Zombie): number {
 const scratch = { x: 0, y: 0 };
 
 /**
+ * Chão da cidade (neve funda atrasa o passo): fator 0..1 da velocidade,
+ * o mesmo para todos lá fora. A cena atualiza pelo clima.
+ */
+let groundFactor = 1;
+export function setZombieGroundFactor(f: number): void {
+  groundFactor = clamp(f, 0.5, 1);
+}
+
+/**
  * Anda em direção a (tx, ty) na velocidade `speed` (px/s) por `dt`.
  * Vira o corpo primeiro; só anda na direção em que olha. Devolve em que
  * bateu (porta, janela, construção, parede) ou null.
@@ -40,7 +49,7 @@ export function stepToward(z: Zombie, tx: number, ty: number, speed: number, dt:
   const rate = T.turnRate * turn * (crawl ? 0.45 : speed > 140 ? 0.7 : 1);
   z.facing = rotateTowards(z.facing, want, rate * dt);
   const align = Math.cos(angleDelta(z.facing, want));
-  let sp = speed * clamp((align + 0.25) / 1.25, 0.1, 1);
+  let sp = speed * groundFactor * clamp((align + 0.25) / 1.25, 0.1, 1);
   // Mancando: o passo "puxa" (rápido/lento no ritmo da passada).
   if (isLimping(z)) {
     const l = legs(z);

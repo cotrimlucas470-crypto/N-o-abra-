@@ -4,6 +4,10 @@
  * cima, na HudScene. Regras ficam nos módulos puros; aqui só se liga tudo.
  */
 import Phaser from 'phaser';
+import { SNOW_SLOW } from '../config/ClimateTuning';
+import { FARM_TUNING } from '../config/BuildTuning';
+import type { GroundSave } from '../sim/Ground';
+import { setZombieGroundFactor } from '../zombies/ZombieMotion';
 import { SCENES } from '../config/GameConfig';
 import { DEBUG } from '../core/Debug';
 import { services, type GameServices } from '../core/Services';
@@ -250,6 +254,10 @@ export class GameScene extends Phaser.Scene {
       extraCover: (x, y) => this.state.coveredAt(x, y),
     });
     if (typeof load?.modules?.['radioDay'] === 'number') this.loop.radioDay = load.modules['radioDay'] as number;
+    // Chão do clima (neve, poças, gelo): continua do save; partida nova já nasce com o que a época deixou.
+    const climate = load?.modules?.['climate'] as { ground?: GroundSave } | undefined;
+    if (load) this.loop.ground.restore(climate?.ground, this.clock.minutes);
+    else this.loop.ground.spinUp();
     s.session.survival = this.loop;
     const util = s.settings.utilities;
     const waterOn = () => this.clock.day <= util.waterDays;
@@ -314,7 +322,8 @@ export class GameScene extends Phaser.Scene {
       },
     });
     // Ruído e zumbis: tudo que faz barulho passa pelo barramento e chega aqui.
-    this.noise = new NoiseSystem(this.model.sight, () => ({ rain: this.loop.weather.rain, wind: this.loop.weather.wind }));
+    // Chuva e neve caindo abafam o som (neve abafa bem).
+    this.noise = new NoiseSystem(this.model.sight, () => ({ rain: Math.min(1, this.loop.weather.rain + this.loop.weather.snow * 0.6), wind: this.loop.weather.wind }));
     const diff = difficultyFrom(s.settings.zombies);
     this.zombies = new ZombieSystem(this.model, this.state, this.noise, diff, {
       attack: (z, kind) => this.zombieAttack(z, kind),
@@ -570,7 +579,7 @@ export class GameScene extends Phaser.Scene {
     this.fireTimer -= delta / 1000;
     if (this.fireTimer <= 0) {
       this.fireTimer = 1;
-      for (const f of this.fires.tick(this.clock.minutes, this.loop.weather.rain, this.player.x, this.player.y)) {
+      for (const f of this.fires.tick(this.clock.minutes, this.loop.weather.rain + this.loop.weather.snow * 0.3, this.player.x, this.player.y)) {
         const fd = STRUCTURE_DEFS[f.type];
         if (Math.hypot(f.x - this.player.x, f.y - this.player.y) < 500) this.outcome({ ok: false, message: `${fd.masc ? 'O' : 'A'} ${fd.name.toLowerCase()} apagou.`, tone: 'info' });
       }
@@ -586,11 +595,17 @@ export class GameScene extends Phaser.Scene {
     this.buildTimer -= delta / 1000;
     if (this.buildTimer <= 0) {
       this.buildTimer = 2;
-      for (const p of this.builds.tick(this.clock.minutes, this.loop.weather.rain, this.loop.weather.temp)) {
-        if (Math.hypot(p.x - this.player.x, p.y - this.player.y) < 600) this.outcome({ ok: false, message: 'Uma planta da horta morreu.', tone: 'warn' });
+      const w = this.loop.weather;
+      for (const p of this.builds.tick(this.clock.minutes, w.rain, w.temp, w.snow)) {
+        if (Math.hypot(p.x - this.player.x, p.y - this.player.y) < 600) this.outcome({ ok: false, message: w.temp <= FARM_TUNING.frostKill ? 'A geada queimou uma planta da horta.' : 'Uma planta da horta morreu.', tone: 'warn' });
       }
     }
-    this.player.setMoveEffects(fx.walk, fx.run);
+    // Neve funda lá fora atrasa o passo (de todo mundo na rua).
+    const snowSlow = this.loop.ground.snow * SNOW_SLOW.player;
+    const outside = !this.loop.sheltered ? 1 - snowSlow : 1;
+    setZombieGroundFactor(1 - this.loop.ground.snow * SNOW_SLOW.zombie);
+    this.player.setMoveEffects(fx.walk * outside, fx.run * outside);
+    if (this.drive) this.drive.grip = this.groundGrip();
     this.player.stats.setBodyEffects(fx);
     const th = this.zombies.threat;
     this.player.drag = th.moveFactor();
@@ -855,7 +870,8 @@ export class GameScene extends Phaser.Scene {
       ambient: (1 - this.atmosphere.darkness) * (indoor ? 0.6 : 1),
       beam: beam ? { angle: beam.angle, range: beam.range } : null,
       glow: this.lightSources.some((l) => Math.hypot(l.x - this.player.x, l.y - this.player.y) < l.radius) ? 0.9 : 0,
-      rain: this.loop.weather.rain,
+      // Neve caindo tampa a vista quase como chuva.
+      rain: Math.min(1, this.loop.weather.rain + this.loop.weather.snow * 0.8),
       fog: this.loop.weather.fog,
     };
     // Tempo acelerado (ação demorada, dormir): o mundo anda junto, em passos.
@@ -990,6 +1006,12 @@ export class GameScene extends Phaser.Scene {
     // Vidro quebrado: a mão entra. Do lado do motorista, pega você.
     const chance = door === 'motorista' ? 0.55 : 0.18;
     if (Math.random() < chance) this.zombieAttack(z, door === 'motorista' && Math.random() < 0.6 ? 'grab' : 'swipe');
+  }
+
+  /** Aderência do asfalto para o carro: gelo e neve funda escorregam, chão molhado um pouco. */
+  private groundGrip(): number {
+    const g = this.loop.ground;
+    return Math.max(0.35, 1 - g.ice * 0.5 - g.snow * 0.35 - Math.min(0.35, g.wet) * 0.3);
   }
 
   /** Corpo de zumbi = recipiente com o que a pessoa carregava (gerado ao revistar). */
@@ -1328,6 +1350,7 @@ export class GameScene extends Phaser.Scene {
         health: this.survivor.health.serialize(),
         skills: this.survivor.skills.serialize(),
         radioDay: this.loop.radioDay,
+        climate: { ground: this.loop.ground.serialize() },
         zombies: this.zombies.serialize(this.s.settings.loot.collapseAgeDays),
       },
     };

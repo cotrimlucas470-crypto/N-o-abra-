@@ -10,6 +10,7 @@
 import type { ActionOutcome, ActionRunner, TimedActionSpec } from '../sim/Actions';
 import type { Calendar } from '../sim/Calendar';
 import type { GameClock } from '../sim/GameClock';
+import { Ground } from '../sim/Ground';
 import type { Weather, WeatherSample } from '../sim/Weather';
 import { isSheltered, type ExtraCover } from '../world/shelter';
 import type { WorldModel } from '../world/WorldModel';
@@ -40,6 +41,8 @@ export class SurvivalLoop {
   sheltered = true;
   /** Dia em que ouviu o boletim no rádio (libera a previsão). */
   radioDay = -1;
+  /** O que o clima deixou no chão (neve, poças, gelo): vai para o save. */
+  readonly ground: Ground;
   private sleepInfo: SleepInfo | null = null;
   private weatherAt = -1;
 
@@ -53,6 +56,7 @@ export class SurvivalLoop {
     private readonly hooks: SurvivalHooks,
   ) {
     this.weather = weatherModel.at(clock.minutes);
+    this.ground = new Ground(weatherModel, clock.minutes);
   }
 
   get sleeping(): boolean {
@@ -74,6 +78,8 @@ export class SurvivalLoop {
     if (Math.abs(c.minutes - this.weatherAt) >= 0.5) {
       this.weatherAt = c.minutes;
       this.weather = this.weatherModel.at(c.minutes);
+      // O chão acompanha (dormindo acelerado ou pulando tempo, em passos de 15 min).
+      this.ground.integrate(c.minutes);
     }
     this.sheltered = isSheltered(this.model, p.x, p.y, this.hooks.extraCover);
     const activity: Activity = this.sleepInfo ? 'idle' : p.sprinting ? 'run' : p.moving ? 'walk' : 'idle';

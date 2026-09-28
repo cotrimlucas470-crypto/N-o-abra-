@@ -9,7 +9,7 @@ import { Survivor, type Environment } from '../src/game/survival/Survivor';
 import type { WeatherSample } from '../src/game/sim/Weather';
 
 const ctx = (o: Partial<BodyContext> = {}): BodyContext => ({ ...DEFAULT_CONTEXT, ...o });
-const sky = (o: Partial<WeatherSample> = {}): WeatherSample => ({ temp: 22, cloud: 0, rain: 0, fog: 0, wind: 0, sky: 'limpo', ...o });
+const sky = (o: Partial<WeatherSample> = {}): WeatherSample => ({ temp: 22, cloud: 0, rain: 0, snow: 0, precip: 0, fog: 0, wind: 0, humidity: 0.5, thunder: 0, front: 0, sky: 'limpo', ...o });
 
 describe('corpo: necessidades', () => {
   it('fome, sede e cansaço sobem com o tempo; sede mais rápido que fome', () => {

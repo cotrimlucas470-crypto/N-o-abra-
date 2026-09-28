@@ -65,7 +65,8 @@ export class Survivor {
     const ctx: BodyContext = {
       airTemp: env.weather.temp,
       sheltered: env.sheltered,
-      rain: env.weather.rain,
+      // Neve molha a roupa bem menos que chuva (derrete aos poucos).
+      rain: env.weather.rain + env.weather.snow * 0.3,
       wind: env.weather.wind,
       insulation: this.inventory.insulation(),
       raincoat: this.inventory.wearsTag('impermeavel'),

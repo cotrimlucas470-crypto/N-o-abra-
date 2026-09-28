@@ -84,6 +84,8 @@ export interface CarCondition {
   tires: number;
   body: number;
   fuel: number;
+  /** Aderência do chão (1 seco; molhado, neve e gelo menos): acelera, freia e vira pior. */
+  grip?: number;
 }
 
 /** Joystick → acelerador (-1..1) e direção (-1..1). */
@@ -104,13 +106,14 @@ export function stepCar(car: CarBody, ctl: { throttle: number; steer: number }, 
   const T = DRIVE_TUNING;
   const running = cond.fuel > 0 && cond.engine > 0.05;
   const throttle = running ? ctl.throttle : 0;
+  const grip = cond.grip ?? 1;
   const maxF = T.maxSpeed * (0.55 + 0.45 * cond.engine) * (0.55 + 0.45 * cond.tires) * (0.8 + 0.2 * cond.body);
   let v = car.speed;
   if (throttle > 0) {
     if (v < 0) v = Math.min(0, v + T.brake * dt);
-    else v += T.accel * throttle * (0.5 + 0.5 * cond.engine) * Math.max(0, 1 - v / maxF) * dt;
+    else v += T.accel * grip * throttle * (0.5 + 0.5 * cond.engine) * Math.max(0, 1 - v / maxF) * dt;
   } else if (throttle < 0) {
-    if (v > 0) v = Math.max(0, v - T.brake * -throttle * dt);
+    if (v > 0) v = Math.max(0, v - T.brake * (0.35 + 0.65 * grip) * -throttle * dt);
     else v -= T.accel * 0.6 * -throttle * Math.max(0, 1 + v / T.reverseMax) * dt;
   } else {
     // Sem pé: o motor segura e o carro para.
@@ -119,7 +122,7 @@ export function stepCar(car: CarBody, ctl: { throttle: number; steer: number }, 
   }
   v = clamp(v, -T.reverseMax, maxF);
   // Direção: rápido esterça menos (não capota de lado).
-  const steer = ctl.steer * T.maxSteer * (1 - Math.min(0.55, (Math.abs(v) / T.maxSpeed) * 0.55));
+  const steer = ctl.steer * T.maxSteer * (0.55 + 0.45 * grip) * (1 - Math.min(0.55, (Math.abs(v) / T.maxSpeed) * 0.55));
   car.a += (v / T.wheelBase) * Math.tan(steer) * dt;
   const dist = v * dt;
   car.x += Math.cos(car.a) * dist;

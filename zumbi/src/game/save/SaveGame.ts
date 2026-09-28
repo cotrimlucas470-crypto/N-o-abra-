@@ -11,7 +11,7 @@
  * junta, versiona e grava. Campo desconhecido é ignorado ao carregar.
  */
 import { GAME_VERSION } from '../config/GameConfig';
-import { sanitizeSandbox, type SandboxSettings } from '../config/Sandbox';
+import { SANDBOX_DEFAULTS, sanitizeSandbox, type SandboxSettings } from '../config/Sandbox';
 import { readJson, writeJson } from '../core/Storage';
 import type { PlayerStatsSnapshot } from '../entities/player/PlayerStats';
 import type { PlayerInventorySave } from '../items/PlayerInventory';
@@ -62,7 +62,11 @@ export function loadGame(): GameSave | null {
   const s = readJson<unknown>(SLOT, null);
   const g = valid(s) ? s : readJson<unknown>(BACKUP, null);
   // Save de versão antiga pode não ter opções novas: completa com o padrão (senão trava ao abrir).
-  return valid(g) ? { ...g, settings: sanitizeSandbox(g.settings) } : null;
+  if (!valid(g)) return null;
+  const settings = sanitizeSandbox(g.settings);
+  // Dia de 48 min era o padrão antigo: passa para o novo (15 min). Quem escolheu outro valor mantém.
+  if (settings.time.dayLengthMinutes === 48) settings.time.dayLengthMinutes = SANDBOX_DEFAULTS.time.dayLengthMinutes;
+  return { ...g, settings };
 }
 
 export function saveSummary(): SaveSummary | null {
