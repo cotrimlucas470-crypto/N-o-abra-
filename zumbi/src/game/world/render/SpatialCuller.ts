@@ -25,7 +25,7 @@ export interface ViewRect {
 export class SpatialCuller {
   private cells = new Map<number, CullEntry[]>();
   private shown = new Set<CullEntry>();
-  private last = { x: Number.NaN, y: Number.NaN, w: 0, h: 0 };
+  private last = { x: Number.NaN, y: Number.NaN, w: 0, h: 0, extra: 0 };
   private total = 0;
 
   constructor(
@@ -81,24 +81,30 @@ export class SpatialCuller {
     return this.add(obj, x - halfW, y - halfH, x + halfW, y + halfH);
   }
 
-  update(view: ViewRect, force = false): void {
+  /** Mostra o que está na vista (ou nas vistas: andar de cima + rua lá embaixo). */
+  update(views: ViewRect | readonly ViewRect[], force = false): void {
+    const list0 = Array.isArray(views) ? (views as readonly ViewRect[]) : [views as ViewRect];
+    const view = list0[0]!;
     const l = this.last;
-    if (!force && Math.abs(view.x - l.x) < 24 && Math.abs(view.y - l.y) < 24 && view.width === l.w && view.height === l.h) return;
-    this.last = { x: view.x, y: view.y, w: view.width, h: view.height };
+    const extra = list0.length > 1 ? list0.length * 100000 + Math.round(list0[1]!.x) : 0;
+    if (!force && Math.abs(view.x - l.x) < 24 && Math.abs(view.y - l.y) < 24 && view.width === l.w && view.height === l.h && extra === l.extra) return;
+    this.last = { x: view.x, y: view.y, w: view.width, h: view.height, extra };
 
     const m = this.margin;
-    const vx0 = view.x - m;
-    const vy0 = view.y - m;
-    const vx1 = view.x + view.width + m;
-    const vy1 = view.y + view.height + m;
     const cs = this.cellSize;
     const next = new Set<CullEntry>();
-    for (let cy = Math.floor(vy0 / cs); cy <= Math.floor(vy1 / cs); cy++) {
-      for (let cx = Math.floor(vx0 / cs); cx <= Math.floor(vx1 / cs); cx++) {
-        const list = this.cells.get(key(cx, cy));
-        if (!list) continue;
-        for (const e of list) {
-          if (e.x1 >= vx0 && e.x0 <= vx1 && e.y1 >= vy0 && e.y0 <= vy1) next.add(e);
+    for (const v of list0) {
+      const vx0 = v.x - m;
+      const vy0 = v.y - m;
+      const vx1 = v.x + v.width + m;
+      const vy1 = v.y + v.height + m;
+      for (let cy = Math.floor(vy0 / cs); cy <= Math.floor(vy1 / cs); cy++) {
+        for (let cx = Math.floor(vx0 / cs); cx <= Math.floor(vx1 / cs); cx++) {
+          const list = this.cells.get(key(cx, cy));
+          if (!list) continue;
+          for (const e of list) {
+            if (e.x1 >= vx0 && e.x0 <= vx1 && e.y1 >= vy0 && e.y0 <= vy1) next.add(e);
+          }
         }
       }
     }

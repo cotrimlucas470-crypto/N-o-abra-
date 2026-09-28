@@ -18,7 +18,7 @@ import { WorldState } from '../sim/WorldState';
 import { INTERACTION_TUNING } from '../config/WorldTuning';
 import { PLAYER_TUNING } from '../config/PlayerTuning';
 import { DoorInteractions } from '../interaction/DoorInteractions';
-import { InteractionSystem, type InteractionOption, type Interactor } from '../interaction/InteractionSystem';
+import { InteractionSystem, type InteractionOption, type InteractionResult, type Interactor } from '../interaction/InteractionSystem';
 import { ItemInteractions } from '../interaction/ItemInteractions';
 import { ContainerInteractions } from '../interaction/ContainerInteractions';
 import { FurnitureInteractions } from '../interaction/FurnitureInteractions';
@@ -65,9 +65,14 @@ import { DoorViews } from '../world/render/DoorViews';
 import { InteractionHighlight } from '../world/render/InteractionHighlight';
 import { ItemViews } from '../world/render/ItemViews';
 import { buildCity } from '../world/districts/CityGenerator';
-import type { RegionData } from '../world/MapTypes';
+import { addUpperFloors } from '../world/floors/UpperFloors';
+import { bridgeNoise } from '../world/floors/NoiseBridge';
+import type { FloorData, RegionData, StairPlacement } from '../world/MapTypes';
+import { FloorCamera } from '../world/render/FloorCamera';
+import { StairViews } from '../world/render/StairViews';
+import { levelName, StairInteractions } from '../interaction/StairInteractions';
 import { WorldModel } from '../world/WorldModel';
-import { WorldRenderer } from '../world/render/WorldRenderer';
+import { WorldRenderer, type Upstairs } from '../world/render/WorldRenderer';
 import { NOISE_RADIUS } from '../config/NoiseTuning';
 import { kindFromSource, NoiseSystem } from '../sim/Noise';
 import { ZombieSystem } from '../zombies/ZombieSystem';
@@ -145,6 +150,9 @@ export class GameScene extends Phaser.Scene {
   private vehicleViews!: VehicleViews;
   private structureViews!: StructureViews;
   private fires!: FireSystem;
+  /** Andar de cima em que o jogador está (null = térreo/cidade). */
+  private floor: FloorData | null = null;
+  private floorCam!: FloorCamera;
   private power!: PowerSystem;
   private powerTimer = 0;
   /** Fumaça de gerador respirada (0..1, cai devagar no ar limpo) e o último aviso. */
@@ -184,9 +192,11 @@ export class GameScene extends Phaser.Scene {
     if (!assets) throw new Error('Assets não carregados');
     const load: GameSave | null = s.session.pendingLoad;
     s.session.pendingLoad = null;
+    s.session.floor = null;
 
     const t0 = performance.now();
-    this.model = new WorldModel(buildCity({ ...s.settings.world, ambience: s.settings.nature.density }));
+    // Cidade + andares de cima (camada numa faixa fora da cidade: o traçado não muda).
+    this.model = new WorldModel(addUpperFloors(buildCity({ ...s.settings.world, ambience: s.settings.nature.density })));
     if (DEBUG.enabled) console.info(`[mundo] cidade ${s.settings.world.sectorsX}x${s.settings.world.sectorsY} gerada em ${Math.round(performance.now() - t0)} ms`);
     const map = this.model.map;
     // Estado do mundo antes do desenho: portas, itens, recipientes e objetos
@@ -194,7 +204,7 @@ export class GameScene extends Phaser.Scene {
     this.state = new WorldState(this.model, { loot: s.settings.loot, nature: s.settings.nature });
     if (load) this.state.restore(load.world);
     this.world = new WorldRenderer(this, this.model, assets, s.bus, { isPropRemoved: (id) => this.state.isPropHidden(id), wallPieces: (i) => this.state.wallPieces(i) });
-    this.physics.world.setBounds(0, 0, this.world.widthPx, this.world.heightPx);
+    this.physics.world.setBounds(0, 0, this.world.widthPx, this.model.floors.cityHeightPx);
 
     this.player = new Player(this, map.spawn.x, map.spawn.y, assets, s.bus, this.world.shadows, s.settings.player);
     this.physics.add.collider(this.player.sprite, this.world.solids);
@@ -309,6 +319,12 @@ export class GameScene extends Phaser.Scene {
       // Jogo novo (ou save de antes dos zumbis): ninguém perto de onde o jogador está.
       const safe = load ? { x: load.player.x, y: load.player.y } : map.spawn;
       this.zombies.populate(generatePopulation(map, this.model.nav, { population: diff.population, collapseDays: s.settings.loot.collapseAgeDays, safe }));
+    } else if (this.model.floors.any && !this.zombies.store.all.some((z) => this.model.floors.spaceAt(z.x, z.y) > 0)) {
+      // Save de antes dos andares: os andares de cima ganham a população deles (ids próprios).
+      const upper = generatePopulation(map, this.model.nav, { population: diff.population, collapseDays: s.settings.loot.collapseAgeDays, safe: { x: -9999, y: -9999 } })
+        .filter((sp) => this.model.floors.spaceAt(sp.x, sp.y) > 0)
+        .map((sp) => ({ ...sp, id: `andar-${sp.id}` }));
+      this.zombies.populate(upper);
     }
     // Corpos viram recipientes (REVISTAR); o que já foi mexido volta do save.
     for (const z of this.zombies.store.all) if (z.dead) this.registerCorpse(z);
@@ -325,6 +341,7 @@ export class GameScene extends Phaser.Scene {
       noise: (x, y, radius, source) => s.bus.emit('world:noise', { x, y, radius, source }),
       moveTo: (x, y) => this.teleport(x, y),
       now: nowDays,
+      damage: (n) => this.player.stats.setHealth(this.player.stats.health - n),
     };
     this.crafting = new CraftService(this.state, this.inventory, this.survivor, {
       start: (spec) => this.loop.start(spec),
@@ -416,8 +433,12 @@ export class GameScene extends Phaser.Scene {
     this.atmosphere = new Atmosphere(this, this.world.shadows);
 
     const cam = this.cameras.main;
-    cam.setBounds(0, 0, this.world.widthPx, this.world.heightPx);
+    cam.setBounds(0, 0, this.world.widthPx, this.model.floors.cityHeightPx);
     cam.setBackgroundColor('#15161a');
+    // Andares: escadas, a vista da rua lá de cima e a troca de andar.
+    new StairViews(this, this.model, this.world);
+    this.floorCam = new FloorCamera(this, '#15161a', () => this.atmosphere.screenObjects());
+    this.interaction.add(new StairInteractions(this.model, { go: (st, level) => this.useStairs(st, level) }));
     this.director = new CameraDirector(cam, this.player);
     this.director.setZoom(s.viewport.worldZoom());
     if (load) this.teleport(load.player.x, load.player.y);
@@ -473,7 +494,7 @@ export class GameScene extends Phaser.Scene {
       s.bus.on('world:noise', (e) => this.onNoise(e)),
       s.bus.on('player:footstep', (e) => {
         if (this.dead) return;
-        this.noise.emit(e.x, e.y, e.loudness >= 2 ? 'corrida' : e.loudness < 1 ? 'furtivo' : 'passo', { byPlayer: true, source: 'passos' });
+        this.emitNoise(e.x, e.y, e.loudness >= 2 ? 'corrida' : e.loudness < 1 ? 'furtivo' : 'passo', undefined, 'passos', true);
       }),
       s.bus.on('input:reload', () => this.reload()),
       s.bus.on('game:save-request', () => this.save()),
@@ -581,12 +602,13 @@ export class GameScene extends Phaser.Scene {
     this.director.update(this.dt);
     // Região antes do mundo: o aviso da região sai antes do aviso da construção.
     this.trackRegion();
-    this.world.update(this.cameras.main, this.player.x, this.player.y, this.dt);
+    this.floorCam.sync(this.atmosphere.darkness);
+    this.world.update(this.cameras.main, this.player.x, this.player.y, this.dt, this.upstairs());
     this.doors.update(this.dt);
     this.nature.update(this.dt);
     this.updateHeldLight();
     this.combatFx.update(this.dt);
-    this.zombieViews.update(this.cameras.main);
+    this.zombieViews.update(this.cameras.main, this.upstairs());
     this.vehicleViews.update(this.dt, this.cameras.main);
     this.structureViews.update(this.dt);
     this.updateBuildPreview();
@@ -745,7 +767,7 @@ export class GameScene extends Phaser.Scene {
     const sense: PlayerSense = {
       x: this.player.x,
       y: this.player.y,
-      floor: 0,
+      floor: this.floor?.level ?? 0,
       vx: car ? Math.cos(car.a) * car.speed : body.velocity.x,
       vy: car ? Math.sin(car.a) * car.speed : body.velocity.y,
       radius: PLAYER_TUNING.bodyRadius,
@@ -987,19 +1009,36 @@ export class GameScene extends Phaser.Scene {
     const kind = e.kind ?? kindFromSource(e.source);
     const near = Math.hypot(e.x - this.player.x, e.y - this.player.y) < 120;
     const byPlayer = e.byPlayer ?? (near && kind !== 'zumbi' && kind !== 'batida');
-    const ev = this.noise.emit(e.x, e.y, kind, { radius: e.radius, source: e.source, byPlayer });
-    // O jogador também ouve (paredes abafam igual): o HUD mostra a direção.
-    if (!byPlayer && !this.dead) {
-      const h = this.noise.heard(ev, this.player.x, this.player.y, 1.15);
-      if (h && h.strength > 0.08) {
-        const label = HEARD_LABEL[kind] ?? e.source;
-        const danger = kind === 'zumbi' || kind === 'batida' || kind === 'demolicao' || kind === 'vidro';
-        this.s.bus.emit('player:heard', { angle: Math.atan2(h.y - this.player.y, h.x - this.player.x), strength: h.strength, label, danger });
-      }
-    }
+    this.emitNoise(e.x, e.y, kind, e.radius, e.source, byPlayer);
     if (byPlayer && e.radius >= 700) {
       this.loudNoises.push({ t: this.zombies.now, source: e.source });
       if (this.loudNoises.length > 8) this.loudNoises.shift();
+    }
+  }
+
+  /**
+   * Solta um som no mundo: no andar onde aconteceu e, pela escada, nos
+   * outros andares do prédio (abafado). O jogador também ouve (o HUD mostra
+   * a direção) — do outro andar, vem da escada.
+   */
+  private emitNoise(x: number, y: number, kind: import('../sim/Noise').NoiseKind, radius: number | undefined, source: string, byPlayer: boolean): void {
+    const floors = this.model.floors;
+    const level = floors.levelAt(x, y);
+    const events = [this.noise.emit(x, y, kind, { ...(radius !== undefined ? { radius } : {}), source, byPlayer, floor: level })];
+    const r0 = events[0]!.radius;
+    for (const b of bridgeNoise(floors, x, y, r0)) events.push(this.noise.emit(b.x, b.y, kind, { radius: b.radius, source, byPlayer, floor: b.floor, via: b.via }));
+    if (byPlayer || this.dead) return;
+    const pl = this.floor?.level ?? 0;
+    const ps = floors.spaceAt(this.player.x, this.player.y);
+    for (const ev of events) {
+      if (floors.spaceAt(ev.x, ev.y) !== ps) continue;
+      const h = this.noise.heard(ev, this.player.x, this.player.y, 1.15, pl);
+      if (h && h.strength > 0.08) {
+        const label = HEARD_LABEL[kind] ?? source;
+        const danger = kind === 'zumbi' || kind === 'batida' || kind === 'demolicao' || kind === 'vidro';
+        this.s.bus.emit('player:heard', { angle: Math.atan2(h.y - this.player.y, h.x - this.player.x), strength: h.strength, label: ev.via ? `${label} (${ev.via.level > pl ? 'em cima' : 'embaixo'})` : label, danger });
+        break;
+      }
     }
   }
 
@@ -1207,8 +1246,9 @@ export class GameScene extends Phaser.Scene {
     return this.model;
   }
 
+  /** Onde o jogador está na cidade (num andar de cima: o ponto lá embaixo). */
   playerPosition(): { x: number; y: number } {
-    return { x: this.player.x, y: this.player.y };
+    return this.model.floors.toReal(this.player.x, this.player.y);
   }
 
   worldStats(): ReturnType<WorldRenderer['stats']> {
@@ -1314,15 +1354,70 @@ export class GameScene extends Phaser.Scene {
   /** Carrega de uma vez os chunks da tela (início, teleporte, mudança de tamanho de tela). */
   private loadAroundPlayer(): void {
     const cam = this.cameras.main;
-    this.world.ensureLoadedAround(this.player.x, this.player.y, cam.width / cam.zoom, cam.height / cam.zoom);
+    this.world.ensureLoadedAround(this.player.x, this.player.y, cam.width / cam.zoom, cam.height / cam.zoom, this.upstairs());
   }
 
   /** Teleporta o jogador (debug, carregar jogo) com os chunks do destino já carregados. */
   teleport(x: number, y: number): void {
+    this.syncFloor(x, y);
     this.player.sprite.setPosition(x, y);
     this.player.body.reset(x, y);
     this.director.snap();
     this.loadAroundPlayer();
+  }
+
+  // ---------------------------------------------------------------- andares
+
+  /** Andar de cima atual como o desenho precisa (retângulo e deslocamento até a rua). */
+  private upstairs(): Upstairs | null {
+    const f = this.floor;
+    return f ? { floor: f.bounds, dx: f.dx, dy: f.dy } : null;
+  }
+
+  /** O ponto está noutro andar? Troca limites da física e da câmera, a vista de baixo e o chão. */
+  private syncFloor(x: number, y: number): void {
+    const f = this.model.floors.floorAt(x, y);
+    if ((f?.id ?? null) === (this.floor?.id ?? null)) return;
+    this.floor = f;
+    const W = this.world.widthPx;
+    const H = this.model.floors.cityHeightPx;
+    if (f) {
+      this.physics.world.setBounds(f.bounds.x - 32, f.bounds.y - 32, f.bounds.w + 64, f.bounds.h + 64);
+      // A câmera anda como se estivesse na cidade (a vista de baixo fica alinhada).
+      this.cameras.main.setBounds(f.dx, f.dy, W, H);
+    } else {
+      this.physics.world.setBounds(0, 0, W, H);
+      this.cameras.main.setBounds(0, 0, W, H);
+    }
+    this.floorCam.set(f);
+    this.world.showFloorGround(f);
+    this.s.session.floor = f ? { level: f.level, name: levelName(f.level) } : null;
+  }
+
+  /** Subir/descer a escada: chega no mesmo vão do outro andar, do lado de onde se sai. */
+  private useStairs(st: StairPlacement, level: number): InteractionResult {
+    if (this.zombies.threat.grabbed || this.zombies.threat.down) return { ok: false, message: 'Solte-se antes!' };
+    if (this.drive) return { ok: false };
+    const floors = this.model.floors;
+    const to = floors.stair(st.building, level);
+    if (!to) return { ok: false, message: 'A escada não leva a lugar nenhum.' };
+    // Posição relativa ao vão, preservada; um passo para fora dele.
+    const cx = to.x + to.w / 2;
+    const cy = to.y + to.h / 2;
+    const long = to.h >= to.w;
+    const rx = long ? this.player.x - (st.x + st.w / 2) : 0;
+    const ry = long ? 0 : this.player.y - (st.y + st.h / 2);
+    const out = long ? { x: cx + Math.sign(rx || 1) * (to.w / 2 + 26), y: cy } : { x: cx, y: cy + Math.sign(ry || 1) * (to.h / 2 + 26) };
+    const spot = this.zombies.solids.free(out.x, out.y, 15) ? out : { x: cx, y: cy };
+    this.loop.cancelAction();
+    this.cameras.main.fadeOut(140, 8, 8, 10);
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+      this.teleport(spot.x, spot.y);
+      this.cameras.main.fadeIn(220, 8, 8, 10);
+    });
+    // Degraus rangem (os dois andares ouvem).
+    this.s.bus.emit('world:noise', { x: st.x + st.w / 2, y: st.y + st.h / 2, radius: 170, source: 'escada', kind: 'passo', byPlayer: true });
+    return { ok: true, message: level > st.level ? `Subiu: ${levelName(level)}.` : `Desceu: ${levelName(level)}.` };
   }
 
   /** Avisa quando o jogador muda de região. */
@@ -1375,6 +1470,12 @@ export class GameScene extends Phaser.Scene {
       exitCar: (force?: boolean) => this.stopDriving(force),
       /** Carrega o último save como o botão da tela de morte. */
       power: this.power,
+      floor: () => this.floor,
+      stairs: (level: number) => {
+        const t = this.interaction.current;
+        void level;
+        return t?.key.startsWith('escada:') ? t.label : null;
+      },
       loadLast: () => {
         const save = loadGame();
         if (!save) return false;

@@ -177,7 +177,7 @@ export class DebugScene extends Phaser.Scene {
     const w = this.s.viewport.cssWidth;
     const h = this.s.viewport.cssHeight;
     const mw = model.map.widthTiles;
-    const mh = model.map.heightTiles;
+    const mh = model.map.cityHeightTiles ?? model.map.heightTiles;
     const scale = Math.min((w * 0.92) / mw, (h * 0.84) / mh);
     const x0 = (w - mw * scale) / 2;
     const y0 = (h - mh * scale) / 2 + 10;

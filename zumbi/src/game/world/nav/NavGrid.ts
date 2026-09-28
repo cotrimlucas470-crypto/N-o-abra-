@@ -43,8 +43,10 @@ export class NavGrid {
 
   static fromMap(map: MapData, cell = NAV_CELL): NavGrid {
     const g = new NavGrid(map.widthTiles * map.tileSize, map.heightTiles * map.tileSize, cell);
-    // Janelas são quebráveis (vidro); o resto do mapa é duro.
-    for (const w of map.walls) g.addSolid({ kind: 'rect', x: w.x, y: w.y, w: w.w, h: w.h }, w.kind === 'window');
+    // Janelas são quebráveis (vidro); o resto do mapa é duro. Janela de andar
+    // de cima (faixa abaixo da cidade) é dura: ninguém sai por ali para o vazio.
+    const cityBottom = (map.cityHeightTiles ?? map.heightTiles) * map.tileSize;
+    for (const w of map.walls) g.addSolid({ kind: 'rect', x: w.x, y: w.y, w: w.w, h: w.h }, w.kind === 'window' && w.y < cityBottom);
     for (const s of mapSolids(map, false)) g.addSolid(s);
     return g;
   }

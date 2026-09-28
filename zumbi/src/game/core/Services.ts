@@ -51,6 +51,8 @@ export interface GameSession {
   threat: { sneaking: boolean; grabbed: number; down: boolean; escape: number } | null;
   /** Dirigindo: velocímetro e gasolina para o HUD. */
   driving: { kmh: number; fuel: number; tank: number; body: number } | null;
+  /** Andar de cima em que o jogador está (null = térreo). */
+  floor: { level: number; name: string } | null;
   /** Morreu: relatório (a tela de morte mostra). */
   death: import('../survival/Death').DeathReport | null;
 }
@@ -93,6 +95,7 @@ export function createServices(game: Phaser.Game, viewport: Viewport, bus: Event
       build: null,
       threat: null,
       driving: null,
+      floor: null,
       death: null,
       options: null,
       pendingLoad: null,

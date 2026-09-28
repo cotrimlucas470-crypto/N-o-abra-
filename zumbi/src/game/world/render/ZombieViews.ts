@@ -23,6 +23,7 @@ import { TEX } from '../../assets/AssetKeys';
 import { CORPSE_SIZE, drawBloodPool, drawCorpse, drawZombieSheet, LEG_FRAMES, sheetLayout, zombieDims, ZOMBIE_RES } from '../../assets/procedural/zombieArt';
 import { SlotAtlas, type SlotRef } from './SlotAtlas';
 import type { ShadowSystem } from './ShadowSystem';
+import type { Upstairs } from './WorldRenderer';
 import type { ZombieSystem } from '../../zombies/ZombieSystem';
 import { isCrawler, isLimping, legs, type Zombie } from '../../zombies/Zombie';
 
@@ -70,6 +71,7 @@ export class ZombieViews {
   private readonly layout = sheetLayout();
   private frameNo = 0;
   private readonly near: Zombie[] = [];
+  private readonly nearBelow: Zombie[] = [];
   /** Folhas de todos os zumbis numa(s) página(s) só (e corpos em outra). */
   private readonly sheetAtlas: SlotAtlas;
   private readonly corpseAtlas: SlotAtlas;
@@ -116,20 +118,28 @@ export class ZombieViews {
     return this.corpses.size;
   }
 
-  update(cam: Phaser.Cameras.Scene2D.Camera): void {
+  /**
+   * `up`: jogador num andar de cima — desenha os zumbis do andar e os da rua
+   * lá embaixo (para a vista de baixo), nunca os de outros andares da faixa.
+   */
+  update(cam: Phaser.Cameras.Scene2D.Camera, up: Upstairs | null = null): void {
     this.frameNo++;
     const v = cam.worldView;
     const cx = v.centerX;
     const cy = v.centerY;
     const r = Math.hypot(v.width, v.height) / 2 + MARGIN;
     const now = this.sys.now;
-    const pf = this.sys.player.floor;
     let bakes = 2;
     let corpseBakes = 3;
     // Mais perto primeiro (assa quem vai aparecer antes).
-    const list = this.sys.store.near(cx, cy, r, this.near).sort((a, b) => (a.x - cx) ** 2 + (a.y - cy) ** 2 - ((b.x - cx) ** 2 + (b.y - cy) ** 2));
+    const list = this.sys.store.near(cx, cy, r, this.near).filter((z) => !up || (z.x >= up.floor.x && z.x <= up.floor.x + up.floor.w && z.y >= up.floor.y && z.y <= up.floor.y + up.floor.h));
+    if (up) {
+      const bx = cx - up.dx;
+      const by = cy - up.dy;
+      for (const z of this.sys.store.near(bx, by, r, this.nearBelow)) list.push(z);
+    }
+    list.sort((a, b) => (a.x - cx) ** 2 + (a.y - cy) ** 2 - ((b.x - cx) ** 2 + (b.y - cy) ** 2));
     for (const z of list) {
-      if (z.floor !== pf) continue;
       if (z.dead) {
         const c = this.corpses.get(z.id) ?? (corpseBakes-- > 0 ? this.makeCorpse(z) : null);
         if (c) {

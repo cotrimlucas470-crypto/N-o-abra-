@@ -21,7 +21,8 @@ const COLORS: Record<number, [number, number, number]> = {
 
 export function drawDebugMap(map: MapData): HTMLCanvasElement {
   const w = map.widthTiles;
-  const h = map.heightTiles;
+  // Só a cidade (os andares de cima ficam numa faixa fora dela).
+  const h = map.cityHeightTiles ?? map.heightTiles;
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
@@ -38,6 +39,6 @@ export function drawDebugMap(map: MapData): HTMLCanvasElement {
   const T = map.tileSize;
   ctx.strokeStyle = 'rgba(20,20,24,0.95)';
   ctx.lineWidth = 1;
-  for (const b of map.buildings) ctx.strokeRect(b.bounds.x / T + 0.5, b.bounds.y / T + 0.5, b.bounds.w / T - 1, b.bounds.h / T - 1);
+  for (const b of map.buildings) if (!b.floorOf) ctx.strokeRect(b.bounds.x / T + 0.5, b.bounds.y / T + 0.5, b.bounds.w / T - 1, b.bounds.h / T - 1);
   return canvas;
 }

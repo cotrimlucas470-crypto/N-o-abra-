@@ -3,6 +3,7 @@ import { it } from 'vitest';
 import { NoiseSystem } from '../src/game/sim/Noise';
 import { WorldState } from '../src/game/sim/WorldState';
 import { buildCity } from '../src/game/world/districts/CityGenerator';
+import { addUpperFloors } from '../src/game/world/floors/UpperFloors';
 import { WorldModel } from '../src/game/world/WorldModel';
 import { difficultyFrom, ZOMBIE_PRESETS } from '../src/game/zombies/Difficulty';
 import { generatePopulation } from '../src/game/zombies/Population';
@@ -11,7 +12,9 @@ import { SANDBOX_DEFAULTS } from '../src/game/config/Sandbox';
 
 for (const preset of ['sobrevivencia', 'extincao'] as const) {
   it(`desempenho ${preset}`, () => {
-    const model = new WorldModel(buildCity({ ...SANDBOX_DEFAULTS.world, ambience: 1 }));
+    const t00 = performance.now();
+    const model = new WorldModel(addUpperFloors(buildCity({ ...SANDBOX_DEFAULTS.world, ambience: 1 })));
+    console.log('mundo com andares', (performance.now() - t00).toFixed(0), 'ms');
     const state = new WorldState(model);
     const noise = new NoiseSystem(model.sight);
     const diff = difficultyFrom(ZOMBIE_PRESETS[preset].settings);

@@ -148,6 +148,10 @@ export interface ZombieMind {
   bang: Obstacle | null;
   /** Passando pela janela: de → para. */
   climb: { fx: number; fy: number; tx: number; ty: number; t: number; dur: number } | null;
+  /** Subindo/descendo a escada: chega em `to` (outro andar) ao fim de `dur`. */
+  stair?: { t: number; dur: number; to: Point; level: number } | null;
+  /** Ouviu algo vindo de outro andar do prédio (pela escada): para onde ir. */
+  stairHint?: { building: string; level: number; x: number; y: number; t: number } | null;
   moan: number;
 }
 
@@ -192,10 +196,12 @@ export interface ZRuntime {
   pathPending: boolean;
   /** A rota pode passar por obstáculo quebrável. */
   pathSoft: boolean;
+  /** Não usa escada de novo antes disso (s de simulação). */
+  stairCd: number;
 }
 
 export function freshRuntime(): ZRuntime {
-  return { last: 0, next: 0, look: 0, lookAcc: 0, social: 0, sees: false, noticed: null, seenV: { x: 0, y: 0 }, stuck: 0, sx: 0, sy: 0, bangT: 0, softAhead: false, pathPending: false, pathSoft: false };
+  return { last: 0, next: 0, look: 0, lookAcc: 0, social: 0, sees: false, noticed: null, seenV: { x: 0, y: 0 }, stuck: 0, sx: 0, sy: 0, bangT: 0, softAhead: false, pathPending: false, pathSoft: false, stairCd: 0 };
 }
 
 export interface Zombie {

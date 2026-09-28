@@ -73,6 +73,9 @@ async function waitGame(page) {
     loop.inFocus = true;
     loop.panicMax = 0;
     loop._coolDown = 0;
+    // As checagens de movimento/porta/itens não são sobre zumbis: IA parada até a
+    // seção deles (a poucos FPS o jogador não reage e morreria no meio do teste).
+    if (window.__TDR__.zombies) window.__TDR__.zombies.frozen = true;
   });
   await sleep(700);
 }
@@ -389,6 +392,54 @@ try {
 
     const cull = await page.evaluate(() => window.__TDR__.culler());
     check(cull.visible < cull.total * 0.6, `culling esconde o que está fora da tela (${cull.visible}/${cull.total})`);
+
+    // ---------------------------------------------------------------- zumbis, andares e carro
+    {
+      const T = (fn, a) => page.evaluate(fn, a);
+      // Zumbis na rua: acordam e vêm atrás.
+      const street = at(8, 29);
+      await T(([x, y]) => window.__TDR__.teleport(x, y), street);
+      await T(([x, y]) => { const g = window.__TDR__; g.zombies.frozen = false; for (let i = 0; i < 4; i++) g.spawnZombie(x + 260 + i * 30, y + (i - 2) * 40); }, street);
+      await page.waitForFunction(() => { const s = window.__TDR__.zombies.stats().states; return (s.CHASE ?? 0) + (s.ALERT ?? 0) + (s.ATTACK ?? 0) + (s.GRAB ?? 0) > 0; }, null, { timeout: 30000 }).catch(() => undefined);
+      const zst = await T(() => window.__TDR__.zombies.stats().states);
+      check((zst.CHASE ?? 0) + (zst.ALERT ?? 0) + (zst.ATTACK ?? 0) + (zst.GRAB ?? 0) > 0, `zumbis perto percebem o jogador (${JSON.stringify(zst)})`);
+      await page.screenshot({ path: OUT + '20-zumbis.png' });
+      const zv = await T(() => window.__TDR__.zombieViews());
+      check(zv.views >= 2, `zumbis desenhados (${zv.views})`);
+      await T(() => { const g = window.__TDR__; g.zombies.frozen = true; });
+      // Andares: sobe a escada de um prédio de vários andares.
+      const st = await T(() => { const g = window.__TDR__; const f = g.model.floors; return g.map.stairs.filter((q) => q.level === 0).sort((a, b) => f.top(b.building) - f.top(a.building))[0]; });
+      check(!!st, `há escadas (${(await T(() => window.__TDR__.map.stairs.length))})`);
+      if (st) {
+        await T((q) => { const g = window.__TDR__; g.teleport(q.x + q.w / 2 + (q.h > q.w ? q.w / 2 + 24 : 0), q.y + q.h / 2 + (q.h > q.w ? 0 : q.h / 2 + 24)); }, st);
+        await page.waitForFunction(() => window.__TDR__.interaction()?.kind === 'stair', null, { timeout: 8000 }).catch(() => undefined);
+        const tgt = await T(() => window.__TDR__.interaction());
+        check(tgt?.verb === 'SUBIR', `escada vira alvo SUBIR (${tgt?.label})`);
+        await T(() => window.__TDR__.interact());
+        await page.waitForFunction(() => !!window.__TDR__.floor(), null, { timeout: 8000 }).catch(() => undefined);
+        const fl = await T(() => { const f = window.__TDR__.floor(); return f && { level: f.level, below: window.__TDR__.scene.floorCam.active }; });
+        check(fl?.level === 1 && fl.below, `subiu para o 1º andar com a vista da rua (${JSON.stringify(fl)})`);
+        await sleep(1200);
+        await page.screenshot({ path: OUT + '21-andar.png' });
+        await T((q) => window.__TDR__.teleport(q.x + q.w / 2, q.y + q.h / 2), st);
+        await sleep(400);
+        check(!(await T(() => window.__TDR__.floor())), 'voltar ao térreo desliga o andar');
+      }
+      // Carro: entra, acelera, sai.
+      const car = await T(() => { const g = window.__TDR__; const me = g.player(); let best = null; let bd = Infinity; for (const v of g.state.vehicles.all()) { if (v.type !== 'car') continue; const d = Math.hypot(v.x - me.x, v.y - me.y); if (d < bd) { bd = d; best = v; } } const s = g.state.vehicles.state(best.id); s.fuel = 20; s.engine = 0.9; s.tires = [0.9, 0.9, 0.9, 0.9]; return { id: best.id, x: best.x, y: best.y }; });
+      await T((c) => window.__TDR__.teleport(c.x, c.y + 110), car);
+      await sleep(300);
+      const dr = await T((c) => window.__TDR__.drive(c.id), car);
+      check(dr?.ok, `entra no carro para dirigir (${dr?.message})`);
+      await T(() => { const g = window.__TDR__; const d = g.driving(); g.scene.s.touch.move = { x: Math.cos(d.a), y: Math.sin(d.a), magnitude: 1, active: true }; });
+      await sleep(2500);
+      const d1 = await T(() => window.__TDR__.driving());
+      await T(() => { window.__TDR__.scene.s.touch.move = { x: 0, y: 0, magnitude: 0, active: false }; });
+      check(!!d1 && Math.abs(d1.speed) > 5, `acelera (${d1 ? Math.round(d1.speed) : '-'} px/s)`);
+      await page.screenshot({ path: OUT + '22-carro.png' });
+      await T(() => { const g = window.__TDR__; g.scene.drive.car.speed = 0; g.exitCar(true); });
+      check(!(await T(() => window.__TDR__.driving())), 'sai do carro');
+    }
     check(errors.length === 0, `sem erros no console (${errors.length}) ${errors.slice(0, 3).join(' | ')}`);
     await ctx.close();
   }

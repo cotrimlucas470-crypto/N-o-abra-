@@ -95,6 +95,11 @@ export class Atmosphere {
     });
   }
 
+  /** O que é da tela (noite, tom, neblina, chuva): outra câmera não desenha. */
+  screenObjects(): Phaser.GameObjects.GameObject[] {
+    return [this.darkImage, this.tint, this.fog, this.rain];
+  }
+
   update(dt: number, cam: Phaser.Cameras.Scene2D.Camera, input: AtmosphereInput): void {
     this.time += dt;
     const w = input.weather;

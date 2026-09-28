@@ -50,6 +50,8 @@ export interface NoiseEvent {
   floor: number;
   /** Feito pelo jogador (passos, tiros...) — zumbis não "sabem" disso, é só para o debug. */
   byPlayer: boolean;
+  /** Chegou por outro andar do prédio (pela escada): de onde veio de verdade. */
+  via?: { building: string; level: number; x: number; y: number };
 }
 
 export interface Heard {
@@ -99,7 +101,7 @@ export class NoiseSystem {
   ) {}
 
   /** Um som aconteceu. */
-  emit(x: number, y: number, kind: NoiseKind, opts: { radius?: number; source?: string; floor?: number; byPlayer?: boolean } = {}): NoiseEvent {
+  emit(x: number, y: number, kind: NoiseKind, opts: { radius?: number; source?: string; floor?: number; byPlayer?: boolean; via?: NoiseEvent['via'] } = {}): NoiseEvent {
     const e: NoiseEvent = {
       id: this.nextId++,
       x,
@@ -110,6 +112,7 @@ export class NoiseSystem {
       t: this.now,
       floor: opts.floor ?? 0,
       byPlayer: opts.byPlayer ?? false,
+      ...(opts.via ? { via: opts.via } : {}),
     };
     this.events.push(e);
     for (const fn of [...this.listeners]) fn(e);

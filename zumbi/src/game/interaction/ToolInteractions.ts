@@ -35,6 +35,8 @@ export interface WorldActionHooks {
   moveTo(x: number, y: number): void;
   now(): number;
   rng?: () => number;
+  /** Tira vida direto (queda). */
+  damage?(amount: number): void;
 }
 
 interface ToolRef {
@@ -344,7 +346,9 @@ export class WindowInteractions implements InteractionProvider {
         // Pregada: só dá para arrancar as tábuas.
         opts.push(...boards);
       } else if (broken) {
-        opts.push({ label: 'Pular a janela', enabled: true, perform: () => this.climb(w.wall, w.id, who) });
+        const level = this.state.model.floors.levelAt(cx, cy);
+        if (level > 0) opts.push({ label: level === 1 ? 'Pular do 1º andar (vai doer)' : `Pular do ${level}º andar (pode morrer)`, enabled: true, perform: () => this.jump(w.wall, level, who) });
+        else opts.push({ label: 'Pular a janela', enabled: true, perform: () => this.climb(w.wall, w.id, who) });
         if (this.state.windowHasShards(w.id)) opts.push({ label: 'Tirar cacos da janela', enabled: true, perform: () => this.clearShards(w.id) });
       } else {
         opts.push({ label: 'Quebrar a janela', enabled: true, perform: () => this.smash(w.wall) });
@@ -382,6 +386,46 @@ export class WindowInteractions implements InteractionProvider {
       done: () => {
         this.state.clearWindowShards(id);
         return { ok: true, message: 'Batente limpo: dá para passar sem se cortar.', tone: 'ok' };
+      },
+    });
+    return { ok: true };
+  }
+
+  /**
+   * Pular de um andar de cima: cai na rua, do lado de fora, embaixo da
+   * janela. A altura decide o estrago (1º andar: torção ou fratura; mais
+   * alto: fratura quase certa e pancada que pode matar).
+   */
+  private jump(wall: WallPiece, level: number, who: Interactor): InteractionResult {
+    const floors = this.state.model.floors;
+    const vertical = wall.h > wall.w;
+    const cx = wall.x + wall.w / 2;
+    const cy = wall.y + wall.h / 2;
+    const th = (vertical ? wall.w : wall.h) / 2 + 30;
+    const ox = vertical ? (who.x < cx ? cx + th : cx - th) : cx;
+    const oy = vertical ? cy : who.y < cy ? cy + th : cy - th;
+    const land = floors.toReal(ox, oy);
+    this.hooks.start({
+      id: 'pular-andar',
+      label: 'Subindo no parapeito',
+      minutes: 1,
+      realSeconds: 1.6,
+      done: () => {
+        this.hooks.moveTo(land.x, land.y);
+        this.hooks.noise(land.x, land.y, 380, 'queda');
+        const leg = this.rng() < 0.5 ? 'pernaE' : 'pernaD';
+        const h = this.survivor.health;
+        if (level === 1) {
+          if (this.rng() < 0.3) h.add(leg, 'fratura', 0.5 + this.rng() * 0.3);
+          else h.add(leg, 'entorse', 0.4 + this.rng() * 0.4);
+          h.add(this.rng() < 0.5 ? 'maoE' : 'maoD', 'contusao', 0.3);
+          return { ok: true, message: 'Caiu mal na calçada: a perna reclamou.', tone: 'bad' };
+        }
+        h.add(leg, 'fratura', 0.7 + this.rng() * 0.3);
+        h.add('tronco', 'contusao', Math.min(1, 0.4 * level));
+        if (level >= 3) h.add('cabeca', 'contusao', 0.8);
+        this.hooks.damage?.(level >= 3 ? 70 + this.rng() * 50 : 25 + this.rng() * 25);
+        return { ok: true, message: level >= 3 ? 'A queda foi feia demais.' : 'Quebrou a perna na queda.', tone: 'bad' };
       },
     });
     return { ok: true };

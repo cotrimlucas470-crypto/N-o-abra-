@@ -19,7 +19,7 @@ import { TEX } from '../../assets/AssetKeys';
 import type { AssetRegistry } from '../../assets/AssetRegistry';
 import { propSolids, type Solid } from '../collision';
 import { DECAL_DEFS } from '../DecalCatalog';
-import { GROUND_VARIANTS, type MarkingKind, type Rect, type WallPiece } from '../MapTypes';
+import { GROUND_VARIANTS, VOID_GROUND, type FloorData, type MarkingKind, type Rect, type WallPiece } from '../MapTypes';
 import { PROP_DEFS, type PropDef } from '../PropCatalog';
 import type { WorldModel } from '../WorldModel';
 import { CanopyFader, type Canopy } from './CanopyFader';
@@ -81,6 +81,13 @@ export interface ViewRect {
   height: number;
 }
 
+/** Jogador num andar de cima: o retângulo do andar e o deslocamento até a rua lá embaixo. */
+export interface Upstairs {
+  floor: Rect;
+  dx: number;
+  dy: number;
+}
+
 export class WorldRenderer {
   readonly shadows = new ShadowSystem();
   readonly culler = new SpatialCuller();
@@ -120,7 +127,9 @@ export class WorldRenderer {
 
   private buildGround(): void {
     const map = this.world.map;
-    const { widthTiles: w, heightTiles: h } = map;
+    // Só a cidade: o chão de cada andar de cima aparece só quando se está nele.
+    const w = map.widthTiles;
+    const h = map.cityHeightTiles ?? map.heightTiles;
     const data: number[][] = [];
     for (let y = 0; y < h; y++) {
       const row: number[] = [];
@@ -138,6 +147,36 @@ export class WorldRenderer {
     const layer = tilemap.createLayer(0, tileset, 0, 0, gpu);
     if (!layer) throw new Error('Falha ao criar a camada do chão');
     layer.setDepth(DEPTH.ground);
+  }
+
+  /** Chão do andar de cima em que o jogador está (um mapinha só daquele andar). */
+  private floorGround: { id: string; map: Phaser.Tilemaps.Tilemap } | null = null;
+
+  showFloorGround(f: FloorData | null): void {
+    if ((f?.id ?? null) === (this.floorGround?.id ?? null)) return;
+    this.floorGround?.map.destroy();
+    this.floorGround = null;
+    if (!f) return;
+    const map = this.world.map;
+    const tx0 = Math.floor(f.bounds.x / TILE);
+    const ty0 = Math.floor(f.bounds.y / TILE);
+    const tw = Math.ceil(f.bounds.w / TILE) + 1;
+    const th = Math.ceil(f.bounds.h / TILE) + 1;
+    const data: number[][] = [];
+    for (let y = ty0; y < ty0 + th; y++) {
+      const row: number[] = [];
+      for (let x = tx0; x < tx0 + tw; x++) {
+        const g = map.ground[y * map.widthTiles + x];
+        row.push(g === undefined || g === VOID_GROUND ? -1 : g * GROUND_VARIANTS + pickVariant(hash2(x, y, map.seed)));
+      }
+      data.push(row);
+    }
+    const tilemap = this.scene.make.tilemap({ data, tileWidth: TILE, tileHeight: TILE });
+    const tileset = tilemap.addTilesetImage('ground', TEX.tiles, TILE, TILE, 0, 0);
+    if (!tileset) return;
+    const layer = tilemap.createLayer(0, tileset, tx0 * TILE, ty0 * TILE);
+    layer?.setDepth(DEPTH.ground);
+    this.floorGround = { id: f.id, map: tilemap };
   }
 
   /**
@@ -160,17 +199,22 @@ export class WorldRenderer {
    * Carrega o que a tela vai precisar e descarrega o que ficou longe.
    * `force`: carrega tudo o que falta de uma vez (início, teleporte).
    */
-  stream(view: ViewRect, force = false): void {
+  stream(view: ViewRect, force = false, floor: Rect | null = null): void {
     const W = this.world.widthPx;
     const H = this.world.heightPx;
-    const keep = new Set(
-      chunksInRect(view.x - UNLOAD_MARGIN, view.y - UNLOAD_MARGIN, view.x + view.width + UNLOAD_MARGIN, view.y + view.height + UNLOAD_MARGIN, W, H),
-    );
+    // Andar de cima: os chunks EXATOS do andar (sem margem: o vizinho da faixa
+    // é outro prédio) + a rua lá embaixo (`view`, já em coordenadas da cidade).
+    const exact = floor ? chunksInRect(floor.x, floor.y, floor.x + floor.w - 1, floor.y + floor.h - 1, W, H) : [];
+    const keep = new Set([
+      ...chunksInRect(view.x - UNLOAD_MARGIN, view.y - UNLOAD_MARGIN, view.x + view.width + UNLOAD_MARGIN, view.y + view.height + UNLOAD_MARGIN, W, this.cityBottom),
+      ...exact,
+    ]);
     for (const key of [...this.loaded.keys()]) if (!keep.has(key)) this.unloadChunk(key);
 
-    const want = chunksInRect(view.x - LOAD_MARGIN, view.y - LOAD_MARGIN, view.x + view.width + LOAD_MARGIN, view.y + view.height + LOAD_MARGIN, W, H).filter(
-      (k) => !this.loaded.has(k),
-    );
+    const want = [
+      ...exact,
+      ...chunksInRect(view.x - LOAD_MARGIN, view.y - LOAD_MARGIN, view.x + view.width + LOAD_MARGIN, view.y + view.height + LOAD_MARGIN, W, floor ? this.cityBottom : H),
+    ].filter((k, i, a) => !this.loaded.has(k) && a.indexOf(k) === i);
     if (want.length === 0) return;
     // Mais perto do centro da tela primeiro.
     const cx = (view.x + view.width / 2) / CHUNK_PX - 0.5;
@@ -185,9 +229,22 @@ export class WorldRenderer {
   }
 
   /** Garante tudo carregado em volta de um ponto (antes de teleportar ou nascer). */
-  ensureLoadedAround(x: number, y: number, viewW: number, viewH: number): void {
-    this.stream({ x: x - viewW / 2, y: y - viewH / 2, width: viewW, height: viewH }, true);
-    this.culler.update({ x: x - viewW / 2, y: y - viewH / 2, width: viewW, height: viewH }, true);
+  ensureLoadedAround(x: number, y: number, viewW: number, viewH: number, up: Upstairs | null = null): void {
+    const view = { x: x - viewW / 2, y: y - viewH / 2, width: viewW, height: viewH };
+    if (up) {
+      const below = { ...view, x: view.x - up.dx, y: view.y - up.dy };
+      this.stream(below, true, up.floor);
+      this.culler.update([below, { x: up.floor.x, y: up.floor.y, width: up.floor.w, height: up.floor.h }], true);
+      return;
+    }
+    this.stream(view, true);
+    this.culler.update(view, true);
+  }
+
+  /** Fim da cidade (px): a faixa dos andares fica abaixo. */
+  private get cityBottom(): number {
+    const m = this.world.map;
+    return (m.cityHeightTiles ?? m.heightTiles) * TILE;
   }
 
   private loadChunk(key: number): void {
@@ -360,9 +417,16 @@ export class WorldRenderer {
 
   // ------------------------------------------------------------------ por frame
 
-  update(camera: Phaser.Cameras.Scene2D.Camera, playerX: number, playerY: number, dt: number): void {
-    this.stream(camera.worldView);
-    this.culler.update(camera.worldView);
+  update(camera: Phaser.Cameras.Scene2D.Camera, playerX: number, playerY: number, dt: number, up: Upstairs | null = null): void {
+    if (up) {
+      const v = camera.worldView;
+      const below = { x: v.x - up.dx, y: v.y - up.dy, width: v.width, height: v.height };
+      this.stream(below, false, up.floor);
+      this.culler.update([below, { x: up.floor.x, y: up.floor.y, width: up.floor.w, height: up.floor.h }]);
+    } else {
+      this.stream(camera.worldView);
+      this.culler.update(camera.worldView);
+    }
     this.canopies.update(playerX, playerY, dt);
     this.roofs.update(playerX, playerY, dt);
   }

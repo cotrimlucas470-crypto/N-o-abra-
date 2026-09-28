@@ -38,7 +38,7 @@ export class MapView {
     const s = this.scene;
     if (!s.textures.exists(TEX)) s.textures.addCanvas(TEX, drawDebugMap(map))?.setFilter(Phaser.Textures.FilterMode.NEAREST);
     const mw = map.widthTiles;
-    const mh = map.heightTiles;
+    const mh = map.cityHeightTiles ?? map.heightTiles;
     const scale = Math.min((cssW * 0.9) / mw, (cssH * 0.78) / mh);
     const x0 = (cssW - mw * scale) / 2;
     const y0 = (cssH - mh * scale) / 2 + 12;
@@ -61,6 +61,7 @@ export class MapView {
     if (annotated) {
       const seen = new Set<BuildingKind>();
       for (const b of map.buildings) {
+        if (b.floorOf) continue;
         const p = POI[b.kind];
         if (!p) continue;
         seen.add(b.kind);

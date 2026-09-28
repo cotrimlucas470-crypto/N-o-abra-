@@ -428,6 +428,8 @@ export class HudScene extends Phaser.Scene {
     const exact = !!inv && hasClock(inv);
     let label = clock ? `DIA ${clock.day} · ${timeText(clock.minuteOfDay, exact)}` : '';
     if (sv) label += `\n${sv.calendar.shortLabel(clock!.dayIndex)} · ${Math.round(sv.weather.temp)} °C · ${SKY_LABEL[sv.weather.sky]}`;
+    const fl = this.s.session.floor;
+    if (fl) label += `\n${fl.name.toUpperCase()}`;
     if (label !== this.clockLabel) {
       this.clockLabel = label;
       this.clockText.setText(label);

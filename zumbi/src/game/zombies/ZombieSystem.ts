@@ -34,7 +34,7 @@ import { bangOnce, climbTarget, obstacleFrom, obstacleKey, obstacleStands, tryPu
 import { seesZombie, sightRate, sightRange, beamHits, type LightEnv, type PlayerSense } from './Senses';
 import { ZombieStore, type ZombieStoreSave } from './ZombieStore';
 import type { PopulationSpawn } from './Population';
-import { canGrab, isCrawler, moveSpeed, type Point, type Zombie, type ZState } from './Zombie';
+import { canGrab, isCrawler, isLimping, moveSpeed, type Point, type Zombie, type ZState } from './Zombie';
 
 export interface ZombieHooks {
   /** Um ataque chegou ao jogador: a cena resolve (Assault) e devolve o resultado. */
@@ -152,6 +152,9 @@ export class ZombieSystem {
   private readonly obsCtx: ObstacleCtx;
   private statsNow: ZombieStats = { alive: 0, dead: 0, lod: [0, 0, 0], updated: 0, paths: 0, flow: 0, states: {} };
   private pathsThisSecond = 0;
+  /** Espaço do jogador (0 cidade, n andar) e a posição dele "na cidade" (lá embaixo). */
+  private pSpace = 0;
+  private pReal = { x: 0, y: 0 };
   private flowsThisSecond = 0;
   private secondAt = 0;
 
@@ -182,6 +185,9 @@ export class ZombieSystem {
     const push = { x: 0, y: 0 };
     if (dt <= 0 || this.frozen) return push;
     const p = this.player;
+    const floors = this.model.floors;
+    this.pSpace = floors.any ? floors.spaceAt(p.x, p.y) : 0;
+    this.pReal = floors.any ? floors.toReal(p.x, p.y) : { x: p.x, y: p.y };
     const th = this.threat;
     if (th.downT > 0) {
       // Cercado por mais de um: não levanta.
@@ -216,8 +222,10 @@ export class ZombieSystem {
         dead++;
         continue;
       }
-      const d2 = (z.x - p.x) ** 2 + (z.y - p.y) ** 2;
-      const l: 0 | 1 | 2 = z.floor === p.floor && d2 < full2 ? 0 : d2 < near2 ? 1 : 2;
+      // Distância no mesmo espaço; os da rua contam pela posição do jogador lá embaixo.
+      const zs = floors.any ? floors.spaceAt(z.x, z.y) : 0;
+      const d2 = zs === this.pSpace ? (z.x - p.x) ** 2 + (z.y - p.y) ** 2 : zs === 0 ? (z.x - this.pReal.x) ** 2 + (z.y - this.pReal.y) ** 2 : Infinity;
+      const l: 0 | 1 | 2 = d2 < full2 ? 0 : d2 < near2 ? 1 : 2;
       if (l !== z.lod) {
         z.lod = l;
         z.rt.next = this.now;
@@ -249,7 +257,7 @@ export class ZombieSystem {
           this.fixPosition(o);
         }
       }
-      if (p.alive && !p.inVehicle && z.floor === p.floor && Math.abs(z.x - p.x) < 50 && Math.abs(z.y - p.y) < 50) {
+      if (p.alive && !p.inVehicle && Math.abs(z.x - p.x) < 50 && Math.abs(z.y - p.y) < 50 && this.sameSpace(z)) {
         if (pressPlayer(z, p.x, p.y, p.radius, push) > 0) this.fixPosition(z);
       }
     }
@@ -349,8 +357,13 @@ export class ZombieSystem {
       this.climbTick(z, dt);
       return;
     }
+    if (m.stair) {
+      this.stairTick(z, dt);
+      return;
+    }
 
     this.perceive(z, dt);
+    if (this.maybeStairs(z)) return;
     this.decide(z, dt);
     if (rt.stuck > 0 && Math.hypot(z.x - rt.sx, z.y - rt.sy) > 24) rt.stuck = 0;
   }
@@ -366,7 +379,7 @@ export class ZombieSystem {
     rt.lookAcc = 0;
     rt.look = z.lod === 0 ? 0.1 : 0.25;
     const p = this.player;
-    const rate = p.alive ? sightRate(z, p, this.light, this.model.sight) : 0;
+    const rate = p.alive && this.sameSpace(z) ? sightRate(z, p, this.light, this.model.sight) : 0;
     if (rate > 0) {
       m.alert = Math.min(1.5, m.alert + rate * acc);
       rt.noticed = { x: p.x, y: p.y };
@@ -907,7 +920,8 @@ export class ZombieSystem {
     const m = z.mind;
     if (ob.kind === 'window') {
       const w = windowOf(ob, this.state);
-      if (w && this.state.isWindowBroken(WorldState.windowId(w))) {
+      // Janela de andar de cima: não pula (lá fora é o vazio da faixa).
+      if (w && this.state.isWindowBroken(WorldState.windowId(w)) && w.y < this.model.floors.cityHeightPx) {
         const to = climbTarget(w, z.x, z.y, this.solids);
         if (to) {
           const dur = T.climbTime / (0.45 + z.traits.coordination);
@@ -1084,8 +1098,12 @@ export class ZombieSystem {
   private hear(e: NoiseEvent): void {
     const maxHear = e.radius * 2.6;
     const list = this.store.aliveNear(e.x, e.y, maxHear, this.near);
+    const floors = this.model.floors;
+    const es = floors.any ? floors.spaceAt(e.x, e.y) : 0;
     for (const z of list) {
       if (z.mind.state === 'FALL' || z.mind.state === 'GET_UP') continue;
+      // Outro andar (ou outro prédio da faixa): só ouve pelo som que desce/sobe a escada.
+      if (floors.any && floors.spaceAt(z.x, z.y) !== es) continue;
       // O próprio gemido não conta.
       if (e.kind === 'zumbi' && Math.abs(e.x - z.x) < 2 && Math.abs(e.y - z.y) < 2) continue;
       const h = this.noise.heard(e, z.x, z.y, z.traits.hearing, z.floor);
@@ -1100,6 +1118,8 @@ export class ZombieSystem {
       const fresher = !prev || this.now - prev.t > 4 || h.strength >= prev.s * 0.8;
       if (!fresher) continue;
       m.lastHeard = { x: h.x, y: h.y, t: this.now, s: h.strength };
+      // Veio de outro andar: a escada é o caminho; lembra de onde era.
+      if (e.via) m.stairHint = { building: e.via.building, level: e.via.level, x: e.via.x, y: e.via.y, t: this.now };
       if (m.state === 'CHASE') {
         // Ouviu o alvo que perdeu de vista: atualiza o "último ponto" (com erro).
         if (e.byPlayer && m.lastSeen) m.lastSeen = { x: h.x, y: h.y, t: this.now };
@@ -1127,6 +1147,97 @@ export class ZombieSystem {
     this.hooks.noise(z.x, z.y, 'zumbi', undefined, 'gemido');
   }
 
+  // ================================================================ andares
+
+  /** Está no mesmo espaço do jogador (mesmo andar do mesmo prédio, ou ambos na cidade)? */
+  private sameSpace(z: Zombie): boolean {
+    const f = this.model.floors;
+    return !f.any || f.spaceAt(z.x, z.y) === this.pSpace;
+  }
+
+  /** Nível do jogador neste prédio (0 = térreo/cidade dentro dele), ou null se está longe dele. */
+  private playerLevelIn(building: string): number | null {
+    const f = this.model.floors;
+    const pf = f.floorAt(this.player.x, this.player.y);
+    if (pf) return pf.building === building ? pf.level : null;
+    const g = f.stair(building, 0);
+    if (!g) return null;
+    // Na cidade: conta se ainda está perto da escada (dentro/na porta do prédio).
+    return Math.hypot(this.player.x - (g.x + g.w / 2), this.player.y - (g.y + g.h / 2)) < 700 ? 0 : null;
+  }
+
+  /**
+   * Chegou numa escada atrás de alguém ou de um barulho de outro andar:
+   * sobe/desce (um andar por vez). true = começou a usar a escada.
+   */
+  private maybeStairs(z: Zombie): boolean {
+    const floors = this.model.floors;
+    const m = z.mind;
+    if (!floors.any || this.now < z.rt.stairCd) return false;
+    if (m.state !== 'INVESTIGATE' && m.state !== 'CHASE' && m.state !== 'SEARCH' && m.state !== 'LOSE_TARGET') return false;
+    const zs = floors.spaceAt(z.x, z.y);
+    for (const s of floors.stairsNear(z.x, z.y, 30)) {
+      if (floors.spaceAt(s.x + s.w / 2, s.y + s.h / 2) !== zs) continue;
+      let to: number | null = null;
+      // Perseguindo: o jogador sumiu pela escada.
+      const cx = s.x + s.w / 2;
+      const cy = s.y + s.h / 2;
+      if (!this.sameSpace(z) && m.lastSeen && Math.hypot(m.lastSeen.x - cx, m.lastSeen.y - cy) < 140 && this.now - m.lastSeen.t < z.traits.memory) {
+        const pl = this.playerLevelIn(s.building);
+        if (pl !== null && pl !== s.level) to = s.level + Math.sign(pl - s.level);
+      }
+      // Ouviu vindo de outro andar deste prédio.
+      const hint = m.stairHint;
+      if (to === null && hint && hint.building === s.building && hint.level !== s.level && this.now - hint.t < 60) to = s.level + Math.sign(hint.level - s.level);
+      if (to === null) continue;
+      if ((to > s.level && !s.up) || (to < s.level && !s.down)) continue;
+      const dest = floors.stair(s.building, to);
+      if (!dest) continue;
+      // Um passo para fora do vão, do mesmo lado de onde vem.
+      const long = dest.h >= dest.w;
+      const side = long ? Math.sign(z.x - cx || 1) : Math.sign(z.y - cy || 1);
+      const tx = dest.x + dest.w / 2 + (long ? side * (dest.w / 2 + 22) : 0);
+      const ty = dest.y + dest.h / 2 + (long ? 0 : side * (dest.h / 2 + 22));
+      const slow = isCrawler(z) ? 2.6 : isLimping(z) ? 1.6 : 1;
+      m.stair = { t: 0, dur: (1.3 + (1 - z.traits.coordination) * 1.8) * slow, to: { x: tx, y: ty }, level: to };
+      z.vx = 0;
+      z.vy = 0;
+      z.path.length = 0;
+      return true;
+    }
+    return false;
+  }
+
+  /** Na escada: some de um andar e aparece no outro ao fim do tempo. */
+  private stairTick(z: Zombie, dt: number): void {
+    const m = z.mind;
+    const st = m.stair!;
+    st.t += dt;
+    z.anim.sway += dt * 0.6;
+    if (st.t < st.dur) return;
+    m.stair = null;
+    z.x = st.to.x;
+    z.y = st.to.y;
+    this.fixPosition(z);
+    z.floor = st.level;
+    z.rt.stairCd = this.now + 4;
+    this.store.moved(z);
+    const floors = this.model.floors;
+    const hint = m.stairHint;
+    const b = floors.buildingAt(z.x, z.y) ?? hint?.building ?? null;
+    // Chegou no andar do barulho: vai até onde ele foi de verdade (projetado aqui).
+    // Ainda não: fica perto da escada (sobe/desce mais um quando der).
+    m.target = { x: z.x, y: z.y };
+    if (hint && b && hint.level === st.level) {
+      m.target = floors.project(hint.x, hint.y, b, st.level) ?? m.target;
+      m.stairHint = null;
+    }
+    z.path.length = 0;
+    z.pathAge = 99;
+    if (m.state !== 'CHASE') this.setState(z, 'INVESTIGATE');
+    else if (!this.sameSpace(z)) this.setState(z, 'LOSE_TARGET');
+  }
+
   // ================================================================ o jogador contra eles
 
   /** Zumbi (vivo) mais à frente no alcance do golpe. */
@@ -1134,7 +1245,7 @@ export class ZombieSystem {
     let best: Zombie | null = null;
     let bestScore = Infinity;
     for (const z of this.store.aliveNear(x, y, reach + 30, this.near)) {
-      if (z.floor !== this.player.floor) continue;
+      if (!this.sameSpace(z)) continue;
       const d = Math.hypot(z.x - x, z.y - y) - bodyRadius(z);
       if (d > reach) continue;
       const off = Math.abs(angleDelta(facing, Math.atan2(z.y - y, z.x - x)));
@@ -1159,7 +1270,7 @@ export class ZombieSystem {
       const cx = x + dx * (s + 110);
       const cy = y + dy * (s + 110);
       for (const z of this.store.aliveNear(cx, cy, 170, this.near)) {
-        if (z.floor !== this.player.floor) continue;
+        if (!this.sameSpace(z)) continue;
         const px = z.x - x;
         const py = z.y - y;
         const along = px * dx + py * dy;
@@ -1199,7 +1310,7 @@ export class ZombieSystem {
   shove(x: number, y: number, facing: number, strength: number, defense: PlayerDefense): { hit: number; freed: boolean } {
     let hit = 0;
     for (const z of this.store.aliveNear(x, y, 72, this.near)) {
-      if (z.floor !== this.player.floor) continue;
+      if (!this.sameSpace(z)) continue;
       const off = Math.abs(angleDelta(facing, Math.atan2(z.y - y, z.x - x)));
       const d = Math.hypot(z.x - x, z.y - y);
       if (off > 1.1 || d > 62 + bodyRadius(z)) continue;
@@ -1268,6 +1379,7 @@ export class ZombieSystem {
 
   /** Coloca um zumbi pronto no mundo (população inicial, save, debug). */
   add(z: Zombie): void {
+    z.floor = this.model.floors.levelAt(z.x, z.y);
     z.rt.next = this.now + this.rng() * T.farTick;
     z.rt.last = this.now;
     this.store.add(z);
@@ -1277,6 +1389,7 @@ export class ZombieSystem {
   populate(spawns: readonly PopulationSpawn[]): void {
     this.store.populate(spawns, this.diff);
     for (const z of this.store.all) {
+      z.floor = this.model.floors.levelAt(z.x, z.y);
       z.rt.next = this.now + this.rng() * T.farTick;
       z.rt.last = this.now;
     }

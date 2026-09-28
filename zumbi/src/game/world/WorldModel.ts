@@ -8,12 +8,15 @@ import { ChunkIndex } from './ChunkIndex';
 import type { MapData } from './MapTypes';
 import { NavGrid } from './nav/NavGrid';
 import { SightGrid } from './nav/SightGrid';
+import { Floors } from './floors/Floors';
 
 export class WorldModel {
   readonly map: MapData;
   readonly index: ChunkIndex;
   readonly nav: NavGrid;
   readonly sight: SightGrid;
+  /** Andares de cima (faixa fora da cidade) e escadas. */
+  readonly floors: Floors;
   readonly widthPx: number;
   readonly heightPx: number;
 
@@ -22,6 +25,7 @@ export class WorldModel {
     this.index = new ChunkIndex(this.map);
     this.nav = NavGrid.fromMap(this.map);
     this.sight = SightGrid.fromMap(this.map);
+    this.floors = new Floors(this.map);
     this.widthPx = this.map.widthTiles * this.map.tileSize;
     this.heightPx = this.map.heightTiles * this.map.tileSize;
   }

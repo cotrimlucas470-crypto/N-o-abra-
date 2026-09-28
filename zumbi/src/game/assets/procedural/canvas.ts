@@ -19,8 +19,11 @@ export function makeCanvas(w: number, h: number): { canvas: HTMLCanvasElement; c
 // ------------------------------------------------------------------ cor
 
 function parseHex(c: string): [number, number, number] {
-  const h = c.replace('#', '');
-  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+  let h = c.replace('#', '');
+  // '#abc' → '#aabbcc' (cor curta não pode virar NaN no gradiente).
+  if (h.length === 3 || h.length === 4) h = h.slice(0, 3).split('').map((d) => d + d).join('');
+  const v = [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+  return [v[0] || 0, v[1] || 0, v[2] || 0];
 }
 
 function toHex(r: number, g: number, b: number): string {

@@ -125,7 +125,43 @@ export interface BuildingData {
   rooms: RoomData[];
   /** Portas externas (centro do vão), para a IA e para testes de acesso. */
   doors: { x: number; y: number }[];
+  /** Andar de cima: id do prédio no térreo e o nível (1 = 1º andar). Só nos andares. */
+  floorOf?: string;
+  level?: number;
 }
+
+/**
+ * ANDAR DE CIMA de um prédio. É uma CAMADA: fica numa faixa fora da cidade
+ * (abaixo dela no mapa), com as mesmas medidas do prédio, e liga ao térreo
+ * pela escada. O traçado da cidade não muda. Posição no andar = posição
+ * real + (dx, dy).
+ */
+export interface FloorData {
+  /** `prédio#nível` (igual ao id da construção do andar). */
+  id: string;
+  building: string;
+  level: number;
+  /** Onde o andar está (px, na faixa). */
+  bounds: Rect;
+  dx: number;
+  dy: number;
+}
+
+/** Escada: o mesmo vão em todos os andares do prédio (retângulo em px no andar `level`). */
+export interface StairPlacement {
+  id: string;
+  building: string;
+  level: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  up: boolean;
+  down: boolean;
+}
+
+/** Chão "vazio" da faixa dos andares (não é desenhado: por ali aparece a rua lá embaixo). */
+export const VOID_GROUND = 255;
 
 /**
  * Porta num vão de parede. O vão já existe no mapa (parede com abertura);
@@ -196,4 +232,9 @@ export interface MapData {
   resources: ResourcePlacement[];
   regions: RegionData[];
   spawn: { x: number; y: number };
+  /** Andares de cima e escadas (camada; ver world/floors/). */
+  floors?: FloorData[];
+  stairs?: StairPlacement[];
+  /** Altura (tiles) da cidade; o resto do mapa é a faixa dos andares. */
+  cityHeightTiles?: number;
 }
