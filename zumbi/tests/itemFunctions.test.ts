@@ -38,7 +38,7 @@ function game() {
 
 // Usados por outros sistemas (não por ação no item nem por receita): onde.
 const USED_ELSEWHERE: Record<string, string> = {
-  couro: 'remendar roupa', borracha: 'desmontar/peças', mangueira: 'tirar gasolina do carro', cola: 'consertar', colaMadeira: 'consertar',
+  couro: 'remendar roupa', borracha: 'remendar pneu do carro', mangueira: 'tirar gasolina do carro', cola: 'consertar', colaMadeira: 'consertar',
   galaoVazio: 'tirar/pôr gasolina', pneu: 'trocar pneu', cadeado: 'trancar porta construída', fioEletrico: 'desmontar/peças',
   componentes: 'desmontar/peças', placaCircuito: 'desmontar/peças', adubo: 'adubar a horta', fertilizante: 'adubar a horta',
   detergente: 'lavar (sabão)', aguaSanitaria: 'purificar água', sabaoBarra: 'lavar (sabão)', cadeiraDobravel: 'móvel (receita)',

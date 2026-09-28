@@ -8,7 +8,7 @@
  * Quem chama (a cena) cuida do jogador escondido, da câmera, dos controles e
  * das mensagens — aqui só a regra.
  */
-import { DRIVE_TUNING as T, collideCar, driveControls, stepCar, carCircles, type CarBody } from './Driving';
+import { DRIVE_TUNING as T, collideCar, driveControls, startChance, stepCar, carCircles, type CarBody } from './Driving';
 import { VEHICLE_SPECS, toWorld, type VehicleSpec, type VehicleState, type VehicleType } from './Vehicles';
 import type { SolidIndex } from '../sim/SolidIndex';
 import type { WorldState } from '../sim/WorldState';
@@ -34,6 +34,9 @@ export class DriveSession {
   private engineT = 0;
   private hornT = 0;
   private fuelWarned = false;
+  /** Motor fraco morreu andando: acelerar tenta pegar de novo de tempos em tempos. */
+  stalled = false;
+  private restartT = 0;
   private readonly near: Zombie[] = [];
 
   constructor(
@@ -42,6 +45,7 @@ export class DriveSession {
     private readonly solids: SolidIndex,
     private readonly zombies: ZombieSystem,
     private readonly ev: DriveEvents,
+    private readonly rng: () => number = Math.random,
   ) {
     const p = state.vehicles.vehicle(id)!;
     this.spec = VEHICLE_SPECS[p.type as VehicleType];
@@ -87,11 +91,15 @@ export class DriveSession {
     const s = this.st;
     this.hornT = Math.max(0, this.hornT - dt);
     const tires = s.tires.map((t) => t ?? 0);
-    const cond = { engine: s.engine, tires: tires.reduce((a, b) => a + b, 0) / 4, body: s.body, fuel: s.fuel };
-    const ctl = held ? { throttle: 0, steer: 0 } : driveControls(this.car, stick.x, stick.y, stick.mag);
+    const cond = { engine: this.stalled ? 0 : s.engine, tires: tires.reduce((a, b) => a + b, 0) / 4, body: s.body, fuel: s.fuel };
+    const want = held ? { throttle: 0, steer: 0 } : driveControls(this.car, stick.x, stick.y, stick.mag);
+    // Motor morto: ainda dá para esterçar, mas não acelera.
+    const ctl = this.stalled ? { throttle: 0, steer: want.steer } : want;
     const before = { x: this.car.x, y: this.car.y };
     const used = stepCar(this.car, ctl, cond, dt);
     s.fuel = Math.max(0, s.fuel - used.fuel);
+    if (used.dist > 0) this.wear(used.dist);
+    this.engineTrouble(dt, want.throttle !== 0);
     if (s.fuel <= 0.5 && !this.fuelWarned) {
       this.fuelWarned = true;
       this.ev.message(s.fuel <= 0 ? 'Acabou a gasolina.' : 'Gasolina na reserva.', 'warn');
@@ -105,7 +113,10 @@ export class DriveSession {
       // Bateu de frente com força: o vidro da frente estoura.
       if (c.impact > 300 && !s.broken.includes('frente')) s.broken.push('frente');
       this.ev.noise(this.car.x, this.car.y, 'batida', 500 + c.impact * 1.5, 'batida de carro');
-      if (c.impact > 200) this.ev.crash?.(c.impact);
+      if (c.impact > 200) {
+        this.ev.crash?.(c.impact);
+        if (this.rng() < T.flatOnCrash) this.flat();
+      }
     }
     // Não sair do mapa.
     const W = this.state.model.widthPx;
@@ -115,11 +126,63 @@ export class DriveSession {
     this.hitZombies(dt);
     // Motor: barulho contínuo, mais alto acelerando.
     this.engineT -= dt;
-    if (this.engineT <= 0 && s.fuel > 0 && s.engine > 0.05) {
+    if (this.engineT <= 0 && s.fuel > 0 && s.engine > 0.05 && !this.stalled) {
       this.engineT = 1.2;
       this.ev.noise(this.car.x, this.car.y, 'motor', 520 + Math.abs(this.car.speed) * 0.9, 'motor');
     }
     if (Math.hypot(this.car.x - before.x, this.car.y - before.y) > 0.05 || used.dist > 0) this.sync(false);
+  }
+
+  /** Desgaste por km rodado: o motor cansa devagar; às vezes um pneu fura (gasto fura mais). */
+  private wear(dist: number): void {
+    const s = this.st;
+    s.engine = Math.max(0, s.engine - dist * T.engineWearPerPx);
+    for (let i = 0; i < s.tires.length; i++) {
+      const t = s.tires[i];
+      if (t === null || t === undefined || t < 0.15) continue;
+      if (this.rng() < dist * T.flatPerPx * (1.5 - t)) {
+        this.flat(i);
+        return;
+      }
+    }
+  }
+
+  /** Um pneu fura (o indicado ou um bom qualquer). */
+  private flat(i?: number): void {
+    const s = this.st;
+    const idx = i ?? s.tires.findIndex((t) => t !== null && t >= 0.15);
+    if (idx < 0) return;
+    s.tires[idx] = T.flatLeft;
+    this.ev.noise(this.car.x, this.car.y, 'impacto', 380, 'pneu estourando');
+    this.ev.message('Um pneu furou! O carro perde velocidade.', 'bad');
+  }
+
+  /**
+   * Motor fraco pode morrer andando (raro com motor bom: nunca acima de
+   * `weakEngine`). Morto, cada tanto acelerando tenta pegar de novo — faz
+   * barulho de arranque e pode não pegar.
+   */
+  private engineTrouble(dt: number, pushing: boolean): void {
+    const s = this.st;
+    if (!pushing || s.fuel <= 0) return;
+    if (!this.stalled) {
+      if (s.engine < T.weakEngine && this.rng() < (T.weakEngine - s.engine) * T.stallRate * dt) {
+        this.stalled = true;
+        this.restartT = T.restartEvery;
+        const dead = s.engine < T.deadEngine;
+        this.ev.message(dead ? 'O motor morreu de vez. Precisa de conserto.' : 'O motor morreu! Continue acelerando para dar a partida.', 'bad');
+      }
+      return;
+    }
+    if (s.engine < T.deadEngine) return;
+    this.restartT -= dt;
+    if (this.restartT > 0) return;
+    this.restartT = T.restartEvery;
+    this.ev.noise(this.car.x, this.car.y, 'motor', 380, 'motor de arranque');
+    if (this.rng() < startChance(s.engine)) {
+      this.stalled = false;
+      this.ev.message('O motor pegou de novo.', 'ok');
+    }
   }
 
   /** Atropelo e empurrão dos zumbis na frente da lataria. */

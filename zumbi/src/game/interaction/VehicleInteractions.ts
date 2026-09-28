@@ -6,9 +6,12 @@
  * (alarme!), tirar/pôr gasolina, bateria e pneu, examinar e tentar ligar.
  */
 import { charge, condition, isBroken, type ItemState } from '../items/condition';
+import { itemDef } from '../items/ItemCatalog';
+import type { ItemDef } from '../items/ItemTypes';
 import type { PlayerInventory } from '../items/PlayerInventory';
 import type { WorldState } from '../sim/WorldState';
 import type { Survivor } from '../survival/Survivor';
+import { CAR_REPAIR, startChance } from '../vehicles/Driving';
 import { VEHICLE_SPECS, isVehicle, toWorld, type VehicleType } from '../vehicles/Vehicles';
 import type { PropPlacement } from '../world/MapTypes';
 import type { InteractionCandidate, InteractionOption, InteractionProvider, InteractionResult, Interactor } from './InteractionSystem';
@@ -235,7 +238,7 @@ export class VehicleInteractions implements InteractionProvider {
     const out: InteractionOption[] = [];
     if (!s.hood) return [{ label: 'Examinar o veículo', enabled: true, perform: () => this.examine(prop) }];
     out.push({ label: 'Fechar o capô', enabled: true, perform: () => this.hood(prop) });
-    const wrench = this.tool(['chave', 'mecanica']);
+    const wrench = this.tool(['chave']);
     if (s.battery !== null) {
       out.push({
         label: 'Tirar a bateria',
@@ -298,9 +301,11 @@ export class VehicleInteractions implements InteractionProvider {
           done: () => {
             const c = this.v.takeTire(prop.id, tireIdx);
             if (c === null) return { ok: false };
-            if (!this.inventory.add('pneu', 1)) this.hooks.drop([{ defId: 'pneu', count: 1 }], prop.x, prop.y);
+            // Pneu furado não vira pneu bom na bolsa: sobra a câmara de ar (borracha).
+            const got = c < 0.15 ? 'borracha' : 'pneu';
+            if (!this.inventory.add(got, 1)) this.hooks.drop([{ defId: got, count: 1 }], prop.x, prop.y);
             this.survivor.skills.gain('mecanica', 12);
-            return { ok: true, message: `Pneu retirado (${c < 0.15 ? 'furado' : 'bom'}).`, tone: 'ok' };
+            return { ok: true, message: c < 0.15 ? 'Pneu furado retirado: só a borracha presta.' : 'Pneu retirado.', tone: 'ok' };
           },
         });
         return { ok: true };
@@ -328,7 +333,140 @@ export class VehicleInteractions implements InteractionProvider {
         },
       });
     }
-    out.push({ label: 'Examinar o veículo', enabled: true, perform: () => this.examine(prop) });
+    // Capô aberto: a ação principal já é "Examinar o motor" (não repete no fim).
+    out.push(...this.repairOptions(prop, !!wrench));
+    return out;
+  }
+
+  // ---------------------------------------------------------------- consertos (capô aberto)
+
+  /**
+   * Conserto com peças que já existem no mundo: peças de motor (conserto de
+   * verdade, pode falhar), vela e óleo (ajudam motor fraco a pegar, com teto)
+   * e remendo de pneu furado. Mecânica deixa mais rápido e mais certo.
+   */
+  private repairOptions(prop: PropPlacement, wrench: boolean): InteractionOption[] {
+    const s = this.v.state(prop.id)!;
+    const sk = this.survivor.skills;
+    const R = CAR_REPAIR;
+    const out: InteractionOption[] = [];
+    const part = (id: string, ok: (st: ItemState | undefined) => boolean = () => true) =>
+      [...this.inventory.stacks()].find((x) => x.def.id === id && ok(x.stack.st));
+    const use = (id: string, ok?: (st: ItemState | undefined) => boolean): boolean => {
+      const p = part(id, ok);
+      if (!p || !p.container.take(p.index, 1)) return false;
+      this.inventory.changed();
+      return true;
+    };
+    const pct = (x: number) => `${Math.round(x * 100)}%`;
+    const setEngine = (v: number) => {
+      s.engine = Math.min(1, v);
+      this.v.touch(prop.id);
+    };
+    if (s.engine < 0.98) {
+      out.push({
+        label: 'Consertar o motor (peças + chave inglesa)',
+        enabled: wrench && !!part('pecasMotor'),
+        perform: () => {
+          if (!wrench || !part('pecasMotor')) return { ok: false, message: 'Precisa de peças de motor e chave inglesa.' };
+          this.hooks.start({
+            id: 'motor',
+            label: 'Consertando o motor',
+            minutes: R.engine.minutes * sk.speed('mecanica'),
+            done: () => {
+              const lvl = sk.level('mecanica');
+              if (!part('pecasMotor')) return { ok: false, message: 'Cadê as peças?' };
+              if (this.rng() < R.engine.chance + R.engine.chancePerLevel * lvl) {
+                use('pecasMotor');
+                const before = s.engine;
+                setEngine(s.engine + R.engine.gain + R.engine.gainPerLevel * lvl);
+                sk.gain('mecanica', 15);
+                return { ok: true, message: `Motor consertado: ${pct(before)} → ${pct(s.engine)}.`, tone: 'ok' };
+              }
+              sk.gain('mecanica', 6);
+              if (this.rng() < R.engine.loseOnFail) {
+                use('pecasMotor');
+                return { ok: false, message: 'Não acertou o conserto e estragou a peça.', tone: 'warn' };
+              }
+              return { ok: false, message: 'Não acertou o conserto. A peça ainda serve.', tone: 'warn' };
+            },
+          });
+          return { ok: true };
+        },
+      });
+    }
+    if (s.engine < R.plug.cap) {
+      out.push({
+        label: 'Trocar a vela (vela + chave inglesa)',
+        enabled: wrench && !!part('velaIgnicao'),
+        perform: () => {
+          if (!wrench || !part('velaIgnicao')) return { ok: false, message: 'Precisa de vela de ignição e chave inglesa.' };
+          this.hooks.start({
+            id: 'vela',
+            label: 'Trocando a vela',
+            minutes: R.plug.minutes * sk.speed('mecanica'),
+            done: () => {
+              if (!use('velaIgnicao')) return { ok: false, message: 'Cadê a vela?' };
+              setEngine(Math.max(s.engine, Math.min(R.plug.cap, s.engine + R.plug.gain)));
+              sk.gain('mecanica', 5);
+              return { ok: true, message: `Vela nova. Motor: ${pct(s.engine)}.`, tone: 'ok' };
+            },
+          });
+          return { ok: true };
+        },
+      });
+    }
+    if (s.engine < R.oil.cap) {
+      const oil = itemDef('oleoMotor')!;
+      const full = (st: ItemState | undefined) => charge(oil, st) >= R.oil.minCharge;
+      out.push({
+        label: 'Trocar o óleo (frasco de óleo)',
+        enabled: !!part('oleoMotor', full),
+        perform: () => {
+          if (!part('oleoMotor', full)) return { ok: false, message: 'Precisa de um frasco de óleo de motor (pelo menos meio).' };
+          this.hooks.start({
+            id: 'oleo',
+            label: 'Trocando o óleo',
+            minutes: R.oil.minutes * sk.speed('mecanica'),
+            done: () => {
+              if (!use('oleoMotor', full)) return { ok: false, message: 'Cadê o óleo?' };
+              setEngine(Math.max(s.engine, Math.min(R.oil.cap, s.engine + R.oil.gain)));
+              sk.gain('mecanica', 4);
+              return { ok: true, message: `Óleo trocado. Motor: ${pct(s.engine)}.`, tone: 'ok' };
+            },
+          });
+          return { ok: true };
+        },
+      });
+    }
+    const flat = s.tires.findIndex((t) => t !== null && t < 0.15);
+    if (flat >= 0) {
+      out.push({
+        label: 'Remendar o pneu (borracha + cola)',
+        enabled: !!part('borracha') && !!part('cola'),
+        perform: () => {
+          if (!part('borracha') || !part('cola')) return { ok: false, message: 'Precisa de borracha e cola.' };
+          this.hooks.start({
+            id: 'remendo-pneu',
+            label: 'Remendando o pneu',
+            minutes: R.patch.minutes * sk.speed('mecanica'),
+            done: () => {
+              if (!use('borracha')) return { ok: false, message: 'Cadê a borracha?' };
+              if (!use('cola')) return { ok: false, message: 'Cadê a cola?' };
+              if (this.rng() < R.patch.chance + R.patch.chancePerLevel * sk.level('mecanica')) {
+                s.tires[flat] = Math.max(s.tires[flat] ?? 0, R.patch.result);
+                this.v.touch(prop.id);
+                sk.gain('mecanica', 8);
+                return { ok: true, message: 'Pneu remendado. Segura, mas não é novo.', tone: 'ok' };
+              }
+              sk.gain('mecanica', 3);
+              return { ok: false, message: 'O remendo não segurou. Perdeu a borracha e a cola.', tone: 'warn' };
+            },
+          });
+          return { ok: true };
+        },
+      });
+    }
     return out;
   }
 
@@ -337,7 +475,7 @@ export class VehicleInteractions implements InteractionProvider {
   private fuelOptions(prop: PropPlacement): InteractionOption[] {
     const s = this.v.state(prop.id)!;
     const out: InteractionOption[] = [];
-    const hose = this.tool(['mangueira']);
+    const hose = this.tool(['mangueira'], true);
     const can = [...this.inventory.stacks()].find((x) => x.def.id === 'galaoVazio' || (x.def.id === 'combustivel' && charge(x.def, x.stack.st) < 0.98));
     out.push({
       label: 'Tirar gasolina (mangueira)',
@@ -406,6 +544,8 @@ export class VehicleInteractions implements InteractionProvider {
       Object.values(s.doors).some((d) => d.locked) || s.trunk.locked ? `Trancado${s.alarm ? ' · tem alarme' : ''}` : 'Destrancado',
     ];
     if (s.keyInside) lines.push('A chave está no contato.');
+    const probs = this.v.problems(prop.id);
+    if (probs.length) lines.push('', ...probs);
     this.hooks.info(cap(spec.name), lines);
     return { ok: true };
   }
@@ -416,6 +556,11 @@ export class VehicleInteractions implements InteractionProvider {
       // Tentar dar a partida faz barulho mesmo sem pegar (motor de arranque).
       if (!why.includes('sem chave')) this.hooks.noise(prop.x, prop.y, 380, 'motor');
       return { ok: false, message: `Não pega: ${why.join(', ')}.` };
+    }
+    // Motor fraco engasga: às vezes precisa de mais de uma tentativa.
+    if (this.rng() >= startChance(this.v.state(prop.id)!.engine)) {
+      this.hooks.noise(prop.x, prop.y, 380, 'motor');
+      return { ok: false, message: 'O motor engasgou e não pegou. Tente de novo.' };
     }
     this.hooks.noise(prop.x, prop.y, 700, 'motor');
     if (this.hooks.drive) return this.hooks.drive(prop);
@@ -429,11 +574,18 @@ export class VehicleInteractions implements InteractionProvider {
     return null;
   }
 
-  private tool(tags: readonly string[]) {
+  /**
+   * Ferramenta que faz `uses` (o que ela FAZ, `tool.uses`): etiqueta solta não
+   * serve — chave de carro ("chave"), peça de motor ("mecanica") ou fio
+   * ("eletrica") não viram chave inglesa nem alicate. `material` = vale
+   * qualquer item com a etiqueta (mangueira).
+   */
+  private tool(uses: readonly string[], material = false) {
+    const fits = (d: ItemDef) => (material ? d.tags : (d.tool?.uses ?? [])).some((t) => uses.includes(t));
     const h = this.inventory.hand;
     const hd = this.inventory.handDef;
-    if (h && hd && hd.tags.some((t) => tags.includes(t)) && !isBroken(hd, h.st)) return { hand: true, def: hd, st: h.st, container: null, index: -1 };
-    for (const s of this.inventory.stacks()) if (s.def.tags.some((t) => tags.includes(t)) && !isBroken(s.def, s.stack.st)) return { hand: false, def: s.def, st: s.stack.st, container: s.container, index: s.index };
+    if (h && hd && fits(hd) && !isBroken(hd, h.st)) return { hand: true, def: hd, st: h.st, container: null, index: -1 };
+    for (const s of this.inventory.stacks()) if (fits(s.def) && !isBroken(s.def, s.stack.st)) return { hand: false, def: s.def, st: s.stack.st, container: s.container, index: s.index };
     return null;
   }
 

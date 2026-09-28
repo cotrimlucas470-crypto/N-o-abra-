@@ -27,7 +27,8 @@ export class InfoCard {
     const w = Math.max(this.title.width, this.body.width) * k + 40 * k;
     const h = (this.title.height + this.body.height) * k + 40 * k;
     const x = cssW / 2 - w / 2;
-    const y = cssH * 0.3 - h / 2;
+    // Cartão comprido (carro com vários problemas) não sai pelo topo da tela deitada.
+    const y = Math.max(8 * k, cssH * 0.3 - h / 2);
     this.g.clear().setVisible(true);
     this.g.fillStyle(0x0e0f12, 0.94).fillRoundedRect(x, y, w, h, 12 * k);
     this.g.lineStyle(1.5, 0xffffff, 0.16).strokeRoundedRect(x, y, w, h, 12 * k);

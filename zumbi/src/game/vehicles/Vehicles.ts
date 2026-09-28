@@ -12,6 +12,7 @@
  * pneus já existem, dá para tirar/pôr bateria e pneu e tirar gasolina.
  */
 import { hashString, Random } from '../core/Random';
+import { DRIVE_TUNING } from './Driving';
 import type { PropPlacement } from '../world/MapTypes';
 import type { PropType } from '../world/PropCatalog';
 
@@ -399,10 +400,27 @@ export class Vehicles {
     if (s.battery === null) why.push('sem bateria');
     else if (s.battery < 0.15) why.push('bateria fraca');
     if (s.fuel < 0.5) why.push('sem gasolina');
-    if (s.engine < 0.15) why.push('motor destruído');
+    if (s.engine < DRIVE_TUNING.deadEngine) why.push('motor destruído');
     const bad = s.tires.filter((t) => t === null || t < 0.1).length;
     if (bad) why.push(`${bad} pneu${bad > 1 ? 's' : ''} ruim${bad > 1 ? 's' : ''}`);
     return why;
+  }
+
+  /** O que está ruim e como se conserta (para o "Examinar"). */
+  problems(vehicleId: string): string[] {
+    const s = this.state(vehicleId);
+    if (!s) return [];
+    const T = DRIVE_TUNING;
+    const out: string[] = [];
+    if (s.engine < T.deadEngine) out.push('Motor destruído: peças de motor + chave inglesa (capô aberto).');
+    else if (s.engine < T.sureStart) out.push('Motor fraco: engasga e pode morrer. Peças de motor, vela nova ou óleo.');
+    const flat = s.tires.filter((t) => t !== null && t < 0.15).length;
+    if (flat) out.push(`${flat > 1 ? `${flat} pneus furados` : 'Pneu furado'}: remendar (borracha + cola) ou trocar (macaco + chave de roda).`);
+    if (s.tires.some((t) => t === null)) out.push('Falta pneu: pneu + macaco + chave de roda.');
+    if (s.battery === null) out.push('Sem bateria: bateria de carro + chave inglesa.');
+    else if (s.battery < 0.15) out.push('Bateria fraca: troque por uma carregada.');
+    if (s.fuel < 0.5) out.push('Tanque vazio: galão de gasolina.');
+    return out;
   }
 
   serialize(): Record<string, VehicleState> {

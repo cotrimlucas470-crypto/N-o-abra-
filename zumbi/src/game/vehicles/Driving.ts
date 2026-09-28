@@ -30,7 +30,44 @@ export const DRIVE_TUNING = {
   crashDamage: 0.0012,
   /** Atropelo: velocidade mínima para derrubar/ferir (px/s). */
   hitSpeed: 70,
+  // Defeitos: carro não quebra fácil. 1 km ≈ 49 mil px (1 tile = 1,3 m).
+  /** Motor gasta ~1% a cada km rodado (um tanque cheio ≈ 10%). */
+  engineWearPerPx: 0.0000002,
+  /** Pneu fura (chance por pneu, por px): ~1% por km com os 4 bons, ~2% gastos; e às vezes numa batida forte. */
+  flatPerPx: 0.0000001,
+  flatOnCrash: 0.25,
+  /** Condição do pneu que furou (abaixo de 0,1 o carro não sai do lugar de novo). */
+  flatLeft: 0.05,
+  /** Motor fraco (abaixo disso) pode morrer andando: chance por segundo = (weakEngine − motor) × stallRate. */
+  weakEngine: 0.35,
+  stallRate: 0.25,
+  /** Morreu: cada tentativa de pegar de novo (segundos acelerando). */
+  restartEvery: 2,
+  /** Partida: motor a partir disso pega sempre; no limite (15%) pega 1 em 4; abaixo, não pega. */
+  sureStart: 0.5,
+  startMin: 0.25,
+  deadEngine: 0.15,
 } as const;
+
+/** Conserto no capô aberto (peças que já existem no mundo). */
+export const CAR_REPAIR = {
+  /** Peças de motor + chave inglesa: minutos, chance (+ por nível de Mecânica), quanto sobe. */
+  engine: { minutes: 30, chance: 0.5, chancePerLevel: 0.1, gain: 0.25, gainPerLevel: 0.05, loseOnFail: 0.5 },
+  /** Vela nova: faz o motor pegar, não conserta motor gasto (teto). */
+  plug: { minutes: 10, gain: 0.1, cap: 0.6 },
+  /** Troca de óleo (um frasco inteiro): alivia o motor, com teto. */
+  oil: { minutes: 15, gain: 0.1, cap: 0.7, minCharge: 0.5 },
+  /** Remendo do pneu furado (borracha + cola). */
+  patch: { minutes: 15, chance: 0.6, chancePerLevel: 0.08, result: 0.5 },
+} as const;
+
+/** Chance de o motor pegar numa tentativa de partida. */
+export function startChance(engine: number): number {
+  const T = DRIVE_TUNING;
+  if (engine < T.deadEngine) return 0;
+  if (engine >= T.sureStart) return 1;
+  return T.startMin + (1 - T.startMin) * ((engine - T.deadEngine) / (T.sureStart - T.deadEngine));
+}
 
 export interface CarBody {
   x: number;

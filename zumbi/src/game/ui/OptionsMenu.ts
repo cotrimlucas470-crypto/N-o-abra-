@@ -7,9 +7,12 @@ import type Phaser from 'phaser';
 import { UiButton } from './UiButton';
 import { UI, textStyle } from './theme';
 
-const MAX = 8;
+const MAX = 14;
+/** Linhas por coluna: passou disso, vira duas colunas (celular deitado tem pouca altura). */
+const ROWS = 7;
 const BTN_W = 230;
 const BTN_H = 34;
+const GAP = 8;
 
 export class OptionsMenu {
   private readonly buttons: UiButton[] = [];
@@ -33,8 +36,14 @@ export class OptionsMenu {
   show(options: readonly { label: string; enabled: boolean }[], ax: number, ay: number, cssW: number, k: number): void {
     const n = Math.min(MAX, options.length);
     this.open = n > 0;
-    const w = BTN_W * k + 16 * k;
-    const h = n * (BTN_H + 6) * k + 30 * k;
+    const cols = n > ROWS ? 2 : 1;
+    const rows = Math.ceil(n / cols);
+    // Etiqueta comprida alarga os botões (até caber na tela).
+    let bw = BTN_W;
+    for (let i = 0; i < n; i++) bw = Math.max(bw, this.buttons[i]!.setLabel(options[i]!.label).labelWidth + 24);
+    bw = Math.min(bw, ((cssW - 16) / k - 16 - (cols - 1) * GAP) / cols);
+    const w = (bw * cols + (cols - 1) * GAP) * k + 16 * k;
+    const h = rows * (BTN_H + 6) * k + 30 * k;
     const x = Math.max(8, Math.min(cssW - w - 8, ax - w + 30 * k));
     const y = Math.max(8, ay - h - 10 * k);
     this.box = { x, y, w, h };
@@ -48,7 +57,13 @@ export class OptionsMenu {
       const o = options[i];
       b.setVisible(!!o && i < n);
       if (!o) return;
-      b.setLabel(o.label).setDim(!o.enabled).setScale(k).setPosition(x + w / 2, y + 26 * k + (i + 0.5) * (BTN_H + 6) * k);
+      const col = Math.floor(i / rows);
+      const row = i % rows;
+      b.setButtonSize(bw, BTN_H)
+        .setLabel(o.label)
+        .setDim(!o.enabled)
+        .setScale(k)
+        .setPosition(x + 8 * k + (col * (bw + GAP) + bw / 2) * k, y + 26 * k + (row + 0.5) * (BTN_H + 6) * k);
     });
   }
 
