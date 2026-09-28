@@ -144,3 +144,18 @@ describe('cidade na grade de navegação', () => {
     expect(missing).toEqual([]);
   });
 });
+
+describe('campo de fluxo sem explosão', () => {
+  it('cada célula é expandida uma vez (o ponto que travava por segundos)', async () => {
+    const { FlowField } = await import('../src/game/world/nav/FlowField');
+    const { addUpperFloors } = await import('../src/game/world/floors/UpperFloors');
+    const { WorldModel } = await import('../src/game/world/WorldModel');
+    const model = new WorldModel(addUpperFloors(buildCity({ seed: 1337, sectorsX: 5, sectorsY: 5, core: 3 })));
+    const f = new FlowField(model.nav, 38, 14);
+    const sp = model.map.spawn;
+    const t0 = performance.now();
+    for (let i = 640; i <= 680; i += 2) f.build(sp.x + Math.cos(i / 200) * 600, sp.y + 300 + Math.sin(i / 200) * 400);
+    expect(performance.now() - t0).toBeLessThan(2000);
+    expect(f.ready).toBe(true);
+  });
+});

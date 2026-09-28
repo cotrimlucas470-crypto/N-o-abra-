@@ -5,6 +5,7 @@
 import Phaser from 'phaser';
 import { GAME_STAGE, GAME_TITLE, GAME_VERSION, SCENES } from '../config/GameConfig';
 import { services } from '../core/Services';
+import { SANDBOX_PRESETS, type SandboxPresetId } from '../config/Sandbox';
 import { requestFullscreenLandscape } from '../systems/fullscreen';
 import { archiveCurrent, loadGame, saveSummary } from '../save/SaveGame';
 import { UiButton } from '../ui/UiButton';
@@ -59,6 +60,33 @@ export class TitleScene extends Phaser.Scene {
         preset = presets[(presets.indexOf(preset) + 1) % presets.length]!;
         presetBtn.setLabel(presetLabel());
         presetInfo.setText(ZOMBIE_PRESETS[preset].description);
+        this.layoutFn?.();
+      },
+      false,
+      dpr,
+    );
+    // Tamanho da cidade (jogo novo). A expandida tem a cidade de sempre no meio.
+    const cities: { id: SandboxPresetId; label: string }[] = [
+      { id: 'padrao', label: 'Expandida 5×5' },
+      { id: 'cidade-classica', label: 'Clássica 3×3' },
+      { id: 'cidade-pequena', label: 'Pequena 1×1' },
+    ];
+    const sameWorld = (id: SandboxPresetId) => {
+      const w = SANDBOX_PRESETS[id].settings.world;
+      return w.sectorsX === s.settings.world.sectorsX && w.sectorsY === s.settings.world.sectorsY && w.core === s.settings.world.core;
+    };
+    let city = cities.find((c) => sameWorld(c.id)) ?? cities[0]!;
+    const cityLabel = () => `Cidade: ${city.label} ▸`;
+    const cityBtn = new UiButton(
+      this,
+      cityLabel(),
+      230,
+      34,
+      () => {
+        city = cities[(cities.indexOf(city) + 1) % cities.length]!;
+        cityBtn.setLabel(cityLabel());
+        presetInfo.setText(SANDBOX_PRESETS[city.id].description);
+        this.layoutFn?.();
       },
       false,
       dpr,
@@ -76,7 +104,7 @@ export class TitleScene extends Phaser.Scene {
         // Jogo novo: o save antigo é ARQUIVADO (nunca apagado sem pedir).
         archiveCurrent();
         s.session.pendingLoad = null;
-        s.settings = { ...s.settings, zombies: { ...ZOMBIE_PRESETS[preset].settings } };
+        s.settings = { ...s.settings, world: { ...SANDBOX_PRESETS[city.id].settings.world, seed: s.settings.world.seed }, zombies: { ...ZOMBIE_PRESETS[preset].settings } };
       }
       this.scene.start(SCENES.game);
     };
@@ -103,6 +131,7 @@ export class TitleScene extends Phaser.Scene {
       fresh.setVisible(!v && !!summary);
       // A dificuldade aparece quando o próximo passo é um jogo novo.
       presetBtn.setVisible(v || !summary);
+      cityBtn.setVisible(v || !summary);
       presetInfo.setVisible(v || !summary);
       help.setVisible(!v);
       confirming = v;
@@ -132,9 +161,12 @@ export class TitleScene extends Phaser.Scene {
       help.setPosition(w / 2, h * 0.58 + 112 * k).setScale(Math.min(k, (w * 0.95) / (help.width || 1)));
       // Novo jogo: dificuldade entre o subtítulo e o botão (no confirmar, acima do texto).
       const py = confirming ? h * 0.58 + 104 * k : h * 0.58 + 58 * k;
-      presetBtn.setPosition(w / 2, py).setScale(k);
-      presetInfo.setPosition(w / 2, py + 24 * k).setScale(Math.min(k, (w * 0.95) / (presetInfo.width || 1)));
-      if (!summary) help.setPosition(w / 2, h * 0.58 + 122 * k);
+      // Lado a lado quando cabe (paisagem); um embaixo do outro no retrato.
+      const wide = w >= 520 * k;
+      presetBtn.setPosition(wide ? w / 2 - 120 * k : w / 2, py).setScale(k);
+      cityBtn.setPosition(wide ? w / 2 + 120 * k : w / 2, wide ? py : py + 40 * k).setScale(k);
+      presetInfo.setPosition(w / 2, py + (wide ? 24 : 64) * k).setScale(Math.min(k, (w * 0.95) / (presetInfo.width || 1)));
+      if (!summary) help.setPosition(w / 2, h * 0.58 + (wide ? 122 : 162) * k);
       version.setPosition(w - 12 - s.viewport.insets.right, h - 10 - s.viewport.insets.bottom);
     };
     this.layoutFn();

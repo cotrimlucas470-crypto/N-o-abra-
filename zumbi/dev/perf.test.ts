@@ -36,6 +36,8 @@ for (const preset of ['sobrevivencia', 'extincao'] as const) {
       sys.update({ dt: 1 / 60, player: p, light });
       times.push(performance.now() - a);
     }
+    const worst = times.indexOf(Math.max(...times));
+    console.log('pior quadro', worst, times[worst]!.toFixed(1), 'ms; vizinhos', times.slice(Math.max(0, worst - 2), worst + 3).map((t) => t.toFixed(1)).join(' '));
     times.sort((a, b) => a - b);
     const avg = times.reduce((s, x) => s + x, 0) / times.length;
     const st = sys.stats();

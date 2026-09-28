@@ -20,7 +20,12 @@ export class FlowField {
   x0 = 0;
   y0 = 0;
   readonly side: number;
-  private readonly dist: Float32Array;
+  // Float64: com Float32 a distância guardada arredondava para cima e a
+  // entrada velha do heap nunca era descartada — em certos pontos a conta
+  // explodia (milhões de passos, segundos de travada).
+  private readonly dist: Float64Array;
+  /** Já expandida nesta conta (cada célula uma vez só). */
+  private readonly done: Uint8Array;
   private heap: number[] = [];
   private heapF: number[] = [];
   /** Alvo atual (px) e se a conta está válida. */
@@ -36,7 +41,8 @@ export class FlowField {
     private readonly softCost = 14,
   ) {
     this.side = radius * 2 + 1;
-    this.dist = new Float32Array(this.side * this.side);
+    this.dist = new Float64Array(this.side * this.side);
+    this.done = new Uint8Array(this.side * this.side);
   }
 
   /** Recalcula a partir do alvo (px). */
@@ -48,6 +54,7 @@ export class FlowField {
     const t = g.cellOf(tx, ty);
     const start = g.nearestWalkable(t.cx, t.cy, 3);
     this.dist.fill(Infinity);
+    this.done.fill(0);
     this.ready = false;
     if (!start) return;
     this.x0 = start.cx - this.radius;
@@ -60,7 +67,8 @@ export class FlowField {
     while (this.heap.length) {
       const f = this.heapF[0]!;
       const cur = this.pop();
-      if (f > this.dist[cur]!) continue;
+      if (this.done[cur] || f > this.dist[cur]!) continue;
+      this.done[cur] = 1;
       const lx = cur % side;
       const ly = (cur / side) | 0;
       const cx = lx + this.x0;
@@ -79,6 +87,7 @@ export class FlowField {
         }
         if (dx !== 0 && dy !== 0 && (g.isBlocked(cx + dx, cy) || g.isBlocked(cx, cy + dy))) continue;
         const ni = nly * side + nlx;
+        if (this.done[ni]) continue;
         const nd = f + cost + extra;
         if (nd < this.dist[ni]!) {
           this.dist[ni] = nd;

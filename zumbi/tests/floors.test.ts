@@ -155,3 +155,39 @@ describe('zumbis e andares', () => {
     expect(floors.levelAt(z.x, z.y)).toBe(1);
   }, 60000);
 });
+
+describe('cidade expandida (arredores)', () => {
+  it('o miolo 3×3 da cidade 5×5 expandida é a cidade 3×3 de sempre', async () => {
+    const { SECTOR_W, SECTOR_H } = await import('../src/game/world/districts/SectorLayout');
+    const small = buildCity({ seed: 1337, sectorsX: 3, sectorsY: 3, ambience: 0 });
+    const big = buildCity({ seed: 1337, sectorsX: 5, sectorsY: 5, core: 3, ambience: 0 });
+    const ox = SECTOR_W * TILE;
+    const oy = SECTOR_H * TILE;
+    // Longe das bordas antigas (lá a cidade pequena tinha cercas e bloqueios).
+    const M = 8 * TILE;
+    const W = small.widthTiles * TILE;
+    const H = small.heightTiles * TILE;
+    const inside = (x: number, y: number) => x > M && y > M && x < W - M && y < H - M;
+    const key = (p: { type: string; x: number; y: number; angle: number }) => `${p.type}@${Math.round(p.x)},${Math.round(p.y)},${Math.round(p.angle)}`;
+    const a = small.props.filter((p) => inside(p.x, p.y)).map(key).sort();
+    const b = big.props.filter((p) => inside(p.x - ox, p.y - oy)).map((p) => key({ ...p, x: p.x - ox, y: p.y - oy })).sort();
+    expect(b).toEqual(a);
+    const wk = (w: { kind: string; x: number; y: number; w: number; h: number }) => `${w.kind}:${Math.round(w.x)},${Math.round(w.y)},${Math.round(w.w)},${Math.round(w.h)}`;
+    const wa = small.walls.filter((w) => inside(w.x, w.y)).map(wk).sort();
+    const wb = big.walls.filter((w) => inside(w.x - ox, w.y - oy)).map((w) => wk({ ...w, x: w.x - ox, y: w.y - oy })).sort();
+    expect(wb).toEqual(wa);
+    const ba = small.buildings.map((q) => `${q.kind}:${q.bounds.x},${q.bounds.y}`).sort();
+    const bb = big.buildings.filter((q) => inside(q.bounds.x - ox + 1, q.bounds.y - oy + 1) || inside(q.bounds.x - ox + q.bounds.w - 1, q.bounds.y - oy + q.bounds.h - 1)).map((q) => `${q.kind}:${q.bounds.x - ox},${q.bounds.y - oy}`).sort();
+    expect(bb).toEqual(ba);
+    for (let ty = 8; ty < small.heightTiles - 8; ty++) {
+      for (let tx = 8; tx < small.widthTiles - 8; tx++) {
+        const g1 = small.ground[ty * small.widthTiles + tx];
+        const g2 = big.ground[(ty + SECTOR_H) * big.widthTiles + tx + SECTOR_W];
+        if (g1 !== g2) throw new Error(`chão diferente em ${tx},${ty}`);
+      }
+    }
+    // O abrigo continua no setor 1, no centro.
+    expect(big.regions.some((r) => r.id === 'setor-1')).toBe(true);
+    expect(big.buildings.length).toBeGreaterThan(small.buildings.length * 2);
+  });
+});

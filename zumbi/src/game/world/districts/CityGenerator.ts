@@ -22,6 +22,13 @@ export interface CityOptions {
   sectorsY: number;
   /** Densidade da camada de ambiente (vegetação, pedras, lixo). Padrão 1; 0 = sem. */
   ambience?: number;
+  /**
+   * Cidade expandida: o miolo `core` × `core` setores é EXATAMENTE a cidade
+   * desse tamanho (mesmos setores, mesmos sorteios), e o resto vira um anel de
+   * arredores novos em volta. As bordas antigas (cercas e bloqueios) dão lugar
+   * às ruas que seguem para os arredores.
+   */
+  core?: number;
 }
 
 export type SectorZone = 'starter' | BlockZone;
@@ -32,6 +39,8 @@ export interface SectorPlan {
   zone: SectorZone;
   name: string;
   id: string;
+  /** Semente do setor (o miolo da cidade expandida usa a mesma da cidade original). */
+  key?: string;
 }
 
 const DIRS: Record<string, string> = {
@@ -100,6 +109,36 @@ export function planCity(opts: CityOptions): SectorPlan[] {
   return plans;
 }
 
+/** Plano da cidade expandida: o miolo igual à cidade `core`×`core`, anel de arredores em volta. */
+export function planExpanded(opts: CityOptions): SectorPlan[] {
+  const core = Math.max(1, Math.min(opts.core ?? 0, opts.sectorsX, opts.sectorsY));
+  const ox = Math.floor((opts.sectorsX - core) / 2);
+  const oy = Math.floor((opts.sectorsY - core) / 2);
+  const inner = planCity({ seed: opts.seed, sectorsX: core, sectorsY: core }).map((p) => ({ ...p, key: `${opts.seed}:${p.sx}:${p.sy}`, sx: p.sx + ox, sy: p.sy + oy }));
+  const taken = new Set(inner.map((p) => `${p.sx},${p.sy}`));
+  const rng = new Random(hashString(`anel:${opts.seed}`));
+  const cx = Math.floor(opts.sectorsX / 2);
+  const cy = Math.floor(opts.sectorsY / 2);
+  let residentialN = inner.filter((p) => p.zone === 'residential' || p.zone === 'starter').length + 1;
+  const out = [...inner];
+  for (let sy = 0; sy < opts.sectorsY; sy++) {
+    for (let sx = 0; sx < opts.sectorsX; sx++) {
+      if (taken.has(`${sx},${sy}`)) continue;
+      const zone: BlockZone = rng.weighted([
+        ['residential', 4],
+        ['industrial', 3],
+        ['park', 2],
+        ['commercial', 1.5],
+      ] as const);
+      const dir = DIRS[`${Math.sign(sx - cx)},${Math.sign(sy - cy)}`] ?? '';
+      const name =
+        zone === 'residential' ? `Zona Residencial · Setor ${residentialN++}` : zone === 'commercial' ? `Comércio ${dir} (arredores)` : zone === 'industrial' ? `Indústria ${dir} (arredores)` : `Mata ${dir} (arredores)`;
+      out.push({ sx, sy, zone, name, id: `a${sx}-${sy}`, key: `${opts.seed}:anel:${sx}:${sy}` });
+    }
+  }
+  return out;
+}
+
 function ring(p: SectorPlan, cx: number, cy: number): number {
   return Math.max(Math.abs(p.sx - cx), Math.abs(p.sy - cy));
 }
@@ -126,8 +165,9 @@ export function buildCity(opts: CityOptions): MapData {
   const H = SECTOR_H * opts.sectorsY;
   const b = new MapBuilder('cidade', 'Cidade', W, H, opts.seed, Ground.Grass);
 
-  for (const plan of planCity(opts)) {
-    const rng = new Random(hashString(`${opts.seed}:${plan.sx}:${plan.sy}`));
+  const expanded = !!opts.core && opts.core < Math.max(opts.sectorsX, opts.sectorsY);
+  for (const plan of expanded ? planExpanded(opts) : planCity(opts)) {
+    const rng = new Random(hashString(plan.key ?? `${opts.seed}:${plan.sx}:${plan.sy}`));
     const sb = new SectorBuilder(b, plan.sx * SECTOR_W, plan.sy * SECTOR_H, plan.id, rng);
     buildRoadSkeleton(sb, plan.zone === 'starter' ? 'fixed' : 'varied');
     buildBackFences(sb);

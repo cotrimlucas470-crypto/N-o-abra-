@@ -72,7 +72,39 @@ function useFor(b: BuildingData, level: number, rng: Random): FloorUse {
  * Vão da escada no térreo: canto livre (sem parede, móvel, nem porta perto),
  * de preferência encostado numa parede e fora do banheiro. Tiles locais.
  */
-export function findStair(city: MapData, b: BuildingData): LocalRect | null {
+/** Paredes e objetos da cidade por célula de 16 tiles (a busca da escada olha só a vizinhança). */
+class Buckets {
+  readonly walls = new Map<number, number[]>();
+  readonly props = new Map<number, number[]>();
+  constructor(readonly city: MapData) {
+    const T = TILE * 16;
+    const put = (m: Map<number, number[]>, i: number, x0: number, y0: number, x1: number, y1: number) => {
+      for (let cy = Math.floor(y0 / T); cy <= Math.floor(y1 / T); cy++) {
+        for (let cx = Math.floor(x0 / T); cx <= Math.floor(x1 / T); cx++) {
+          const k = cy * 4096 + cx;
+          const l = m.get(k);
+          if (l) l.push(i);
+          else m.set(k, [i]);
+        }
+      }
+    };
+    city.walls.forEach((w, i) => put(this.walls, i, w.x, w.y, w.x + w.w, w.y + w.h));
+    city.props.forEach((p, i) => {
+      if (!p.ambient) put(this.props, i, p.x, p.y, p.x, p.y);
+    });
+  }
+
+  near(m: Map<number, number[]>, r: { x: number; y: number; w: number; h: number }): number[] {
+    const T = TILE * 16;
+    const out = new Set<number>();
+    for (let cy = Math.floor((r.y - 128) / T); cy <= Math.floor((r.y + r.h + 128) / T); cy++) {
+      for (let cx = Math.floor((r.x - 128) / T); cx <= Math.floor((r.x + r.w + 128) / T); cx++) for (const i of m.get(cy * 4096 + cx) ?? []) out.add(i);
+    }
+    return [...out];
+  }
+}
+
+export function findStair(city: MapData, b: BuildingData, buckets: Buckets = new Buckets(city)): LocalRect | null {
   const T = TILE;
   const bx = b.bounds.x / T;
   const by = b.bounds.y / T;
@@ -80,12 +112,14 @@ export function findStair(city: MapData, b: BuildingData): LocalRect | null {
   const H = b.bounds.h / T;
   const area: Rect = { x: bx, y: by, w: W, h: H };
   const walls: Rect[] = [];
-  for (const w of city.walls) {
+  for (const i of buckets.near(buckets.walls, b.bounds)) {
+    const w = city.walls[i]!;
     const r = { x: w.x / T, y: w.y / T, w: w.w / T, h: w.h / T };
     if (hits(r, area, 0.5)) walls.push(r);
   }
   const boxes: Rect[] = [];
-  for (const p of city.props) {
+  for (const i of buckets.near(buckets.props, b.bounds)) {
+    const p = city.props[i]!;
     if (p.ambient) continue;
     const px = p.x / T;
     const py = p.y / T;
@@ -101,8 +135,8 @@ export function findStair(city: MapData, b: BuildingData): LocalRect | null {
   let best: { r: LocalRect; score: number } | null = null;
   const { stairW, stairL } = FLOOR_TUNING;
   for (const [w, h] of [[stairW, stairL], [stairL, stairW]] as const) {
-    for (let y = 0.2; y <= H - 0.2 - h + 1e-6; y += 0.25) {
-      for (let x = 0.2; x <= W - 0.2 - w + 1e-6; x += 0.25) {
+    for (let y = 0.25; y <= H - 0.25 - h + 1e-6; y += 0.5) {
+      for (let x = 0.25; x <= W - 0.25 - w + 1e-6; x += 0.5) {
         const r: Rect = { x: bx + x, y: by + y, w, h };
         if (walls.some((wr) => hits(wr, r, 0.06))) continue;
         if (boxes.some((pb) => hits(pb, r, 0.22))) continue;
@@ -148,8 +182,9 @@ export function addUpperFloors(city: MapData): MapData {
   }
   const ok: typeof plans = [];
   let total = 0;
+  const buckets = new Buckets(city);
   for (const p of plans.sort((a, b) => (a.b.id < b.b.id ? -1 : 1))) {
-    const s = findStair(city, p.b);
+    const s = findStair(city, p.b, buckets);
     if (!s) continue;
     if (total + p.levels > FLOOR_TUNING.maxFloors) continue;
     p.stair = s;

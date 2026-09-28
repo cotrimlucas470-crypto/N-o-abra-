@@ -21,6 +21,11 @@ export interface SandboxSettings {
     /** Tamanho da cidade em setores (cada setor = 72 × 56 tiles, ~96 × 75 m na escala do jogo). */
     sectorsX: number;
     sectorsY: number;
+    /**
+     * Cidade expandida: o miolo core×core é a cidade desse tamanho, igual, e o
+     * resto são arredores novos em volta (0 = cidade comum).
+     */
+    core: number;
   };
   time: {
     /** Minutos REAIS que dura um dia do jogo. */
@@ -102,11 +107,12 @@ export interface SandboxSettings {
   };
 }
 
-export type SandboxPresetId = 'padrao' | 'cidade-pequena' | 'cidade-grande';
+export type SandboxPresetId = 'padrao' | 'cidade-classica' | 'cidade-pequena' | 'cidade-grande';
 
 export const SANDBOX_DEFAULTS: SandboxSettings = {
   version: 1,
-  world: { seed: 1337, sectorsX: 3, sectorsY: 3 },
+  // Jogo novo: a cidade de sempre (3×3) no meio de arredores novos (5×5).
+  world: { seed: 1337, sectorsX: 5, sectorsY: 5, core: 3 },
   time: { dayLengthMinutes: 48, startDay: 1, startHour: 8, startMonth: 5, startDayOfMonth: 3 },
   climate: { temperatureOffset: 0, rainMultiplier: 1 },
   player: { walkSpeedMultiplier: 1, runSpeedMultiplier: 1, staminaDrainMultiplier: 1, staminaRegenMultiplier: 1 },
@@ -119,16 +125,21 @@ export const SANDBOX_DEFAULTS: SandboxSettings = {
 };
 
 export const SANDBOX_PRESETS: Record<SandboxPresetId, { name: string; description: string; settings: SandboxSettings }> = {
-  padrao: { name: 'Padrão', description: 'Cidade 3×3 setores, dia de 48 minutos.', settings: SANDBOX_DEFAULTS },
+  padrao: { name: 'Padrão', description: 'A cidade de sempre (3×3) com arredores em volta (5×5). Dia de 48 minutos.', settings: SANDBOX_DEFAULTS },
+  'cidade-classica': {
+    name: 'Cidade clássica',
+    description: 'Só a cidade de sempre, 3×3 setores (aparelhos mais fracos).',
+    settings: { ...SANDBOX_DEFAULTS, world: { ...SANDBOX_DEFAULTS.world, sectorsX: 3, sectorsY: 3, core: 0 } },
+  },
   'cidade-pequena': {
     name: 'Cidade pequena',
     description: 'Só o setor inicial. Para aparelhos fracos e testes.',
-    settings: { ...SANDBOX_DEFAULTS, world: { ...SANDBOX_DEFAULTS.world, sectorsX: 1, sectorsY: 1 } },
+    settings: { ...SANDBOX_DEFAULTS, world: { ...SANDBOX_DEFAULTS.world, sectorsX: 1, sectorsY: 1, core: 0 } },
   },
   'cidade-grande': {
     name: 'Cidade grande',
-    description: 'Cidade 5×5 setores.',
-    settings: { ...SANDBOX_DEFAULTS, world: { ...SANDBOX_DEFAULTS.world, sectorsX: 5, sectorsY: 5 } },
+    description: 'Cidade 5×5 setores, toda sorteada (sem a cidade de sempre no meio).',
+    settings: { ...SANDBOX_DEFAULTS, world: { ...SANDBOX_DEFAULTS.world, sectorsX: 5, sectorsY: 5, core: 0 } },
   },
 };
 
@@ -148,6 +159,8 @@ export function sanitizeSandbox(input: DeepPartial<SandboxSettings> | null | und
       seed: num(i.world?.seed, d.world.seed, 0, 2 ** 31 - 1, true),
       sectorsX: num(i.world?.sectorsX, d.world.sectorsX, 1, 9, true),
       sectorsY: num(i.world?.sectorsY, d.world.sectorsY, 1, 9, true),
+      // Save de antes da cidade expandida não tem `core`: é cidade comum (a mesma de antes).
+      core: num(i.world === undefined ? d.world.core : i.world.core, 0, 0, 9, true),
     },
     time: {
       dayLengthMinutes: num(i.time?.dayLengthMinutes, d.time.dayLengthMinutes, 2, 24 * 60),
