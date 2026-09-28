@@ -351,6 +351,7 @@ export class GameScene extends Phaser.Scene {
       moveTo: (x, y) => this.teleport(x, y),
       now: nowDays,
       damage: (n) => this.player.stats.setHealth(this.player.stats.health - n),
+      free: (x, y, r) => this.zombies.solids.free(x, y, r),
     };
     this.crafting = new CraftService(this.state, this.inventory, this.survivor, {
       start: (spec) => this.loop.start(spec),

@@ -145,8 +145,8 @@ export function bangOnce(z: Zombie, o: Obstacle, interval: number, pressure: num
   return 'hit';
 }
 
-/** Para onde vai quem pula a janela (o outro lado), ou null se não dá. */
-export function climbTarget(w: WallPiece, zx: number, zy: number, solids: SolidIndex): { x: number; y: number } | null {
+/** Para onde vai quem pula a janela (o outro lado), ou null se não dá (lugar ocupado). */
+export function climbTarget(w: WallPiece, zx: number, zy: number, solids: Pick<SolidIndex, 'free'>, r = 12): { x: number; y: number } | null {
   const cx = w.x + w.w / 2;
   const cy = w.y + w.h / 2;
   const vertical = w.h > w.w;
@@ -160,7 +160,7 @@ export function climbTarget(w: WallPiece, zx: number, zy: number, solids: SolidI
     const ty = cy - side * (w.h / 2 + 22);
     tries.push({ x: Math.min(Math.max(zx, w.x + 16), w.x + w.w - 16), y: ty }, { x: cx, y: ty });
   }
-  for (const p of tries) if (solids.free(p.x, p.y, 12)) return p;
+  for (const p of tries) if (solids.free(p.x, p.y, r)) return p;
   return null;
 }
 

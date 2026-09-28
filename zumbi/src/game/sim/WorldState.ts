@@ -335,7 +335,11 @@ export class WorldState {
   }
 
   clearWindowShards(id: string): void {
-    if (this.brokenWindows.has(id)) this.clearedWindows.add(id);
+    if (!this.brokenWindows.has(id) || this.clearedWindows.has(id)) return;
+    this.clearedWindows.add(id);
+    // O id é o centro da janela: avisa quem desenha (os cacos somem do batente na hora).
+    const [x, y] = id.slice(id.indexOf('@') + 1).split(',').map(Number);
+    this.emit({ type: 'window', id, x: x!, y: y! });
   }
 
   // ---------------------------------------------------------------- cacos de vidro

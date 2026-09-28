@@ -5,6 +5,7 @@ import { ToolInteractions, WindowInteractions, type WorldActionHooks } from '../
 import { Flag } from '../src/game/items/condition';
 import { PlayerInventory } from '../src/game/items/PlayerInventory';
 import type { TimedActionSpec } from '../src/game/sim/Actions';
+import { SolidIndex } from '../src/game/sim/SolidIndex';
 import { WorldState } from '../src/game/sim/WorldState';
 import { Skills } from '../src/game/skills/Skills';
 import { Survivor } from '../src/game/survival/Survivor';
@@ -203,6 +204,51 @@ describe('ferramentas e janelas', () => {
     again[0]!.perform();
     t.started.at(-1)!.done();
     expect(t.sv.health.wounds.length).toBeGreaterThan(0);
+  });
+
+  it('janela: pular cai num lugar livre do outro lado; bloqueado, não deixa; tirar cacos avisa a tela', () => {
+    const t = setup(() => 0.9);
+    const solids = new SolidIndex(t.state);
+    const moved: { x: number; y: number }[] = [];
+    const hooks = { ...t.hooks, moveTo: (x: number, y: number) => moved.push({ x, y }), free: (x: number, y: number, r: number) => solids.free(x, y, r) };
+    const windows = new WindowInteractions(t.state, t.inv, t.sv, hooks);
+    // Uma janela térrea com espaço livre dos dois lados.
+    const w = t.model.map.walls.find((x) => {
+      if (x.kind !== 'window' || t.model.floors.levelAt(x.x, x.y) > 0) return false;
+      const v = x.h > x.w;
+      const cx = x.x + x.w / 2;
+      const cy = x.y + x.h / 2;
+      const d = (v ? x.w : x.h) / 2 + 26;
+      return solids.free(cx - (v ? d : 0), cy - (v ? 0 : d), 15) && solids.free(cx + (v ? d : 0), cy + (v ? 0 : d), 15);
+    })!;
+    expect(w).toBeTruthy();
+    const v = w.h > w.w;
+    const cx = w.x + w.w / 2;
+    const cy = w.y + w.h / 2;
+    const who = { x: cx - (v ? 30 : 0), y: cy - (v ? 0 : 30), radius: 15, facing: 0 };
+    t.state.breakWindow(w);
+    const id = WorldState.windowId(w);
+    const c: import('../src/game/interaction/InteractionSystem').InteractionCandidate[] = [];
+    windows.collect(who, c);
+    expect(c[0]!.target.label).toBe('Pular a janela');
+    c[0]!.perform();
+    t.started.at(-1)!.done();
+    const to = moved.at(-1)!;
+    // Do outro lado da janela e num lugar em que o corpo cabe.
+    expect(v ? Math.sign(to.x - cx) : Math.sign(to.y - cy)).toBe(1);
+    expect(solids.free(to.x, to.y, 15)).toBe(true);
+    // Outro lado ocupado: a opção aparece desabilitada, sem teleportar para dentro de nada.
+    const blocked = new WindowInteractions(t.state, t.inv, t.sv, { ...hooks, free: () => false });
+    const b: typeof c = [];
+    blocked.collect(who, b);
+    expect(b[0]!.target.label).toMatch(/bloqueado/);
+    expect(b[0]!.target.enabled).toBe(true);
+    // Tirar os cacos: a mudança chega a quem desenha a janela.
+    const seen: string[] = [];
+    t.state.onChange((ch) => ch.type === 'window' && seen.push(ch.id));
+    t.state.clearWindowShards(id);
+    expect(seen).toEqual([id]);
+    expect(t.state.windowHasShards(id)).toBe(false);
   });
 });
 

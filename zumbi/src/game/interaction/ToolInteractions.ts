@@ -25,6 +25,7 @@ import { PROP_DURABILITY, type Yield } from '../world/PropDurability';
 import { buildingAtPoint } from '../world/shelter';
 import type { InteractionCandidate, InteractionOption, InteractionProvider, InteractionResult, Interactor } from './InteractionSystem';
 import { boardOptions, doorSpot, windowSpot } from './DemolishInteractions';
+import { climbTarget } from '../zombies/ZombieObstacles';
 
 export interface WorldActionHooks {
   start(spec: TimedActionSpec): void;
@@ -37,6 +38,8 @@ export interface WorldActionHooks {
   rng?: () => number;
   /** Tira vida direto (queda). */
   damage?(amount: number): void;
+  /** Cabe um corpo de raio `r` aqui? (pular a janela sem cair dentro de móvel) */
+  free?(x: number, y: number, r: number): boolean;
 }
 
 interface ToolRef {
@@ -348,7 +351,10 @@ export class WindowInteractions implements InteractionProvider {
       } else if (broken) {
         const level = this.state.model.floors.levelAt(cx, cy);
         if (level > 0) opts.push({ label: level === 1 ? 'Pular do 1º andar (vai doer)' : `Pular do ${level}º andar (pode morrer)`, enabled: true, perform: () => this.jump(w.wall, level, who) });
-        else opts.push({ label: 'Pular a janela', enabled: true, perform: () => this.climb(w.wall, w.id, who) });
+        else {
+          const to = this.landing(w.wall, who);
+          opts.push(to ? { label: 'Pular a janela', enabled: true, perform: () => this.climb(to, w.id) } : { label: 'Pular a janela (do outro lado está bloqueado)', enabled: false, perform: () => ({ ok: false, message: 'Do outro lado está bloqueado.' }) });
+        }
         if (this.state.windowHasShards(w.id)) opts.push({ label: 'Tirar cacos da janela', enabled: true, perform: () => this.clearShards(w.id) });
       } else {
         opts.push({ label: 'Quebrar a janela', enabled: true, perform: () => this.smash(w.wall) });
@@ -368,7 +374,9 @@ export class WindowInteractions implements InteractionProvider {
   private smash(wall: WallPiece): InteractionResult {
     const cx = wall.x + wall.w / 2;
     const cy = wall.y + wall.h / 2;
-    const hasWeapon = !!this.inventory.handDef;
+    // Só arma ou ferramenta protege a mão; garrafa, lanterna ou vela na mão não.
+    const h = this.inventory.handDef;
+    const hasWeapon = !!(h?.melee || h?.gun || h?.tool);
     this.state.breakWindow(wall);
     this.hooks.noise(cx, cy, 520, 'vidro');
     if (!hasWeapon && this.rng() > this.inventory.protection(['maos']).scratch * 1.5) {
@@ -431,13 +439,23 @@ export class WindowInteractions implements InteractionProvider {
     return { ok: true };
   }
 
-  private climb(wall: WallPiece, id: string, who: Interactor): InteractionResult {
+  /** Onde cai quem pula daqui: o outro lado, num lugar em que o corpo cabe (senão null). */
+  private landing(wall: WallPiece, who: Interactor): { x: number; y: number } | null {
+    if (this.hooks.free) return climbTarget(wall, who.x, who.y, { free: this.hooks.free }, who.radius);
+    // Sem mapa de sólidos (testes antigos): o outro lado, alinhado com quem pula.
     const vertical = wall.h > wall.w;
     const cx = wall.x + wall.w / 2;
     const cy = wall.y + wall.h / 2;
     const th = (vertical ? wall.w : wall.h) / 2 + 26;
-    const tx = vertical ? (who.x < cx ? cx + th : cx - th) : Math.min(Math.max(who.x, wall.x + 16), wall.x + wall.w - 16);
-    const ty = vertical ? Math.min(Math.max(who.y, wall.y + 16), wall.y + wall.h - 16) : who.y < cy ? cy + th : cy - th;
+    return {
+      x: vertical ? (who.x < cx ? cx + th : cx - th) : Math.min(Math.max(who.x, wall.x + 16), wall.x + wall.w - 16),
+      y: vertical ? Math.min(Math.max(who.y, wall.y + 16), wall.y + wall.h - 16) : who.y < cy ? cy + th : cy - th,
+    };
+  }
+
+  private climb(to: { x: number; y: number }, id: string): InteractionResult {
+    const tx = to.x;
+    const ty = to.y;
     this.hooks.start({
       id: 'pular',
       label: 'Pulando a janela',
