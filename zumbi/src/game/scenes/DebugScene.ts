@@ -7,6 +7,7 @@
  * Cada fase nova acrescenta as suas (zumbis, ruído, loot...).
  */
 import Phaser from 'phaser';
+import { WEATHER_PRESETS } from '../debug/weatherPresets';
 import { SCENES, TILE } from '../config/GameConfig';
 import { services, type GameServices } from '../core/Services';
 import { drawDebugMap } from '../debug/DebugMapTexture';
@@ -39,6 +40,7 @@ export class DebugScene extends Phaser.Scene {
   private pickZone!: Phaser.GameObjects.Zone;
   private pickHint!: Phaser.GameObjects.Text;
   private mapLayer: Phaser.GameObjects.Container | null = null;
+  private weatherPreset = 0;
   private timeScaleIndex = 0;
 
   constructor() {
@@ -108,7 +110,22 @@ export class DebugScene extends Phaser.Scene {
     add(() => 'Trancar porta', () => this.flash(this.game_.debugToggleLock()));
     // Loot e natureza
     add(() => `${onOff(this.state.loot)} Loot`, () => (this.state.loot = !this.state.loot));
-    add(() => 'Dia +1', () => this.s.session.clock?.advance(24 * 60));
+    add(() => 'Dia +1', () => this.flash(this.game_.debugSkipDays(1)));
+    add(() => '+5 dias', () => this.flash(this.game_.debugSkipDays(5)));
+    add(() => '+12 dias', () => this.flash(this.game_.debugSkipDays(12)));
+    add(
+      () => `Clima: ${WEATHER_PRESETS[this.weatherPreset]!.name}`,
+      () => {
+        this.weatherPreset = (this.weatherPreset + 1) % WEATHER_PRESETS.length;
+        const sv = this.s.session.survival;
+        if (sv) {
+          sv.debugWeather = WEATHER_PRESETS[this.weatherPreset]!.w;
+          sv.refreshWeather();
+        }
+      },
+    );
+    add(() => 'Neve +5 cm', () => this.flash(this.game_.debugSnow(5)));
+    add(() => 'Sem neve', () => this.flash(this.game_.debugSnow(-999)));
     // Sobrevivência
     add(() => 'Ferir', () => this.flash(this.game_.debugHurt()));
     add(() => 'Curar tudo', () => this.flash(this.game_.debugHealAll()));

@@ -4,6 +4,10 @@
  * cima, na HudScene. Regras ficam nos módulos puros; aqui só se liga tudo.
  */
 import Phaser from 'phaser';
+import { SnowTracks } from '../world/render/SnowTracks';
+import { DECIDUOUS, SeasonDressing } from '../world/render/SeasonDressing';
+import { skipTime } from '../sim/TimeSkip';
+import { GroundWeatherLayer } from '../world/render/GroundWeatherLayer';
 import { SNOW_SLOW } from '../config/ClimateTuning';
 import { FARM_TUNING } from '../config/BuildTuning';
 import type { GroundSave } from '../sim/Ground';
@@ -36,7 +40,7 @@ import { PlayerInventory } from '../items/PlayerInventory';
 import { loadGame, saveGame, type GameSave } from '../save/SaveGame';
 import { ActionRunner, type ActionOutcome } from '../sim/Actions';
 import { Calendar } from '../sim/Calendar';
-import { Weather } from '../sim/Weather';
+import { Weather, type WeatherSample } from '../sim/Weather';
 import { restAction } from '../survival/Sleep';
 import { Hazards } from '../survival/Hazards';
 import { treatmentsFor } from '../health/Treatments';
@@ -148,6 +152,9 @@ export class GameScene extends Phaser.Scene {
   private survivor!: Survivor;
   private loop!: SurvivalLoop;
   private atmosphere!: Atmosphere;
+  private groundWeather!: GroundWeatherLayer;
+  private tracks!: SnowTracks;
+  private dressing!: SeasonDressing;
   private itemUse!: ItemUse;
   private hazards!: Hazards;
   private combat!: Combat;
@@ -214,7 +221,14 @@ export class GameScene extends Phaser.Scene {
     // quebrados já nascem no estado salvo.
     this.state = new WorldState(this.model, { loot: s.settings.loot, nature: s.settings.nature });
     if (load) this.state.restore(load.world);
-    this.world = new WorldRenderer(this, this.model, assets, s.bus, { isPropRemoved: (id) => this.state.isPropHidden(id), wallPieces: (i) => this.state.wallPieces(i) });
+    // Estação nos objetos (neve por cima, folhas): criada antes dos chunks para vestir tudo desde o início.
+    this.dressing = new SeasonDressing(this, this.model);
+    this.world = new WorldRenderer(this, this.model, assets, s.bus, {
+      isPropRemoved: (id) => this.state.isPropHidden(id),
+      wallPieces: (i) => this.state.wallPieces(i),
+      dress: (img, p, def) => this.dressing.dress(img, p, def),
+      seasonal: (p) => DECIDUOUS.has(p.type),
+    });
     this.physics.world.setBounds(0, 0, this.world.widthPx, this.model.floors.cityHeightPx);
 
     this.player = new Player(this, map.spawn.x, map.spawn.y, assets, s.bus, this.world.shadows, s.settings.player);
@@ -452,7 +466,11 @@ export class GameScene extends Phaser.Scene {
     new WindowViews(this, this.state, this.world);
     this.combatFx = new CombatFx(this);
     this.zombieViews = new ZombieViews(this, this.zombies, this.world.shadows);
-    this.atmosphere = new Atmosphere(this, this.world.shadows);
+    this.atmosphere = new Atmosphere(this, this.world.shadows, (x, y) => this.groundWeather?.isOutdoorGround(x, y) ?? false);
+    // Neve, poças e gelo no chão (camada por cima do chão, só ao ar livre).
+    this.groundWeather = new GroundWeatherLayer(this, this.model);
+    // Pegadas e marcas de pneu na neve.
+    this.tracks = new SnowTracks(this, this.groundWeather);
 
     const cam = this.cameras.main;
     cam.setBounds(0, 0, this.world.widthPx, this.model.floors.cityHeightPx);
@@ -644,14 +662,44 @@ export class GameScene extends Phaser.Scene {
     this.vehicleViews.update(this.dt, this.cameras.main);
     this.structureViews.update(this.dt);
     this.updateBuildPreview();
+    const season = this.loop.weatherModel.seasonAt(this.clock.minutes);
+    const ground = this.loop.ground;
+    const w = this.loop.weather;
+    this.groundWeather.update({
+      snow: ground.snow,
+      frost: ground.frost(w, this.clock.minuteOfDay),
+      wet: ground.wet,
+      ice: ground.ice,
+      sinceSnow: ground.sinceSnow,
+      melting: ground.melting,
+    });
+    this.world.roofs.setSnow(ground.snow);
+    this.world.setGrassSeason(season.grass);
+    this.dressing.update(this.dt, { snow: ground.snow, wet: Math.max(ground.wet, w.rain), wind: w.wind, leafColor: season.leafColor, leafCover: season.leafCover });
+    this.world.canopies.leaf = season.leafCover;
+    this.tracks.update(this.dt, {
+      x: this.player.x,
+      y: this.player.y,
+      facing: this.player.facingAngle,
+      onFoot: !this.drive,
+      car: this.drive ? { x: this.drive.car.x, y: this.drive.car.y, a: this.drive.car.a, speed: this.drive.car.speed } : null,
+      snow: ground.snow,
+      snowing: w.snow,
+    });
     this.atmosphere.update(this.dt, this.cameras.main, {
       minuteOfDay: this.clock.minuteOfDay,
       weather: this.loop.weather,
+      dayHours: season.dayHours,
+      snowCover: ground.snow,
+      leafColor: season.leafColor,
+      leafCover: season.leafCover,
       sheltered: this.loop.sheltered,
       player: { x: this.player.x, y: this.player.y },
       flashlight: this.flashlight(),
       lights: this.muzzleFlash ? [...this.lightSources, { x: this.muzzleFlash.x, y: this.muzzleFlash.y, radius: 300 * Math.min(1, Math.max(0.3, this.muzzleFlash.t / 0.09)), intensity: 0.95 }] : this.lightSources,
     });
+    // Raio: trovão longe do jogador (zumbis de lá ouvem e vão ver).
+    if (this.atmosphere.bolt) this.thunder();
     // Depois de desenhar: o clarão aparece pelo menos um quadro, mesmo com o jogo lento.
     if (this.muzzleFlash && (this.muzzleFlash.t -= this.dt) <= 0) this.muzzleFlash = null;
     this.scanTimer -= this.dt;
@@ -1006,6 +1054,15 @@ export class GameScene extends Phaser.Scene {
     // Vidro quebrado: a mão entra. Do lado do motorista, pega você.
     const chance = door === 'motorista' ? 0.55 : 0.18;
     if (Math.random() < chance) this.zombieAttack(z, door === 'motorista' && Math.random() < 0.6 ? 'grab' : 'swipe');
+  }
+
+  /** Trovão: barulho enorme num ponto longe (1,5–3 km de jogo), fora do alcance do jogador. */
+  private thunder(): void {
+    const a = Math.random() * Math.PI * 2;
+    const d = 1500 + Math.random() * 1500;
+    const x = Math.min(Math.max(this.player.x + Math.cos(a) * d, 0), this.world.widthPx);
+    const y = Math.min(Math.max(this.player.y + Math.sin(a) * d, 0), this.model.floors.cityHeightPx);
+    this.s.bus.emit('world:noise', { x, y, radius: 1400, source: 'trovão', kind: 'outro' });
   }
 
   /** Aderência do asfalto para o carro: gelo e neve funda escorregam, chão molhado um pouco. */
@@ -1387,6 +1444,28 @@ export class GameScene extends Phaser.Scene {
 
   debugInfo(): string {
     return this.debugLayer?.info ?? '';
+  }
+
+  /** Um passo do mundo nos dias pulados: horta, coletor, fogueira, gerador (sem barulho). */
+  private skipWorldStep(now: number, w: WeatherSample): string | null {
+    this.builds.tick(now, w.rain, w.temp, w.snow);
+    this.fires.tick(now, w.rain + w.snow * 0.3, this.player.x, this.player.y);
+    const pt = this.power.tick(now, 0, this.player.x, this.player.y);
+    return pt.fumes > 0 ? 'A fumaça do gerador está enchendo a casa.' : null;
+  }
+
+  /** Debug: passa dias só no mundo (clima, chão, horta, fogo), sem mexer no corpo. */
+  debugSkipDays(days: number): string {
+    const r = skipTime(this.clock, this.loop.weatherModel, this.loop.ground, days * MINUTES_PER_DAY, { world: (now, w) => this.skipWorldStep(now, w) });
+    this.loop.refreshWeather();
+    return `${r.stopped ?? `+${days} dia(s)`} · ${this.loop.dateLabel()} · neve ${Math.round(this.loop.ground.snow * 100)}%`;
+  }
+
+  /** Debug: põe (ou tira) neve do chão. */
+  debugSnow(cm: number): string {
+    const g = this.loop.ground;
+    g.snowCm = Math.max(0, g.snowCm + cm);
+    return `neve no chão: ${g.snowCm.toFixed(1)} cm (${Math.round(g.snow * 100)}%)`;
   }
 
   /** Debug: um zumbi num ponto (não existe no jogo normal — a população é fixa). */

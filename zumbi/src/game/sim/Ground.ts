@@ -20,6 +20,10 @@ export interface GroundSave {
   wet: number;
   ice: number;
   soil: number;
+  /** Horas desde a última nevada (neve velha, pisada, suja). */
+  sinceSnow?: number;
+  /** Derretendo agora (0..1, média das últimas horas). */
+  melting?: number;
 }
 
 export class Ground {
@@ -31,6 +35,10 @@ export class Ground {
   ice = 0;
   /** Temperatura do solo (°C). */
   soil: number;
+  /** Horas desde a última nevada: a neve envelhece (acinzenta, fica pisada). */
+  sinceSnow = 999;
+  /** Derretendo (0..1): a neve molha, afunda e aparece chão. */
+  melting = 0;
 
   constructor(
     private readonly weather: Weather,
@@ -68,6 +76,7 @@ export class Ground {
     this.soil += (air - this.soil) * Math.min(1, h / G.soilLagHours);
     const sun = daylight(minuteOfDay, w.cloud, this.weather.seasonAt(minutes).dayHours) * (1 - w.cloud);
     // Neve: só fica o que o solo não derrete; antes do inverno quase nada assenta.
+    this.sinceSnow = w.snow > 0.08 ? 0 : this.sinceSnow + h;
     if (w.snow > 0) {
       const stick = clamp((G.stickTemp - this.soil) / 2, G.stickMin, 1);
       const season = G.earlyStick + (1 - G.earlyStick) * this.weather.seasonAt(minutes).winter;
@@ -82,9 +91,11 @@ export class Ground {
       if (air > -1) melt += sun * G.meltSun;
       if (this.soil > 0) melt += this.soil * G.meltSoil;
       const m = Math.min(this.snowCm, melt * h);
+      // Derretendo = perdendo mais de ~0,15 cm/h (média de umas 6 h).
+      this.melting += (Math.min(1, melt / 0.6) - this.melting) * Math.min(1, h / 6);
       this.snowCm = Math.min(G.maxCm, this.snowCm - m);
       this.wet += m * G.wetPerMeltCm;
-    }
+    } else this.melting = Math.max(0, this.melting - h / 6);
     // Molhado: chuva molha; sem chuva, seca (debaixo da neve quase não seca).
     if (w.rain > 0) this.wet += w.rain * G.wetPerRain * h;
     else {
@@ -114,7 +125,7 @@ export class Ground {
 
   serialize(): GroundSave {
     const r = (v: number) => Math.round(v * 1000) / 1000;
-    return { at: r(this.at), snowCm: r(this.snowCm), wet: r(this.wet), ice: r(this.ice), soil: r(this.soil) };
+    return { at: r(this.at), snowCm: r(this.snowCm), wet: r(this.wet), ice: r(this.ice), soil: r(this.soil), sinceSnow: r(Math.min(999, this.sinceSnow)), melting: r(this.melting) };
   }
 
   /** Carrega; save sem chão (versão anterior) calcula os dias anteriores. */
@@ -130,6 +141,8 @@ export class Ground {
     this.wet = ok(s.wet) ? clamp(s.wet, 0, 1) : 0;
     this.ice = ok(s.ice) ? clamp(s.ice, 0, 1) : 0;
     this.soil = ok(s.soil) ? s.soil : this.weather.at(now).temp;
+    this.sinceSnow = ok(s.sinceSnow) ? s.sinceSnow : 999;
+    this.melting = ok(s.melting) ? clamp(s.melting, 0, 1) : 0;
     this.integrate(now);
   }
 }

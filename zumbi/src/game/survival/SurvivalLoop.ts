@@ -43,6 +43,8 @@ export class SurvivalLoop {
   radioDay = -1;
   /** O que o clima deixou no chão (neve, poças, gelo): vai para o save. */
   readonly ground: Ground;
+  /** Debug (?debug): clima forçado para ver/testar a aparência. null = clima de verdade. */
+  debugWeather: Partial<WeatherSample> | null = null;
   private sleepInfo: SleepInfo | null = null;
   private weatherAt = -1;
 
@@ -77,7 +79,7 @@ export class SurvivalLoop {
     // Clima: recalcula a cada meio minuto de jogo (é barato, mas não precisa todo quadro).
     if (Math.abs(c.minutes - this.weatherAt) >= 0.5) {
       this.weatherAt = c.minutes;
-      this.weather = this.weatherModel.at(c.minutes);
+      this.weather = this.sample(c.minutes);
       // O chão acompanha (dormindo acelerado ou pulando tempo, em passos de 15 min).
       this.ground.integrate(c.minutes);
     }
@@ -95,6 +97,18 @@ export class SurvivalLoop {
       if (o) this.hooks.outcome(o);
     }
     return minutes;
+  }
+
+  private sample(minutes: number): WeatherSample {
+    const s = this.weatherModel.at(minutes);
+    return this.debugWeather ? { ...s, ...this.debugWeather } : s;
+  }
+
+  /** Relê o clima agora (depois de pular tempo, ou ao forçar no debug). */
+  refreshWeather(): void {
+    this.weatherAt = this.clock.minutes;
+    this.weather = this.sample(this.clock.minutes);
+    this.ground.integrate(this.clock.minutes);
   }
 
   get effects(): PhysicalEffects {

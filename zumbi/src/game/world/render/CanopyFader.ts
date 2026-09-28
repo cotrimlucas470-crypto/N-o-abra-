@@ -9,13 +9,17 @@ export interface Canopy {
   x: number;
   y: number;
   radius: number;
+  /** Perde folha no inverno (a copa fica rala). */
+  seasonal: boolean;
 }
 
 export class CanopyFader {
   private list = new Set<Canopy>();
+  /** Folha nas árvores que perdem folha (1 = cheia; a estação muda). */
+  leaf = 1;
 
-  add(obj: Canopy['obj'], x: number, y: number, radius: number): Canopy {
-    const c = { obj, x, y, radius };
+  add(obj: Canopy['obj'], x: number, y: number, radius: number, seasonal = false): Canopy {
+    const c = { obj, x, y, radius, seasonal };
     this.list.add(c);
     return c;
   }
@@ -30,7 +34,7 @@ export class CanopyFader {
       const dx = px - c.x;
       const dy = py - c.y;
       const r = c.radius * 0.82;
-      const target = dx * dx + dy * dy < r * r ? 0.35 : 1;
+      const target = (dx * dx + dy * dy < r * r ? 0.35 : 1) * (c.seasonal ? 0.6 + 0.4 * this.leaf : 1);
       if (Math.abs(c.obj.alpha - target) > 0.005) c.obj.setAlpha(c.obj.alpha + (target - c.obj.alpha) * t);
     }
   }

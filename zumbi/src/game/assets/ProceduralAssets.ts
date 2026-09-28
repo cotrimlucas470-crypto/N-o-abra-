@@ -4,6 +4,21 @@
  * só ganha a sombra calculada a partir do próprio PNG.
  */
 import Phaser from 'phaser';
+import {
+  drawCloudShadow,
+  drawCorpseSnow,
+  drawFogNoise,
+  drawFootprint,
+  drawLeaf,
+  drawRainNear,
+  drawRoofSnow,
+  drawSnowFlake,
+  drawSnowStreak,
+  drawSnowTiles,
+  drawSplash,
+  drawTireTrack,
+  drawWaterTiles,
+} from './procedural/weatherArt';
 import { ITEM_DEFS } from '../items/ItemCatalog';
 import { allDecalSprites } from '../world/DecalCatalog';
 import { allPropSprites } from '../world/PropCatalog';
@@ -120,6 +135,24 @@ export function generateAssets(textures: Phaser.Textures.TextureManager, registr
   if (!textures.exists(TEX.lightRadial)) textures.addCanvas(TEX.lightRadial, drawLightRadial(128));
   if (!textures.exists(TEX.lightCone)) textures.addCanvas(TEX.lightCone, drawLightCone(256, 180));
   if (!textures.exists(TEX.rainDrop)) textures.addCanvas(TEX.rainDrop, drawRainDrop(4, 22));
+  // Clima: neve e água no chão por material, neve nos telhados, partículas, marcas, neblina, nuvens.
+  const fx: [string, () => HTMLCanvasElement][] = [
+    [TEX.snowFlake, () => drawSnowFlake(8)],
+    [TEX.snowTiles, drawSnowTiles],
+    [TEX.waterTiles, drawWaterTiles],
+    [TEX.snowStreak, drawSnowStreak],
+    [TEX.rainNear, drawRainNear],
+    [TEX.splash, drawSplash],
+    [TEX.leaf, drawLeaf],
+    [TEX.footprint, drawFootprint],
+    [TEX.tireTrack, drawTireTrack],
+    [TEX.fogNoise, drawFogNoise],
+    [TEX.cloudShadow, drawCloudShadow],
+    [TEX.corpseSnow, drawCorpseSnow],
+  ];
+  for (const [key, draw] of fx) if (!textures.exists(key)) textures.addCanvas(key, draw());
+  for (let k = 1; k <= 5; k++) if (!textures.exists(`pattern.snow.roof.${k}`)) textures.addCanvas(`pattern.snow.roof.${k}`, drawRoofSnow(k));
+  lap('clima');
 
   lap('padrões+efeitos');
   if (missing.length) console.warn('[assets] sem desenho procedural:', missing.join(', '));

@@ -7,6 +7,20 @@ export const TEX = {
   lightRadial: 'fx.light.radial',
   lightCone: 'fx.light.cone',
   rainDrop: 'fx.rain',
+  snowFlake: 'fx.snow',
+  /** Neve no chão por material (camada do clima). */
+  snowTiles: 'weather.snow',
+  /** Chão molhado, poças e gelo por material. */
+  waterTiles: 'weather.water',
+  snowStreak: 'fx.snow.streak',
+  rainNear: 'fx.rain.near',
+  splash: 'fx.splash',
+  leaf: 'fx.leaf',
+  footprint: 'fx.footprint',
+  tireTrack: 'fx.tiretrack',
+  fogNoise: 'fx.fog.noise',
+  cloudShadow: 'fx.cloud.shadow',
+  corpseSnow: 'fx.corpse.snow',
   overridesJson: 'asset-overrides',
 } as const;
 

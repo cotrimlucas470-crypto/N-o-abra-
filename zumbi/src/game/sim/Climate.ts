@@ -94,6 +94,21 @@ const LEAF_COVER: Anchors = [
   [doy(11, 15), 1],
 ];
 
+/**
+ * Fase da GRAMA no ano (0..6, circular: 6 = 0): 0 verde de verão, 1 seca,
+ * 2 amarelando, 3 marrom, 4 morta no inverno, 5 rebrotando na primavera.
+ */
+const GRASS: Anchors = [
+  [doy(1, 10), 0],
+  [doy(2, 20), 1],
+  [doy(3, 30), 2],
+  [doy(5, 5), 3],
+  [doy(6, 12), 4],
+  [doy(9, 5), 4],
+  [doy(10, 8), 5],
+  [doy(12, 20), 5.9],
+];
+
 function smoothstep(t: number): number {
   const x = clamp(t, 0, 1);
   return x * x * (3 - 2 * x);
@@ -110,6 +125,23 @@ export function anchorValue(a: Anchors, d: number): number {
     if (xx >= d0 && xx < d1) return v0 + (v1 - v0) * smoothstep((xx - d0) / (d1 - d0));
   }
   return a[0]![1];
+}
+
+/** Fase da grama no dia `d` (0..6, circular). */
+export function grassStage(d: number): number {
+  const x = ((d % YEAR) + YEAR) % YEAR;
+  const a = GRASS;
+  for (let i = 0; i < a.length; i++) {
+    const [d0, v0] = a[i]!;
+    const last = i + 1 >= a.length;
+    const [d1raw, v1raw] = a[(i + 1) % a.length]!;
+    const d1 = last ? d1raw + YEAR : d1raw;
+    // No fim do ano volta ao verde: a fase continua subindo até 6 (= 0).
+    const v1 = last ? v1raw + 6 : v1raw;
+    const xx = x < d0 ? x + YEAR : x;
+    if (xx >= d0 && xx < d1) return (v0 + (v1 - v0) * smoothstep((xx - d0) / (d1 - d0))) % 6;
+  }
+  return 0;
 }
 
 /** Estação oficial num dia do ano (igual a `seasonOf`, pelo dia). */
@@ -151,6 +183,8 @@ export interface SeasonalState {
   dayHours: number;
   leafColor: number;
   leafCover: number;
+  /** Fase da grama (0..6): verde → seca → amarela → marrom → morta → rebrotando. */
+  grass: number;
 }
 
 /** Curva de aproximação: 30 dias antes quase nada, 7 dias antes ~2/3, véspera ~95%. */
@@ -192,6 +226,7 @@ export function seasonal(d: number): SeasonalState {
     dayHours: 12.2 + 2 * Math.cos(((x - SEASON_START.verao) / YEAR) * Math.PI * 2),
     leafColor: anchorValue(LEAF_COLOR, x),
     leafCover: anchorValue(LEAF_COVER, x),
+    grass: grassStage(x),
   };
 }
 
