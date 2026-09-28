@@ -101,8 +101,9 @@ export class InteractionSystem {
   /**
    * Todas as ações por perto, para o menu "⋯": primeiro as do alvo atual
    * (principal + extras), depois a principal dos outros alvos ao alcance.
+   * `max` = o que cabe no menu (`OptionsMenu`, duas colunas no celular deitado).
    */
-  options(who: Interactor, max = 8): InteractionOption[] {
+  options(who: Interactor, max = 14): InteractionOption[] {
     this.scan(who);
     const fx = Math.cos(who.facing);
     const fy = Math.sin(who.facing);

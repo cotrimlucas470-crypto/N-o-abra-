@@ -5,7 +5,7 @@ O que cada etapa entregou, como foi testado e o que ficou pendente. A ordem das 
 
 ---
 
-## Correções: combate, zumbis, janelas, itens, veículos (em andamento, um ponto por vez)
+## Correções: combate, zumbis, janelas, itens, veículos
 
 ### 0. Erro ao abrir com save antigo
 - Save de versão anterior podia travar ao abrir (`population`, depois `width`). As opções do save agora
@@ -48,6 +48,62 @@ jogador: dificuldade "mais difícil", loot "realista", seguir direto para o pont
   até ~16 px "de longe"); golpe do jogador na preparação atrasa a patada; aviso só do que aconteceu
   (agarrão que falhou de vez em quando, sem repetir o mesmo texto de vários zumbis); ferida que sangra
   deixa sangue no chão. Conferido no navegador: cada aviso de ferida corresponde a uma ferida real.
+
+### 3. Janelas
+- Tirar os cacos some com eles na hora (antes só sumiam ao recarregar o trecho do mapa).
+- Pular a janela cai sempre num lugar livre, com a mesma regra dos zumbis; do outro lado bloqueado
+  (móvel, parede) a opção aparece apagada: "Pular a janela (do outro lado está bloqueado)".
+- Quebrar a janela na mão: só arma ou ferramenta protege a mão; garrafa ou lanterna corta como a mão nua.
+- Testes: pular cai em lugar livre; `dev/windows.mjs` (quebra, pula ida e volta, tira os cacos).
+
+### 4. Itens: todo item com função, proteção que gasta, ficha com atributos; visual das armas e do tiro
+Pedido: cada item com função clara, proteção que funciona de verdade, atributos coerentes; em segundo
+plano, armas mais bonitas na mão e tiro melhor. Escolhas: itens sem uso ganham **função simples** com
+sistemas que já existem; arma, capacete e colete **aparecem no personagem**. Nenhum item novo.
+- **Auditoria** (`tests/itemFunctions.test.ts`): todo item do catálogo tem ao menos uma função (comer,
+  vestir, arma, ferramenta, ingrediente, peça de carro, ação...). O que faltava ganhou função simples:
+  higiene (escova + pasta, xampu, sabonete; gasta água, dá ânimo), travesseiro na bolsa (sono rende mais),
+  prato/tigela/talher/caneca (prato feito ou bebida quente anima mais), aliança/colar/foto (olhar anima
+  um pouco), documentos acendem fogo; anel e ouro dizem na descrição que só pesam. Pólvora, xampu e pasta
+  são gastos aos poucos. Receitas de **recarregar munição** .38 e 9 mm na bancada (estojos + espoletas +
+  pólvora).
+- **Proteção que gasta**: patada ou mordida numa parte coberta gasta a roupa daquela parte (a de fora
+  mais que a de dentro; roupa resistente gasta menos); se atravessou, pode **rasgar** ("A jaqueta
+  rasgou.") e passa a proteger menos até remendar. Números em `config/PlayerTuning.ts` (`CLOTHING_WEAR`).
+- **Ficha do item** (painel ITENS) mostra os atributos: proteção contra mordida/arranhão, calor, peso,
+  condição; arma branca com dano, alcance, velocidade e durabilidade; arma de fogo com calibre, pente,
+  dano, alcance e barulho.
+- **Armas na mão** (procedural, `assets/procedural/heldArt.ts`): desenho por tipo (pistola, revólver,
+  espingarda, rifle, facas, facão, tacos, machados, ferramentas...), **arma longa segurada com as duas
+  mãos**, **pistola com os braços estendidos**; **capacete e colete** aparecem quando vestidos.
+- **Tiro**: clarão que ilumina em volta à noite, rastro com brilho visível no escuro, faíscas por cima do
+  telhado, coice (o tronco recua; tranco de câmera maior em espingarda e rifle). Todo efeito aparece
+  pelo menos um quadro, mesmo com FPS baixo.
+
+### 5. Veículos: defeitos raros e conserto
+Pedido: carro pode dar problema, dá para achar peças e consertar, mas carro não quebra fácil (raro).
+- Conferido o essencial pelo botão: abrir a porta, ligar (chave ou ligação direta), dirigir, sair.
+- **Desgaste**: o motor perde ~1% por km (um tanque cheio ≈ 10%); pneu fura raramente (~1% por km com
+  pneus bons, mais se gastos; às vezes numa batida forte). Motor abaixo de 35% pode **morrer andando**
+  (acelerando, tenta pegar de novo, com barulho de arranque); abaixo de 50% às vezes **engasga na
+  partida**. Números em `vehicles/Driving.ts` (`DRIVE_TUNING`, `CAR_REPAIR`).
+- **Conserto** no capô aberto, com peças que já existiam no loot: consertar o motor (peças de motor +
+  chave inglesa, 30 min, pode falhar e às vezes estraga a peça), trocar a vela e o óleo (ajudam o motor
+  fraco a pegar, com teto), remendar pneu furado (borracha + cola). Mecânica deixa mais rápido e certo.
+- **Examinar** lista o que está ruim e como consertar.
+- Corrigido: chave de carro, peça de motor ou fio contavam como chave inglesa/alicate; tirar um pneu
+  furado dava um pneu bom (agora rende a borracha); o menu de opções cortava na 8ª opção (agora os botões
+  alargam para o texto e, no celular deitado, viram duas colunas quando não cabem); o cartão de
+  informação comprido não sai pelo topo.
+- Testes (`tests/carRepair.test.ts`): raridade do desgaste, pneu fura, motor fraco morre e pega de novo,
+  conserto do motor, vela, óleo, remendo, chave de carro não é chave inglesa, examinar e partida.
+  `dev/carfix.mjs`: porta → dirigir → pneu fura e motor morre (forçado) → capô → examinar → consertar →
+  dirigir de novo.
+
+### Verificação
+- `npm run verificar`: 27 arquivos, 370 testes passando; build ok.
+- `npm run smoke`: tudo certo (a checagem de tempo real "teclado move" às vezes falha pela lentidão do
+  navegador de teste; passou na repetição).
 
 ---
 

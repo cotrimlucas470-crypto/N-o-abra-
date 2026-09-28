@@ -8,8 +8,6 @@ import { UiButton } from './UiButton';
 import { UI, textStyle } from './theme';
 
 const MAX = 14;
-/** Linhas por coluna: passou disso, vira duas colunas (celular deitado tem pouca altura). */
-const ROWS = 7;
 const BTN_W = 230;
 const BTN_H = 34;
 const GAP = 8;
@@ -33,10 +31,12 @@ export class OptionsMenu {
   }
 
   /** Mostra as opções ancoradas acima de (ax, ay) — canto do botão. */
-  show(options: readonly { label: string; enabled: boolean }[], ax: number, ay: number, cssW: number, k: number): void {
+  show(options: readonly { label: string; enabled: boolean }[], ax: number, ay: number, cssW: number, k: number, cssH: number): void {
     const n = Math.min(MAX, options.length);
     this.open = n > 0;
-    const cols = n > ROWS ? 2 : 1;
+    // Não cabe na altura (celular deitado): duas colunas. Em pé sobra altura, fica uma só.
+    const rowsFit = Math.max(4, Math.floor((cssH - 16 - 30 * k) / ((BTN_H + 6) * k)));
+    const cols = n > rowsFit ? 2 : 1;
     const rows = Math.ceil(n / cols);
     // Etiqueta comprida alarga os botões (até caber na tela).
     let bw = BTN_W;

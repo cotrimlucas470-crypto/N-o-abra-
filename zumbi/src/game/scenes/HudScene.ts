@@ -371,7 +371,7 @@ export class HudScene extends Phaser.Scene {
     const k = uiScaleFor(w, h);
     const touch = this.controls.isTouchMode;
     const b = this.controls.options;
-    this.optionsMenu.show(opts, touch ? b.x + b.radius : w / 2 + 120 * k, touch ? b.y - b.radius : h - 60 * k, w, k);
+    this.optionsMenu.show(opts, touch ? b.x + b.radius : w / 2 + 120 * k, touch ? b.y - b.radius : h - 60 * k, w, k, h);
   }
 
   private actionBarHit(x: number, y: number): boolean {
