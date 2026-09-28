@@ -19,7 +19,7 @@ export interface Structure {
   rot: number;
   /** Resistência que sobrou. */
   hp: number;
-  /** Fogo: aceso, minutos de lenha que sobravam no minuto `at` do relógio. */
+  /** Fogo: aceso, minutos de lenha que sobravam no minuto `at` do relógio (gerador: litros de gasolina). */
   lit?: 1;
   fuel?: number;
   at?: number;
@@ -39,6 +39,11 @@ export interface Structure {
   on?: string;
   /** Minuto do relógio da última conta (água, horta). */
   tickAt?: number;
+  /** Gerador: ligado, luzes da casa acesas, prédio da extensão, última conta da geladeira. */
+  run?: 1;
+  lights?: 1;
+  link?: string;
+  fridgeAt?: number;
 }
 
 export interface StructuresSave {

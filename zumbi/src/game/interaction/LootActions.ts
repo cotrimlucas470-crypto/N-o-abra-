@@ -7,7 +7,7 @@ import { hashString } from '../core/Random';
 import type { Tone } from '../items/condition';
 import { itemDef } from '../items/ItemCatalog';
 import type { ItemContainer } from '../items/ItemContainer';
-import type { PlayerInventory } from '../items/PlayerInventory';
+import { isHeavy, type PlayerInventory } from '../items/PlayerInventory';
 import type { WorldState } from '../sim/WorldState';
 
 export interface ActionResult {
@@ -38,7 +38,19 @@ export class LootActions {
     if (!c || !s) return { ok: false };
     const def = itemDef(s.defId);
     const n = this.move(c, index, Math.min(count, s.count), (id, k, st) => this.inventory.add(id, k, st));
-    if (n <= 0) return { ok: false, message: 'Pesado demais para carregar.', tone: 'warn' };
+    if (n <= 0) {
+      // Coisa pesada (gerador, saco de cimento): vai nos braços.
+      if (!def || !isHeavy(def)) return { ok: false, message: 'Pesado demais para carregar.', tone: 'warn' };
+      const one = c.take(index, 1);
+      if (!one) return { ok: false };
+      const why = this.inventory.carryInArms(one.defId, one.st);
+      if (why) {
+        c.add(one.defId, 1, one.st);
+        return { ok: false, message: why, tone: 'warn' };
+      }
+      this.state.containerChanged(containerId);
+      return { ok: true, message: `Nos braços: ${def.name}. Pesado: devagar, sem correr nem lutar.`, tone: 'ok' };
+    }
     this.state.containerChanged(containerId);
     return { ok: true, message: `+${n > 1 ? `${n} ` : ''}${def?.name ?? s.defId}`, tone: 'ok' };
   }

@@ -47,6 +47,11 @@ export const SLOT_LABEL: Record<WearSlot, string> = {
 
 const copy = (e: EquippedItem): EquippedItem => (e.st ? { defId: e.defId, st: { ...e.st } } : { defId: e.defId });
 
+/** Pesado demais para bolso e mochila: só nos braços. */
+export function isHeavy(def: ItemDef): boolean {
+  return def.weight >= INVENTORY_TUNING.armsKg;
+}
+
 export class PlayerInventory {
   readonly carried: ItemContainer;
   private bagSlot: { defId: string; st?: ItemState; container: ItemContainer } | null = null;
@@ -285,6 +290,29 @@ export class PlayerInventory {
 
   get hand(): Readonly<EquippedItem> | null {
     return this.handSlot;
+  }
+
+  /** Peso de coisa pesada carregada nos braços (gerador, bateria de carro); 0 se nada. */
+  get arms(): number {
+    const d = this.handDef;
+    return d && isHeavy(d) ? unitWeight(d, this.handSlot?.st) : 0;
+  }
+
+  /**
+   * Pega uma coisa pesada nos braços (não cabe em bolso nem mochila). O que
+   * estava na mão vai para os bolsos/mochila; sem espaço, devolve o motivo.
+   */
+  carryInArms(defId: string, st?: ItemState): string | null {
+    const def = itemDef(defId);
+    if (!def) return 'Item inválido.';
+    const old = this.handSlot;
+    if (old) {
+      if (this.add(old.defId, 1, old.st) === 0) return 'Mãos ocupadas: guarde ou largue o que está segurando.';
+    }
+    const n = normalizeState(def, st);
+    this.handSlot = n ? { defId: def.id, st: n } : { defId: def.id };
+    this.changed();
+    return null;
   }
 
   get handDef(): ItemDef | null {

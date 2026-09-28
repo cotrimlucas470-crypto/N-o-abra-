@@ -248,6 +248,23 @@ export const BASIC_ACTIONS: ItemActionDef[] = [
     },
   },
   {
+    // Da mão (ou dos braços: gerador, cimento) direto para o recipiente aberto (porta-malas, caixote).
+    id: 'porNoRecipiente',
+    label: 'PÔR AQUI',
+    order: 80,
+    when: (c) => c.loc.where === 'hand' && !!c.openContainerId,
+    run: (c) => {
+      const box = c.state.loot.peek(c.openContainerId!);
+      const h = c.inventory.hand;
+      if (!box || !h) return fail('Longe demais.');
+      if (box.room(h.defId, h.st) < 1) return fail('Não cabe aí.');
+      box.add(h.defId, 1, h.st);
+      c.inventory.updateHand(null);
+      c.state.containerChanged(c.openContainerId!);
+      return ok(`Guardou ${lower(c.def.name)}`, 'info');
+    },
+  },
+  {
     id: 'largar',
     label: 'LARGAR',
     order: 90,

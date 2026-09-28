@@ -9,6 +9,7 @@
 import Phaser from 'phaser';
 import { cropStage, CROP_COLOR } from '../../build/Farm';
 import { fuelLeft, isBurning, strength } from '../../build/Fire';
+import { isRunning } from '../../build/Power';
 import { STRUCTURE_DEFS, type StructureDef, type StructureType } from '../../build/StructureCatalog';
 import { rectAt, rectOf, solidOf } from '../../build/StructureGeometry';
 import type { Structure } from '../../build/Structures';
@@ -171,6 +172,8 @@ export class StructureViews {
         return this.drawCollector(g, s, d, r);
       case 'canteiro':
         return this.drawPlot(g, s, d, r);
+      case 'energia':
+        return this.drawGenerator(g, s, r);
       default:
         return this.drawFurniture(g, s, r);
     }
@@ -429,6 +432,49 @@ export class StructureViews {
     g.fillStyle(lit ? 0xff7a20 : 0x1a1a1a, lit ? 0.9 + 0.1 * Math.sin(this.t * 11) : 1).fillRect(b.x + b.w * 0.3, b.y + b.h * 0.65, b.w * 0.4, b.h * 0.22);
   }
 
+  /** Gerador portátil: armação de tubo, tanque vermelho, motor; ligado treme e solta fumaça. */
+  private drawGenerator(g: Phaser.GameObjects.Graphics, s: Structure, r: Rect): void {
+    const d = STRUCTURE_DEFS[s.type];
+    const on = isRunning(s, this.minutes());
+    const k = (d.inset ?? 0) - 2;
+    // Treme ligado (motor a explosão).
+    const jx = on ? Math.sin(this.t * 61) * 0.8 : 0;
+    const jy = on ? Math.cos(this.t * 53) * 0.6 : 0;
+    const b = { x: r.x + k + jx, y: r.y + k + jy, w: r.w - 2 * k, h: r.h - 2 * k };
+    g.fillStyle(0x000000, 0.28).fillRoundedRect(b.x + 3, b.y + 4, b.w, b.h, 5);
+    // Armação de tubo.
+    g.lineStyle(3.5, 0x2a2c2e, 1).strokeRoundedRect(b.x, b.y, b.w, b.h, 5);
+    // Motor (bloco cinza, aletas) embaixo; tanque vermelho em cima.
+    g.fillStyle(0x4a4e52, 1).fillRect(b.x + 4, b.y + b.h * 0.45, b.w - 8, b.h * 0.5);
+    g.lineStyle(1, 0x2a2c2e, 0.8);
+    for (let i = 1; i < 6; i++) g.lineBetween(b.x + 6 + ((b.w - 14) * i) / 6, b.y + b.h * 0.5, b.x + 6 + ((b.w - 14) * i) / 6, b.y + b.h * 0.9);
+    g.fillStyle(d.color, 1).fillRoundedRect(b.x + 3, b.y + 3, b.w - 6, b.h * 0.46, 4);
+    g.fillStyle(0xffffff, 0.18).fillRoundedRect(b.x + 6, b.y + 5, b.w - 12, b.h * 0.12, 3);
+    // Tampa do tanque e painel (tomadas, luz verde ligado).
+    g.fillStyle(0x1a1a1a, 1).fillCircle(b.x + b.w * 0.72, b.y + b.h * 0.22, 3.5);
+    g.fillStyle(0x16181b, 1).fillRect(b.x + 6, b.y + b.h * 0.6, b.w * 0.34, b.h * 0.26);
+    g.fillStyle(0xd8d8d0, 1).fillCircle(b.x + 10, b.y + b.h * 0.73, 2).fillCircle(b.x + 17, b.y + b.h * 0.73, 2);
+    g.fillStyle(on ? 0x7aff6a : 0x3a4a3a, 1).fillCircle(b.x + b.w * 0.5, b.y + b.h * 0.7, 2.2);
+    // Escapamento: fumaça subindo quando ligado.
+    const ex = b.x + b.w - 5;
+    const ey = b.y + b.h * 0.75;
+    g.fillStyle(0x6a6a6a, 1).fillRect(ex - 2, ey - 3, 7, 6);
+    if (on) {
+      for (let i = 0; i < 4; i++) {
+        const p = (this.t * 0.9 + i / 4) % 1;
+        g.fillStyle(0x8a8a88, 0.38 * (1 - p)).fillCircle(ex + 8 + p * 22, ey - 4 - p * 26 + Math.sin(this.t * 3 + i) * 3, 3 + p * 8);
+      }
+    }
+    // Extensão puxada: o fio saindo do painel.
+    if (s.link) {
+      g.lineStyle(2, 0xf2f2f2, 0.9).beginPath();
+      g.moveTo(b.x + 8, b.y + b.h * 0.8);
+      g.lineTo(b.x - 10, b.y + b.h + 6);
+      g.lineTo(b.x - 18, b.y + b.h + 18);
+      g.strokePath();
+    }
+  }
+
   private flame(g: Phaser.GameObjects.Graphics, x: number, y: number, k: number, seed: number): void {
     const f = Math.sin(this.t * 13 + seed) * 0.5 + Math.sin(this.t * 7.3 + seed * 0.7) * 0.5;
     g.fillStyle(0xff5a1a, 0.35).fillCircle(x, y, 16 + 3 * k);
@@ -472,6 +518,7 @@ export class StructureViews {
     for (const v of this.byId.values()) {
       const d = STRUCTURE_DEFS[v.s.type];
       if (d.fire && (v.s.lit || isBurning(v.s, now))) this.draw(v);
+      else if (d.power && v.s.run) this.draw(v);
       else if (d.kind === 'telhado' && roofChanged) v.g.setAlpha(this.roofAlpha);
     }
   }

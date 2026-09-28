@@ -6,7 +6,7 @@ import { INTERACTION_TUNING } from '../config/WorldTuning';
 import { hashString } from '../core/Random';
 import { itemDef } from '../items/ItemCatalog';
 import type { ItemContainer } from '../items/ItemContainer';
-import type { PlayerInventory } from '../items/PlayerInventory';
+import { isHeavy, type PlayerInventory } from '../items/PlayerInventory';
 import type { WorldItem, WorldState } from '../sim/WorldState';
 import type { InteractionCandidate, InteractionProvider, InteractionResult, Interactor } from './InteractionSystem';
 
@@ -38,7 +38,14 @@ export class ItemInteractions implements InteractionProvider {
     const def = itemDef(it.defId);
     if (!def) return { ok: false };
     const fits = this.inventory.add(it.defId, it.count, it.st);
-    if (fits <= 0) return { ok: false, message: 'Pesado demais para carregar.' };
+    if (fits <= 0) {
+      // Coisa pesada (gerador, saco de cimento): vai nos braços.
+      if (!isHeavy(def)) return { ok: false, message: 'Pesado demais para carregar.' };
+      const why = this.inventory.carryInArms(it.defId, it.st);
+      if (why) return { ok: false, message: why };
+      this.state.takeItem(it.id, 1);
+      return { ok: true, message: `Nos braços: ${def.name}. Pesado: devagar, sem correr nem lutar.` };
+    }
     this.state.takeItem(it.id, fits);
     const rest = fits < it.count ? ' (o resto não cabe)' : '';
     return { ok: true, message: `+${fits > 1 ? `${fits} ` : ''}${def.name}${rest}` };

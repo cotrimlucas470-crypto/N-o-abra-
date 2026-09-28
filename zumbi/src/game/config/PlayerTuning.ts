@@ -45,4 +45,6 @@ export const HEALTH_TUNING = {
 export const INVENTORY_TUNING = {
   /** Quanto dá para levar nas mãos e bolsos, sem mochila (kg). */
   carryCapacityKg: 8,
+  /** Item deste peso para cima não vai no bolso: vai NOS BRAÇOS (na mão), devagar e sem correr. */
+  armsKg: 8,
 } as const;

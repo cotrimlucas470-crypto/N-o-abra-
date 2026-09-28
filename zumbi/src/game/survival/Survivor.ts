@@ -129,7 +129,7 @@ export class Survivor {
 
   /** Multiplicadores do estado físico agora (cache até o próximo update). */
   effects(): PhysicalEffects {
-    if (!this.cached) this.cached = physicalEffects(this.body, this.inventory.effectiveLoad, this.inventory.capacity, this.injuries?.effects() ?? NO_INJURY);
+    if (!this.cached) this.cached = physicalEffects(this.body, this.inventory.effectiveLoad, this.inventory.capacity, this.injuries?.effects() ?? NO_INJURY, this.inventory.arms);
     return this.cached;
   }
 

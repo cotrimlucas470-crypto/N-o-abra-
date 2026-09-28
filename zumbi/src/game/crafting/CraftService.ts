@@ -210,13 +210,18 @@ export class CraftService {
       if (why) return { ok: false, message: why, tone: 'warn' };
       env.canPlace = () => null;
     }
+    // Peça que é um item montado (gerador): leva a condição do item (a pior, para não "consertar" montando).
+    const pickup = r.structure ? STRUCTURE_DEFS[r.structure].pickup : undefined;
+    let cond = 1;
+    if (pickup) for (const x of this.inventory.stacks()) if (x.def.id === pickup) cond = Math.min(cond, x.stack.st?.c ?? 1);
+    if (pickup && this.inventory.handDef?.id === pickup) cond = Math.min(cond, this.inventory.hand?.st?.c ?? 1);
     const res = craftRecipe(r, this.inventory, env);
     if (!res.ok) return { ok: false, message: res.message, tone: 'warn' };
     const { x, y } = this.hooks.where();
     if (res.overflow.length) this.hooks.drop(res.overflow.map((o) => ({ defId: o.id, count: o.n, ...(o.st ? { st: o.st } : {}) })), x, y);
     if (res.structure) {
       const p = at ?? this.spot(res.structure);
-      const s = this.state.structures.add(res.structure, p.x, p.y, p.rot);
+      const s = this.state.structures.add(res.structure, p.x, p.y, p.rot, pickup ? { hp: Math.max(1, Math.round(STRUCTURE_DEFS[res.structure].hp * cond)) } : {});
       if (res.fuel) addFuel(s, res.fuel, this.hooks.minutes());
       this.state.structures.changed(s);
     }

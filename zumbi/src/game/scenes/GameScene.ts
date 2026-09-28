@@ -49,6 +49,8 @@ import { VehicleInteractions } from '../interaction/VehicleInteractions';
 import { VehicleViews } from '../world/render/VehicleViews';
 import { StructureViews } from '../world/render/StructureViews';
 import { FireSystem } from '../build/FireSystem';
+import { PowerSystem } from '../build/PowerSystem';
+import { POWER_TUNING } from '../build/Power';
 import { CraftService } from '../crafting/CraftService';
 import { RECIPE_BY_ID } from '../crafting/Recipes';
 import { StructureInteractions } from '../interaction/StructureInteractions';
@@ -143,6 +145,11 @@ export class GameScene extends Phaser.Scene {
   private vehicleViews!: VehicleViews;
   private structureViews!: StructureViews;
   private fires!: FireSystem;
+  private power!: PowerSystem;
+  private powerTimer = 0;
+  /** Fumaça de gerador respirada (0..1, cai devagar no ar limpo) e o último aviso. */
+  private fumes = 0;
+  private fumesWarn = 0;
   private crafting!: CraftService;
   private builds!: BuildSystem;
   private fireTimer = 0;
@@ -215,6 +222,10 @@ export class GameScene extends Phaser.Scene {
     // Fogos do mundo: calor no corpo, luz, cozinha.
     const covered = (x: number, y: number) => isSheltered(this.model, x, y, (cx, cy) => this.state.coveredAt(cx, cy));
     this.fires = new FireSystem(this.state, covered);
+    // Geradores: energia para um prédio, barulho que chama zumbi, fumaça em lugar fechado.
+    this.power = new PowerSystem(this.state, this.state.loot, {
+      noise: (x, y, radius) => s.bus.emit('world:noise', { x, y, radius, source: 'gerador', kind: 'gerador' }),
+    });
     this.builds = new BuildSystem(this.state, covered, s.settings.farming.growthSpeed);
     this.loop = new SurvivalLoop(this.clock, calendar, weather, this.survivor, new ActionRunner(), this.model, {
       outcome: (o) => this.outcome(o),
@@ -528,6 +539,14 @@ export class GameScene extends Phaser.Scene {
         if (Math.hypot(f.x - this.player.x, f.y - this.player.y) < 500) this.outcome({ ok: false, message: `${fd.masc ? 'O' : 'A'} ${fd.name.toLowerCase()} apagou.`, tone: 'info' });
       }
     }
+    this.powerTimer -= delta / 1000;
+    if (this.powerTimer <= 0) {
+      const dt = 0.5 - this.powerTimer;
+      this.powerTimer = 0.5;
+      const pt = this.power.tick(this.clock.minutes, dt, this.player.x, this.player.y);
+      if (pt.stopped.length) this.outcome({ ok: false, message: 'O gerador parou: acabou a gasolina.', tone: 'warn' });
+      this.breatheFumes(pt.fumes, dt);
+    }
     this.buildTimer -= delta / 1000;
     if (this.buildTimer <= 0) {
       this.buildTimer = 2;
@@ -595,11 +614,32 @@ export class GameScene extends Phaser.Scene {
     if (h?.st?.on && h.defId === 'vela') this.lightSources.push({ x: this.player.x, y: this.player.y, radius: 190, intensity: 0.85, flicker: true });
     if (h?.st?.on && h.defId === 'tocha') this.lightSources.push({ x: this.player.x, y: this.player.y, radius: 300, intensity: 0.95, flicker: true });
     this.fires.lights(this.clock.minutes, this.lightSources);
+    this.power.lights(this.player.x, this.player.y, this.lightSources);
+  }
+
+  /**
+   * Gerador ligado no mesmo prédio: monóxido de carbono. Enjoa, dá dor de
+   * cabeça e, com o tempo (dormindo, por exemplo), mata. Ar limpo: passa devagar.
+   */
+  private breatheFumes(minutes: number, dt: number): void {
+    this.fumesWarn = Math.max(0, this.fumesWarn - dt);
+    if (minutes <= 0) {
+      this.fumes = Math.max(0, this.fumes - dt * 0.004);
+      return;
+    }
+    this.fumes = Math.min(1, this.fumes + minutes * 0.02);
+    const body = this.survivor.body;
+    body.sickness = Math.min(1, body.sickness + minutes * POWER_TUNING.fumesPerMinute);
+    if (this.fumes > 0.3) this.player.stats.setHealth(this.player.stats.health - minutes * 0.5 * Math.min(1, (this.fumes - 0.3) / 0.7));
+    if (this.fumesWarn <= 0) {
+      this.fumesWarn = 60;
+      this.outcome({ ok: false, message: this.fumes > 0.5 ? 'Fumaça do gerador: a cabeça gira, falta ar. SAIA DAQUI!' : 'Cheiro forte de fumaça do gerador: dor de cabeça. Não fique aqui dentro.', tone: 'bad' });
+    }
   }
 
   /** Luz em volta do jogador (0 breu .. 1 dia): para ler. */
   private lightLevel(): number {
-    const lit = !!this.flashlight() || this.lightSources.length > 0;
+    const lit = !!this.flashlight() || this.lightSources.some((l) => Math.hypot(l.x - this.player.x, l.y - this.player.y) < l.radius);
     return Math.max(1 - this.atmosphere.darkness, lit ? 0.85 : 0);
   }
 
@@ -618,9 +658,16 @@ export class GameScene extends Phaser.Scene {
       this.buildRecipe = null;
       return;
     }
+    const d = STRUCTURE_DEFS[p.type];
+    // Peça que é um item (gerador): montou o único que tinha → sai do modo construir.
+    if (d.pickup && !this.loop.runner.active && !p.ok && p.reason?.startsWith('Falta')) {
+      this.buildRecipe = null;
+      this.structureViews.hideGhost();
+      s.session.build = null;
+      return;
+    }
     if (this.loop.runner.active) this.structureViews.hideGhost();
     else this.structureViews.showGhost(p.type, p.at.x, p.at.y, p.at.rot, p.ok);
-    const d = STRUCTURE_DEFS[p.type];
     s.session.build = { name: p.recipe.name, ok: p.ok, reason: p.reason, rotates: d.place === 'tile' && !!d.tiles && d.tiles[0] !== d.tiles[1] };
   }
 
@@ -639,6 +686,11 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     if (this.s.session.paused || this.attackCooldown > 0 || this.loop.sleeping || this.dead || this.zombies.threat.down) return;
+    if (this.inventory.arms > 0) {
+      this.outcome({ ok: false, message: `Braços ocupados com ${this.inventory.handDef?.name.toLowerCase() ?? 'peso'}: largue para lutar (ou empurre).`, tone: 'warn' });
+      this.attackCooldown = 0.6;
+      return;
+    }
     if (this.loop.runner.active) this.loop.cancelAction();
     const gun = !!this.inventory.handDef?.gun;
     const r: AttackResult = gun ? this.combat.shoot(this.player.x, this.player.y, this.player.facingAngle) : this.combat.melee(this.player.x, this.player.y, this.player.facingAngle);
@@ -973,6 +1025,7 @@ export class GameScene extends Phaser.Scene {
       loudNoises: this.loudNoises.filter((n) => this.zombies.now - n.t < 180).map((n) => n.source),
       day: this.clock.day,
       kills: this.zombies.kills,
+      fumes: this.fumes,
     });
     this.s.session.death = report;
     this.player.sprite.setTint(0x8a5050);
@@ -1321,6 +1374,7 @@ export class GameScene extends Phaser.Scene {
       drive: (id: string) => this.startDriving(id),
       exitCar: (force?: boolean) => this.stopDriving(force),
       /** Carrega o último save como o botão da tela de morte. */
+      power: this.power,
       loadLast: () => {
         const save = loadGame();
         if (!save) return false;

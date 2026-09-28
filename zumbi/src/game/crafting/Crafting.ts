@@ -11,11 +11,11 @@
 import { fuelMinutes } from '../build/Fire';
 import { charge, doses, Flag, freshness, isBroken, type ItemState } from '../items/condition';
 import { emptyAfter, toolUses } from '../items/consumables';
-import type { ItemContainer, ItemStack } from '../items/ItemContainer';
+import { ItemContainer, type ItemStack } from '../items/ItemContainer';
 import { itemDef } from '../items/ItemCatalog';
 import type { ItemDef } from '../items/ItemTypes';
-import type { PlayerInventory } from '../items/PlayerInventory';
-import type { StructureType } from '../build/StructureCatalog';
+import { isHeavy, type PlayerInventory } from '../items/PlayerInventory';
+import { STRUCTURE_DEFS, type StructureType } from '../build/StructureCatalog';
 import { STATION_LABEL, type Opt, type Recipe, type Station, type ToolReq } from './Recipes';
 
 export interface CraftEnv {
@@ -66,12 +66,29 @@ interface Unit {
 
 const EPS = 1e-6;
 
-function unitsOf(inv: PlayerInventory): Unit[] {
+function unitsOf(inv: PlayerInventory, arms: ItemContainer | null): Unit[] {
   const out: Unit[] = [];
   for (const s of inv.stacks()) {
     for (let i = 0; i < s.stack.count; i++) out.push({ container: s.container, stack: s.stack, def: s.def, amt: 1, gone: false, taken: 0 });
   }
+  for (const stack of arms?.stacks ?? []) {
+    const def = itemDef(stack.defId);
+    if (def) out.push({ container: arms!, stack, def, amt: 1, gone: false, taken: 0 });
+  }
   return out;
+}
+
+/**
+ * O que está nos braços (gerador, saco de cimento) também é ingrediente:
+ * vira um recipiente de mentira só para a conta; no fim a mão é acertada.
+ */
+function armsProxy(inv: PlayerInventory): ItemContainer | null {
+  const h = inv.hand;
+  const d = inv.handDef;
+  if (!h || !d || !isHeavy(d)) return null;
+  const c = new ItemContainer('bracos', 'Nos braços', Infinity);
+  c.add(h.defId, 1, h.st);
+  return c;
 }
 
 function measure(o: Opt): 'n' | 'dose' | 'charge' {
@@ -142,13 +159,15 @@ function toolAvailable(inv: PlayerInventory, units: Unit[], t: ToolReq): boolean
 
 interface Plan {
   check: CraftCheck;
+  arms: ItemContainer | null;
   /** Unidades usadas por ingrediente (na ordem da receita). */
   used: Unit[][];
   units: Unit[];
 }
 
 function plan(r: Recipe, inv: PlayerInventory, env: CraftEnv): Plan {
-  const units = unitsOf(inv);
+  const arms = armsProxy(inv);
+  const units = unitsOf(inv, arms);
   const lines: NeedLine[] = [];
   const used: Unit[][] = [];
   for (const ing of r.inputs) {
@@ -174,7 +193,7 @@ function plan(r: Recipe, inv: PlayerInventory, env: CraftEnv): Plan {
   }
   const bad = lines.find((l) => !l.ok);
   const reason = bad ? (bad.kind === 'station' ? `Precisa: ${bad.label.toLowerCase()}` : bad.kind === 'place' ? bad.label : `Falta: ${bad.label}`) : null;
-  return { check: { ok: !bad, lines, reason }, used, units };
+  return { check: { ok: !bad, lines, reason }, used, units, arms };
 }
 
 export function checkRecipe(r: Recipe, inv: PlayerInventory, env: CraftEnv): CraftCheck {
@@ -257,6 +276,12 @@ export function craftRecipe(r: Recipe, inv: PlayerInventory, env: CraftEnv): Cra
       if (i >= 0) e.container.updateOne(i, st);
     }
   }
+  // Nos braços: gastou → mão vazia; usou parte (doses) → mão com o que sobrou.
+  if (p.arms) {
+    const left = p.arms.stacks[0];
+    if (!left) inv.updateHand(null);
+    else inv.updateHand(left.st);
+  }
   for (const t of r.tools ?? []) wearTool(inv, t);
 
   const given: CraftResult['given'] = [];
@@ -284,7 +309,8 @@ export function craftRecipe(r: Recipe, inv: PlayerInventory, env: CraftEnv): Cra
   const main = r.out[0];
   const name = main ? (itemDef(main.id)?.name ?? r.name) : r.name;
   const count = main && main.n > 1 ? `${main.n} ` : '';
-  const message = r.structure ? `${r.name} montada.` : spoiled ? `${count}${name} — ingrediente estragado, cuidado.` : `Fez: ${count}${name}`;
+  const sd = r.structure ? STRUCTURE_DEFS[r.structure] : null;
+  const message = sd ? `${sd.name} ${sd.masc ? 'montado' : 'montada'}.` : spoiled ? `${count}${name} — ingrediente estragado, cuidado.` : `Fez: ${count}${name}`;
   const res: CraftResult = { ok: true, message, given, overflow };
   if (r.structure) {
     res.structure = r.structure;

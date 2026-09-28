@@ -13,7 +13,7 @@
  */
 import type { SleepPlace } from '../survival/Sleep';
 
-export type StructureKind = 'fogo' | 'parede' | 'porta' | 'janela' | 'piso' | 'telhado' | 'movel' | 'canteiro' | 'agua' | 'barricada';
+export type StructureKind = 'fogo' | 'parede' | 'porta' | 'janela' | 'piso' | 'telhado' | 'movel' | 'canteiro' | 'agua' | 'barricada' | 'energia';
 
 /** Camada: duas peças da mesma camada não dividem o mesmo lugar. */
 export type StructureLayer = 'edge' | 'floor' | 'roof' | 'object';
@@ -65,6 +65,10 @@ export interface StructureDef {
   water?: { max: number };
   /** Canteiro de horta. */
   farm?: boolean;
+  /** Gerador: gasta gasolina, faz barulho, dá energia a um prédio (build/Power.ts). */
+  power?: boolean;
+  /** Recolhe inteiro de volta para o inventário (item), sem ferramenta. */
+  pickup?: string;
   /** O que volta ao desmontar com a ferramenta certa. */
   salvage?: readonly { id: string; n: number }[];
   /** Ferramenta (etiquetas) para desmontar; sem ela, só derrubando. */
@@ -154,6 +158,11 @@ const DEFS = {
   coletorChuva: {
     masc: true, name: 'Coletor de chuva', kind: 'agua', place: 'tile', layer: 'object', tiles: [1, 1], w: T, h: T, solid: true, inset: 10, hp: 60, material: 'madeira',
     indoor: false, outdoor: true, water: { max: 40 }, salvage: [{ id: 'balde', n: 1 }, { id: 'lona', n: 1 }], dismantleTools: WOOD, dismantleMinutes: 8, color: 0x3a6ab0, color2: 0x8fc3dc,
+  },
+  // ---------------------------------------------------------------- energia
+  gerador: {
+    masc: true, name: 'Gerador', kind: 'energia', place: 'tile', layer: 'object', tiles: [1, 1], w: T, h: T, solid: true, inset: 12, hp: 160, material: 'metal',
+    indoor: true, outdoor: true, power: true, pickup: 'gerador', color: 0xc8342a, color2: 0x2a2a2a,
   },
   canteiro: {
     masc: true, name: 'Canteiro', kind: 'canteiro', place: 'tile', layer: 'floor', tiles: [1, 1], w: T, h: T, solid: false, hp: 40, material: 'terra',

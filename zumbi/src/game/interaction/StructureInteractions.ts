@@ -20,6 +20,7 @@ import type { SleepPlace } from '../survival/Sleep';
 import type { Survivor } from '../survival/Survivor';
 import { Flag, type ItemState } from '../items/condition';
 import { findTool, giveItems, type ToolHandle } from './toolUse';
+import { GeneratorOptions } from './GeneratorOptions';
 import { addFuel, extinguish, fireLabel, fuelLeft, fuelMinutes, ignite, isAccelerant, isBurning, isTinder } from '../build/Fire';
 import { STRUCTURE_DEFS, type StructureDef } from '../build/StructureCatalog';
 import type { Structure } from '../build/Structures';
@@ -67,12 +68,16 @@ function fuelRank(d: ItemDef): number {
 }
 
 export class StructureInteractions implements InteractionProvider {
+  private readonly generator: GeneratorOptions;
+
   constructor(
     private readonly state: WorldState,
     private readonly inventory: PlayerInventory,
     private readonly survivor: Survivor,
     private readonly hooks: StructureHooks,
-  ) {}
+  ) {
+    this.generator = new GeneratorOptions(state, inventory, hooks);
+  }
 
   collect(who: Interactor, out: InteractionCandidate[]): void {
     for (const s of this.state.structures.near(who.x, who.y, 200)) {
@@ -111,6 +116,11 @@ export class StructureInteractions implements InteractionProvider {
       main = f[0] ?? null;
       opts.push(...f.slice(1));
       bonus = 10;
+    } else if (d.power) {
+      const g = this.generator.options(s);
+      main = g.main;
+      opts.push(...g.more);
+      bonus = 12;
     } else if (d.water) {
       const n = this.fillable();
       const w = Math.floor(s.water ?? 0);
@@ -152,7 +162,7 @@ export class StructureInteractions implements InteractionProvider {
       });
     }
     const smash = findTool(this.inventory, SMASH);
-    if (smash && d.kind !== 'canteiro') out.push({ label: `Derrubar ${the(d)}`, enabled: true, perform: () => this.takeDown(s, d, smash, true) });
+    if (smash && d.kind !== 'canteiro' && d.kind !== 'energia') out.push({ label: `Derrubar ${the(d)}`, enabled: true, perform: () => this.takeDown(s, d, smash, true) });
     return out;
   }
 

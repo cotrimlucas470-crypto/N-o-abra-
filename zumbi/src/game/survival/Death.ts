@@ -27,6 +27,8 @@ export interface DeathContext {
   loudNoises: readonly string[];
   day: number;
   kills: number;
+  /** Fumaça de gerador respirada (0..1). */
+  fumes?: number;
 }
 
 export interface DeathReport {
@@ -61,6 +63,14 @@ export function explainDeath(c: DeathContext): DeathReport {
     details.push(src ? `${src}, ${hours} horas antes.` : `Infectado havia ${hours} horas.`);
     details.push('Mordida de zumbi quase sempre infecta. Não tem cura.');
     return { title: 'A infecção venceu', cause: 'Febre, delírio… e o fim.', details, ...base };
+  }
+  if ((c.fumes ?? 0) > 0.3) {
+    return {
+      title: 'Intoxicação',
+      cause: 'Fumaça do gerador num lugar fechado.',
+      details: ['Motor ligado dentro de casa enche o ar de monóxido de carbono: quando a cabeça gira, já é tarde.', 'Deixe o gerador lá fora e puxe uma extensão até a casa.'],
+      ...base,
+    };
   }
   const bleeding = c.health.wounds.filter((w) => w.bleed > 0.05);
   if (c.health.bleeding > 1.5 && bleeding.length) {

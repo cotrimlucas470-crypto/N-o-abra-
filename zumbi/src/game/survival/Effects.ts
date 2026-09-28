@@ -42,7 +42,7 @@ export const NO_INJURY: InjuryEffects = { legs: 0, arms: 0, pain: 0, legFracture
  * `load` = peso sentido (kg) e `capacity` = capacidade total (kg).
  * Acima de 70% da capacidade começa a pesar; no limite, bem mais lento.
  */
-export function physicalEffects(body: Body, load: number, capacity: number, injury: InjuryEffects = NO_INJURY): PhysicalEffects {
+export function physicalEffects(body: Body, load: number, capacity: number, injury: InjuryEffects = NO_INJURY, arms = 0): PhysicalEffects {
   let walk = 1;
   let run = 1;
   let canSprint = true;
@@ -119,6 +119,13 @@ export function physicalEffects(body: Body, load: number, capacity: number, inju
     run *= 1 - 0.3 * over;
     drain *= 1 + 0.8 * over;
     trip += 0.004 * over;
+  }
+
+  // Coisa pesada nos braços (gerador, cimento): não corre, anda arrastado.
+  if (arms > 0) {
+    canSprint = false;
+    walk *= Math.max(0.55, 1 - arms * 0.008);
+    drain *= 1 + arms * 0.02;
   }
 
   // Ferimentos
