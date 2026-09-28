@@ -61,6 +61,8 @@ export type WorldChange =
   | { type: 'window'; id: string; x: number; y: number }
   /** Parede/cerca do mapa com um vão aberto (derrubada). */
   | { type: 'wall'; id: string; x: number; y: number }
+  /** Veículo saiu do lugar / andou / estacionou (desenho, colisão e navegação acompanham). */
+  | { type: 'vehicle'; id: string; x: number; y: number; first: boolean; parked: boolean }
   /** Porta/janela/construção apanhando: fração de resistência que sobrou (1 → 0,8 → 0,5 → 0,2 → quebra). */
   | { type: 'damage'; what: 'door' | 'window' | 'structure'; id: string; x: number; y: number; frac: number };
 
@@ -130,6 +132,8 @@ export class WorldState {
   private readonly doorHp = new Map<string, number>();
   private readonly brokenWindows = new Set<string>();
   private readonly windowHp = new Map<string, number>();
+  /** Sólidos de navegação de cada veículo estacionado fora do lugar. */
+  private readonly vehicleNav = new Map<string, Solid[]>();
   private readonly clearedWindows = new Set<string>();
 
   constructor(
@@ -195,16 +199,55 @@ export class WorldState {
       for (let dx = -span; dx <= span; dx++) {
         for (const i of this.model.index.get(chunkKey(cx + dx, cy + dy))?.props ?? []) {
           const p = map.props[i]!;
-          if (this.removedProps.has(p.id)) continue;
+          if (this.removedProps.has(p.id) || this.vehicles.isMoved(p.id)) continue;
           const d = Math.hypot(p.x - x, p.y - y);
           if (d <= r) out.push({ prop: p, distance: d });
         }
       }
     }
+    // Veículos dirigidos: onde estão agora.
+    for (const p of this.vehicles.moved()) {
+      if (this.removedProps.has(p.id)) continue;
+      const d = Math.hypot(p.x - x, p.y - y);
+      if (d <= r) out.push({ prop: p, distance: d });
+    }
     return out;
   }
 
+  /** Não desenhar/colidir no lugar do mapa: removido ou veículo que saiu dali. */
+  isPropHidden(id: string): boolean {
+    return this.removedProps.has(id) || this.vehicles.isMoved(id);
+  }
+
+  /**
+   * Veículo andou (dirigindo). Na primeira vez sai do lugar do mapa; enquanto
+   * anda não bloqueia a navegação (zumbis batem nele pela colisão); parado,
+   * vira obstáculo de novo onde está. Compartimentos acompanham.
+   */
+  moveVehicle(id: string, x: number, y: number, angleDeg: number, parked: boolean): PropPlacement | null {
+    const orig = this.vehicles.original(id);
+    if (!orig || this.removedProps.has(id)) return null;
+    const first = !this.vehicles.isMoved(id);
+    if (first) for (const sd of propSolids(orig)) this.model.nav.removeSolid(sd);
+    const prev = this.vehicleNav.get(id);
+    if (prev) {
+      for (const sd of prev) this.model.nav.removeSolid(sd);
+      this.vehicleNav.delete(id);
+    }
+    const p = this.vehicles.setPose(id, x, y, angleDeg);
+    if (!p) return null;
+    if (parked) {
+      const sol = propSolids(p);
+      for (const sd of sol) this.model.nav.addSolid(sd);
+      this.vehicleNav.set(id, sol);
+    }
+    this.loot.moveRefsOf(id, p);
+    this.emit({ type: 'vehicle', id, x: p.x, y: p.y, first, parked });
+    return p;
+  }
+
   propById(id: string): PropPlacement | null {
+    if (this.vehicles.isMoved(id)) return this.vehicles.vehicle(id);
     if (!this.propIndex) {
       this.propIndex = new Map();
       this.model.map.props.forEach((p, i) => this.propIndex!.set(p.id, i));
@@ -732,6 +775,16 @@ export class WorldState {
     this.loot.restore(save.loot);
     this.nature.restore(save.nature);
     this.vehicles.restore(save.vehicles);
+    // Carros que foram dirigidos: saem do lugar do mapa e ficam onde pararam.
+    for (const p of [...this.vehicles.moved()]) {
+      const orig = this.vehicles.original(p.id);
+      if (!orig) continue;
+      for (const sd of propSolids(orig)) this.model.nav.removeSolid(sd);
+      const sol = propSolids(p);
+      for (const sd of sol) this.model.nav.addSolid(sd);
+      this.vehicleNav.set(p.id, sol);
+      this.loot.moveRefsOf(p.id, p);
+    }
     for (const [id, [open, locked, broken]] of Object.entries(save.doors ?? {})) {
       const i = this.doorIndex.get(id);
       if (i === undefined) continue;

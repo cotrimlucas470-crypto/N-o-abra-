@@ -49,6 +49,8 @@ export interface GameSession {
   build: import('../ui/BuildBar').BuildInfo | null;
   /** Ameaça dos zumbis para o HUD (furtivo, agarrado, caído, quantos perto). */
   threat: { sneaking: boolean; grabbed: number; down: boolean; escape: number } | null;
+  /** Dirigindo: velocímetro e gasolina para o HUD. */
+  driving: { kmh: number; fuel: number; tank: number; body: number } | null;
   /** Morreu: relatório (a tela de morte mostra). */
   death: import('../survival/Death').DeathReport | null;
 }
@@ -90,6 +92,7 @@ export function createServices(game: Phaser.Game, viewport: Viewport, bus: Event
       crafting: null,
       build: null,
       threat: null,
+      driving: null,
       death: null,
       options: null,
       pendingLoad: null,

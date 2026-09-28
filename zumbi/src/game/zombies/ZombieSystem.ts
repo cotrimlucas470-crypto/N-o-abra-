@@ -43,6 +43,8 @@ export interface ZombieHooks {
   noise(x: number, y: number, kind: NoiseKind, radius?: number, source?: string): void;
   /** Um zumbi caiu de vez. */
   killed?(z: Zombie): void;
+  /** Socando o carro onde o jogador está (lataria, vidro, agarrar pela janela). */
+  vehicleBang?(z: Zombie): void;
 }
 
 /** O jogador sob ataque: quem agarra, caído, registro para explicar a morte. */
@@ -653,8 +655,13 @@ export class ZombieSystem {
     }
     const d = Math.hypot(p.x - z.x, p.y - z.y);
     const reach = z.traits.reach + p.radius;
+    // Jogador no carro: encosta e soca a lataria/vidro.
+    if (p.inVehicle && p.alive && !m.bang && d < 100 + z.traits.reach * 0.6 && !isCrawler(z)) {
+      m.bang = { kind: 'vehicle', id: 'carro', x: p.x, y: p.y };
+      rt.bangT = 0.3 + this.rng() * 0.5;
+    }
     // Ataque: perto, vendo, sem porta no meio.
-    if (rt.sees && p.alive && m.cooldown <= 0 && !m.bang) {
+    if (rt.sees && p.alive && m.cooldown <= 0 && !m.bang && !p.inVehicle) {
       const lunge = z.traits.sprint > 0 && !isCrawler(z) && d > reach * 1.1 && d < reach * 1.9 && this.rng() < dt * 1.5 * z.traits.aggression;
       if ((d <= reach + 4 || lunge) && this.canReach(z, p.x, p.y)) {
         this.startAttack(z, lunge ? 'lunge' : null);
@@ -921,6 +928,24 @@ export class ZombieSystem {
   private bangTick(z: Zombie, dt: number): void {
     const m = z.mind;
     const ob = m.bang!;
+    if (ob.kind === 'vehicle') {
+      const p = this.player;
+      const d = Math.hypot(p.x - z.x, p.y - z.y);
+      if (!p.inVehicle || d > 160) {
+        m.bang = null;
+        return;
+      }
+      // Acompanha o carro devagar (colado na lataria) e soca.
+      if (d > 90) stepToward(z, p.x, p.y, moveSpeed(z, false) * 0.6, dt, this.solids);
+      else z.vx = z.vy = 0;
+      z.facing = rotateTowards(z.facing, Math.atan2(p.y - z.y, p.x - z.x), T.turnRate * dt);
+      z.rt.bangT -= dt;
+      if (z.rt.bangT > 0) return;
+      z.rt.bangT = (0.9 + this.rng() * 0.6) / Math.max(0.4, z.traits.aggression);
+      z.anim.hitAt = this.now;
+      this.hooks.vehicleBang?.(z);
+      return;
+    }
     if (!obstacleStands(ob, this.state)) {
       m.bang = null;
       z.path.length = 0;

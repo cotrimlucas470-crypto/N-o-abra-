@@ -246,6 +246,23 @@ export class Player {
     }
   }
 
+  /** Dentro do carro: some da tela e da física (a cena move o corpo junto com o carro). */
+  setHidden(hidden: boolean): void {
+    this.sprite.setVisible(!hidden);
+    this.legs.setVisible(!hidden);
+    this.shadow.setVisible(!hidden);
+    this.aimMarker.setVisible(!hidden);
+    this.body.enable = !hidden;
+  }
+
+  /** Posiciona sem física (dirigindo). */
+  placeAt(x: number, y: number, facing: number): void {
+    this.sprite.setPosition(x, y);
+    this.body.reset(x, y);
+    this.facing = facing;
+    this.legsAngle = facing;
+  }
+
   /** Volta ao estado salvo (posição vem por teleporte). */
   restore(snap: { facing: number; stats: ReturnType<PlayerStats['snapshot']> }): void {
     if (Number.isFinite(snap.facing)) {

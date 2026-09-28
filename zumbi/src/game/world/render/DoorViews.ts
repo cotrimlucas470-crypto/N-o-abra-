@@ -81,7 +81,7 @@ export class DoorViews {
       v.housing?.destroy();
       v.facade?.destroy();
       v.cracks?.destroy();
-      if (v.zone) this.renderer.solids.remove(v.zone, true, true);
+      if (v.zone) this.renderer.removeSolid(v.zone);
       this.animating.delete(v);
       this.byId.delete(v.door.id);
     }
@@ -210,7 +210,7 @@ export class DoorViews {
       this.renderer.solids.add(z);
       v.zone = z;
     } else if (!solid && v.zone) {
-      this.renderer.solids.remove(v.zone, true, true);
+      this.renderer.removeSolid(v.zone);
       v.zone = null;
     }
   }

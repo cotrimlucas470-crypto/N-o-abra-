@@ -38,6 +38,8 @@ export interface ContainerRef {
   rect: Rect | null;
   /** Conteúdo gerado por quem registrou (corpo de zumbi), em vez de tabela. */
   gen?: () => ItemStack[];
+  /** Ponto no referencial do objeto (compartimento de carro): acompanha se ele se mover. */
+  local?: readonly [number, number];
 }
 
 export interface FloorItem {
@@ -109,6 +111,7 @@ export class LootSystem {
           x,
           y,
           rect: slot.at ? null : rect,
+          ...(slot.at ? { local: slot.at } : {}),
         };
         this.refs.set(ref.id, ref);
         const k = this.model.index.chunkOfPoint(x, y);
@@ -195,6 +198,43 @@ export class LootSystem {
     }
     return out;
   }
+
+  /** O objeto (carro dirigido) mudou de lugar: os recipientes dele vão junto. */
+  moveRefsOf(propId: string, p: { x: number; y: number; angle: number; flipX?: boolean }): void {
+    let own = this.propRefs.get(propId);
+    if (!own) {
+      own = [...this.refs.values()].filter((r) => r.id === propId || r.id.startsWith(`${propId}:`));
+      this.propRefs.set(propId, own);
+    }
+    for (const ref of own) {
+      const oldK = this.model.index.chunkOfPoint(ref.x, ref.y);
+      let x = p.x;
+      let y = p.y;
+      if (ref.local) {
+        const flip = p.flipX ? -1 : 1;
+        const c = Math.cos(p.angle * DEG);
+        const sn = Math.sin(p.angle * DEG);
+        const ax = ref.local[0] * flip;
+        const ay = ref.local[1];
+        x = p.x + ax * c - ay * sn;
+        y = p.y + ax * sn + ay * c;
+      }
+      ref.x = x;
+      ref.y = y;
+      if (ref.rect) ref.rect = { x: x - ref.rect.w / 2, y: y - ref.rect.h / 2, w: ref.rect.w, h: ref.rect.h };
+      const newK = this.model.index.chunkOfPoint(x, y);
+      if (newK !== oldK) {
+        const list = this.byChunk.get(oldK);
+        if (list) this.byChunk.set(oldK, list.filter((r) => r !== ref));
+        const nl = this.byChunk.get(newK) ?? [];
+        nl.push(ref);
+        this.byChunk.set(newK, nl);
+      }
+    }
+  }
+
+  /** Recipientes de cada objeto que se move (cache). */
+  private readonly propRefs = new Map<string, ContainerRef[]>();
 
   /** Recipiente novo em jogo (baú construído, porta-malas de carro...). */
   addRef(ref: ContainerRef, contents?: ItemContainer): void {

@@ -215,7 +215,7 @@ export class WorldRenderer {
     for (const c of lc.culls) this.culler.remove(c);
     for (const s of lc.shadows) this.shadows.remove(s);
     for (const c of lc.canopies) this.canopies.remove(c);
-    for (const z of lc.zones) this.solids.remove(z, true, true);
+    for (const z of lc.zones) this.removeSolid(z);
     for (const o of lc.objects) o.destroy();
     for (const id of lc.roofs) this.roofs.unload(id);
     this.loaded.delete(key);
@@ -226,6 +226,15 @@ export class WorldRenderer {
     if (!this.loaded.has(key)) return;
     this.unloadChunk(key);
     this.loadChunk(key);
+  }
+
+  /**
+   * Tira um colisor do grupo. Ao fechar a cena a física pode já ter
+   * desmontado o grupo: aí só destrói o objeto.
+   */
+  removeSolid(z: Phaser.GameObjects.GameObject): void {
+    if (this.solids.children) this.solids.remove(z, true, true);
+    else z.destroy();
   }
 
   private unloadAll(): void {

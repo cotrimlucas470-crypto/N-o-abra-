@@ -90,6 +90,10 @@ export interface VehicleState {
   /** Alarme tocando: segundos restantes. */
   alarmLeft?: number;
   keyInside: boolean;
+  /** Fiação feita (ligação direta): pega sem chave. */
+  hotwired?: boolean;
+  /** Saiu do lugar onde estava no mapa: onde está agora (px, graus). */
+  pose?: { x: number; y: number; a: number };
 }
 
 export interface VehicleSettings {
@@ -141,6 +145,8 @@ export class Vehicles {
   private readonly touched = new Set<string>();
   private readonly byId = new Map<string, PropPlacement>();
   private readonly listeners = new Set<(id: string) => void>();
+  /** Carros que saíram do lugar e a posição de agora (cópia da colocação do mapa). */
+  private readonly movedPlacements = new Map<string, PropPlacement>();
 
   constructor(
     private readonly seed: number,
@@ -154,8 +160,41 @@ export class Vehicles {
     return this.byId.size;
   }
 
+  /** Onde o veículo ESTÁ (a colocação do mapa ou a pose depois de dirigido). */
   vehicle(id: string): PropPlacement | null {
+    return this.movedPlacements.get(id) ?? this.byId.get(id) ?? null;
+  }
+
+  /** A colocação original do mapa (não muda). */
+  original(id: string): PropPlacement | null {
     return this.byId.get(id) ?? null;
+  }
+
+  isMoved(id: string): boolean {
+    return this.movedPlacements.has(id);
+  }
+
+  /** Veículos fora do lugar original (posição atual). */
+  moved(): IterableIterator<PropPlacement> {
+    return this.movedPlacements.values();
+  }
+
+  /** Moveu (dirigindo): nova pose. Vai para o save. */
+  setPose(id: string, x: number, y: number, angleDeg: number): PropPlacement | null {
+    const base = this.byId.get(id);
+    const s = this.state(id);
+    if (!base || !s) return null;
+    s.pose = { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10, a: Math.round(angleDeg * 100) / 100 };
+    this.touched.add(id);
+    let p = this.movedPlacements.get(id);
+    if (!p) {
+      p = { ...base };
+      this.movedPlacements.set(id, p);
+    }
+    p.x = s.pose.x;
+    p.y = s.pose.y;
+    p.angle = s.pose.a;
+    return p;
   }
 
   all(): IterableIterator<PropPlacement> {
@@ -356,7 +395,7 @@ export class Vehicles {
     const s = this.state(vehicleId);
     if (!s) return ['Não é um veículo.'];
     const why: string[] = [];
-    if (!hasKey && !s.keyInside) why.push('sem chave');
+    if (!hasKey && !s.keyInside && !s.hotwired) why.push('sem chave');
     if (s.battery === null) why.push('sem bateria');
     else if (s.battery < 0.15) why.push('bateria fraca');
     if (s.fuel < 0.5) why.push('sem gasolina');
@@ -378,8 +417,12 @@ export class Vehicles {
   restore(save: Record<string, VehicleState> | undefined): void {
     for (const [id, s] of Object.entries(save ?? {})) {
       if (!this.byId.has(id) || !s || typeof s !== 'object') continue;
-      this.states.set(id, JSON.parse(JSON.stringify(s)) as VehicleState);
+      const st = JSON.parse(JSON.stringify(s)) as VehicleState;
+      this.states.set(id, st);
       this.touched.add(id);
+      const pose = st.pose;
+      if (pose && Number.isFinite(pose.x) && Number.isFinite(pose.y) && Number.isFinite(pose.a)) this.setPose(id, pose.x, pose.y, pose.a);
+      else delete st.pose;
     }
   }
 }

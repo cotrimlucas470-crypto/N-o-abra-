@@ -83,7 +83,7 @@ export class StructureViews {
 
   private destroy(v: View): void {
     v.g.destroy();
-    if (v.zone) this.renderer.solids.remove(v.zone, true, true);
+    if (v.zone) this.renderer.removeSolid(v.zone);
     this.byId.delete(v.s.id);
   }
 
@@ -100,7 +100,7 @@ export class StructureViews {
   private syncZone(v: View): void {
     const solid = solidOf(v.s);
     if (v.zone) {
-      this.renderer.solids.remove(v.zone, true, true);
+      this.renderer.removeSolid(v.zone);
       v.zone = null;
     }
     if (!solid || solid.kind !== 'rect') return;

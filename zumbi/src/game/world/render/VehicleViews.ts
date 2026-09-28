@@ -10,6 +10,21 @@ import type { WorldState } from '../../sim/WorldState';
 import { VEHICLE_SPECS, isVehicle, toWorld, type VehicleType } from '../../vehicles/Vehicles';
 import type { PropPlacement } from '../MapTypes';
 import type { WorldRenderer } from './WorldRenderer';
+import type { AssetRegistry } from '../../assets/AssetRegistry';
+import { PROP_DEFS } from '../PropCatalog';
+import { propSolids } from '../collision';
+
+/** Carro fora do lugar do mapa: desenho próprio que acompanha a pose. */
+interface MovedView {
+  prop: PropPlacement;
+  img: Phaser.GameObjects.Image;
+  shadow: Phaser.GameObjects.Image | null;
+  g: Phaser.GameObjects.Graphics;
+  zones: Phaser.GameObjects.Zone[];
+  /** Pose desenhada (para saber se precisa redesenhar). */
+  drawn: string;
+  seen: number;
+}
 
 const DOOR_FILL = 0x3f454c;
 const DOOR_STROKE = 0x16181b;
@@ -20,20 +35,47 @@ export class VehicleViews {
   private readonly byId = new Map<string, { prop: PropPlacement; g: Phaser.GameObjects.Graphics }>();
   private readonly unsubs: (() => void)[] = [];
   private blink = 0;
+  private readonly moved = new Map<string, MovedView>();
+  /** Carro sendo dirigido agora (sem colisão física: o jogador está dentro). */
+  driving: string | null = null;
+  /** Faróis acesos (noite, dirigindo). */
+  headlights = false;
+  private frame = 0;
 
   constructor(
     private readonly scene: Phaser.Scene,
     private readonly state: WorldState,
-    renderer: WorldRenderer,
+    private readonly renderer: WorldRenderer,
+    private readonly assets: AssetRegistry,
   ) {
     this.unsubs.push(
       renderer.onChunk({ load: (k) => this.load(k), unload: (k) => this.unload(k) }),
       state.vehicles.onChange((id) => {
         const v = this.byId.get(id);
         if (v) this.draw(v.prop, v.g);
+        const m = this.moved.get(id);
+        if (m) m.drawn = '';
+      }),
+      state.onChange((c) => {
+        if (c.type !== 'vehicle') return;
+        // Saiu do lugar: some a vista presa ao chunk do mapa.
+        const st = this.byId.get(c.id);
+        if (st) {
+          st.g.destroy();
+          this.byId.delete(c.id);
+        }
+        const m = this.moved.get(c.id);
+        if (m) {
+          m.drawn = '';
+          this.setColliders(m, c.parked && this.driving !== c.id);
+        }
       }),
     );
-    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.unsubs.forEach((u) => u()));
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.unsubs.forEach((u) => u());
+      for (const m of this.moved.values()) this.destroyMoved(m);
+      this.moved.clear();
+    });
   }
 
   private load(key: number): void {
@@ -41,7 +83,7 @@ export class VehicleViews {
     const list: { prop: PropPlacement; g: Phaser.GameObjects.Graphics }[] = [];
     for (const i of this.state.model.index.get(key)?.props ?? []) {
       const p = map.props[i]!;
-      if (!isVehicle(p.type) || this.state.isPropRemoved(p.id)) continue;
+      if (!isVehicle(p.type) || this.state.isPropHidden(p.id)) continue;
       const g = this.scene.add.graphics().setDepth(DEPTH.object + 0.5);
       const e = { prop: p, g };
       this.draw(p, g);
@@ -129,11 +171,104 @@ export class VehicleViews {
     }
   }
 
-  /** Pisca o alarme. */
-  update(dt: number): void {
+  /** Pisca o alarme; carros dirigidos seguem a pose. */
+  update(dt: number, cam?: Phaser.Cameras.Scene2D.Camera): void {
+    this.frame++;
     const before = this.blink % 1 < 0.5;
     this.blink += dt * 2.2;
-    if (before === this.blink % 1 < 0.5) return;
-    for (const e of this.byId.values()) if (this.state.vehicles.alarming(e.prop.id) || this.state.vehicles.state(e.prop.id)?.alarmLeft === 0) this.draw(e.prop, e.g);
+    const flip = before !== this.blink % 1 < 0.5;
+    if (flip) for (const e of this.byId.values()) if (this.state.vehicles.alarming(e.prop.id) || this.state.vehicles.state(e.prop.id)?.alarmLeft === 0) this.draw(e.prop, e.g);
+    if (!cam) return;
+    const v = cam.worldView;
+    const m = 400;
+    for (const p of this.state.vehicles.moved()) {
+      if (this.state.isPropRemoved(p.id)) continue;
+      const near = p.x > v.x - m && p.x < v.right + m && p.y > v.y - m && p.y < v.bottom + m;
+      let mv = this.moved.get(p.id);
+      if (!near && p.id !== this.driving) continue;
+      if (!mv) mv = this.makeMoved(p);
+      mv.seen = this.frame;
+      const key = `${p.x.toFixed(1)},${p.y.toFixed(1)},${p.angle.toFixed(2)},${this.headlights && p.id === this.driving}`;
+      if (mv.drawn !== key || (flip && this.state.vehicles.alarming(p.id))) {
+        mv.drawn = key;
+        mv.img.setPosition(p.x, p.y).setAngle(p.angle);
+        if (mv.shadow) {
+          const def = PROP_DEFS[p.type];
+          const o = this.renderer.shadows.offset(def.shadowHeight);
+          mv.shadow.setPosition(p.x + o.x, p.y + o.y).setAngle(p.angle).setAlpha(this.renderer.shadows.alpha * 1.6);
+        }
+        this.draw(p, mv.g);
+        if (this.headlights && p.id === this.driving) this.drawHeadlights(p, mv.g);
+      }
+    }
+    for (const mv of [...this.moved.values()]) {
+      if (mv.seen === this.frame) continue;
+      this.destroyMoved(mv);
+      this.moved.delete(mv.prop.id);
+    }
+  }
+
+  private makeMoved(p: PropPlacement): MovedView {
+    const def = PROP_DEFS[p.type];
+    const id = def.sprites[p.variant] ?? def.sprites[0]!;
+    const ref = this.assets.ref(id);
+    const img = this.scene.add.image(p.x, p.y, ref.key, ref.frame).setAngle(p.angle).setDepth(DEPTH.object);
+    img.setScale(def.width / this.assets.frameWidth(ref), def.height / this.assets.frameHeight(ref));
+    if (p.flipX) img.setFlipX(true);
+    let shadow: Phaser.GameObjects.Image | null = null;
+    const sref = this.assets.shadowRef(id);
+    if (sref && def.shadowHeight > 0) {
+      shadow = this.scene.add.image(p.x, p.y, sref.key, sref.frame).setAngle(p.angle).setDepth(DEPTH.shadow);
+      if (p.flipX) shadow.setFlipX(true);
+    }
+    const g = this.scene.add.graphics().setDepth(DEPTH.object + 0.5);
+    const mv: MovedView = { prop: p, img, shadow, g, zones: [], drawn: '', seen: this.frame };
+    this.moved.set(p.id, mv);
+    this.setColliders(mv, this.driving !== p.id);
+    return mv;
+  }
+
+  /** Colisão física do carro parado (o jogador esbarra); dirigindo, nenhuma. */
+  private setColliders(mv: MovedView, on: boolean): void {
+    for (const z of mv.zones) this.renderer.removeSolid(z);
+    mv.zones = [];
+    if (!on) return;
+    for (const sd of propSolids(mv.prop)) {
+      let z: Phaser.GameObjects.Zone;
+      if (sd.kind === 'rect') {
+        z = this.scene.add.zone(sd.x + sd.w / 2, sd.y + sd.h / 2, sd.w, sd.h);
+        this.scene.physics.add.existing(z, true);
+      } else {
+        z = this.scene.add.zone(sd.x, sd.y, sd.r * 2, sd.r * 2);
+        this.scene.physics.add.existing(z, true);
+        (z.body as Phaser.Physics.Arcade.StaticBody).setCircle(sd.r);
+      }
+      this.renderer.solids.add(z);
+      mv.zones.push(z);
+    }
+  }
+
+  private destroyMoved(mv: MovedView): void {
+    for (const z of mv.zones) this.renderer.removeSolid(z);
+    mv.img.destroy();
+    mv.shadow?.destroy();
+    mv.g.destroy();
+  }
+
+  /** Estacionou/saiu do carro: a colisão volta. */
+  refreshColliders(id: string): void {
+    const mv = this.moved.get(id);
+    if (mv) this.setColliders(mv, this.driving !== id);
+  }
+
+  /** Dois fachos de farol à frente. */
+  private drawHeadlights(p: PropPlacement, g: Phaser.GameObjects.Graphics): void {
+    const spec = VEHICLE_SPECS[p.type as VehicleType];
+    const [hx, hy] = spec.half;
+    g.fillStyle(0xfff6d8, 0.95);
+    for (const sy of [-hy + 10, hy - 10]) {
+      const q = toWorld(p, hx - 2, sy);
+      g.fillCircle(q.x, q.y, 5);
+    }
   }
 }

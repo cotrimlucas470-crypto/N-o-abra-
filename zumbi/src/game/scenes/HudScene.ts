@@ -37,6 +37,7 @@ export class HudScene extends Phaser.Scene {
   private feedback!: ActionFeedback;
   private threat!: ThreatBanner;
   private hearing!: HearingRing;
+  private driveText!: Phaser.GameObjects.Text;
   private death!: DeathScreen;
   private inventory!: InventoryPanel;
   private prompt!: Phaser.GameObjects.Text;
@@ -116,6 +117,8 @@ export class HudScene extends Phaser.Scene {
     this.feedback = new ActionFeedback(this, dpr);
     this.threat = new ThreatBanner(this, dpr);
     this.hearing = new HearingRing(this, dpr);
+    this.driveText = this.add.text(0, 0, '', textStyle(13, UI.text, '800')).setOrigin(0.5, 0).setDepth(95).setResolution(dpr).setVisible(false);
+    this.driveText.setBackgroundColor('rgba(12,13,16,0.66)').setPadding(10, 5, 10, 5).setAlign('center').setLineSpacing(2);
     // Morte: carregar o último save (nunca apagado) ou voltar ao menu.
     const leave = () => {
       this.scene.stop(SCENES.debug);
@@ -455,6 +458,16 @@ export class HudScene extends Phaser.Scene {
     if (!this.paused) this.controls.update(stats ? !stats.canSprint() : false, target ? target.enabled : null, this.inventory.isOpen, !!this.s.session.threat?.sneaking, (this.s.session.threat?.grabbed ?? 0) > 0);
     this.threat.update(dt, this.s.session.threat, this.controls.isTouchMode);
     this.death.update(dt);
+    const dr = this.s.session.driving;
+    if (dr) {
+      const fuel = dr.fuel < 0.5 ? 'SEM GASOLINA' : `gasolina ${dr.fuel.toFixed(1)}/${dr.tank} L`;
+      const help = this.controls.isTouchMode ? 'INTERAGIR: sair · ATACAR: buzina' : 'E: sair · F: buzina';
+      this.driveText.setText(`${dr.kmh} km/h · ${fuel} · lataria ${Math.round(dr.body * 100)}%\n${help}`).setVisible(true);
+      // No alto, no meio: embaixo fica o botão/aviso de SAIR e o joystick.
+      const vw = this.s.viewport.cssWidth;
+      this.driveText.setPosition(vw / 2, this.s.viewport.insets.top + (this.s.viewport.isPortrait ? 150 : 12));
+      this.driveText.setScale(Math.min(1, (vw * (this.s.viewport.isPortrait ? 0.9 : 0.5)) / Math.max(1, this.driveText.width)));
+    } else this.driveText.setVisible(false);
     this.hearing.update(dt);
     this.updatePrompt();
     // PC: mouse sobre o painel não mira.

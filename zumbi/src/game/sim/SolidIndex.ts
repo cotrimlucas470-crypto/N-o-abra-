@@ -32,10 +32,24 @@ export class SolidIndex {
   private readonly cols: number;
   private readonly rows: number;
 
+  /** Sólidos que se movem (carros fora do lugar do mapa). */
+  private readonly dynamic = new Map<string, TaggedSolid[]>();
+
   constructor(private readonly state: WorldState) {
+    for (const p of state.vehicles.moved()) this.dynamic.set(p.id, propSolids(p).map((sd) => ({ s: sd, kind: 'prop' as const, id: p.id })));
     this.cols = Math.ceil(state.model.widthPx / CHUNK_PX);
     this.rows = Math.ceil(state.model.heightPx / CHUNK_PX);
     state.onChange((c) => {
+      if (c.type === 'vehicle') {
+        // Carro dirigido: sai da célula do mapa (1ª vez) e vira sólido móvel.
+        if (c.first) {
+          const o = state.vehicles.original(c.id);
+          if (o) this.invalidateAt(o.x, o.y);
+        }
+        const p = state.vehicles.vehicle(c.id);
+        if (p) this.dynamic.set(c.id, propSolids(p).map((sd) => ({ s: sd, kind: 'prop' as const, id: c.id })));
+        return;
+      }
       if (c.type === 'door') this.invalidateAt(c.door.x, c.door.y);
       else if (c.type === 'prop' && c.removed) this.invalidateAt(c.x, c.y);
       else if (c.type === 'wall') this.invalidateAt(c.x, c.y, 2);
@@ -79,7 +93,7 @@ export class SolidIndex {
         }
         for (const i of c.props) {
           const p = map.props[i]!;
-          if (st.isPropRemoved(p.id)) continue;
+          if (st.isPropHidden(p.id)) continue;
           for (const s of propSolids(p)) put({ s, kind: 'prop', id: p.id });
         }
         for (const i of c.doors) {
@@ -124,6 +138,15 @@ export class SolidIndex {
         if (!cells) continue;
         const list = cells[(gy - cy * PER) * PER + (gx - cx * PER)]!;
         for (const t of list) out.push(t);
+      }
+    }
+    for (const [id, list] of this.dynamic) {
+      if (this.state.isPropRemoved(id)) continue;
+      for (const t of list) {
+        const sd = t.s;
+        const [x0, y0, x1, y1] = sd.kind === 'rect' ? [sd.x, sd.y, sd.x + sd.w, sd.y + sd.h] : [sd.x - sd.r, sd.y - sd.r, sd.x + sd.r, sd.y + sd.r];
+        if (x1 < x - r || x0 > x + r || y1 < y - r || y0 > y + r) continue;
+        out.push(t);
       }
     }
     return out;

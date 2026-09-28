@@ -29,7 +29,7 @@ import type { ItemResult } from '../interaction/itemActions/types';
 import { NatureViews } from '../world/render/NatureViews';
 import { allItemIds, itemDef } from '../items/ItemCatalog';
 import { PlayerInventory } from '../items/PlayerInventory';
-import { saveGame, type GameSave } from '../save/SaveGame';
+import { loadGame, saveGame, type GameSave } from '../save/SaveGame';
 import { ActionRunner, type ActionOutcome } from '../sim/Actions';
 import { Calendar } from '../sim/Calendar';
 import { Weather } from '../sim/Weather';
@@ -81,6 +81,8 @@ import { ARCHETYPES, type ArchId } from '../zombies/Archetypes';
 import { createZombie } from '../zombies/ZombieFactory';
 import { corpseLoot } from '../zombies/CorpseLoot';
 import { explainDeath } from '../survival/Death';
+import { DriveSession } from '../vehicles/DriveSession';
+import { VEHICLE_SPECS, type VehicleType } from '../vehicles/Vehicles';
 import type { SleepOptions } from '../survival/Sleep';
 
 /** Como o jogador descreve o que ouviu. */
@@ -161,6 +163,8 @@ export class GameScene extends Phaser.Scene {
   /** Barulhos fortes do jogador (tiro, vidro...) nos últimos minutos: explicam a morte. */
   private readonly loudNoises: { t: number; source: string }[] = [];
   private dangerTimer = 0;
+  /** Ao volante (null = a pé). */
+  private drive: DriveSession | null = null;
 
   constructor() {
     super(SCENES.game);
@@ -182,7 +186,7 @@ export class GameScene extends Phaser.Scene {
     // quebrados já nascem no estado salvo.
     this.state = new WorldState(this.model, { loot: s.settings.loot, nature: s.settings.nature });
     if (load) this.state.restore(load.world);
-    this.world = new WorldRenderer(this, this.model, assets, s.bus, { isPropRemoved: (id) => this.state.isPropRemoved(id), wallPieces: (i) => this.state.wallPieces(i) });
+    this.world = new WorldRenderer(this, this.model, assets, s.bus, { isPropRemoved: (id) => this.state.isPropHidden(id), wallPieces: (i) => this.state.wallPieces(i) });
     this.physics.world.setBounds(0, 0, this.world.widthPx, this.world.heightPx);
 
     this.player = new Player(this, map.spawn.x, map.spawn.y, assets, s.bus, this.world.shadows, s.settings.player);
@@ -287,6 +291,7 @@ export class GameScene extends Phaser.Scene {
       attack: (z, kind) => this.zombieAttack(z, kind),
       noise: (x, y, kind, radius, source) => s.bus.emit('world:noise', { x, y, radius: radius ?? NOISE_RADIUS[kind], source: source ?? kind, kind }),
       killed: (z) => this.registerCorpse(z),
+      vehicleBang: (z) => this.vehicleBang(z),
     });
     const zsave = load?.modules?.['zombies'] as (ZombieStoreSave & { kills?: number }) | undefined;
     if (!this.zombies.restore(zsave)) {
@@ -324,6 +329,11 @@ export class GameScene extends Phaser.Scene {
     // Objeto quebrado/removido: o chunk é redesenhado (colisão e desenho somem juntos).
     const offProps = this.state.onChange((c) => {
       if ((c.type === 'prop' && c.removed) || c.type === 'wall') this.world.refreshChunk(this.model.index.chunkOfPoint(c.x, c.y));
+      // Carro saiu do lugar do mapa: o chunk de onde ele estava é redesenhado sem ele.
+      if (c.type === 'vehicle' && c.first) {
+        const o = this.state.vehicles.original(c.id);
+        if (o) this.world.refreshChunk(this.model.index.chunkOfPoint(o.x, o.y));
+      }
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, offProps);
     const playerBody = this.interactor;
@@ -358,6 +368,7 @@ export class GameScene extends Phaser.Scene {
           s.bus.emit('ui:container-open', { id });
         },
         info: (title, lines) => s.bus.emit('ui:info', { title, lines }),
+        drive: (prop) => this.startDriving(prop.id),
       }),
     );
     this.interaction.add(
@@ -385,7 +396,7 @@ export class GameScene extends Phaser.Scene {
         drop: (defId, count, st) => this.lootActions.dropLoose(defId, count, st, this.player.x, this.player.y),
       }),
     );
-    this.vehicleViews = new VehicleViews(this, this.state, this.world);
+    this.vehicleViews = new VehicleViews(this, this.state, this.world, assets);
     this.structureViews = new StructureViews(this, this.state, this.world, () => this.clock.minutes, () => ({ x: this.player.x, y: this.player.y }));
     this.highlight = new InteractionHighlight(this);
     new WindowViews(this, this.state, this.world);
@@ -468,6 +479,7 @@ export class GameScene extends Phaser.Scene {
       s.session.crafting = null;
       s.session.build = null;
       s.session.threat = null;
+      s.session.driving = null;
       s.session.options = null;
       this.events.off(Phaser.Scenes.Events.POST_UPDATE, this.afterPhysics, this);
       s.session.stats = null;
@@ -528,7 +540,8 @@ export class GameScene extends Phaser.Scene {
     const th = this.zombies.threat;
     this.player.drag = th.moveFactor();
     if (th.down || this.dead) this.player.frozen = true;
-    this.player.update(this.dt, intent);
+    if (this.drive) this.updateDriving(this.dt, intent);
+    else this.player.update(this.dt, intent);
     this.updateZombies(delta / 1000, moving);
 
     this.attackCooldown = Math.max(0, this.attackCooldown - delta / 1000);
@@ -555,7 +568,7 @@ export class GameScene extends Phaser.Scene {
     this.updateHeldLight();
     this.combatFx.update(this.dt);
     this.zombieViews.update(this.cameras.main);
-    this.vehicleViews.update(this.dt);
+    this.vehicleViews.update(this.dt, this.cameras.main);
     this.structureViews.update(this.dt);
     this.updateBuildPreview();
     this.atmosphere.update(this.dt, this.cameras.main, {
@@ -621,6 +634,10 @@ export class GameScene extends Phaser.Scene {
 
   /** Botão Atacar / F / espaço: golpe ou tiro para onde o jogador olha. */
   attack(): void {
+    if (this.drive) {
+      this.drive.horn();
+      return;
+    }
     if (this.s.session.paused || this.attackCooldown > 0 || this.loop.sleeping || this.dead || this.zombies.threat.down) return;
     if (this.loop.runner.active) this.loop.cancelAction();
     const gun = !!this.inventory.handDef?.gun;
@@ -649,6 +666,12 @@ export class GameScene extends Phaser.Scene {
 
   /** Lanterna ligada na mão ou na cabeça: facho para onde o jogador olha. */
   private flashlight(): { angle: number; range: number } | null {
+    // Dirigindo à noite: faróis (se a bateria aguenta).
+    if (this.drive) {
+      const on = this.atmosphere.darkness > 0.35 && (this.drive.st.battery ?? 0) > 0.05;
+      this.vehicleViews.headlights = on;
+      return on ? { angle: this.drive.car.a, range: 620 } : null;
+    }
     const h = this.inventory.hand;
     const hd = this.inventory.handDef;
     // Chama (vela, tocha) ilumina em volta, não em facho.
@@ -666,15 +689,16 @@ export class GameScene extends Phaser.Scene {
     const s = this.s;
     const th = this.zombies.threat;
     const body = this.player.body;
+    const car = this.drive?.car;
     const sense: PlayerSense = {
       x: this.player.x,
       y: this.player.y,
       floor: 0,
-      vx: body.velocity.x,
-      vy: body.velocity.y,
+      vx: car ? Math.cos(car.a) * car.speed : body.velocity.x,
+      vy: car ? Math.sin(car.a) * car.speed : body.velocity.y,
       radius: PLAYER_TUNING.bodyRadius,
       posture: this.player.sneaking ? 'furtivo' : this.player.isSprinting ? 'correndo' : moving ? 'andando' : 'parado',
-      inVehicle: false,
+      inVehicle: !!this.drive,
       alive: !this.dead,
       down: th.down,
     };
@@ -718,6 +742,98 @@ export class GameScene extends Phaser.Scene {
         this.outcome({ ok: false, message: sleeping ? 'Acordou com barulho: tem zumbi por perto!' : 'Zumbi chegando!', tone: 'bad' });
       }
     }
+  }
+
+  // ---------------------------------------------------------------- dirigir
+
+  /** Entrar no banco do motorista (o motor já pegou). */
+  private startDriving(id: string): { ok: boolean; message?: string } {
+    if (this.drive || this.dead) return { ok: false };
+    if (this.zombies.threat.grabbed) return { ok: false, message: 'Solte-se antes!' };
+    if (this.loop.runner.active) this.loop.cancelAction();
+    const s = this.s;
+    this.drive = new DriveSession(id, this.state, this.zombies.solids, this.zombies, {
+      noise: (x, y, kind, radius, source) => s.bus.emit('world:noise', { x, y, radius, source, kind, byPlayer: true }),
+      message: (text, tone) => this.outcome({ ok: tone === 'ok' || tone === 'info', message: text, tone }),
+      ranOver: (_z, killed, x, y, dir) => {
+        this.combatFx.blood(x, y, dir, killed ? 14 : 8);
+        this.cameras.main.shake(90, 0.003);
+      },
+      crash: (impact) => {
+        this.cameras.main.shake(180, 0.006);
+        // Batida forte machuca quem dirige (sem cinto, cidade em colapso).
+        if (impact > 320) {
+          this.survivor.health.add(Math.random() < 0.5 ? 'cabeca' : 'tronco', 'contusao', Math.min(1, (impact - 300) / 300));
+          this.player.stats.setHealth(this.player.stats.health - (impact - 300) * 0.03);
+          this.outcome({ ok: false, message: 'Bateu forte!', tone: 'bad' });
+        }
+      },
+    });
+    this.vehicleViews.driving = id;
+    this.vehicleViews.refreshColliders(id);
+    this.player.setHidden(true);
+    this.player.sneaking = false;
+    this.player.placeAt(this.drive.car.x, this.drive.car.y, this.drive.car.a);
+    const spec = VEHICLE_SPECS[this.state.vehicles.vehicle(id)!.type as VehicleType];
+    return { ok: true, message: `Ao volante do ${spec.name}. Aponte para onde quer ir; para trás é ré.` };
+  }
+
+  private updateDriving(dt: number, intent: ReturnType<typeof resolveIntent>): void {
+    const d = this.drive!;
+    const mag = Math.min(1, Math.hypot(intent.moveX, intent.moveY));
+    const held = this.zombies.threat.grabbed > 0 || this.zombies.threat.down || this.dead || this.s.session.paused;
+    d.update(dt, { x: intent.moveX, y: intent.moveY, mag }, held);
+    this.player.placeAt(d.car.x, d.car.y, d.car.a);
+    const st = d.st;
+    this.s.session.driving = { kmh: d.kmh, fuel: st.fuel, tank: d.spec.tankLiters, body: st.body };
+  }
+
+  /** Sair do carro (parado ou quase). */
+  private stopDriving(force = false): void {
+    const d = this.drive;
+    if (!d) return;
+    if (!force && Math.abs(d.car.speed) > 45) {
+      this.outcome({ ok: false, message: 'Pare o carro antes de sair.', tone: 'warn' });
+      return;
+    }
+    const q = d.exitPoint();
+    if (!q && !force) {
+      this.outcome({ ok: false, message: 'Não dá para abrir a porta: tem coisa (ou zumbi) encostada.', tone: 'warn' });
+      return;
+    }
+    d.car.speed = 0;
+    d.sync(true);
+    const out = q ?? { x: d.car.x, y: d.car.y + 90 };
+    this.drive = null;
+    this.vehicleViews.driving = null;
+    this.vehicleViews.headlights = false;
+    this.vehicleViews.refreshColliders(d.id);
+    this.player.setHidden(false);
+    this.teleport(out.x, out.y);
+    this.s.session.driving = null;
+    this.s.bus.emit('world:noise', { x: out.x, y: out.y, radius: 160, source: 'porta de carro', kind: 'porta', byPlayer: true });
+  }
+
+  /** Zumbi socando o carro: amassa, estoura o vidro do lado dele, agarra pela janela quebrada. */
+  private vehicleBang(z: Zombie): void {
+    const d = this.drive;
+    if (!d) return;
+    const st = d.st;
+    const str = z.traits.strength * this.zombies.diff.destruction;
+    st.body = Math.max(0, st.body - 0.004 * str);
+    const door = d.sideDoorOf(z.x, z.y);
+    this.s.bus.emit('world:noise', { x: z.x, y: z.y, radius: 360, source: 'batida no carro', kind: 'batida' });
+    if (!st.broken.includes(door)) {
+      if (Math.random() < 0.16 * str) {
+        this.state.vehicles.breakWindow(d.id, door);
+        this.s.bus.emit('world:noise', { x: z.x, y: z.y, radius: 700, source: 'vidro do carro', kind: 'vidro' });
+        this.outcome({ ok: false, message: door === 'motorista' ? 'Estouraram o vidro do seu lado!' : 'Estouraram um vidro do carro!', tone: 'bad' });
+      } else this.state.vehicles.touch(d.id);
+      return;
+    }
+    // Vidro quebrado: a mão entra. Do lado do motorista, pega você.
+    const chance = door === 'motorista' ? 0.55 : 0.18;
+    if (Math.random() < chance) this.zombieAttack(z, door === 'motorista' && Math.random() < 0.6 ? 'grab' : 'swipe');
   }
 
   /** Corpo de zumbi = recipiente com o que a pessoa carregava (gerado ao revistar). */
@@ -793,7 +909,7 @@ export class GameScene extends Phaser.Scene {
 
   /** Empurrão (botão/tecla G): afasta quem está na frente e ajuda a se soltar. */
   shove(): void {
-    if (this.s.session.paused || this.attackCooldown > 0 || this.loop.sleeping || this.dead || this.zombies.threat.down) return;
+    if (this.s.session.paused || this.attackCooldown > 0 || this.loop.sleeping || this.dead || this.zombies.threat.down || this.drive) return;
     if (this.loop.runner.active) this.loop.cancelAction();
     const st = this.player.stats;
     if (st.stamina < 4) {
@@ -876,6 +992,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   private scanInteraction(): void {
+    // Ao volante: o botão de interagir é SAIR.
+    if (this.drive) {
+      const t = { key: 'dirigindo', kind: 'vehicle', x: this.player.x, y: this.player.y, radius: 0, verb: 'SAIR', label: 'Sair do carro', enabled: Math.abs(this.drive.car.speed) <= 45 };
+      this.s.session.interaction = t;
+      this.highlight.set(null);
+      return;
+    }
     const target = this.interaction.scan(this.syncInteractor());
     this.s.session.interaction = target;
     this.highlight.set(target);
@@ -920,6 +1043,10 @@ export class GameScene extends Phaser.Scene {
   /** Botão Interagir / tecla E. */
   interact(): void {
     if (this.s.session.paused || this.dead || this.zombies.threat.down) return;
+    if (this.drive) {
+      this.stopDriving();
+      return;
+    }
     const r = this.interaction.perform(this.syncInteractor());
     this.s.session.interaction = this.interaction.current;
     this.highlight.set(this.interaction.current);
@@ -928,7 +1055,7 @@ export class GameScene extends Phaser.Scene {
 
   /** Botão "⋯" / tecla Q: monta a lista de ações por perto. */
   private requestOptions(): void {
-    if (this.s.session.paused || this.dead) return;
+    if (this.s.session.paused || this.dead || this.drive) return;
     this.options = this.interaction.options(this.syncInteractor());
     this.s.session.options = this.options.map((o) => ({ label: o.label, enabled: o.enabled }));
     this.s.bus.emit('ui:options-ready', {});
@@ -987,10 +1114,18 @@ export class GameScene extends Phaser.Scene {
   // ---------------------------------------------------------------- save
 
   private gatherSave(): Omit<GameSave, 'version' | 'savedAt' | 'game'> {
+    const player = this.player.snapshot();
+    // Salvando ao volante: o carro fica onde está; o jogador volta ao lado dele.
+    if (this.drive) {
+      this.drive.sync(true);
+      const q = this.drive.exitPoint() ?? { x: this.drive.car.x, y: this.drive.car.y + 90 };
+      player.x = q.x;
+      player.y = q.y;
+    }
     return {
       settings: this.s.settings,
       clock: this.clock.snapshot(),
-      player: this.player.snapshot(),
+      player,
       body: this.survivor.body.snapshot(),
       inventory: this.inventory.serialize(),
       world: this.state.serialize(),
@@ -1183,6 +1318,21 @@ export class GameScene extends Phaser.Scene {
       shove: () => this.shove(),
       sneak: () => this.toggleSneak(),
       dead: () => this.dead,
+      drive: (id: string) => this.startDriving(id),
+      exitCar: (force?: boolean) => this.stopDriving(force),
+      /** Carrega o último save como o botão da tela de morte. */
+      loadLast: () => {
+        const save = loadGame();
+        if (!save) return false;
+        this.s.settings = save.settings;
+        this.s.session.pendingLoad = save;
+        const hud = this.scene.get(SCENES.hud);
+        hud.scene.stop(SCENES.debug);
+        hud.scene.stop(SCENES.game);
+        hud.scene.start(SCENES.game);
+        return true;
+      },
+      driving: () => (this.drive ? { id: this.drive.id, ...this.drive.car, kmh: this.drive.kmh, st: this.drive.st } : null),
     };
   }
 }
