@@ -46,6 +46,8 @@ export class TouchControls {
   readonly sneak: TouchButton;
   /** Mostra o botão de recarregar (arma de fogo na mão). */
   private showReload = false;
+  /** Dirigindo: só o volante (joystick), SAIR (interagir) e BUZINA (atacar). */
+  private driving = false;
   readonly pause: TouchButton;
   readonly fullscreen: TouchButton;
   private layoutData: ControlsLayoutData = loadLayout();
@@ -166,16 +168,17 @@ export class TouchControls {
 
   private applyVisibility(): void {
     const t = this.touchMode;
+    const foot = t && !this.driving;
     this.move.setVisible(t);
-    this.aim.setVisible(t);
-    this.sprint.setVisible(t);
+    this.aim.setVisible(foot);
+    this.sprint.setVisible(foot);
     this.interact.setVisible(t);
-    this.options.setVisible(t);
+    this.options.setVisible(foot);
     this.attack.setVisible(t);
-    this.reload.setVisible(t && this.showReload);
-    this.inventory.setVisible(t);
-    this.shove.setVisible(t);
-    this.sneak.setVisible(t);
+    this.reload.setVisible(foot && this.showReload);
+    this.inventory.setVisible(foot);
+    this.shove.setVisible(foot);
+    this.sneak.setVisible(foot);
     this.pause.setVisible(true);
     // Só mostra o botão onde o navegador realmente permite tela cheia.
     this.fullscreen.setVisible(canFullscreen());
@@ -315,6 +318,14 @@ export class TouchControls {
     this.inventory.setState(inventoryOpen, false);
     this.sneak.setState(sneaking, false);
     this.shove.setState(grabbed, false);
+  }
+
+  /** Entrou/saiu do carro: esconde os botões de quem está a pé. */
+  setDriving(v: boolean): void {
+    if (v === this.driving) return;
+    this.driving = v;
+    if (v) this.aim.end();
+    this.applyVisibility();
   }
 
   /** Arma de fogo na mão: aparece o botão de recarregar. */

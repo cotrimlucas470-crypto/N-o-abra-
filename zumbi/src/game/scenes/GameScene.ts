@@ -932,7 +932,16 @@ export class GameScene extends Phaser.Scene {
     d.update(dt, { x: intent.moveX, y: intent.moveY, mag }, held);
     this.player.placeAt(d.car.x, d.car.y, d.car.a);
     const st = d.st;
-    this.s.session.driving = { kmh: d.kmh, fuel: st.fuel, tank: d.spec.tankLiters, body: st.body };
+    this.s.session.driving = {
+      kmh: d.kmh,
+      fuel: st.fuel,
+      tank: d.spec.tankLiters,
+      body: st.body,
+      engine: st.engine,
+      flat: st.tires.filter((t) => t === null || t < 0.15).length,
+      stalled: d.stalled,
+      lights: this.vehicleViews.headlights,
+    };
   }
 
   /** Sair do carro (parado ou quase). */

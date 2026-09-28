@@ -100,6 +100,12 @@ Pedido: carro pode dar problema, dá para achar peças e consertar, mas carro n�
   `dev/carfix.mjs`: porta → dirigir → pneu fura e motor morre (forçado) → capô → examinar → consertar →
   dirigir de novo.
 
+### HUD de direção
+- Painel próprio ao volante (`ui/DriveHud.ts`): velocímetro, barras de gasolina, motor e lataria
+  (vermelhas quando ruins) e avisos (motor morreu, sem gasolina, pneu furado, faróis).
+- No toque ficam só o volante (joystick), **SAIR** e **BUZINA** (com o nome embaixo); os botões de
+  quem está a pé somem. No PC aparece "E: sair · F: buzina". O nome da região não cobre o painel.
+
 ### Verificação
 - `npm run verificar`: 27 arquivos, 370 testes passando; build ok.
 - `npm run smoke`: tudo certo (a checagem de tempo real "teclado move" às vezes falha pela lentidão do

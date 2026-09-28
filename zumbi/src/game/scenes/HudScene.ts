@@ -16,6 +16,7 @@ import { ActionFeedback } from '../ui/ActionFeedback';
 import { InventoryPanel } from '../ui/InventoryPanel';
 import { OptionsMenu } from '../ui/OptionsMenu';
 import { MapView } from '../ui/MapView';
+import { DriveHud } from '../ui/DriveHud';
 import { InfoCard } from '../ui/InfoCard';
 import { StatePills } from '../ui/StatePills';
 import { hasClock } from '../ui/tabs/BodyTab';
@@ -37,7 +38,7 @@ export class HudScene extends Phaser.Scene {
   private feedback!: ActionFeedback;
   private threat!: ThreatBanner;
   private hearing!: HearingRing;
-  private driveText!: Phaser.GameObjects.Text;
+  private driveHud!: DriveHud;
   private death!: DeathScreen;
   private inventory!: InventoryPanel;
   private prompt!: Phaser.GameObjects.Text;
@@ -117,8 +118,7 @@ export class HudScene extends Phaser.Scene {
     this.feedback = new ActionFeedback(this, dpr);
     this.threat = new ThreatBanner(this, dpr);
     this.hearing = new HearingRing(this, dpr);
-    this.driveText = this.add.text(0, 0, '', textStyle(13, UI.text, '800')).setOrigin(0.5, 0).setDepth(95).setResolution(dpr).setVisible(false);
-    this.driveText.setBackgroundColor('rgba(12,13,16,0.66)').setPadding(10, 5, 10, 5).setAlign('center').setLineSpacing(2);
+    this.driveHud = new DriveHud(this, dpr);
     // Morte: carregar o último save (nunca apagado) ou voltar ao menu.
     const leave = () => {
       this.scene.stop(SCENES.debug);
@@ -181,7 +181,8 @@ export class HudScene extends Phaser.Scene {
     // Eventos do jogo
     this.unsubs.push(
       s.bus.on('player:enter-building', (e) => this.toast.show(e.name, e.kind === 'shelter' ? 'sua base · por enquanto, segura' : 'interior')),
-      s.bus.on('world:region-entered', (e) => this.toast.show(e.name, `Dia ${s.session.clock?.day ?? 1} · v${GAME_VERSION}`, 2600)),
+      // Dirigindo, o painel do carro ocupa o alto da tela: o nome da região não aparece por cima.
+      s.bus.on('world:region-entered', (e) => !s.session.driving && this.toast.show(e.name, `Dia ${s.session.clock?.day ?? 1} · v${GAME_VERSION}`, 2600)),
       s.bus.on('viewport:changed', () => this.layout()),
       s.bus.on('input:touch-detected', () => {
         this.keyboardHint.setVisible(false);
@@ -450,7 +451,10 @@ export class HudScene extends Phaser.Scene {
     this.infoCard.update(dt);
     const handDef = inv?.handDef;
     this.controls.setReloadVisible(!!handDef?.gun);
-    if (handDef?.gun && this.controls.isTouchMode) {
+    const dr = this.s.session.driving;
+    this.controls.setDriving(!!dr);
+    if (dr) this.ammoText.setVisible(false);
+    else if (handDef?.gun && this.controls.isTouchMode) {
       const b = this.controls.attack;
       this.ammoText.setText(`${inv?.hand?.st?.am ?? 0}/${handDef.gun.capacity}`).setPosition(b.x, b.y + b.radius + 9).setScale(uiScaleFor(this.s.viewport.cssWidth, this.s.viewport.cssHeight)).setVisible(true);
     } else if (handDef?.gun) {
@@ -460,16 +464,13 @@ export class HudScene extends Phaser.Scene {
     if (!this.paused) this.controls.update(stats ? !stats.canSprint() : false, target ? target.enabled : null, this.inventory.isOpen, !!this.s.session.threat?.sneaking, (this.s.session.threat?.grabbed ?? 0) > 0);
     this.threat.update(dt, this.s.session.threat, this.controls.isTouchMode);
     this.death.update(dt);
-    const dr = this.s.session.driving;
     if (dr) {
-      const fuel = dr.fuel < 0.5 ? 'SEM GASOLINA' : `gasolina ${dr.fuel.toFixed(1)}/${dr.tank} L`;
-      const help = this.controls.isTouchMode ? 'INTERAGIR: sair · ATACAR: buzina' : 'E: sair · F: buzina';
-      this.driveText.setText(`${dr.kmh} km/h · ${fuel} · lataria ${Math.round(dr.body * 100)}%\n${help}`).setVisible(true);
-      // No alto, no meio: embaixo fica o botão/aviso de SAIR e o joystick.
-      const vw = this.s.viewport.cssWidth;
-      this.driveText.setPosition(vw / 2, this.s.viewport.insets.top + (this.s.viewport.isPortrait ? 150 : 12));
-      this.driveText.setScale(Math.min(1, (vw * (this.s.viewport.isPortrait ? 0.9 : 0.5)) / Math.max(1, this.driveText.width)));
-    } else this.driveText.setVisible(false);
+      // No alto, no meio (em pé, abaixo do painel de vida): embaixo ficam o volante e os botões.
+      const vp = this.s.viewport;
+      const c = this.controls;
+      const btn = (b: typeof c.interact) => ({ x: b.x, y: b.y, r: b.radius });
+      this.driveHud.update(dr, vp.cssWidth, vp.insets.top + (vp.isPortrait ? 150 : 10), uiScaleFor(vp.cssWidth, vp.cssHeight), c.isTouchMode ? { exit: btn(c.interact), horn: btn(c.attack) } : null);
+    } else this.driveHud.hide();
     this.hearing.update(dt);
     this.updatePrompt();
     // PC: mouse sobre o painel não mira.
