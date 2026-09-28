@@ -27,6 +27,28 @@ O que cada etapa entregou, como foi testado e o que ficou pendente. A ordem das 
   `dev/combat.mjs` (dois zumbis vindo por trás, jogador recuando e batendo) e teste da pistola
   (clique sem bala → recarregar → tiro acerta o zumbi à frente, não o de trás).
 
+### Balanceamento, loot, fabricação, efeitos e ponto 2 (zumbis)
+Pedido jogando: golpes fracos demais (20 socos sem saber se o zumbi ia cair), nenhuma arma achada,
+fabricação sem sentido (tudo sem bancada), mais efeitos como nas folhas de referência. Escolhas do
+jogador: dificuldade "mais difícil", loot "realista", seguir direto para o ponto 2.
+- **Dano** (`tests/balance.test.ts` simula a luta com a lógica do jogo): antes soco 47 golpes, faca 23,
+  facão 7, machado 6. Agora **soco ~21, faca ~8, facão ~5, taco ~5,5, martelo ~8, machado ~3,3,
+  marreta ~3,5** (resistência de cabeça/pescoço/tronco menor; soco 4 contra corpo e 3 contra porta;
+  faca de cozinha 10, canivete 7, martelo 11). Corrigido: golpe no pescoço era tratado como pé.
+- **Efeitos** (procedurais): barra de quanto falta para o zumbi cair, textos (onde pegou, CABEÇA!,
+  CAIU!, causa da morte), respingos que ficam no chão (limite 160), estouro com pedaços na morte,
+  clarão em estrela, fumaça, cápsula ejetada e furo de bala na parede, arco do golpe com rastro.
+- **Loot** (só pesos): faca no balcão da cozinha ~33% (era ~6%); revólver/pistola e munição no
+  criado-mudo; taco no guarda-roupa; ferramenta pesada na oficina ~62%. Casa típica: arma branca ~56%,
+  arma de fogo ~13% (era ~9%), munição ~21% (era ~14%). A delegacia não existe no mapa (não mexido).
+- **Fabricação**: categorias que abrem/fecham; "Dá para fazer agora" separado por categoria; armas e
+  serrar tora exigem bancada (fogueira, tocha, curativos, cordas e ferramentas de pedra continuam à mão);
+  bancada do mapa e construída têm "Trabalhar aqui (abre FABRICAR)".
+- **Ponto 2 — zumbis**: a patada só acerta com o jogador ao alcance do braço desenhado (antes pegava
+  até ~16 px "de longe"); golpe do jogador na preparação atrasa a patada; aviso só do que aconteceu
+  (agarrão que falhou de vez em quando, sem repetir o mesmo texto de vários zumbis); ferida que sangra
+  deixa sangue no chão. Conferido no navegador: cada aviso de ferida corresponde a uma ferida real.
+
 ---
 
 ## Zumbis de verdade, dirigir, gerador, andares e cidade expandida (v0.7.0)
