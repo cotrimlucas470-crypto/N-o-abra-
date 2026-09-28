@@ -5,6 +5,7 @@
  */
 import Phaser from 'phaser';
 import { DEPTH } from '../../config/GameConfig';
+import { TEX } from '../../assets/AssetKeys';
 import type { EventBus } from '../../core/EventBus';
 import { Random, hashString } from '../../core/Random';
 import { damp } from '../../core/math';
@@ -12,6 +13,7 @@ import type { AssetRegistry } from '../../assets/AssetRegistry';
 import type { BuildingData } from '../MapTypes';
 import type { ShadowEntry, ShadowSystem } from './ShadowSystem';
 import type { CullEntry, SpatialCuller } from './SpatialCuller';
+import { ROOF_FRAG } from './weatherShaders';
 
 const OVERHANG = 10;
 const ROOF_HEIGHT = 2.3;
@@ -20,10 +22,8 @@ const ROOF_SHADOW_STRENGTH = 1.05;
 interface Roof {
   data: BuildingData;
   container: Phaser.GameObjects.Container;
-  /** Neve no telhado (por baixo das sombras das águas: a neve ganha volume). */
-  snow: Phaser.GameObjects.TileSprite;
-  /** Neve acumulada na borda do beiral (quando a camada engrossa). */
-  rim: Phaser.GameObjects.Graphics;
+  /** Neve no telhado: shader que lê a telha (por baixo das faces das águas: a neve ganha volume). */
+  snow: Phaser.GameObjects.Shader | null;
   shadow: Phaser.GameObjects.Rectangle;
   shadowEntry: ShadowEntry;
   culls: CullEntry[];
@@ -39,6 +39,11 @@ export class RoofSystem {
   private current: BuildingData | null = null;
   /** Neve no chão da cidade (0..1): os telhados acompanham. */
   private snowLevel = 0;
+  private snowOld = 0;
+  private snowMelt = 0;
+  private day = 1;
+  /** Brilho médio de cada desenho de telha (a neve compara o pixel com ele). */
+  private readonly patMean = new Map<string, number>();
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -67,26 +72,46 @@ export class RoofSystem {
     this.applySnow(roof);
   }
 
-  /** Neve nos telhados (mesma cobertura do chão; telhado segura um pouco mais). */
-  setSnow(level: number): void {
-    const q = Math.round(level * 40) / 40;
-    if (q === this.snowLevel) return;
-    this.snowLevel = q;
-    for (const r of this.loaded.values()) this.applySnow(r);
+  /**
+   * Neve nos telhados: a mesma cobertura do chão (o shader dá o resto —
+   * beiral, cumeeira, telha). `old` neve velha, `melt` derretendo, `day` luz.
+   */
+  setSnow(level: number, old = 0, melt = 0, day = 1): void {
+    this.snowOld = old;
+    this.snowMelt = melt;
+    this.day = day;
+    if (Math.abs(level - this.snowLevel) < 0.002) return;
+    const was = this.snowLevel > 0.02;
+    this.snowLevel = level;
+    if (was !== level > 0.02) for (const r of this.loaded.values()) this.applySnow(r);
   }
 
   private applySnow(r: Roof): void {
-    // Telhado segura um pouco mais que o chão (sem calor do solo por baixo).
-    const c = Math.min(1, this.snowLevel * 1.15);
-    if (c < 0.05) {
-      r.snow.setVisible(false);
-      r.rim.setVisible(false);
-      return;
+    r.snow?.setVisible(this.snowLevel > 0.02);
+  }
+
+  private patternMean(key: string): number {
+    const known = this.patMean.get(key);
+    if (known !== undefined) return known;
+    let mean = 0.35;
+    const src = this.scene.textures.get(key).getSourceImage() as CanvasImageSource & { width: number; height: number };
+    const c = document.createElement('canvas');
+    c.width = src.width;
+    c.height = src.height;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    if (ctx) {
+      ctx.drawImage(src, 0, 0);
+      const px = ctx.getImageData(0, 0, c.width, c.height).data;
+      let sum = 0;
+      let n = 0;
+      for (let i = 0; i < px.length; i += 16) {
+        sum += (px[i]! * 0.3 + px[i + 1]! * 0.59 + px[i + 2]! * 0.11) / 255;
+        n++;
+      }
+      mean = sum / Math.max(1, n);
     }
-    const stage = Math.min(5, 1 + Math.floor(c * 5));
-    const frac = Math.min(1, c * 5 - (stage - 1));
-    r.snow.setTexture(`pattern.snow.roof.${stage}`).setAlpha(0.75 + 0.25 * frac).setVisible(true);
-    r.rim.setVisible(c > 0.35).setAlpha(Math.min(1, (c - 0.35) * 2.5));
+    this.patMean.set(key, mean);
+    return mean;
   }
 
   unload(id: string): void {
@@ -123,8 +148,7 @@ export class RoofSystem {
     const container = s.add.container(0, 0).setDepth(DEPTH.roof);
     const pattern = s.add.tileSprite(cx, cy, w, h, `pattern.roof.${b.roof}`);
     container.add(pattern);
-    const snow = s.add.tileSprite(cx, cy, w, h, 'pattern.snow.roof.1').setVisible(false);
-    container.add(snow);
+    const snow = this.makeSnow(b, x0, y0, w, h, container);
 
     const g = s.add.graphics();
     container.add(g);
@@ -194,12 +218,55 @@ export class RoofSystem {
       g.fillCircle(x0 + rng.range(20, w - 20), y0 + rng.range(20, h - 20), rng.range(2, 6));
     }
 
-    // Beiral com neve: faixa clara na borda e uma linha de sombra logo dentro.
-    const rim = s.add.graphics().setVisible(false);
-    rim.lineStyle(5, 0xeef3f9, 1).strokeRect(x0 + 2.5, y0 + 2.5, w - 5, h - 5);
-    rim.lineStyle(1.5, 0x8f9fb4, 0.8).strokeRect(x0 + 6, y0 + 6, w - 12, h - 12);
-    container.add(rim);
-    return { data: b, container, snow, rim, shadow, shadowEntry, culls: [] };
+    return { data: b, container, snow, shadow, shadowEntry, culls: [] };
+  }
+
+  /** Shader da neve do telhado (só com WebGL; escondido sem neve). */
+  private makeSnow(b: BuildingData, x0: number, y0: number, w: number, h: number, container: Phaser.GameObjects.Container): Phaser.GameObjects.Shader | null {
+    const s = this.scene;
+    if (s.game.renderer.type !== Phaser.WEBGL) return null;
+    const key = `pattern.roof.${b.roof}`;
+    const src = s.textures.get(key).getSourceImage() as { width: number; height: number };
+    const mean = this.patternMean(key);
+    const flat = b.roof === 'flat';
+    // Cumeeira: a mesma linha que o desenho das águas usa.
+    const hw = Math.min(w, h) / 2;
+    const along = w >= h;
+    const ridge = along ? [x0 + hw, y0 + h / 2, x0 + w - hw, y0 + h / 2] : [x0 + w / 2, y0 + hw, x0 + w / 2, y0 + h - hw];
+    const shader = s.add.shader(
+      {
+        name: 'RoofSnow',
+        fragmentSource: ROOF_FRAG,
+        setupUniforms: (set: (name: string, value: unknown) => void) => {
+          set('uNoiseA', 0);
+          set('uNoiseB', 1);
+          set('uPattern', 2);
+          set('uRect', [x0, y0, w, h]);
+          set('uRidge', ridge);
+          set('uPatSize', [src.width, src.height]);
+          set('uPatMean', mean);
+          set('uFlat', flat ? 1 : 0);
+          set('uSnow', this.snowLevel);
+          set('uOld', this.snowOld);
+          set('uMelt', this.snowMelt);
+          set('uDay', this.day);
+          set('uAlpha', container.alpha);
+        },
+      },
+      x0,
+      y0,
+      w,
+      h,
+      [TEX.noiseA, TEX.noiseB, key],
+    );
+    shader.setOrigin(0, 0);
+    shader.textureCoordinateTopLeft.set(x0, y0);
+    shader.textureCoordinateTopRight.set(x0 + w, y0);
+    shader.textureCoordinateBottomLeft.set(x0, y0 + h);
+    shader.textureCoordinateBottomRight.set(x0 + w, y0 + h);
+    shader.setVisible(this.snowLevel > 0.02);
+    container.add(shader);
+    return shader;
   }
 
   /** Construção em que o ponto está (pela linha central das paredes externas). */

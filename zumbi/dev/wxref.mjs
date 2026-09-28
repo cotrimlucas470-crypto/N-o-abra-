@@ -54,6 +54,9 @@ const place = (where = 'ref', zoom = 0.53) => T(({ where, zoom }) => {
 }, { where, zoom });
 const shot = async (name, wait = 1600) => {
   await sleep(wait);
+  // Espera a neve dos objetos ficar pronta (desenhada aos poucos, um por quadro).
+  await p.waitForFunction(() => { const d = window.__TDR__.scene.dressing; return !d || d.queue.length === 0; }, null, { timeout: 60000 }).catch(() => {});
+  await sleep(300);
   const info = await T(() => { const t = window.__TDR__; const l = t.loop; const w = l.weather; const g = l.ground; return `${l.dateLabel()} · ${w.temp}°C ${w.sky} · neve=${g.snow.toFixed(2)} mol=${g.wet.toFixed(2)} geada=${g.frost(w, t.clock.minuteOfDay).toFixed(2)} · FPS ${t.scene.game.loop.actualFps.toFixed(0)}`; });
   console.log(name, info);
   await p.screenshot({ path: `${out}/r-${name}.png` });

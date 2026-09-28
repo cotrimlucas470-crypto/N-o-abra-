@@ -250,6 +250,11 @@ export class GroundWeatherLayer {
     }
   }
 
+  /** Neve velha agora (0..1): telhados e objetos acompanham o chão. */
+  get oldness(): number {
+    return this.old;
+  }
+
   /** O tile é chão de fora (pegadas, respingos). */
   isOutdoorGround(x: number, y: number): boolean {
     const tx = Math.floor(x / TILE);

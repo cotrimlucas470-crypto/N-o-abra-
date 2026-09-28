@@ -14,7 +14,7 @@
  *   só os que estão na tela.
  */
 import Phaser from 'phaser';
-import { drawObjectSnow } from '../../assets/procedural/weatherArt';
+import { drawObjectSnow, type SnowObjKind } from '../../assets/procedural/weatherArt';
 import { hashString } from '../../core/Random';
 import type { PropPlacement } from '../MapTypes';
 import type { PropDef, PropType } from '../PropCatalog';
@@ -44,6 +44,63 @@ interface Job {
   tex: string;
   frame: string;
   key: string;
+  kind: SnowObjKind;
+}
+
+/**
+ * Folha única com a neve de todos os desenhos (prateleiras). Uma textura só
+ * em vez de dezenas: menos troca de textura no celular — e cada textura
+ * solta criada no meio do jogo aparecia cortada em alguns aparelhos.
+ * A folha sobe para a placa de vídeo poucas vezes (quando a fila esvazia).
+ */
+class SnowSheet {
+  static readonly W = 2048;
+  static readonly H = 2048;
+  readonly canvas: HTMLCanvasElement;
+  private readonly ctx: CanvasRenderingContext2D;
+  private x = 0;
+  private y = 0;
+  private rowH = 0;
+  texture: Phaser.Textures.Texture | null = null;
+  /** Quadros prontos na folha mas ainda não enviados para a placa de vídeo. */
+  pending: { name: string; x: number; y: number; w: number; h: number }[] = [];
+
+  constructor(readonly key: string) {
+    this.canvas = document.createElement('canvas');
+    this.canvas.width = SnowSheet.W;
+    this.canvas.height = SnowSheet.H;
+    this.ctx = this.canvas.getContext('2d')!;
+  }
+
+  /** Guarda um desenho; false = a folha encheu. */
+  put(name: string, c: HTMLCanvasElement): boolean {
+    const pad = 2;
+    if (this.x + c.width + pad > SnowSheet.W) {
+      this.x = 0;
+      this.y += this.rowH + pad;
+      this.rowH = 0;
+    }
+    if (this.y + c.height > SnowSheet.H || c.width > SnowSheet.W) return false;
+    this.ctx.drawImage(c, this.x, this.y);
+    this.pending.push({ name, x: this.x, y: this.y, w: c.width, h: c.height });
+    this.x += c.width + pad;
+    this.rowH = Math.max(this.rowH, c.height);
+    return true;
+  }
+
+  /** Envia a folha e registra os quadros novos. */
+  flush(textures: Phaser.Textures.TextureManager): string[] {
+    if (!this.pending.length) return [];
+    if (!this.texture) this.texture = textures.addCanvas(this.key, this.canvas);
+    else this.texture.source[0]!.update();
+    const done: string[] = [];
+    for (const f of this.pending) {
+      if (!this.texture!.has(f.name)) this.texture!.add(f.name, 0, f.x, f.y, f.w, f.h);
+      done.push(f.name);
+    }
+    this.pending = [];
+    return done;
+  }
 }
 
 export class SeasonDressing {
@@ -51,6 +108,13 @@ export class SeasonDressing {
   private readonly queue: Job[] = [];
   private readonly queued = new Set<string>();
   private readonly ready = new Set<string>();
+  /** Desenhos já na folha, esperando o próximo envio. */
+  private readonly drawn = new Set<string>();
+  private readonly sheets: SnowSheet[] = [];
+  /** Onde está a neve de cada desenho (folha). */
+  private readonly sheetOf = new Map<string, string>();
+  /** Só começa a desenhar a neve dos objetos quando a neve aparece no chão. */
+  private wanted = false;
   private snowStage = -1;
   private snowAlpha = 0;
   private leafColor = 0;
@@ -62,7 +126,12 @@ export class SeasonDressing {
   constructor(
     private readonly scene: Phaser.Scene,
     private readonly model: WorldModel,
-  ) {}
+  ) {
+    // A folha é da partida: um jogo novo desenha a sua.
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      for (const sheet of this.sheets) if (scene.textures.exists(sheet.key)) scene.textures.remove(sheet.key);
+    });
+  }
 
   /** O WorldRenderer chama ao criar um objeto: devolve as imagens extras (mesmo culling do objeto). */
   dress(img: Phaser.GameObjects.Image, p: PropPlacement, def: PropDef): Phaser.GameObjects.Image[] {
@@ -78,6 +147,7 @@ export class SeasonDressing {
       .setVisible(false);
     const tree = !!def.fadeWhenNear;
     const bush = p.type.startsWith('bush');
+    const kind: SnowObjKind = tree || bush || p.type === 'hedge' ? 'foliage' : 'solid';
     const d: Dressed = {
       base: img,
       snow,
@@ -90,34 +160,47 @@ export class SeasonDressing {
     this.items.add(d);
     if (!this.ready.has(frameKey) && !this.queued.has(frameKey)) {
       this.queued.add(frameKey);
-      this.queue.push({ tex: img.texture.key, frame: String(img.frame.name), key: frameKey });
+      this.queue.push({ tex: img.texture.key, frame: String(img.frame.name), key: frameKey, kind });
     }
     this.apply(d);
     return [snow];
   }
 
-  /** Gera as 3 texturas de neve de um desenho (uma por quadro). */
+  /** Desenha a neve de um desenho por quadro; envia a folha quando a fila esvazia. */
   private work(): void {
+    if (!this.wanted) return;
     const job = this.queue.shift();
-    if (!job) return;
-    const textures = this.scene.textures;
-    const f = textures.getFrame(job.tex, job.frame);
-    const src = f?.source?.image as CanvasImageSource | undefined;
-    if (f && src) {
-      const w = Math.max(1, Math.round(f.cutWidth));
-      const h = Math.max(1, Math.round(f.cutHeight));
-      const canvas = document.createElement('canvas');
-      canvas.width = w;
-      canvas.height = h;
-      canvas.getContext('2d')!.drawImage(src, f.cutX, f.cutY, w, h, 0, 0, w, h);
-      drawObjectSnow(canvas, hashString(job.key)).forEach((c, k) => {
-        const key = `snowobj:${job.key}:${k}`;
-        if (!textures.exists(key)) textures.addCanvas(key, c);
-      });
-      this.ready.add(job.key);
+    if (job) {
+      const f = this.scene.textures.getFrame(job.tex, job.frame);
+      const src = f?.source?.image as CanvasImageSource | undefined;
+      if (f && src) {
+        const w = Math.max(1, Math.round(f.cutWidth));
+        const h = Math.max(1, Math.round(f.cutHeight));
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext('2d', { willReadFrequently: true })!.drawImage(src, f.cutX, f.cutY, w, h, 0, 0, w, h);
+        drawObjectSnow(canvas, hashString(job.key), job.kind).forEach((c, k) => {
+          let sheet = this.sheets[this.sheets.length - 1];
+          if (!sheet || !sheet.put(`${job.key}:${k}`, c)) {
+            sheet = new SnowSheet(`snowobj.sheet.${this.sheets.length}`);
+            this.sheets.push(sheet);
+            sheet.put(`${job.key}:${k}`, c);
+          }
+          this.sheetOf.set(job.key, sheet.key);
+        });
+        this.drawn.add(job.key);
+      }
+      this.queued.delete(job.key);
     }
-    this.queued.delete(job.key);
-    for (const d of this.items) if (d.frameKey === job.key) this.apply(d);
+    // Envia quando acabou a fila (ou a cada ~40 desenhos, para não esperar demais).
+    if (this.queue.length === 0 || this.drawn.size >= 40) {
+      for (const sheet of this.sheets) sheet.flush(this.scene.textures);
+      for (const key of this.drawn) this.ready.add(key);
+      const fresh = new Set(this.drawn);
+      this.drawn.clear();
+      if (fresh.size) for (const d of this.items) if (fresh.has(d.frameKey)) this.apply(d);
+    }
   }
 
   /**
@@ -126,6 +209,7 @@ export class SeasonDressing {
    */
   update(dt: number, look: { snow: number; wet: number; wind: number; leafColor: number; leafCover: number }): void {
     this.time += dt;
+    if (look.snow > 0.05) this.wanted = true;
     this.work();
     // Neve sobre as coisas aparece depois que o chão começa a branquear.
     const c = look.snow;
@@ -174,7 +258,7 @@ export class SeasonDressing {
     const s = d.snow;
     if (s) {
       const show = this.snowStage >= 0 && this.ready.has(d.frameKey);
-      if (show) s.setTexture(`snowobj:${d.frameKey}:${this.snowStage}`);
+      if (show) s.setTexture(this.sheetOf.get(d.frameKey)!, `${d.frameKey}:${this.snowStage}`);
       s.setVisible(show).setAlpha(this.snowAlpha * d.base.alpha);
     }
     // Cor: folhas da estação × superfície molhada (multiplica a cor do desenho).

@@ -162,7 +162,7 @@ export function weatherNoiseA(seed = 4101): Uint8Array {
     [16, 16, 0.4],
   ]);
   const raw = new Float32Array(n * n);
-  for (let i = 0; i < raw.length; i++) raw[i] = big[i]! * 0.55 + small[i]! * 0.28 + soft[i]! * 0.17;
+  for (let i = 0; i < raw.length; i++) raw[i] = big[i]! * 0.62 + small[i]! * 0.16 + soft[i]! * 0.22;
   const mounds = rankNormalize(raw);
   const light = shadeRelief(raw, n, 1);
   const grain = rankNormalize(

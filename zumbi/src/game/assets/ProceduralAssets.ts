@@ -11,7 +11,6 @@ import {
   drawFootprint,
   drawLeaf,
   drawRainNear,
-  drawRoofSnow,
   drawSnowFlake,
   drawSnowStreak,
   drawSplash,
@@ -154,7 +153,6 @@ export function generateAssets(textures: Phaser.Textures.TextureManager, registr
     [TEX.noiseB, weatherNoiseB],
   ];
   for (const [key, make] of noises) if (!textures.exists(key)) textures.addUint8Array(key, make(), NOISE_SIZE, NOISE_SIZE)?.setFilter(Phaser.Textures.FilterMode.LINEAR);
-  for (let k = 1; k <= 5; k++) if (!textures.exists(`pattern.snow.roof.${k}`)) textures.addCanvas(`pattern.snow.roof.${k}`, drawRoofSnow(k));
   lap('clima');
 
   lap('padrões+efeitos');

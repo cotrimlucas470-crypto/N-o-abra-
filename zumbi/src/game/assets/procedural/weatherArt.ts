@@ -15,53 +15,42 @@ const sstep = (e0: number, e1: number, x: number) => {
   return t * t * (3 - 2 * t);
 };
 
-const wrap = (v: number, n: number) => ((v % n) + n) % n;
 const byte = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
-
-// ---------------------------------------------------------------- telhado
-
-/** Neve no telhado, estágio 1..5 (256 px, emenda nas bordas). */
-export function drawRoofSnow(stage: number): HTMLCanvasElement {
-  const S = 256;
-  const { canvas, ctx } = makeCanvas(S, S);
-  const img = ctx.createImageData(S, S);
-  const px = img.data;
-  const N = periodicNoise(S, 9500, [
-    [128, 0.45],
-    [64, 0.3],
-    [32, 0.15],
-    [16, 0.1],
-  ]);
-  const F = periodicNoise(S, 9510, [[8, 1]]);
-  const thr = 1 - (stage / 5) * 1.08;
-  for (let y = 0; y < S; y++)
-    for (let x = 0; x < S; x++) {
-      const d = N[y * S + x]! - thr;
-      const o = (y * S + x) * 4;
-      if (d <= 0) continue;
-      const depth = sstep(0, 0.2, d);
-      const lit = (N[wrap(y - 1, S) * S + wrap(x - 1, S)]! - N[wrap(y + 1, S) * S + wrap(x + 1, S)]!) * 240;
-      const f = (F[y * S + x]! - 0.5) * 12;
-      px[o] = byte(188 + 55 * depth + lit + f);
-      px[o + 1] = byte(200 + 47 * depth + lit + f);
-      px[o + 2] = byte(218 + 34 * depth + lit * 0.8 + f);
-      px[o + 3] = Math.round(sstep(0, 0.03, d) * 255);
-    }
-  ctx.putImageData(img, 0, 0);
-  return canvas;
-}
 
 // ---------------------------------------------------------------- objetos
 
+/** Ruído de valor suave (sem blocos): relevo da neve sobre o objeto. */
+function vnoise(x: number, y: number, seed: number): number {
+  const xi = Math.floor(x);
+  const yi = Math.floor(y);
+  const fx = x - xi;
+  const fy = y - yi;
+  const sx = fx * fx * (3 - 2 * fx);
+  const sy = fy * fy * (3 - 2 * fy);
+  const a = hash2(xi, yi, seed);
+  const b = hash2(xi + 1, yi, seed);
+  const c = hash2(xi, yi + 1, seed);
+  const d = hash2(xi + 1, yi + 1, seed);
+  return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy;
+}
+
+/** Folhagem (copa, arbusto, cerca viva) ou objeto sólido (carro, caçamba, tambor...). */
+export type SnowObjKind = 'foliage' | 'solid';
+
 /**
  * Neve por cima de um objeto visto de cima, em 3 níveis (pouca, média,
- * muita): fica nas partes LISAS e CLARAS longe da borda da silhueta (o
- * topo: capô, teto, copa, tampa), nunca pintando o objeto inteiro de branco.
+ * muita), seguindo o PRÓPRIO desenho:
+ * - folhagem: a neve pousa nos tufos claros de folha; os vãos entre eles
+ *   continuam verde-escuros (como arbusto nevado de verdade);
+ * - sólido: placas nas partes LISAS longe da borda (teto, capô, tampa),
+ *   vidro com camada fina, laterais livres.
+ * A cor da neve leva o claro/escuro do desenho (volume) e uma sombra azulada
+ * fina do lado de baixo de cada placa. Ruído suave: nada de bloco quadrado.
  */
-export function drawObjectSnow(src: HTMLCanvasElement, seed: number): HTMLCanvasElement[] {
+export function drawObjectSnow(src: HTMLCanvasElement, seed: number, kind: SnowObjKind = 'solid'): HTMLCanvasElement[] {
   const w = src.width;
   const h = src.height;
-  const data = src.getContext('2d')!.getImageData(0, 0, w, h).data;
+  const data = src.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, w, h).data;
   const n = w * h;
   const alpha = new Float32Array(n);
   const lum = new Float32Array(n);
@@ -76,6 +65,29 @@ export function drawObjectSnow(src: HTMLCanvasElement, seed: number): HTMLCanvas
       lmax = Math.max(lmax, l);
     }
   }
+  const span = Math.max(0.05, lmax - lmin);
+  // Média local do brilho (janela 7×7, só pixels do objeto): separa tufo claro de vão escuro.
+  const R = 3;
+  const sumL = new Float32Array((w + 1) * (h + 1));
+  const sumA = new Float32Array((w + 1) * (h + 1));
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      const a = alpha[i]! > 0.5 ? 1 : 0;
+      const k = (y + 1) * (w + 1) + x + 1;
+      sumL[k] = lum[i]! * a + sumL[k - 1]! + sumL[k - (w + 1)]! - sumL[k - (w + 1) - 1]!;
+      sumA[k] = a + sumA[k - 1]! + sumA[k - (w + 1)]! - sumA[k - (w + 1) - 1]!;
+    }
+  const localMean = (x: number, y: number) => {
+    const x0 = Math.max(0, x - R);
+    const y0 = Math.max(0, y - R);
+    const x1 = Math.min(w, x + R + 1);
+    const y1 = Math.min(h, y + R + 1);
+    const at = (xx: number, yy: number, t: Float32Array) => t[yy * (w + 1) + xx]!;
+    const sl = at(x1, y1, sumL) - at(x0, y1, sumL) - at(x1, y0, sumL) + at(x0, y0, sumL);
+    const sa = at(x1, y1, sumA) - at(x0, y1, sumA) - at(x1, y0, sumA) + at(x0, y0, sumA);
+    return sa > 0 ? sl / sa : lum[y * w + x]!;
+  };
   // Distância até a borda da silhueta (chanfro em 2 passadas).
   const dist = new Float32Array(n);
   for (let i = 0; i < n; i++) dist[i] = alpha[i]! > 0.5 ? 99 : 0;
@@ -91,46 +103,63 @@ export function drawObjectSnow(src: HTMLCanvasElement, seed: number): HTMLCanvas
       if (!dist[i]) continue;
       dist[i] = Math.min(dist[i]!, (x < w - 1 ? dist[i + 1]! : 0) + 1, (y < h - 1 ? dist[i + w]! : 0) + 1);
     }
-  const span = Math.max(0.05, lmax - lmin);
-  const edge = Math.max(2, Math.min(6, Math.min(w, h) * 0.04));
-  const score = new Float32Array(n);
+  const edge = kind === 'foliage' ? Math.max(1.5, Math.min(4, Math.min(w, h) * 0.03)) : Math.max(3, Math.min(8, Math.min(w, h) * 0.07));
+  const score = new Float32Array(n).fill(-9);
+  const hp = new Float32Array(n);
+  const opaque: number[] = [];
   for (let y = 1; y < h - 1; y++)
     for (let x = 1; x < w - 1; x++) {
       const i = y * w + x;
       if (alpha[i]! < 0.5) continue;
-      const grad = Math.abs(lum[i + 1]! - lum[i - 1]!) + Math.abs(lum[i + w]! - lum[i - w]!);
-      const flat = 1 - Math.min(1, grad * 5);
-      const bright = (lum[i]! - lmin) / span;
+      const m = localMean(x, y);
+      hp[i] = lum[i]! - m;
+      const b = (lum[i]! - lmin) / span;
       const inside = Math.min(1, dist[i]! / edge);
-      const noise = hash2(Math.floor(x / 5), Math.floor(y / 5), seed) * 0.6 + hash2(Math.floor(x / 2), Math.floor(y / 2), seed + 1) * 0.4;
-      score[i] = inside * (0.45 + 0.55 * flat) * (0.55 + 0.45 * bright) + (noise - 0.5) * 0.5;
+      let sc: number;
+      if (kind === 'foliage') {
+        const nz = vnoise(x / 7, y / 7, seed) * 0.6 + vnoise(x / 3, y / 3, seed + 1) * 0.4;
+        sc = b * 0.45 + (hp[i]! / span) * 1.6 + (nz - 0.5) * 0.45 + inside * 0.15;
+      } else {
+        const grad = Math.abs(lum[i + 1]! - lum[i - 1]!) + Math.abs(lum[i + w]! - lum[i - w]!);
+        const flat = 1 - Math.min(1, grad * 4);
+        const nz = vnoise(x / 9, y / 9, seed) * 0.65 + vnoise(x / 4, y / 4, seed + 1) * 0.35;
+        sc = inside * (0.5 * flat + 0.3 * b + 0.2) + (nz - 0.5) * 0.5 - (inside < 0.35 ? 1 : 0);
+      }
+      score[i] = sc;
+      opaque.push(sc);
     }
+  opaque.sort((a, b) => a - b);
+  const fractions = kind === 'foliage' ? [0.2, 0.38, 0.58] : [0.18, 0.36, 0.55];
   const out: HTMLCanvasElement[] = [];
-  for (const thr of [0.58, 0.44, 0.3]) {
+  for (const frac of fractions) {
+    const thr = opaque.length ? opaque[Math.min(opaque.length - 1, Math.floor((1 - frac) * opaque.length))]! : 9;
     const { canvas, ctx } = makeCanvas(w, h);
     const img = ctx.createImageData(w, h);
     const px = img.data;
-    for (let y = 2; y < h - 1; y++)
-      for (let x = 2; x < w - 1; x++) {
+    for (let y = 1; y < h - 1; y++)
+      for (let x = 1; x < w - 1; x++) {
         const i = y * w + x;
+        if (alpha[i]! < 0.5) continue;
         const d = score[i]! - thr;
         const o = i * 4;
         if (d <= 0) {
-          // Sombra da neve (mais alta) logo ao lado, dentro do objeto.
-          if (alpha[i]! > 0.5 && score[i - w - 1]! - thr > 0.03) {
-            px[o] = 25;
-            px[o + 1] = 32;
-            px[o + 2] = 48;
-            px[o + 3] = 60;
+          // Sombra fina da placa de neve (do lado de baixo, a luz vem do noroeste).
+          if (score[i - w - 1]! - thr > 0.02) {
+            px[o] = 38;
+            px[o + 1] = 48;
+            px[o + 2] = 70;
+            px[o + 3] = 64;
           }
           continue;
         }
-        const depth = sstep(0, 0.18, d);
-        const lit = (score[i - w - 1]! - score[i + w + 1]!) * 120;
-        px[o] = byte(196 + 50 * depth + lit);
-        px[o + 1] = byte(206 + 43 * depth + lit);
-        px[o + 2] = byte(222 + 31 * depth + lit * 0.8);
-        px[o + 3] = Math.round(sstep(0, 0.04, d) * 245 * Math.min(1, alpha[i]!));
+        const depth = sstep(0, 0.2, d);
+        let light = 0.6 + (hp[i]! / span) * 1.4 + ((lum[i]! - lmin) / span - 0.5) * 0.35 + depth * 0.18;
+        light -= (1 - sstep(0, 0.04, d)) * 0.2;
+        light = Math.max(0, Math.min(1, light));
+        px[o] = byte(158 + (247 - 158) * light);
+        px[o + 1] = byte(172 + (249 - 172) * light);
+        px[o + 2] = byte(198 + (253 - 198) * light);
+        px[o + 3] = Math.round(sstep(0, 0.025, d) * 250 * Math.min(1, alpha[i]!));
       }
     ctx.putImageData(img, 0, 0);
     out.push(canvas);
@@ -208,26 +237,35 @@ export function drawLeaf(): HTMLCanvasElement {
 
 /** Pegada de bota na neve (uma). */
 export function drawFootprint(): HTMLCanvasElement {
-  const { canvas, ctx } = makeCanvas(16, 9);
-  ctx.fillStyle = 'rgba(70,86,110,0.55)';
-  ctx.beginPath();
-  ctx.ellipse(10, 4.5, 5, 3.4, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(3.5, 4.5, 2.8, 2.4, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,0.5)';
-  ctx.fillRect(9, 1, 3, 1);
+  // Afundado na neve: fundo azulado, a borda do noroeste em sombra (a luz vem de lá)
+  // e um friso claro de neve empurrada do outro lado.
+  const { canvas, ctx } = makeCanvas(18, 11);
+  const print = (dx: number, dy: number, fill: string) => {
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.ellipse(11 + dx, 5.5 + dy, 5, 3.3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(4 + dx, 5.5 + dy, 2.8, 2.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+  };
+  print(0.8, 0.8, 'rgba(255,255,255,0.4)');
+  print(0, 0, 'rgba(118,136,165,0.55)');
+  print(-0.7, -0.7, 'rgba(78,94,122,0.35)');
+  print(0.3, 0.3, 'rgba(128,146,175,0.3)');
   return canvas;
 }
 
-/** Trecho de marca de pneu (sulcos). */
+/** Trecho de marca de pneu: faixa compactada com os sulcos da banda de rodagem. */
 export function drawTireTrack(): HTMLCanvasElement {
-  const { canvas, ctx } = makeCanvas(18, 10);
-  ctx.fillStyle = 'rgba(64,76,96,0.5)';
-  ctx.fillRect(0, 0, 18, 10);
-  ctx.fillStyle = 'rgba(40,48,64,0.45)';
-  for (let x = 1; x < 18; x += 4) ctx.fillRect(x, 1, 2, 8);
+  const { canvas, ctx } = makeCanvas(18, 12);
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.fillRect(0, 11, 18, 1);
+  ctx.fillStyle = 'rgba(96,110,134,0.45)';
+  ctx.fillRect(0, 1, 18, 10);
+  ctx.fillStyle = 'rgba(62,74,96,0.4)';
+  ctx.fillRect(0, 1, 18, 1.5);
+  for (let x = 1; x < 18; x += 4) ctx.fillRect(x, 3, 2, 6);
   return canvas;
 }
 

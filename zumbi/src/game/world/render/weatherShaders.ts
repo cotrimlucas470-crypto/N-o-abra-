@@ -136,7 +136,7 @@ void main() {
   }
   if (uWeatherOn < 0.5) { gl_FragColor = acc; return; }
   vec4 a1 = noiseA(wp * 0.55);
-  vec4 a3 = noiseA(rot(wp.yx) * 1.35 + vec2(13.0, 71.0));
+  vec4 a3 = noiseA(rot(wp.yx) * 1.05 + vec2(13.0, 71.0));
   float grain = a3.b;
   float mound = a1.r * 0.45 + a2.r * 0.25 + a3.r * 0.3;
   float lit = a1.g * 0.4 + a2.g * 0.18 + a3.g * 0.42;
@@ -151,12 +151,13 @@ void main() {
   if (gA > 0.5) {
     // Rua: a neve fica em faixas ao longo dela (rastro dos carros, vento).
     vec2 sp = road > 1.5 ? vec2(wp.y, wp.x) : wp;
-    float streak = noiseB(vec2(sp.x * 0.3, sp.y * 0.42) + vec2(3.0, 17.0)).b;
-    f = mix(f, streak, road > 0.5 ? 0.45 : 0.2);
+    // Faixas largas e onduladas (nunca riscos finos e retos).
+    float streak = noiseB(vec2(sp.x * 0.2, sp.y * 0.24 + a2.r * 14.0) + vec2(3.0, 17.0)).b;
+    f = mix(f, streak, road > 0.5 ? 0.38 : 0.15);
   }
   // Quanto cobre aqui: a neve da cidade × o quanto o lugar segura × material.
   float sm = smoothstep(0.0, 0.3, uSnow);
-  float bias = (gG * 0.06 + gD * 0.02 - gA * (0.2 + uMelt * 0.14) - gS * 0.03 - gC * 0.04) * sm;
+  float bias = (gG * 0.06 + gD * 0.02 - gA * (0.26 + uMelt * 0.14) - gS * 0.03 - gC * 0.04) * sm;
   float cov = uSnow * 1.15 * (0.55 + cell.r * 0.9) + bias - tramp * 0.08 * sm;
   float e = f - (1.0 - cov);
   float t = clamp(e / 0.4, 0.0, 1.0);
@@ -235,5 +236,65 @@ void main() {
   acc = over(acc, vec3(0.82, 0.87, 0.94) * (0.92 + grain * 0.12), frostK * 0.72);
   acc = over(acc, sc, snowA);
   gl_FragColor = acc;
+}
+`;
+
+/**
+ * TELHADO: a mesma neve do chão, lendo o desenho da telha (neve nas
+ * fileiras, as linhas entre elas aparecem na neve fina). Junta mais na
+ * borda do beiral e é varrida na cumeeira. 1 quad por telhado, dentro do
+ * container dele (as faces de luz e sombra das águas ficam por cima).
+ */
+export const ROOF_FRAG = `${HEADER}${COMMON}
+uniform sampler2D uPattern;  // desenho da telha/laje
+uniform vec4 uRect;          // telhado no mundo: x, y, largura, altura
+uniform vec4 uRidge;         // cumeeira (x0, y0, x1, y1); laje: sem cumeeira
+uniform vec2 uPatSize;       // tamanho do desenho da telha (px)
+uniform float uPatMean;      // brilho médio do desenho
+uniform float uFlat;         // 1 = laje
+uniform float uSnow;
+uniform float uOld;
+uniform float uMelt;
+uniform float uDay;
+uniform float uAlpha;        // o telhado some quando o jogador entra
+
+float segDist(vec2 p, vec2 a, vec2 b) {
+  vec2 ab = b - a;
+  float t = clamp(dot(p - a, ab) / max(dot(ab, ab), 0.0001), 0.0, 1.0);
+  return length(p - a - ab * t);
+}
+
+void main() {
+  vec2 wp = outTexCoord;
+  vec2 lp = wp - uRect.xy;
+  vec2 puv = fract(lp / uPatSize);
+  float lum = dot(texture2D(uPattern, vec2(puv.x, 1.0 - puv.y)).rgb, vec3(0.3, 0.59, 0.11));
+  float detail = clamp((lum - uPatMean) * 4.0, -1.0, 1.0);
+  vec4 a1 = noiseA(wp * 0.55 + vec2(31.0, 7.0));
+  vec4 a2 = noiseA(rot(wp) * 0.23 + vec2(17.0, 53.0));
+  vec4 a3 = noiseA(rot(wp.yx) * 1.35 + vec2(71.0, 3.0));
+  vec4 b1 = noiseB(wp * 0.45 + vec2(9.0, 29.0));
+  float mound = a1.r * 0.45 + a2.r * 0.25 + a3.r * 0.3;
+  float lit = a1.g * 0.4 + a2.g * 0.18 + a3.g * 0.42;
+  // Borda do beiral: a neve junta; cumeeira: o vento varre.
+  float edge = min(min(lp.x, uRect.z - lp.x), min(lp.y, uRect.w - lp.y));
+  float eave = 1.0 - smoothstep(4.0, 18.0, edge);
+  float ridge = uFlat > 0.5 ? 0.0 : 1.0 - smoothstep(3.0, 14.0, segDist(wp, uRidge.xy, uRidge.zw));
+  float f = mix(mound, clamp(0.5 + detail * 0.5, 0.0, 1.0), uFlat > 0.5 ? 0.25 : 0.55);
+  float oldK = clamp(uOld * 0.9 + uMelt * 0.8, 0.0, 0.85);
+  f = mix(f, b1.r * 0.6 + a2.r * 0.25 + a3.r * 0.15, oldK);
+  float cov = uSnow * 1.25 + eave * 0.12 * step(0.1, uSnow) - ridge * 0.22 - uMelt * 0.1;
+  float e = f - (1.0 - cov);
+  float t = clamp(e / 0.4, 0.0, 1.0);
+  float a = smoothstep(0.0, 0.035, e) * step(0.02, uSnow);
+  float old = clamp(uOld * (1.2 + (b1.r - 0.5) * 0.9), 0.0, 1.0);
+  float shade = 0.66 + (lit - 0.5) * mix(2.0, 1.0, old) + (t - 0.45) * 0.3 + detail * 0.08;
+  shade += (1.0 - smoothstep(0.0, 4.0, edge)) * 0.12;
+  shade -= (1.0 - smoothstep(0.0, 0.1, e)) * 0.32;
+  shade = mix(shade, floor(shade * 7.0 + 0.5) / 7.0, 0.55);
+  vec3 sc = snowColor(clamp(shade, 0.0, 1.0), old) * (0.955 + a3.b * 0.09);
+  sc += step(0.992, a3.b) * (1.0 - old) * uDay * t * 0.12;
+  a *= uAlpha * (1.0 - uMelt * (1.0 - t) * 0.3);
+  gl_FragColor = vec4(sc * a, a);
 }
 `;

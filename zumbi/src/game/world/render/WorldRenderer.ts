@@ -21,6 +21,7 @@ import { propSolids, type Solid } from '../collision';
 import { DECAL_DEFS } from '../DecalCatalog';
 import { GROUND_VARIANTS, VOID_GROUND, pickVariant, type FloorData, type MarkingKind, type PropPlacement, type Rect, type WallPiece } from '../MapTypes';
 import { PROP_DEFS, type PropDef } from '../PropCatalog';
+import { buildingAtPoint } from '../shelter';
 import type { WorldModel } from '../WorldModel';
 import { CanopyFader, type Canopy } from './CanopyFader';
 import { RoofSystem } from './RoofSystem';
@@ -62,6 +63,9 @@ interface LoadedChunk {
 }
 
 /** Quem desenha conteúdo dinâmico por chunk (portas, itens; depois zumbis, cadáveres). */
+/** Decalques que a neve cobre (o sangue continua aparecendo por cima dela). */
+const SNOW_BURIES: ReadonlySet<string> = new Set(['grass', 'flowers', 'weeds', 'litter', 'pebbles', 'dirt', 'debris', 'skid', 'glass', 'planks', 'treePit']);
+
 export interface ChunkListener {
   load(key: number): void;
   unload(key: number): void;
@@ -101,6 +105,9 @@ export class WorldRenderer {
   private readonly loaded = new Map<number, LoadedChunk>();
   private readonly markingTexH = new Map<string, number>();
   private readonly chunkListeners = new Set<ChunkListener>();
+  /** Decalques de fora que a neve cobre, e quanto ela cobre agora (0..1). */
+  private readonly buried = new Set<{ img: Phaser.GameObjects.Image; alpha: number }>();
+  private buryLevel = 0;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -151,6 +158,21 @@ export class WorldRenderer {
     const layer = tilemap.createLayer(0, tileset, 0, 0, gpu);
     if (!layer) throw new Error('Falha ao criar a camada do chão');
     layer.setDepth(DEPTH.ground);
+  }
+
+  /** Neve no chão (0..1): mato, flores e lixo de fora vão sumindo debaixo dela. */
+  setSnowCover(snow: number): void {
+    const k = Math.round(Math.min(1, Math.max(0, (snow - 0.3) / 0.45)) * 20) / 20;
+    if (k === this.buryLevel) return;
+    this.buryLevel = k;
+    for (const b of this.buried) {
+      if (!b.img.active) this.buried.delete(b);
+      else this.applyBuried(b);
+    }
+  }
+
+  private applyBuried(b: { img: Phaser.GameObjects.Image; alpha: number }): void {
+    b.img.setAlpha(b.alpha * (1 - this.buryLevel));
   }
 
   /** Chão do andar de cima em que o jogador está (um mapinha só daquele andar). */
@@ -328,6 +350,12 @@ export class WorldRenderer {
     const img = this.scene.add.image(d.x, d.y, ref.key, ref.frame);
     img.setScale((def.width / this.assets.frameWidth(ref)) * d.scale, (def.height / this.assets.frameHeight(ref)) * d.scale);
     img.setAngle(d.angle).setAlpha(d.alpha).setDepth(DEPTH.decal);
+    // Mato, flores, lixo e manchas do chão de fora somem debaixo da neve (sangue não).
+    if (SNOW_BURIES.has(d.type) && !buildingAtPoint(this.world, d.x, d.y)) {
+      const b = { img, alpha: d.alpha };
+      this.buried.add(b);
+      this.applyBuried(b);
+    }
     const r = (Math.hypot(def.width, def.height) / 2) * d.scale;
     lc.objects.push(img);
     lc.culls.push(this.culler.addCentered(img, d.x, d.y, r, r));
