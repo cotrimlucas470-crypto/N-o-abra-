@@ -40,8 +40,8 @@ export interface AttackResult {
   hit?: { x: number; y: number; name: string; hp: number; max: number; destroyed: boolean };
   noise?: { x: number; y: number; radius: number; source: string };
   drops?: Drop[];
-  /** Tiro: linha do disparo. */
-  tracer?: { x1: number; y1: number; x2: number; y2: number };
+  /** Tiro: linha do disparo (`wall`: a bala parou numa parede). */
+  tracer?: { x1: number; y1: number; x2: number; y2: number; wall?: boolean };
   /** Golpe: arco do movimento. */
   swing?: { x: number; y: number; angle: number; reach: number };
   /** Acertou uma criatura (zumbi). */
@@ -75,6 +75,10 @@ export interface CreatureHit {
   /** Integridade que sobrou na parte atingida (0..1). */
   frac: number;
   part: string;
+  /** Quanto falta para morrer (0..1): a parte vital mais estragada. */
+  life?: number;
+  /** Derrubou ou arrancou um membro. */
+  crit?: boolean;
 }
 
 /** Soco: arma "invisível" (dano afinado contra corpo em tests/balance.test.ts). */
@@ -304,6 +308,7 @@ export class Combat {
     const noise = { x, y, radius: g.noise, source: 'tiro' };
     const near = this.state.propsNear(x + (dx * range) / 2, y + (dy * range) / 2, range / 2 + 120).filter(({ prop }) => PROP_DURABILITY[prop.type]);
     let end = { x: x + dx * range, y: y + dy * range };
+    let wall = false;
     let hit: AttackResult | null = null;
     const creature = this.hooks.creatures?.ray(x, y, a, range) ?? null;
     let creatureHit: (CreatureHit & { dir: number }) | undefined;
@@ -335,13 +340,14 @@ export class Combat {
       }
       if (this.opaqueAt(px, py)) {
         end = { x: px, y: py };
+        wall = true;
         break;
       }
     }
     const cooldown = def.sub === 'automatica' ? 0.12 : def.sub === 'espingarda' || def.sub === 'rifle' ? 0.9 : 0.35;
     return {
       ok: true,
-      tracer: { x1: x + dx * 18, y1: y + dy * 18, x2: end.x, y2: end.y },
+      tracer: { x1: x + dx * 18, y1: y + dy * 18, x2: end.x, y2: end.y, ...(wall ? { wall } : {}) },
       noise,
       cooldown,
       ...(creatureHit ? { creature: creatureHit } : {}),

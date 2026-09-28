@@ -37,7 +37,7 @@ import { restAction } from '../survival/Sleep';
 import { Hazards } from '../survival/Hazards';
 import { treatmentsFor } from '../health/Treatments';
 import { woundTitle, type HealthSave } from '../health/Health';
-import { BODY_PARTS, type WoundKind } from '../health/Wounds';
+import { BODY_PARTS, type BodyPart, type WoundKind } from '../health/Wounds';
 import { SurvivalLoop } from '../survival/SurvivalLoop';
 import { Survivor } from '../survival/Survivor';
 import { Atmosphere, type LightSource } from '../world/render/Atmosphere';
@@ -83,6 +83,7 @@ import type { LightEnv, PlayerSense } from '../zombies/Senses';
 import type { Zombie } from '../zombies/Zombie';
 import type { ZombieStoreSave } from '../zombies/ZombieStore';
 import { bodyRadius } from '../zombies/ZombieMotion';
+import { PART_NAME } from '../zombies/Wounding';
 import { ZombieViews } from '../world/render/ZombieViews';
 import { ARCHETYPES, type ArchId } from '../zombies/Archetypes';
 import { createZombie } from '../zombies/ZombieFactory';
@@ -301,7 +302,8 @@ export class GameScene extends Phaser.Scene {
           const z = this.zombies.store.get(id);
           if (!z || z.dead) return null;
           const r = this.zombies.hit(z, h);
-          return { x: z.x, y: z.y, killed: r.killed, frac: r.after, part: r.part, ...(r.note ? { note: r.note } : {}) };
+          const life = Math.max(0, Math.min(z.parts.cabeca, z.parts.pescoco, z.parts.tronco));
+          return { x: z.x, y: z.y, killed: r.killed, frac: r.after, part: r.part, life, crit: r.fall || r.severed, ...(r.note ? { note: r.note } : {}) };
         },
       },
     });
@@ -311,7 +313,11 @@ export class GameScene extends Phaser.Scene {
     this.zombies = new ZombieSystem(this.model, this.state, this.noise, diff, {
       attack: (z, kind) => this.zombieAttack(z, kind),
       noise: (x, y, kind, radius, source) => s.bus.emit('world:noise', { x, y, radius: radius ?? NOISE_RADIUS[kind], source: source ?? kind, kind }),
-      killed: (z) => this.registerCorpse(z),
+      killed: (z) => {
+        this.registerCorpse(z);
+        // Qualquer morte (golpe, tiro, atropelo): estouro de sangue e pedaços.
+        this.combatFx?.kill(z.x, z.y, z.corpseAngle ?? 0);
+      },
       vehicleBang: (z) => this.vehicleBang(z),
     });
     const zsave = load?.modules?.['zombies'] as (ZombieStoreSave & { kills?: number }) | undefined;
@@ -725,14 +731,21 @@ export class GameScene extends Phaser.Scene {
       this.combatFx.swing(r.swing.x, r.swing.y, r.swing.angle, r.swing.reach);
       this.player.strike();
     }
-    if (r.tracer) this.combatFx.shot(r.tracer.x1, r.tracer.y1, r.tracer.x2, r.tracer.y2);
+    if (r.tracer) this.combatFx.shot(r.tracer.x1, r.tracer.y1, r.tracer.x2, r.tracer.y2, r.tracer.wall);
     if (r.hit) this.combatFx.impact(r.hit.x, r.hit.y, r.hit.hp, r.hit.max);
     if (r.creature) {
       const c = r.creature;
-      // Acerto se sente: tranco curto na tela; na morte, mais sangue e tranco maior.
+      // Acerto se sente: tranco curto na tela, sangue no ar e no chão; na morte, mais de tudo.
       this.combatFx.blood(c.x, c.y, c.dir, c.killed ? 26 : 9);
+      this.combatFx.splat(c.x, c.y, c.dir, c.killed ? 1.1 : 0.55);
       this.cameras.main.shake(c.killed ? 140 : 70, c.killed ? 0.005 : 0.0025);
-      if (c.note) this.combatFx.note(c.x, c.y, c.note);
+      // Quanto falta para cair (a parte vital mais estragada) + onde pegou.
+      this.combatFx.status(c.x, c.y, c.killed ? 0 : (c.life ?? c.frac));
+      const head = c.part === 'cabeca' || c.part === 'pescoco';
+      if (c.killed) this.combatFx.note(c.x, c.y, (c.note ?? 'morto').toUpperCase(), 'kill');
+      else if (c.crit && c.note) this.combatFx.note(c.x, c.y, `${c.note.toUpperCase()}!`, 'crit');
+      else if (head) this.combatFx.note(c.x, c.y, 'CABEÇA!', 'head');
+      else this.combatFx.note(c.x, c.y, PART_NAME[c.part as BodyPart] ?? c.part, 'part');
     }
     if (r.noise) this.s.bus.emit('world:noise', r.noise);
     for (const d of r.drops ?? []) this.lootActions.dropLoose(d.defId, d.count, d.st, d.x, d.y);

@@ -100,7 +100,7 @@ function armorOn(z: Zombie, part: BodyPart, kind: ZombieHitKind): number {
   return clamp(region * k, 0, 0.85);
 }
 
-const PART_NAME: Record<BodyPart, string> = {
+export const PART_NAME: Record<BodyPart, string> = {
   cabeca: 'cabeça',
   pescoco: 'pescoço',
   tronco: 'tronco',
