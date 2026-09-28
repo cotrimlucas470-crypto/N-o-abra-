@@ -27,6 +27,14 @@ export const GROUND_COUNT = 12;
 /** Variações visuais por tipo de chão (colunas do tileset). */
 export const GROUND_VARIANTS = 4;
 
+/** Variação do desenho de chão (sorteio fixo 0..1): as "limpas" aparecem mais; rachaduras/manchas são raras. */
+export function pickVariant(r: number): number {
+  if (r < 0.46) return 0;
+  if (r < 0.72) return 1;
+  if (r < 0.88) return 2;
+  return 3;
+}
+
 export interface Rect {
   x: number;
   y: number;

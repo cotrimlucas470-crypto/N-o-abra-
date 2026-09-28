@@ -246,10 +246,12 @@ export class Atmosphere {
     const w = input.weather;
     const v = cam.worldView;
     this.view.setTo(v.x, v.y, v.width, v.height);
-    const day = daylight(input.minuteOfDay, w.cloud, input.dayHours);
+    // A noite vem da HORA; o céu fechado escurece pelo "gloom" (o olho acostuma com o dia nublado).
+    const day = daylight(input.minuteOfDay, 0, input.dayHours);
     this.updateLightning(dt, w);
     // Chuva, neve e tempestade escurecem o dia (e o céu fecha antes da tempestade); neve no chão clareia a noite.
-    const gloom = w.cloud * 0.1 + w.rain * 0.12 + w.snow * 0.06 + w.thunder * 0.1 + w.front * 0.06;
+    // Neve no chão devolve a luz: o dia de neve é claro, não sombrio.
+    const gloom = (w.cloud * 0.1 + w.rain * 0.12 + w.snow * 0.06 + w.thunder * 0.1 + w.front * 0.06) * (1 - input.snowCover * 0.55);
     const night = (1 - day) * NIGHT_ALPHA * (1 - input.snowCover * 0.12);
     this.darkness = Math.min(1, night + day * gloom) * (1 - this.flashNow * 0.9);
     this.updateSun(dt, input.minuteOfDay, w, input.dayHours);
@@ -377,7 +379,8 @@ export class Atmosphere {
       this.clouds.setTilePosition((v.x + this.cloudX) / CLOUD_SCALE, (v.y + this.cloudY) / CLOUD_SCALE);
     }
     // Gradação (multiplica): céu pesado/chuva esfria e escurece; neve deixa tudo azulado e frio.
-    const heavy = clamp01(w.cloud * 0.35 + w.rain * 0.3 + w.thunder * 0.3 + w.front * 0.12 - 0.12);
+    // Céu fechado com neve no chão continua claro (a neve devolve a luz).
+    const heavy = clamp01(w.cloud * 0.35 + w.rain * 0.3 + w.thunder * 0.3 + w.front * 0.12 - 0.12 - input.snowCover * 0.15);
     const cold = clamp01(input.snowCover * 0.55 + w.snow * 0.35);
     let r = 1 - heavy * 0.3;
     let g = 1 - heavy * 0.25;
@@ -403,7 +406,8 @@ export class Atmosphere {
   private updateFog(dt: number, cam: Phaser.Cameras.Scene2D.Camera, input: AtmosphereInput): void {
     const w = input.weather;
     const inside = input.sheltered ? 0.25 : 1;
-    const dens = clamp01(Math.max(w.fog, w.snow * w.snow * 0.7, w.rain * w.rain * 0.3)) * inside;
+    // Neve caindo fecha a vista pouco (quem mostra a neve são os flocos); nevasca fecha bem.
+    const dens = clamp01(Math.max(w.fog, w.snow * w.snow * w.snow * 0.55, w.rain * w.rain * 0.12)) * inside;
     if (dens < 0.02) {
       this.fogImage.setVisible(false);
       this.fogWisps.setVisible(false);

@@ -19,8 +19,7 @@ import { TEX } from '../../assets/AssetKeys';
 import type { AssetRegistry } from '../../assets/AssetRegistry';
 import { propSolids, type Solid } from '../collision';
 import { DECAL_DEFS } from '../DecalCatalog';
-import { GRASS_PALETTES, TILESET_ROWS, grassRow } from '../../assets/procedural/tiles';
-import { Ground, GROUND_VARIANTS, VOID_GROUND, type GroundId, type FloorData, type MarkingKind, type PropPlacement, type Rect, type WallPiece } from '../MapTypes';
+import { GROUND_VARIANTS, VOID_GROUND, pickVariant, type FloorData, type MarkingKind, type PropPlacement, type Rect, type WallPiece } from '../MapTypes';
 import { PROP_DEFS, type PropDef } from '../PropCatalog';
 import type { WorldModel } from '../WorldModel';
 import { CanopyFader, type Canopy } from './CanopyFader';
@@ -101,11 +100,6 @@ export class WorldRenderer {
   readonly solids: Phaser.Physics.Arcade.StaticGroup;
   private readonly loaded = new Map<number, LoadedChunk>();
   private readonly markingTexH = new Map<string, number>();
-  /** Chão da cidade (para trocar a cor da grama com a estação). */
-  private groundLayer: Phaser.Tilemaps.TilemapLayer | Phaser.Tilemaps.TilemapGPULayer | null = null;
-  /** Tiles de grama: posição, tipo, variação e o sorteio que decide quando cada um muda de cor. */
-  private grassCells: { x: number; y: number; g: GroundId; v: number; t: number }[] = [];
-  private grassKey = -1;
   private readonly chunkListeners = new Set<ChunkListener>();
 
   constructor(
@@ -145,9 +139,7 @@ export class WorldRenderer {
       const row: number[] = [];
       for (let x = 0; x < w; x++) {
         const g = map.ground[y * w + x]!;
-        const v = pickVariant(hash2(x, y, map.seed));
-        row.push(g * GROUND_VARIANTS + v);
-        if (g === Ground.Grass || g === Ground.GrassDark) this.grassCells.push({ x, y, g: g as GroundId, v, t: hash2(x, y, map.seed + 91) });
+        row.push(g * GROUND_VARIANTS + pickVariant(hash2(x, y, map.seed)));
       }
       data.push(row);
     }
@@ -159,32 +151,6 @@ export class WorldRenderer {
     const layer = tilemap.createLayer(0, tileset, 0, 0, gpu);
     if (!layer) throw new Error('Falha ao criar a camada do chão');
     layer.setDepth(DEPTH.ground);
-    // Só o tileset procedural tem as cores de estação da grama (um PNG substituto não tem).
-    const rows = (this.scene.textures.get(TEX.tiles).getSourceImage() as { height: number }).height / TILE;
-    this.groundLayer = rows >= TILESET_ROWS ? layer : null;
-  }
-
-  /**
-   * Cor da grama pela época (0..6): cada tile muda num dia um pouco
-   * diferente (sorteio fixo), então o gramado amarela/volta aos poucos.
-   */
-  setGrassSeason(stage: number): void {
-    const layer = this.groundLayer;
-    const key = Math.floor(stage * 24);
-    if (!layer || key === this.grassKey) return;
-    this.grassKey = key;
-    const data = layer.layer.data;
-    let changed = false;
-    for (const c of this.grassCells) {
-      const p = Math.floor(stage + c.t) % GRASS_PALETTES;
-      const idx = grassRow(c.g, p) * GROUND_VARIANTS + c.v;
-      const t = data[c.y]![c.x]!;
-      if (t.index !== idx) {
-        t.index = idx;
-        changed = true;
-      }
-    }
-    if (changed && layer instanceof Phaser.Tilemaps.TilemapGPULayer) layer.generateLayerDataTexture();
   }
 
   /** Chão do andar de cima em que o jogador está (um mapinha só daquele andar). */
@@ -483,12 +449,4 @@ export class WorldRenderer {
   loadedChunkKeys(): number[] {
     return [...this.loaded.keys()];
   }
-}
-
-/** Variações mais "limpas" aparecem mais; rachaduras/manchas são raras. */
-function pickVariant(r: number): number {
-  if (r < 0.46) return 0;
-  if (r < 0.72) return 1;
-  if (r < 0.88) return 2;
-  return 3;
 }

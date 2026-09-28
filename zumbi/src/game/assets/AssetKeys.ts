@@ -8,10 +8,9 @@ export const TEX = {
   lightCone: 'fx.light.cone',
   rainDrop: 'fx.rain',
   snowFlake: 'fx.snow',
-  /** Neve no chão por material (camada do clima). */
-  snowTiles: 'weather.snow',
-  /** Chão molhado, poças e gelo por material. */
-  waterTiles: 'weather.water',
+  /** Ruídos periódicos do clima (shaders): montinhos/luz/grão e manchas/branco/faixas. */
+  noiseA: 'weather.noiseA',
+  noiseB: 'weather.noiseB',
   snowStreak: 'fx.snow.streak',
   rainNear: 'fx.rain.near',
   splash: 'fx.splash',

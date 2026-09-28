@@ -214,43 +214,15 @@ const DRAWERS: Record<GroundId, TileDrawer> = {
   [Ground.GarageFloor]: garage,
 };
 
-/**
- * Grama pela ÉPOCA (mesmo desenho e mesma semente, só a cor): 0 verão
- * (a original), 1 seca, 2 amarelando, 3 marrom, 4 morta (inverno),
- * 5 rebrotando. O WorldRenderer troca tile a tile ao longo dos dias.
- */
-export const GRASS_PALETTES = 6;
-const GRASS_TONES: readonly (readonly [string, string])[] = [
-  [PALETTE.grass, PALETTE.grassDark],
-  ['#667248', '#566340'],
-  ['#7a7447', '#676241'],
-  ['#77684a', '#655a42'],
-  ['#6b6655', '#5b5749'],
-  ['#5a7c44', '#4b683a'],
-];
-/** Linhas extras do tileset: 2 por paleta (grama e grama escura), da paleta 1 em diante. */
-export const TILESET_ROWS = GROUND_COUNT + (GRASS_PALETTES - 1) * 2;
-
-/** Linha do tileset da grama `g` na paleta `p` (0 = linha original). */
-export function grassRow(g: GroundId, p: number): number {
-  if (p <= 0) return g;
-  return GROUND_COUNT + (p - 1) * 2 + (g === Ground.GrassDark ? 1 : 0);
-}
-
 export function drawTileset(): HTMLCanvasElement {
-  const { canvas, ctx } = makeCanvas(S * GROUND_VARIANTS, S * TILESET_ROWS);
+  const { canvas, ctx } = makeCanvas(S * GROUND_VARIANTS, S * GROUND_COUNT);
   const tile = makeCanvas(S, S);
-  const put = (row: number, drawer: TileDrawer, g: number) => {
+  for (let g = 0; g < GROUND_COUNT; g++) {
     for (let v = 0; v < GROUND_VARIANTS; v++) {
       tile.ctx.clearRect(0, 0, S, S);
-      drawer(tile.ctx, v, new Random(1000 + g * 31 + v * 7));
-      ctx.drawImage(tile.canvas, v * S, row * S);
+      DRAWERS[g as GroundId](tile.ctx, v, new Random(1000 + g * 31 + v * 7));
+      ctx.drawImage(tile.canvas, v * S, g * S);
     }
-  };
-  for (let g = 0; g < GROUND_COUNT; g++) put(g, DRAWERS[g as GroundId], g);
-  for (let p = 1; p < GRASS_PALETTES; p++) {
-    put(grassRow(Ground.Grass, p), grass(GRASS_TONES[p]![0]), Ground.Grass);
-    put(grassRow(Ground.GrassDark, p), grass(GRASS_TONES[p]![1]), Ground.GrassDark);
   }
   return canvas;
 }

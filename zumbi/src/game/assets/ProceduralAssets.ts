@@ -14,11 +14,10 @@ import {
   drawRoofSnow,
   drawSnowFlake,
   drawSnowStreak,
-  drawSnowTiles,
   drawSplash,
   drawTireTrack,
-  drawWaterTiles,
 } from './procedural/weatherArt';
+import { NOISE_SIZE, weatherNoiseA, weatherNoiseB } from './procedural/weatherNoise';
 import { ITEM_DEFS } from '../items/ItemCatalog';
 import { allDecalSprites } from '../world/DecalCatalog';
 import { allPropSprites } from '../world/PropCatalog';
@@ -138,8 +137,6 @@ export function generateAssets(textures: Phaser.Textures.TextureManager, registr
   // Clima: neve e água no chão por material, neve nos telhados, partículas, marcas, neblina, nuvens.
   const fx: [string, () => HTMLCanvasElement][] = [
     [TEX.snowFlake, () => drawSnowFlake(8)],
-    [TEX.snowTiles, drawSnowTiles],
-    [TEX.waterTiles, drawWaterTiles],
     [TEX.snowStreak, drawSnowStreak],
     [TEX.rainNear, drawRainNear],
     [TEX.splash, drawSplash],
@@ -151,6 +148,12 @@ export function generateAssets(textures: Phaser.Textures.TextureManager, registr
     [TEX.corpseSnow, drawCorpseSnow],
   ];
   for (const [key, draw] of fx) if (!textures.exists(key)) textures.addCanvas(key, draw());
+  // Ruídos dos shaders do clima: periódicos (REPEAT, potência de 2) e interpolados.
+  const noises: [string, () => Uint8Array][] = [
+    [TEX.noiseA, weatherNoiseA],
+    [TEX.noiseB, weatherNoiseB],
+  ];
+  for (const [key, make] of noises) if (!textures.exists(key)) textures.addUint8Array(key, make(), NOISE_SIZE, NOISE_SIZE)?.setFilter(Phaser.Textures.FilterMode.LINEAR);
   for (let k = 1; k <= 5; k++) if (!textures.exists(`pattern.snow.roof.${k}`)) textures.addCanvas(`pattern.snow.roof.${k}`, drawRoofSnow(k));
   lap('clima');
 

@@ -40,7 +40,7 @@ import { PlayerInventory } from '../items/PlayerInventory';
 import { loadGame, saveGame, type GameSave } from '../save/SaveGame';
 import { ActionRunner, type ActionOutcome } from '../sim/Actions';
 import { Calendar } from '../sim/Calendar';
-import { Weather, type WeatherSample } from '../sim/Weather';
+import { daylight, Weather, type WeatherSample } from '../sim/Weather';
 import { restAction } from '../survival/Sleep';
 import { Hazards } from '../survival/Hazards';
 import { treatmentsFor } from '../health/Treatments';
@@ -665,16 +665,22 @@ export class GameScene extends Phaser.Scene {
     const season = this.loop.weatherModel.seasonAt(this.clock.minutes);
     const ground = this.loop.ground;
     const w = this.loop.weather;
-    this.groundWeather.update({
+    // Chão: molha na hora que a chuva começa; poça só com água acumulada; folhas caem no outono.
+    this.groundWeather.update(this.dt, {
       snow: ground.snow,
       frost: ground.frost(w, this.clock.minuteOfDay),
-      wet: ground.wet,
+      wet: Math.min(1, Math.max(ground.wet * 1.3, w.rain * 0.6)),
+      puddle: Math.min(1, Math.max(0, (ground.wet - 0.3) / 0.7)),
       ice: ground.ice,
       sinceSnow: ground.sinceSnow,
       melting: ground.melting,
+      rain: w.rain,
+      day: daylight(this.clock.minuteOfDay, w.cloud, season.dayHours),
+      leaves: Math.min(1, Math.max(0, (season.leafColor - 0.25) * 1.6)) * Math.min(1, Math.max(0, (1 - season.leafCover) * 2.2)),
+      leafTone: Math.min(1, Math.max(0, (0.85 - season.leafCover) * 2)),
+      grass: season.grass,
     });
     this.world.roofs.setSnow(ground.snow);
-    this.world.setGrassSeason(season.grass);
     this.dressing.update(this.dt, { snow: ground.snow, wet: Math.max(ground.wet, w.rain), wind: w.wind, leafColor: season.leafColor, leafCover: season.leafCover });
     this.world.canopies.leaf = season.leafCover;
     this.tracks.update(this.dt, {
