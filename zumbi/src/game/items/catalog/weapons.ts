@@ -22,9 +22,9 @@ const melee = (
 ): ItemEntry => ({ id, name, sub, kg, icon, desc, melee: { damage, speed, reach, durability, kind }, tags: [kind === 'impacto' ? 'arma-contundente' : kind === 'corte' ? 'arma-cortante' : 'arma-perfurante'], ...extra });
 
 export const MELEE = category('arma-branca', { stack: 1, cond: 'durable', tags: ['arma'] }, [
-  melee('faca', 'Faca de cozinha', 'faca', 0.3, { f: 'knife', k: 'kitchen' }, 7, 1.4, 0.6, 60, 'corte', 'Corta. Não foi feita para brigar.', { metal: true, tags: ['faca', 'cortar', 'abridor', 'arma-cortante'] }),
+  melee('faca', 'Faca de cozinha', 'faca', 0.3, { f: 'knife', k: 'kitchen' }, 10, 1.4, 0.6, 60, 'corte', 'Corta. Não foi feita para brigar.', { metal: true, tags: ['faca', 'cortar', 'abridor', 'arma-cortante'] }),
   melee('facaCacador', 'Faca de caça', 'faca', 0.4, { f: 'knife', k: 'hunting' }, 11, 1.3, 0.65, 150, 'corte', 'Lâmina grossa com serrilha.', { rar: 'incomum', metal: true, tags: ['faca', 'cortar', 'abridor', 'arma-cortante'] }),
-  melee('canivete', 'Canivete', 'faca', 0.12, { f: 'knife', k: 'folding' }, 5, 1.5, 0.5, 60, 'corte', 'Cabe no bolso.', { metal: true, tags: ['faca', 'cortar', 'abridor', 'arma-cortante'] }),
+  melee('canivete', 'Canivete', 'faca', 0.12, { f: 'knife', k: 'folding' }, 7, 1.5, 0.5, 60, 'corte', 'Cabe no bolso.', { metal: true, tags: ['faca', 'cortar', 'abridor', 'arma-cortante'] }),
   melee('facao', 'Facão', 'lamina', 0.7, { f: 'knife', k: 'machete' }, 16, 1, 1, 150, 'corte', 'Abre caminho no mato.', { rar: 'incomum', metal: true, tags: ['cortar', 'cortar-mato', 'arma-cortante'] }),
   melee('tacoBeisebol', 'Taco de beisebol', 'bastao', 1, { f: 'blunt', k: 'bat', c: '#b8864a' }, 12, 0.95, 1.1, 120, 'impacto', 'Madeira maciça.', { rar: 'incomum' }),
   melee('tacoPregos', 'Taco com pregos', 'bastao', 1.2, { f: 'blunt', k: 'batnails', c: '#b8864a' }, 16, 0.9, 1.1, 90, 'impacto', 'Improvisado e cruel.', { craftOnly: true }),

@@ -30,7 +30,7 @@ const tool = (
 
 export const TOOLS = category('ferramenta', { stack: 1, cond: 'durable', tags: ['ferramenta'] }, [
   tool('martelo', 'Martelo', 'construcao', 0.8, 'hammer', ['martelar', 'martelo'], 400, 'Para construir. Ou para outra coisa.', {
-    melee: { damage: 9, speed: 1.1, reach: 0.9, durability: 120, kind: 'impacto' },
+    melee: { damage: 11, speed: 1.1, reach: 0.9, durability: 120, kind: 'impacto' },
     tags: ['martelar', 'martelo', 'arma-contundente'],
   }),
   tool('marreta', 'Marreta', 'construcao', 4.5, 'sledge', ['demolir', 'martelar', 'derrubar-parede'], 300, 'Derruba parede. Pesada demais para brigar.', {

@@ -68,7 +68,8 @@ export const ZOMBIE_TUNING = {
   knockdownMax: 3.0,
 
   // ------------------------------------------------ corpo (resistência de cada parte, "pontos" antes da resistência individual)
-  partHp: { cabeca: 26, pescoco: 20, tronco: 70, bracoE: 32, bracoD: 32, maoE: 14, maoD: 14, pernaE: 36, pernaD: 36, peE: 16, peD: 16 },
+  // Afinado em tests/balance.test.ts: zumbi comum cai com ~20 socos, ~5–8 golpes de arma branca, ~3–4 de machado.
+  partHp: { cabeca: 15, pescoco: 12, tronco: 45, bracoE: 32, bracoD: 32, maoE: 14, maoD: 14, pernaE: 36, pernaD: 36, peE: 16, peD: 16 },
 
   // ------------------------------------------------ ambiente
   /**

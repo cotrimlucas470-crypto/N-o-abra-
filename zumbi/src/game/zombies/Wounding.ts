@@ -66,10 +66,15 @@ function pick(weights: W, rng: () => number, boostHead = 0): BodyPart {
   return 'tronco';
 }
 
+/** Pé (cuidado: 'pescoco' também começa com "pe"). */
+function isFoot(part: BodyPart): boolean {
+  return part === 'peE' || part === 'peD';
+}
+
 /** Quanto cada tipo de golpe rende em cada parte. */
 function kindFactor(kind: ZombieHitKind, part: BodyPart): number {
   const limb = part.startsWith('braco') || part.startsWith('perna');
-  const tip = part.startsWith('mao') || part.startsWith('pe');
+  const tip = part.startsWith('mao') || isFoot(part);
   switch (kind) {
     case 'impacto':
       return part === 'cabeca' ? 1.35 : part === 'tronco' ? 0.55 : limb ? 0.9 : 1;
@@ -122,7 +127,7 @@ export function hitZombie(z: Zombie, hit: ZombieHit, now: number, rng: () => num
   // Braços esticados aparam o golpe de frente.
   if (!hit.part && !fromBehind && !down && (part === 'cabeca' || part === 'pescoco') && z.anim.arms > 0.6 && rng() < 0.22 * z.anim.arms) part = rng() < 0.5 ? 'bracoE' : 'bracoD';
   // Parte que já não existe: o golpe pega no vizinho.
-  if (z.parts[part] <= 0 && part !== 'cabeca') part = part.startsWith('mao') || part.startsWith('braco') ? 'tronco' : part.startsWith('pe') ? (part === 'peE' ? 'pernaE' : 'pernaD') : 'tronco';
+  if (z.parts[part] <= 0 && part !== 'cabeca') part = part.startsWith('mao') || part.startsWith('braco') ? 'tronco' : isFoot(part) ? (part === 'peE' ? 'pernaE' : 'pernaD') : 'tronco';
 
   const hp = (T.partHp[part] ?? 30) * z.traits.toughness;
   const dmg = hit.damage * kindFactor(hit.kind, part) * (1 - armorOn(z, part, hit.kind));
@@ -158,7 +163,7 @@ export function hitZombie(z: Zombie, hit: ZombieHit, now: number, rng: () => num
       stagger = rng() < clamp(force * (1.15 - bal), 0.05, 0.95);
       fall = (stagger && (wasStaggering || rng() < clamp(force * 0.6 * (1.1 - bal), 0, 0.8))) || isCrawler(z) || hit.kind === 'atropelo';
       // Perna acertada em cheio derruba.
-      if ((part.startsWith('perna') || part.startsWith('pe')) && after < 0.35 && rng() < 0.6) fall = true;
+      if ((part.startsWith('perna') || isFoot(part)) && after < 0.35 && rng() < 0.6) fall = true;
     }
   }
   let note: string | undefined;

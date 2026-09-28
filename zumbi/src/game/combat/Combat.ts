@@ -77,8 +77,10 @@ export interface CreatureHit {
   part: string;
 }
 
-/** Soco: arma "invisível". */
-const FIST = { damage: 3, speed: 1.4, reach: 0.45, durability: Infinity, kind: 'impacto' as const };
+/** Soco: arma "invisível" (dano afinado contra corpo em tests/balance.test.ts). */
+export const FIST = { damage: 4, speed: 1.4, reach: 0.45, durability: Infinity, kind: 'impacto' as const };
+/** Soco em porta ou móvel: continua fraco (a mão machuca antes de a coisa ceder). */
+const FIST_VS_OBJECT = 3;
 
 type Target =
   | { kind: 'prop'; prop: PropPlacement; dist: number; x: number; y: number }
@@ -206,7 +208,8 @@ export class Combat {
       };
     }
     if (!t) return { ok: true, swing, cooldown };
-    return { ...this.hitTarget(t, base, m.kind, tags, !def, 'golpe'), swing, cooldown };
+    const objBase = def ? base : FIST_VS_OBJECT * fx.melee;
+    return { ...this.hitTarget(t, objBase, m.kind, tags, !def, 'golpe'), swing, cooldown };
   }
 
   /** Aplica dano no alvo (golpe ou tiro). */
