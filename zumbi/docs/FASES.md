@@ -5,6 +5,30 @@ O que cada etapa entregou, como foi testado e o que ficou pendente. A ordem das 
 
 ---
 
+## Correções: combate, zumbis, janelas, itens, veículos (em andamento, um ponto por vez)
+
+### 0. Erro ao abrir com save antigo
+- Save de versão anterior podia travar ao abrir (`population`, depois `width`). As opções do save agora
+  são completadas com o padrão ao carregar (`loadGame` → `sanitizeSandbox`), e o ouvinte de mudança de
+  tela não mexe na câmera se a cena não está ativa.
+- Teste: `dev/oldsave.mjs` salva na v0.6.0 e continua na versão nova (mesmo navegador), mudando o
+  tamanho da tela durante a carga: sem erros.
+
+### 1. Combate
+- **Bater recuando**: sem mira no analógico, o tronco olha para onde se anda, então o golpe ia para trás.
+  Agora o golpe vira para o zumbi mais perto **ao alcance** (qualquer lado, mesmo andar, com visão); o
+  tiro só corrige dentro de um cone à frente (nunca atira nas costas). Com a mira do analógico, vale a mira.
+- Alcance conferido: até o soco alcança antes da patada do zumbi mais comprido (teste).
+- **Arma na mão aparece** no desenho do jogador (cano da arma de fogo; cabo + lâmina/cabeça da arma
+  branca) e faz o arco no golpe.
+- **Impacto e morte**: tranco curto na tela a cada acerto (maior na morte), mais sangue na morte e o
+  corpo tomba no sentido do golpe em vez de aparecer de uma vez.
+- Testes: golpe recuando acha o zumbi atrás; soco alcança antes da patada; alcance por arma.
+  `dev/combat.mjs` (dois zumbis vindo por trás, jogador recuando e batendo) e teste da pistola
+  (clique sem bala → recarregar → tiro acerta o zumbi à frente, não o de trás).
+
+---
+
 ## Zumbis de verdade, dirigir, gerador, andares e cidade expandida (v0.7.0)
 
 Pedido: zumbis **realistas, profundos e persistentes** — cada um um indivíduo no mundo (estados, visão,

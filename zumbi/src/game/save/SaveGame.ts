@@ -11,7 +11,7 @@
  * junta, versiona e grava. Campo desconhecido é ignorado ao carregar.
  */
 import { GAME_VERSION } from '../config/GameConfig';
-import type { SandboxSettings } from '../config/Sandbox';
+import { sanitizeSandbox, type SandboxSettings } from '../config/Sandbox';
 import { readJson, writeJson } from '../core/Storage';
 import type { PlayerStatsSnapshot } from '../entities/player/PlayerStats';
 import type { PlayerInventorySave } from '../items/PlayerInventory';
@@ -60,9 +60,9 @@ export function saveGame(data: Omit<GameSave, 'version' | 'savedAt' | 'game'>): 
 /** Save atual (ou o backup, se o atual estiver estragado). */
 export function loadGame(): GameSave | null {
   const s = readJson<unknown>(SLOT, null);
-  if (valid(s)) return s;
-  const b = readJson<unknown>(BACKUP, null);
-  return valid(b) ? b : null;
+  const g = valid(s) ? s : readJson<unknown>(BACKUP, null);
+  // Save de versão antiga pode não ter opções novas: completa com o padrão (senão trava ao abrir).
+  return valid(g) ? { ...g, settings: sanitizeSandbox(g.settings) } : null;
 }
 
 export function saveSummary(): SaveSummary | null {

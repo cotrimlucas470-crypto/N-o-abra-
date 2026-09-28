@@ -23,6 +23,13 @@ import { PlayerStats } from './PlayerStats';
 /** Quadros em que um pé toca o chão (ver procedural/characters.ts). */
 const FOOTSTEP_FRAMES = new Set([2, 6]);
 
+/** Como desenhar o que está na mão: comprimento (px) e se é arma de fogo / lâmina. */
+export interface HeldLook {
+  gun: boolean;
+  len: number;
+  blade?: boolean;
+}
+
 export class Player {
   readonly stats: PlayerStats;
   private readonly baseMods: SpeedModifiers;
@@ -38,6 +45,10 @@ export class Player {
   private readonly shadow: Phaser.GameObjects.Image;
   private readonly dust: Phaser.GameObjects.Particles.ParticleEmitter;
   private readonly aimMarker: Phaser.GameObjects.Graphics;
+  /** O que está na mão direita (arma de fogo, arma branca), desenhado junto do tronco. */
+  private readonly heldG: Phaser.GameObjects.Graphics;
+  private held: HeldLook | null = null;
+  private strikeAt = -1e9;
 
   /** Direção do tronco e das pernas (rad). */
   private facing = -Math.PI / 2;
@@ -83,6 +94,7 @@ export class Player {
     this.legs.setRotation(this.legsAngle);
 
     this.aimMarker = scene.add.graphics().setDepth(DEPTH.playerLegs - 0.5);
+    this.heldG = scene.add.graphics().setDepth(DEPTH.player + 0.5);
 
     this.dust = scene.add.particles(0, 0, TEX.dust, {
       lifespan: { min: 380, max: 620 },
@@ -127,6 +139,16 @@ export class Player {
   setMoveEffects(walk: number, run: number): void {
     this.speedMods.walk = this.baseMods.walk * walk;
     this.speedMods.run = this.baseMods.run * run;
+  }
+
+  /** Arma na mão (null = mãos vazias ou item que não é arma). */
+  setHeld(h: HeldLook | null): void {
+    this.held = h;
+  }
+
+  /** Golpe: a arma na mão faz o arco do movimento por um instante. */
+  strike(): void {
+    this.strikeAt = this.sprite.scene.time.now;
   }
 
   /** Vira para um ângulo (mira, ataque) sem andar. */
@@ -229,6 +251,8 @@ export class Player {
     this.shadow.setPosition(x + o.x, y + o.y);
     this.shadow.setAlpha(0.2 + this.shadows.alpha);
 
+    this.drawHeld(x, y);
+
     this.aimMarker.clear();
     if (this.aiming) {
       // Arco de mira: só um indicativo de direção por enquanto (armas vêm nas Fases 6 e 7).
@@ -246,8 +270,35 @@ export class Player {
     }
   }
 
+  /** Arma saindo da mão direita (a mão do desenho fica ~18 px ao lado, um pouco à frente). */
+  private drawHeld(x: number, y: number): void {
+    const g = this.heldG;
+    g.clear();
+    const h = this.held;
+    if (!h) return;
+    const cos = Math.cos(this.facing);
+    const sin = Math.sin(this.facing);
+    const hx = x + cos * 5 - sin * 17;
+    const hy = y + sin * 5 + cos * 17;
+    if (h.gun) {
+      // Arma de fogo: aponta reto para a frente (cano escuro com brilho).
+      g.lineStyle(5, 0x1e1f22, 1).lineBetween(hx - cos * 3, hy - sin * 3, hx + cos * h.len, hy + sin * h.len);
+      g.lineStyle(1.5, 0x6a6e76, 0.9).lineBetween(hx, hy, hx + cos * h.len, hy + sin * h.len);
+      return;
+    }
+    // Arma branca: no golpe varre de um lado ao outro (0,18 s); parada, fica inclinada para fora.
+    const t = (this.sprite.scene.time.now - this.strikeAt) / 180;
+    const a = this.facing + (t < 1 ? -1.1 + t * 1.7 : 0.55);
+    const ca = Math.cos(a);
+    const sa = Math.sin(a);
+    const grip = h.len * 0.45;
+    g.lineStyle(4, 0x6b4a2c, 1).lineBetween(hx - ca * 4, hy - sa * 4, hx + ca * grip, hy + sa * grip);
+    g.lineStyle(h.blade ? 3.5 : 6, h.blade ? 0xc9ccd2 : 0x5a3c24, 1).lineBetween(hx + ca * grip, hy + sa * grip, hx + ca * h.len, hy + sa * h.len);
+  }
+
   /** Dentro do carro: some da tela e da física (a cena move o corpo junto com o carro). */
   setHidden(hidden: boolean): void {
+    this.heldG.setVisible(!hidden);
     this.sprite.setVisible(!hidden);
     this.legs.setVisible(!hidden);
     this.shadow.setVisible(!hidden);

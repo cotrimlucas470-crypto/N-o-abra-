@@ -133,6 +133,11 @@ export class Combat {
     return { def: d, st: h?.st };
   }
 
+  /** Alcance do golpe com o que está na mão (px, da borda do corpo do alvo). */
+  meleeReach(): number {
+    return 34 + (this.weapon().def?.melee ?? FIST).reach * 56;
+  }
+
   /** Alvo à frente dentro do alcance. */
   findTarget(x: number, y: number, facing: number, reach: number, arc = 65 * DEG): Target | null {
     let best: Target | null = null;
@@ -175,7 +180,7 @@ export class Combat {
     if (this.hooks.stamina() < cost * 0.5) return { ok: false, message: 'Sem fôlego para bater.', tone: 'warn', cooldown: 0.4 };
     if (def && isBroken(def, st)) return { ok: false, message: `${def.name} está quebrado.`, tone: 'warn', cooldown: 0.3 };
     this.hooks.spendStamina(cost);
-    const reach = 34 + m.reach * 56;
+    const reach = this.meleeReach();
     const cooldown = clamp(0.95 / (m.speed * (0.6 + 0.4 * fx.melee)), 0.35, 2.2);
     const swing = { x, y, angle: facing, reach };
     const t = this.findTarget(x, y, facing, reach);

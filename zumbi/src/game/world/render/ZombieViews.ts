@@ -422,9 +422,12 @@ export class ZombieViews {
     const cached = this.corpseTex.get(z.id);
     if (cached) cached.used = this.frameNo;
     const a = z.corpseAngle ?? 0;
-    c.img.setPosition(z.x, z.y).setRotation(a);
     // Poça cresce nos primeiros segundos; corpo velho: mancha seca menor.
     const age = z.oldCorpse || (z.deadAt ?? 0) < 0 ? 99 : now - (z.deadAt ?? now);
+    // Acabou de morrer: o corpo tomba no sentido do golpe (desliza e assenta em ~0,3 s).
+    const fall = Math.min(1, age / 0.3);
+    const back = (1 - fall) * 18;
+    c.img.setPosition(z.x - Math.cos(a) * back, z.y - Math.sin(a) * back).setRotation(a).setScale((0.85 + 0.15 * fall) / ZOMBIE_RES);
     const grow = Math.min(1, 0.25 + age / 25);
     const size = (z.oldCorpse ? 0.7 : 1) * (0.7 + z.look.blood * 0.6) * grow;
     c.pool.setPosition(z.x + Math.cos(a) * 20, z.y + Math.sin(a) * 20).setScale(size * 1.1).setAlpha(z.oldCorpse ? 0.55 : 0.85);

@@ -7,7 +7,7 @@ import Phaser from 'phaser';
 import { SCENES } from '../config/GameConfig';
 import { DEBUG } from '../core/Debug';
 import { services, type GameServices } from '../core/Services';
-import { Player } from '../entities/player/Player';
+import { Player, type HeldLook } from '../entities/player/Player';
 import { resolveIntent } from '../input/InputState';
 import { KeyboardMouseInput } from '../input/KeyboardMouseInput';
 import { CameraDirector } from '../systems/CameraDirector';
@@ -460,6 +460,8 @@ export class GameScene extends Phaser.Scene {
 
     const offs = [
       s.bus.on('viewport:changed', () => {
+        // A tela pode mudar de tamanho com a cena parando/recomeçando: sem câmera, nada a fazer.
+        if (!this.sys.isActive() || !this.cameras.main) return;
         cam.setSize(this.scale.width, this.scale.height);
         this.director.setZoom(s.viewport.worldZoom());
         this.loadAroundPlayer();
@@ -598,6 +600,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private afterPhysics(): void {
+    this.player.setHeld(this.heldLook());
     this.player.syncVisuals();
     this.director.update(this.dt);
     // Região antes do mundo: o aviso da região sai antes do aviso da construção.
@@ -715,20 +718,50 @@ export class GameScene extends Phaser.Scene {
     }
     if (this.loop.runner.active) this.loop.cancelAction();
     const gun = !!this.inventory.handDef?.gun;
-    const r: AttackResult = gun ? this.combat.shoot(this.player.x, this.player.y, this.player.facingAngle) : this.combat.melee(this.player.x, this.player.y, this.player.facingAngle);
+    const facing = this.attackAngle();
+    const r: AttackResult = gun ? this.combat.shoot(this.player.x, this.player.y, facing) : this.combat.melee(this.player.x, this.player.y, facing);
     this.attackCooldown = r.cooldown;
-    if (r.swing) this.combatFx.swing(r.swing.x, r.swing.y, r.swing.angle, r.swing.reach);
+    if (r.swing) {
+      this.combatFx.swing(r.swing.x, r.swing.y, r.swing.angle, r.swing.reach);
+      this.player.strike();
+    }
     if (r.tracer) this.combatFx.shot(r.tracer.x1, r.tracer.y1, r.tracer.x2, r.tracer.y2);
     if (r.hit) this.combatFx.impact(r.hit.x, r.hit.y, r.hit.hp, r.hit.max);
     if (r.creature) {
       const c = r.creature;
-      this.combatFx.blood(c.x, c.y, c.dir, c.killed ? 14 : 7);
+      // Acerto se sente: tranco curto na tela; na morte, mais sangue e tranco maior.
+      this.combatFx.blood(c.x, c.y, c.dir, c.killed ? 26 : 9);
+      this.cameras.main.shake(c.killed ? 140 : 70, c.killed ? 0.005 : 0.0025);
       if (c.note) this.combatFx.note(c.x, c.y, c.note);
     }
     if (r.noise) this.s.bus.emit('world:noise', r.noise);
     for (const d of r.drops ?? []) this.lootActions.dropLoose(d.defId, d.count, d.st, d.x, d.y);
     if (r.message) this.outcome({ ok: r.ok, message: r.message, ...(r.tone ? { tone: r.tone } : {}) });
     this.scanInteraction();
+  }
+
+  /**
+   * Para onde vai o golpe/tiro. Sem mira no analógico, o tronco olha para onde anda: recuando, o golpe
+   * iria para trás. Então o golpe vira para o zumbi mais perto AO ALCANCE (qualquer lado); o tiro só
+   * corrige dentro de um cone à frente (não atira nas costas).
+   */
+  private attackAngle(): number {
+    const { x, y, facingAngle: f } = this.player;
+    if (this.player.isAiming) return f;
+    const g = this.inventory.handDef?.gun;
+    const z = g ? this.zombies.meleeTarget(x, y, f, Math.min(g.range * 64, 520), 0.5) : this.zombies.meleeTarget(x, y, f, this.combat.meleeReach(), Math.PI);
+    if (!z) return f;
+    const a = Math.atan2(z.y - y, z.x - x);
+    this.player.face(a);
+    return a;
+  }
+
+  /** Arma na mão para o desenho do jogador (comprimento pelo tipo/alcance). */
+  private heldLook(): HeldLook | null {
+    const d = this.inventory.arms > 0 ? null : this.inventory.handDef;
+    if (d?.gun) return { gun: true, len: d.sub === 'rifle' || d.sub === 'espingarda' ? 30 : d.sub === 'automatica' ? 22 : 14 };
+    if (d?.melee) return { gun: false, len: 12 + d.melee.reach * 26, blade: d.melee.kind !== 'impacto' };
+    return null;
   }
 
   reload(): void {
@@ -1357,6 +1390,7 @@ export class GameScene extends Phaser.Scene {
   /** Carrega de uma vez os chunks da tela (início, teleporte, mudança de tamanho de tela). */
   private loadAroundPlayer(): void {
     const cam = this.cameras.main;
+    if (!cam) return;
     this.world.ensureLoadedAround(this.player.x, this.player.y, cam.width / cam.zoom, cam.height / cam.zoom, this.upstairs());
   }
 

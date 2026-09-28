@@ -323,6 +323,28 @@ describe('zumbi: comportamento no mundo', () => {
   });
 });
 
+describe('golpe do jogador recuando', () => {
+  it('zumbi atrás, ao alcance: não é alvo pela frente, mas é pelo golpe em qualquer lado', () => {
+    const { model, sys } = world();
+    const o = openSpot(model);
+    const x = o.x + 100;
+    const z = zombieAt(sys, x - 60, o.y);
+    // Recuando para a direita, o jogador olha para +x; o zumbi vem da esquerda.
+    const reach = 34 + 0.45 * 56; // soco (Combat.meleeReach sem nada na mão)
+    expect(sys.meleeTarget(x, o.y, 0, reach)).toBeNull();
+    expect(sys.meleeTarget(x, o.y, 0, reach, Math.PI)).toBe(z);
+    // Longe demais continua fora.
+    expect(sys.meleeTarget(x, o.y, 0, 20, Math.PI)).toBeNull();
+  });
+
+  it('o soco alcança antes da patada do zumbi mais comprido', () => {
+    const z = zombieAt(world().sys, 0, 0);
+    const punch = 34 + 0.45 * 56 + bodyRadius(z); // de centro a centro
+    const claw = ZOMBIE_TUNING.reachMax + 2 + 15; // patada: alcance + raio do jogador
+    expect(punch).toBeGreaterThan(claw);
+  });
+});
+
 describe('ataques no jogador', () => {
   const defense = (h: Health, prot = 0): PlayerDefense => ({
     health: h,

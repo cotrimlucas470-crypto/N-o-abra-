@@ -70,6 +70,14 @@ describe('combate corpo a corpo', () => {
     expect(again.isPropRemoved(crate.id)).toBe(true);
   });
 
+  it('alcance do golpe: soco curto, arma branca mais comprida', () => {
+    const t = setup();
+    expect(t.combat.meleeReach()).toBeCloseTo(34 + 0.45 * 56);
+    t.inv.add('machado', 1);
+    t.inv.equipHand(t.inv.carried, 0);
+    expect(t.combat.meleeReach()).toBeGreaterThan(34 + 0.45 * 56);
+  });
+
   it('soco em coisa dura pode machucar a mão; gasta fôlego', () => {
     const t = setup(() => 0.01);
     const shelf = t.model.map.props.find((p) => p.type === 'storeShelf')!;
