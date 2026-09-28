@@ -12,7 +12,8 @@ import { overrideKey } from './AssetOverrides';
 import { buildAtlas, type AtlasEntry } from './AtlasBuilder';
 import type { AssetRegistry } from './AssetRegistry';
 import { makeCanvas, silhouetteShadow } from './procedural/canvas';
-import { drawLegsFrame, drawTorsoFrame, PLAYER_FRAMES } from './procedural/characters';
+import { drawLegsFrame, drawTorsoFrame, drawTorsoPose, PLAYER_FRAMES } from './procedural/characters';
+import { drawHeld, drawWorn, heldKind, wornArtId } from './procedural/heldArt';
 import { DECAL_DRAWERS } from './procedural/decals';
 import { drawDust, drawLightCone, drawLightRadial, drawRainDrop, drawSoftShadow, drawVignette } from './procedural/fx';
 import { ITEM_DRAWERS, ITEM_ICON_SIZE } from './procedural/items';
@@ -95,6 +96,15 @@ export function generateAssets(textures: Phaser.Textures.TextureManager, registr
   }
   if (!textures.exists(overrideKey('player.legs'))) {
     for (let i = 0; i < PLAYER_FRAMES; i++) entries.push({ id: `player.legs/${i}`, canvas: drawLegsFrame(i) });
+  }
+  // Poses armadas do tronco e o que se segura/veste por cima (um desenho por item, nas cores dele).
+  for (const pose of ['long', 'pistol'] as const) entries.push({ id: `player.torso.${pose}`, canvas: drawTorsoPose(pose) });
+  for (const def of Object.values(ITEM_DEFS)) {
+    const k = heldKind(def);
+    if (k) entries.push({ id: `held.${def.id}`, canvas: drawHeld(k, def.iconSpec) });
+    const w = wornArtId(def);
+    const art = w ? drawWorn(def) : null;
+    if (w && art) entries.push({ id: w, canvas: art });
   }
 
   lap('decalques+personagem');

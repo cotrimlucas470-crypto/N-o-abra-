@@ -53,6 +53,12 @@ export function drawTorsoFrame(i: number): HTMLCanvasElement {
   arm(-1, swing);
   arm(1, -swing);
 
+  drawTorsoTop(ctx, c);
+  return canvas;
+}
+
+/** Mochila, tronco, alças e cabeça (o que vai por cima dos braços). */
+function drawTorsoTop(ctx: CanvasRenderingContext2D, c: number): void {
   // mochila
   ctx.fillStyle = PALETTE.backpack;
   roundRect(ctx, c - 17, c - 10, 11, 20, 4);
@@ -88,5 +94,31 @@ export function drawTorsoFrame(i: number): HTMLCanvasElement {
   ctx.beginPath();
   ctx.arc(c + 1.5, c, 9.2, 0, Math.PI * 2);
   ctx.stroke();
+}
+
+/**
+ * Tronco segurando arma (quadro parado): 'long' = duas mãos na arma longa (a
+ * direita na pega, a esquerda estendida por baixo do cano); 'pistol' = os dois
+ * braços estendidos juntando as mãos na frente. As mãos ficam onde a arma é
+ * desenhada (ver ARMED_HANDS).
+ */
+export function drawTorsoPose(pose: 'long' | 'pistol'): HTMLCanvasElement {
+  const { canvas, ctx } = makeCanvas(PLAYER_FRAME, PLAYER_FRAME);
+  const c = PLAYER_FRAME / 2;
+  const h = ARMED_HANDS[pose];
+  const arm = (side: number, hx: number, hy: number) => {
+    line(ctx, c - 1, c + side * 14, c + hx, c + hy, PALETTE.jacketDark, 8);
+  };
+  arm(1, h.right[0], h.right[1]);
+  arm(-1, h.left[0], h.left[1]);
+  drawTorsoTop(ctx, c);
+  // Mãos por cima de tudo (seguram a arma, que fica por baixo delas).
+  for (const [x, y] of [h.right, h.left]) circle(ctx, c + x + 1, c + y, 4.2, PALETTE.skin, shade(PALETTE.skin, -0.35), 1);
   return canvas;
 }
+
+/** Onde ficam as mãos (px do quadro, a partir do centro, olhando para +x) em cada pose armada. */
+export const ARMED_HANDS: Record<'long' | 'pistol', { right: [number, number]; left: [number, number] }> = {
+  long: { right: [11, 4], left: [29, 4] },
+  pistol: { right: [21, 1.3], left: [21, -1.3] },
+};

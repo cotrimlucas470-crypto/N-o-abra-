@@ -17,17 +17,18 @@ import type { AssetRegistry } from '../../assets/AssetRegistry';
 import type { PlayerIntent } from '../../input/InputState';
 import type { ShadowSystem } from '../../world/render/ShadowSystem';
 import type { SandboxSettings } from '../../config/Sandbox';
+import { ARMED_HANDS, PLAYER_FRAME } from '../../assets/procedural/characters';
+import { HELD_DISPLAY, HELD_RES, heldSpec, type HeldPose, type HeldSpec } from '../../assets/procedural/heldArt';
 import { stepVelocity, targetVelocity, type SpeedModifiers } from './PlayerMotor';
 import { PlayerStats } from './PlayerStats';
 
 /** Quadros em que um pé toca o chão (ver procedural/characters.ts). */
 const FOOTSTEP_FRAMES = new Set([2, 6]);
 
-/** Como desenhar o que está na mão: comprimento (px) e se é arma de fogo / lâmina. */
+/** O que está na mão: o item (textura `held.<id>`) e o tipo de desenho (tamanho, pega, pose). */
 export interface HeldLook {
-  gun: boolean;
-  len: number;
-  blade?: boolean;
+  id: string;
+  kind: string;
 }
 
 export class Player {
@@ -45,10 +46,18 @@ export class Player {
   private readonly shadow: Phaser.GameObjects.Image;
   private readonly dust: Phaser.GameObjects.Particles.ParticleEmitter;
   private readonly aimMarker: Phaser.GameObjects.Graphics;
-  /** O que está na mão direita (arma de fogo, arma branca), desenhado junto do tronco. */
-  private readonly heldG: Phaser.GameObjects.Graphics;
-  private held: HeldLook | null = null;
+  /** O que está na mão (arma de fogo, arma branca, ferramenta), desenhado junto do tronco. */
+  private readonly heldImg: Phaser.GameObjects.Image;
+  private held: { id: string; spec: HeldSpec } | null = null;
+  /** Pose do tronco com a arma (null = braços soltos, balançando). */
+  private pose: Exclude<HeldPose, 'melee'> | null = null;
+  /** Capacete/boné/gorro e colete vestidos, por cima do tronco. */
+  private readonly headImg: Phaser.GameObjects.Image;
+  private readonly vestImg: Phaser.GameObjects.Image;
+  private wornIds: [string | null, string | null] = [null, null];
   private strikeAt = -1e9;
+  private recoilAt = -1e9;
+  private recoilKick = 0;
 
   /** Direção do tronco e das pernas (rad). */
   private facing = -Math.PI / 2;
@@ -63,7 +72,7 @@ export class Player {
     scene: Phaser.Scene,
     x: number,
     y: number,
-    assets: AssetRegistry,
+    private readonly assets: AssetRegistry,
     private readonly bus: EventBus,
     private readonly shadows: ShadowSystem,
     settings: SandboxSettings['player'],
@@ -94,7 +103,9 @@ export class Player {
     this.legs.setRotation(this.legsAngle);
 
     this.aimMarker = scene.add.graphics().setDepth(DEPTH.playerLegs - 0.5);
-    this.heldG = scene.add.graphics().setDepth(DEPTH.player + 0.5);
+    this.heldImg = scene.add.image(x, y, torsoRef.key, torsoRef.frame).setVisible(false).setScale(HELD_DISPLAY / HELD_RES);
+    this.vestImg = scene.add.image(x, y, torsoRef.key, torsoRef.frame).setVisible(false).setDepth(DEPTH.player + 0.2);
+    this.headImg = scene.add.image(x, y, torsoRef.key, torsoRef.frame).setVisible(false).setDepth(DEPTH.player + 0.3);
 
     this.dust = scene.add.particles(0, 0, TEX.dust, {
       lifespan: { min: 380, max: 620 },
@@ -141,9 +152,88 @@ export class Player {
     this.speedMods.run = this.baseMods.run * run;
   }
 
-  /** Arma na mão (null = mãos vazias ou item que não é arma). */
+  /** Arma na mão (null = mãos vazias ou item que não é arma). Troca o desenho e a pose do tronco. */
   setHeld(h: HeldLook | null): void {
-    this.held = h;
+    if ((h?.id ?? null) === (this.held?.id ?? null)) return;
+    if (!h) {
+      this.held = null;
+      this.heldImg.setVisible(false);
+      this.setPose(null);
+      return;
+    }
+    const spec = heldSpec(h.kind);
+    this.held = { id: h.id, spec };
+    const ref = this.assets.ref(`held.${h.id}`);
+    this.heldImg
+      .setTexture(ref.key, ref.frame)
+      .setOrigin((spec.grip + 1) / (spec.len + 2), 0.5)
+      .setVisible(this.sprite.visible)
+      // Arma de fogo na pose fica por baixo do tronco: as mãos (do tronco) seguram por cima.
+      .setDepth(spec.pose === 'melee' ? DEPTH.player + 0.5 : DEPTH.player - 0.2);
+    this.setPose(spec.pose === 'melee' ? null : spec.pose);
+  }
+
+  /** Capacete/boné/gorro e colete vestidos (ids de textura `wear.<item>`), ou null. */
+  setWorn(head: string | null, vest: string | null): void {
+    if (head === this.wornIds[0] && vest === this.wornIds[1]) return;
+    this.wornIds = [head, vest];
+    for (const [img, id] of [[this.headImg, head], [this.vestImg, vest]] as const) {
+      if (!id) {
+        img.setVisible(false);
+        continue;
+      }
+      const ref = this.assets.ref(id);
+      img.setTexture(ref.key, ref.frame).setScale(this.sprite.scaleX).setVisible(this.sprite.visible);
+    }
+  }
+
+  /** Coice do disparo: a arma recua `px` e volta em ~0,1 s. */
+  recoil(px: number): void {
+    this.recoilAt = this.sprite.scene.time.now;
+    this.recoilKick = px;
+  }
+
+  /** Boca do cano no mundo (arma de fogo na mão), ou null. */
+  muzzle(): { x: number; y: number } | null {
+    const h = this.held;
+    if (!h || h.spec.pose === 'melee') return null;
+    const g = this.gripPoint();
+    const a = this.heldImg.rotation;
+    const len = (h.spec.len - h.spec.grip) * HELD_DISPLAY;
+    return { x: g.x + Math.cos(a) * len, y: g.y + Math.sin(a) * len };
+  }
+
+  private setPose(pose: Exclude<HeldPose, 'melee'> | null): void {
+    if (pose === this.pose) return;
+    this.pose = pose;
+    if (pose) {
+      // Segurando arma de fogo: tronco parado na pose (só as pernas andam).
+      this.sprite.anims.stop();
+      const ref = this.assets.ref(`player.torso.${pose}`);
+      this.sprite.setTexture(ref.key, ref.frame);
+    } else {
+      const ref = this.assets.ref('player.torso', 0);
+      this.sprite.setTexture(ref.key, ref.frame);
+      if (this.legs.anims.isPlaying) this.sprite.play({ key: ANIM.torsoWalk, startFrame: 1 });
+    }
+  }
+
+  /** Onde a mão segura a arma (mundo), sem o coice. */
+  private gripPoint(): { x: number; y: number } {
+    const cos = Math.cos(this.facing);
+    const sin = Math.sin(this.facing);
+    const x = this.sprite.x;
+    const y = this.sprite.y;
+    if (this.pose) {
+      const k = PLAYER_TUNING.displaySize / PLAYER_FRAME;
+      const h = ARMED_HANDS[this.pose];
+      // Pega na mão direita; na pistola, entre as duas mãos.
+      const lx = (this.pose === 'pistol' ? h.right[0] + 1.5 : h.right[0]) * k;
+      const ly = (this.pose === 'pistol' ? 0 : h.right[1]) * k;
+      return { x: x + cos * lx - sin * ly, y: y + sin * lx + cos * ly };
+    }
+    // Mão direita do desenho: ~17 px ao lado, um pouco à frente.
+    return { x: x + cos * 5 - sin * 17, y: y + sin * 5 + cos * 17 };
   }
 
   /** Golpe: a arma na mão faz o arco do movimento por um instante. */
@@ -207,21 +297,23 @@ export class Player {
       const frameRate = cyclesPerSecond * 8;
       if (!this.legs.anims.isPlaying) {
         this.legs.play({ key: ANIM.legsWalk, startFrame: 1 });
-        this.sprite.play({ key: ANIM.torsoWalk, startFrame: 1 });
+        if (!this.pose) this.sprite.play({ key: ANIM.torsoWalk, startFrame: 1 });
       }
       const scale = frameRate / 10; // animações criadas a 10 fps
       this.legs.anims.timeScale = scale;
       this.sprite.anims.timeScale = scale;
       if (this.legsReversed !== this.legs.anims.inReverse) {
         this.legs.anims.reverse();
-        this.sprite.anims.reverse();
+        if (!this.pose) this.sprite.anims.reverse();
       }
       this.breath = 0;
     } else if (this.legs.anims.isPlaying) {
       this.legs.anims.stop();
-      this.sprite.anims.stop();
       this.legs.setFrame(this.legs.anims.currentAnim?.frames[0]?.frame.name ?? 0);
-      this.sprite.setFrame(this.sprite.anims.currentAnim?.frames[0]?.frame.name ?? 0);
+      if (!this.pose) {
+        this.sprite.anims.stop();
+        this.sprite.setFrame(this.sprite.anims.currentAnim?.frames[0]?.frame.name ?? 0);
+      }
       this.lastLegFrame = -1;
     } else {
       this.breath += dt;
@@ -251,7 +343,8 @@ export class Player {
     this.shadow.setPosition(x + o.x, y + o.y);
     this.shadow.setAlpha(0.2 + this.shadows.alpha);
 
-    this.drawHeld(x, y);
+    this.placeHeld();
+    for (const img of [this.headImg, this.vestImg]) if (img.visible) img.setPosition(x, y).setRotation(this.sprite.rotation);
 
     this.aimMarker.clear();
     if (this.aiming) {
@@ -270,35 +363,26 @@ export class Player {
     }
   }
 
-  /** Arma saindo da mão direita (a mão do desenho fica ~18 px ao lado, um pouco à frente). */
-  private drawHeld(x: number, y: number): void {
-    const g = this.heldG;
-    g.clear();
+  /** Arma na mão: presa à pega; arma branca faz o arco no golpe; arma de fogo recua no disparo. */
+  private placeHeld(): void {
     const h = this.held;
     if (!h) return;
-    const cos = Math.cos(this.facing);
-    const sin = Math.sin(this.facing);
-    const hx = x + cos * 5 - sin * 17;
-    const hy = y + sin * 5 + cos * 17;
-    if (h.gun) {
-      // Arma de fogo: aponta reto para a frente (cano escuro com brilho).
-      g.lineStyle(5, 0x1e1f22, 1).lineBetween(hx - cos * 3, hy - sin * 3, hx + cos * h.len, hy + sin * h.len);
-      g.lineStyle(1.5, 0x6a6e76, 0.9).lineBetween(hx, hy, hx + cos * h.len, hy + sin * h.len);
-      return;
+    const g = this.gripPoint();
+    let a = this.facing;
+    if (h.spec.pose === 'melee') {
+      // No golpe varre de um lado ao outro (0,18 s); parada, fica inclinada para fora.
+      const t = (this.sprite.scene.time.now - this.strikeAt) / 180;
+      a += t < 1 ? -1.1 + t * 1.7 : 0.55;
     }
-    // Arma branca: no golpe varre de um lado ao outro (0,18 s); parada, fica inclinada para fora.
-    const t = (this.sprite.scene.time.now - this.strikeAt) / 180;
-    const a = this.facing + (t < 1 ? -1.1 + t * 1.7 : 0.55);
-    const ca = Math.cos(a);
-    const sa = Math.sin(a);
-    const grip = h.len * 0.45;
-    g.lineStyle(4, 0x6b4a2c, 1).lineBetween(hx - ca * 4, hy - sa * 4, hx + ca * grip, hy + sa * grip);
-    g.lineStyle(h.blade ? 3.5 : 6, h.blade ? 0xc9ccd2 : 0x5a3c24, 1).lineBetween(hx + ca * grip, hy + sa * grip, hx + ca * h.len, hy + sa * h.len);
+    const kick = this.recoilKick * Math.max(0, 1 - (this.sprite.scene.time.now - this.recoilAt) / 110);
+    this.heldImg.setPosition(g.x - Math.cos(a) * kick, g.y - Math.sin(a) * kick).setRotation(a);
   }
 
   /** Dentro do carro: some da tela e da física (a cena move o corpo junto com o carro). */
   setHidden(hidden: boolean): void {
-    this.heldG.setVisible(!hidden);
+    this.heldImg.setVisible(!hidden && !!this.held);
+    this.headImg.setVisible(!hidden && !!this.wornIds[0]);
+    this.vestImg.setVisible(!hidden && !!this.wornIds[1]);
     this.sprite.setVisible(!hidden);
     this.legs.setVisible(!hidden);
     this.shadow.setVisible(!hidden);

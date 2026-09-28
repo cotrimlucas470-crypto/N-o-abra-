@@ -84,6 +84,7 @@ import type { Zombie } from '../zombies/Zombie';
 import type { ZombieStoreSave } from '../zombies/ZombieStore';
 import { bodyRadius } from '../zombies/ZombieMotion';
 import { PART_NAME } from '../zombies/Wounding';
+import { heldKind, wornArtId } from '../assets/procedural/heldArt';
 import { ZombieViews } from '../world/render/ZombieViews';
 import { ARCHETYPES, type ArchId } from '../zombies/Archetypes';
 import { createZombie } from '../zombies/ZombieFactory';
@@ -148,6 +149,8 @@ export class GameScene extends Phaser.Scene {
   private combat!: Combat;
   private combatFx!: CombatFx;
   private attackCooldown = 0;
+  /** Clarão do disparo que ilumina a noite por um instante. */
+  private muzzleFlash: { x: number; y: number; t: number } | null = null;
   /** Último aviso de ataque de zumbi (não repetir o mesmo texto de vários ao mesmo tempo). */
   private lastAttackText = { text: '', t: -99 };
   private lastMissNote = -99;
@@ -611,6 +614,7 @@ export class GameScene extends Phaser.Scene {
 
   private afterPhysics(): void {
     this.player.setHeld(this.heldLook());
+    this.player.setWorn(...this.wornLook());
     this.player.syncVisuals();
     this.director.update(this.dt);
     // Região antes do mundo: o aviso da região sai antes do aviso da construção.
@@ -631,8 +635,10 @@ export class GameScene extends Phaser.Scene {
       sheltered: this.loop.sheltered,
       player: { x: this.player.x, y: this.player.y },
       flashlight: this.flashlight(),
-      lights: this.lightSources,
+      lights: this.muzzleFlash ? [...this.lightSources, { x: this.muzzleFlash.x, y: this.muzzleFlash.y, radius: 300 * Math.min(1, Math.max(0.3, this.muzzleFlash.t / 0.09)), intensity: 0.95 }] : this.lightSources,
     });
+    // Depois de desenhar: o clarão aparece pelo menos um quadro, mesmo com o jogo lento.
+    if (this.muzzleFlash && (this.muzzleFlash.t -= this.dt) <= 0) this.muzzleFlash = null;
     this.scanTimer -= this.dt;
     if (this.scanTimer <= 0) {
       this.scanTimer = 1 / INTERACTION_TUNING.scanHz;
@@ -735,7 +741,15 @@ export class GameScene extends Phaser.Scene {
       this.combatFx.swing(r.swing.x, r.swing.y, r.swing.angle, r.swing.reach);
       this.player.strike();
     }
-    if (r.tracer) this.combatFx.shot(r.tracer.x1, r.tracer.y1, r.tracer.x2, r.tracer.y2, r.tracer.wall);
+    if (r.tracer) {
+      // O tiro sai da boca do cano desenhada; coice na arma e na tela; clarão ilumina a noite.
+      const m = this.player.muzzle() ?? { x: r.tracer.x1, y: r.tracer.y1 };
+      const heavy = this.inventory.handDef?.gun && this.inventory.handDef.gun.damage >= 50;
+      this.combatFx.shot(m.x, m.y, r.tracer.x2, r.tracer.y2, r.tracer.wall);
+      this.player.recoil(heavy ? 5 : 3);
+      this.cameras.main.shake(heavy ? 90 : 60, heavy ? 0.005 : 0.0025);
+      this.muzzleFlash = { x: m.x, y: m.y, t: 0.09 };
+    }
     if (r.hit) this.combatFx.impact(r.hit.x, r.hit.y, r.hit.hp, r.hit.max);
     if (r.creature) {
       const c = r.creature;
@@ -773,12 +787,21 @@ export class GameScene extends Phaser.Scene {
     return a;
   }
 
-  /** Arma na mão para o desenho do jogador (comprimento pelo tipo/alcance). */
+  /** Arma na mão para o desenho do jogador (textura do item e o tipo de desenho). */
   private heldLook(): HeldLook | null {
     const d = this.inventory.arms > 0 ? null : this.inventory.handDef;
-    if (d?.gun) return { gun: true, len: d.sub === 'rifle' || d.sub === 'espingarda' ? 30 : d.sub === 'automatica' ? 22 : 14 };
-    if (d?.melee) return { gun: false, len: 12 + d.melee.reach * 26, blade: d.melee.kind !== 'impacto' };
-    return null;
+    const kind = d ? heldKind(d) : null;
+    return d && kind ? { id: d.id, kind } : null;
+  }
+
+  /** Capacete/boné/gorro e colete vestidos, para aparecerem no personagem. */
+  private wornLook(): [string | null, string | null] {
+    const art = (slot: 'cabeca' | 'tronco-externo') => {
+      const e = this.inventory.wornIn(slot);
+      const d = e ? itemDef(e.defId) : null;
+      return d ? wornArtId(d) : null;
+    };
+    return [art('cabeca'), art('tronco-externo')];
   }
 
   reload(): void {

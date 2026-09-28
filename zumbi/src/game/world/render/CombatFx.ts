@@ -25,6 +25,7 @@ interface Fx {
   vx?: number;
   vy?: number;
   spin?: number;
+  drawn?: boolean;
 }
 
 /** Estilo do texto que sobe: onde pegou, cabeça, crítico, morte. */
@@ -129,11 +130,15 @@ function ensureTextures(scene: Phaser.Scene): void {
 
 export class CombatFx {
   private readonly g: Phaser.GameObjects.Graphics;
+  /** O que emite luz (clarão, rastro da bala): por cima da escuridão da noite. */
+  private readonly glow: Phaser.GameObjects.Graphics;
   private readonly dust: Phaser.GameObjects.Particles.ParticleEmitter;
   private readonly list: Fx[] = [];
   private readonly bloodFx: Phaser.GameObjects.Particles.ParticleEmitter;
   /** Pedaços na morte (carne escura e osso claro). */
   private readonly gibs: Phaser.GameObjects.Particles.ParticleEmitter;
+  /** Faíscas da bala batendo em parede/metal. */
+  private readonly sparks: Phaser.GameObjects.Particles.ParticleEmitter;
   private readonly splats: Phaser.GameObjects.Image[] = [];
   private readonly holes: Phaser.GameObjects.Image[] = [];
   private splatNo = 0;
@@ -141,6 +146,7 @@ export class CombatFx {
   constructor(private readonly scene: Phaser.Scene) {
     ensureTextures(scene);
     this.g = scene.add.graphics().setDepth(DEPTH.fx);
+    this.glow = scene.add.graphics().setDepth(DEPTH.atmosphere + 0.5);
     this.dust = scene.add.particles(0, 0, TEX.dust, {
       lifespan: { min: 250, max: 500 },
       speed: { min: 30, max: 110 },
@@ -168,6 +174,17 @@ export class CombatFx {
       emitting: false,
     });
     this.gibs.setDepth(DEPTH.fx - 1);
+    this.sparks = scene.add.particles(0, 0, TEX.dust, {
+      lifespan: { min: 90, max: 240 },
+      speed: { min: 140, max: 340 },
+      scale: { start: 0.32, end: 0 },
+      alpha: { start: 1, end: 0 },
+      tint: [0xfff4c8, 0xffd070, 0xffa040],
+      blendMode: 'ADD',
+      emitting: false,
+    });
+    // Acima do telhado: a bala bate na parede debaixo da beirada e as faíscas aparecem na borda.
+    this.sparks.setDepth(DEPTH.atmosphere + 0.5);
   }
 
   /** Espirro de sangue (golpe/tiro/mordida) na direção `dir`. */
@@ -233,10 +250,16 @@ export class CombatFx {
   /** Tiro: rastro, clarão na boca, fumaça, cápsula ejetada e (se parou na parede) furo. */
   shot(x1: number, y1: number, x2: number, y2: number, wall = false): void {
     const a = Math.atan2(y2 - y1, x2 - x1);
-    this.list.push({ kind: 'tracer', t: 0, life: 0.12, x: x1, y: y1, x2, y2 });
+    this.list.push({ kind: 'tracer', t: 0, life: 0.14, x: x1, y: y1, x2, y2 });
     this.list.push({ kind: 'flash', t: 0, life: 0.08, x: x1, y: y1, angle: a });
     this.dust.emitParticleAt(x1 + Math.cos(a) * 8, y1 + Math.sin(a) * 8, 3);
     this.dust.emitParticleAt(x2, y2, wall ? 7 : 5);
+    if (wall) {
+      // Faíscas voltando da parede (para o lado de quem atirou).
+      const back = (a + Math.PI) * (180 / Math.PI);
+      this.sparks.setConfig({ lifespan: { min: 90, max: 240 }, speed: { min: 140, max: 340 }, angle: { min: back - 60, max: back + 60 }, scale: { start: 0.32, end: 0 }, alpha: { start: 1, end: 0 }, tint: [0xfff4c8, 0xffd070, 0xffa040], blendMode: 'ADD', emitting: false });
+      this.sparks.emitParticleAt(x2, y2, 9);
+    }
     // Cápsula: sai pela direita da arma, gira, cai e fica um pouco no chão.
     const side = a + Math.PI / 2 + (Math.random() - 0.5) * 0.6;
     const sp = 110 + Math.random() * 60;
@@ -267,6 +290,8 @@ export class CombatFx {
   update(dt: number): void {
     const g = this.g;
     g.clear();
+    const gl = this.glow;
+    gl.clear();
     for (let i = this.notes.length - 1; i >= 0; i--) {
       const n = this.notes[i]!;
       const st = NOTE_STYLE[n.style];
@@ -288,9 +313,14 @@ export class CombatFx {
       const f = this.list[i]!;
       f.t += dt;
       if (f.t >= f.life) {
-        this.list.splice(i, 1);
-        continue;
+        if (f.drawn) {
+          this.list.splice(i, 1);
+          continue;
+        }
+        // Nunca foi desenhado (jogo lento): aparece pelo menos uma vez.
+        f.t = f.life * 0.6;
       }
+      f.drawn = true;
       const a = 1 - f.t / f.life;
       if (f.kind === 'swing') {
         // Rastro: três arcos que se apagam atrás da ponta da arma.
@@ -304,17 +334,23 @@ export class CombatFx {
           g.strokePath();
         }
       } else if (f.kind === 'tracer') {
-        g.lineStyle(2, 0xffe6a0, 0.85 * a);
-        g.lineBetween(f.x, f.y, f.x2!, f.y2!);
+        // Risco fraco no caminho todo e um traço brilhante que corre da boca do cano até o alvo.
+        const p = Math.min(1, (f.t / f.life) * 1.6);
+        const q = Math.max(0, p - 0.35);
+        const lx = (u: number) => f.x + (f.x2! - f.x) * u;
+        const ly = (u: number) => f.y + (f.y2! - f.y) * u;
+        gl.lineStyle(1, 0xffe6a0, 0.18 * a).lineBetween(f.x, f.y, f.x2!, f.y2!);
+        gl.lineStyle(4, 0xffc860, 0.22 * a).lineBetween(lx(q), ly(q), lx(p), ly(p));
+        gl.lineStyle(1.6, 0xfff6d8, 0.95 * a).lineBetween(lx(q), ly(q), lx(p), ly(p));
       } else if (f.kind === 'flash') {
         // Clarão em estrela na boca do cano.
         const ang = f.angle ?? 0;
-        g.fillStyle(0xfff2c0, 0.95 * a).fillCircle(f.x, f.y, 9 + 9 * a);
-        g.fillStyle(0xffc860, 0.7 * a).fillCircle(f.x + Math.cos(ang) * 10, f.y + Math.sin(ang) * 10, 7 + 6 * a);
-        g.lineStyle(3, 0xfff2c0, 0.9 * a);
+        gl.fillStyle(0xfff2c0, 0.95 * a).fillCircle(f.x, f.y, 9 + 9 * a);
+        gl.fillStyle(0xffc860, 0.7 * a).fillCircle(f.x + Math.cos(ang) * 10, f.y + Math.sin(ang) * 10, 7 + 6 * a);
+        gl.lineStyle(3, 0xfff2c0, 0.9 * a);
         for (const s of [0, 0.5, -0.5, Math.PI / 2, -Math.PI / 2]) {
           const len = (s === 0 ? 30 : 14) * a;
-          g.lineBetween(f.x, f.y, f.x + Math.cos(ang + s) * len, f.y + Math.sin(ang + s) * len);
+          gl.lineBetween(f.x, f.y, f.x + Math.cos(ang + s) * len, f.y + Math.sin(ang + s) * len);
         }
       } else if (f.kind === 'casing') {
         // Voa ~0,25 s girando, depois fica parada no chão e some.
