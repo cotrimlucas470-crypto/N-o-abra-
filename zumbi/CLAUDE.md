@@ -63,6 +63,17 @@ Olhe os prints de `smoke-out/` antes de dizer que ficou bonito. Headless roda a 
 - O mapa continua intocado: parede derrubada é `WallCuts` (trechos cortados) no estado, não no `MapData`.
 - Ajustes de partida em `config/Sandbox.ts` (com faixa válida). Nada de número de balanceamento solto.
 - Ferramentas de debug em `debug/` + `scenes/DebugScene.ts` (só com `?debug`). Cada sistema novo ganha a sua camada.
+- Zumbis (`zombies/`, desenho em docs/ZUMBIS.md): comportamento na mente (`ZombieSystem`), números em
+  `config/ZombieTuning.ts`, dificuldade SÓ em `zombies/Difficulty.ts` (nunca "vida extra" nem regra na IA).
+  Nada nasce perto do jogador nem por tempo. Arte por indivíduo em `procedural/zombieArt.ts`.
+- Todo barulho passa por `world:noise` (a cena manda para `emitNoise`, que também leva o som pela escada
+  aos outros andares). Nada de chamar `NoiseSystem.emit` direto na cena.
+- Andares de cima são CAMADA (`world/floors/`, `addUpperFloors(buildCity(...))`): ficam numa faixa fora da
+  cidade, em chunks só deles. Nunca mudar `buildCity` para caber andar. "Espaço" de um ponto:
+  `model.floors.spaceAt(x, y)` (0 = cidade); coisas de espaços diferentes não se veem nem se ouvem direto.
+- Cidade expandida (`core`): o miolo é a cidade clássica; teste em `tests/floors.test.ts` confere.
+- Item pesado demais para a bolsa vai nos braços (`carryInArms`); não inventar outro jeito de carregar.
+- O smoke congela a IA nas checagens antigas (movimento, portas, itens) e testa zumbis numa seção própria.
 - Sistemas se falam pelo `EventBus` (tipado em `core/EventBus.ts`).
 - HUD trabalha em px CSS (câmera com zoom = DPR). Mundo: 1 tile = 64 px.
 - Comentários explicam o **porquê**, em português.

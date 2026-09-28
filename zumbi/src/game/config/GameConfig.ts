@@ -4,8 +4,8 @@
  */
 
 export const GAME_TITLE = 'Toque de Recolher';
-export const GAME_VERSION = '0.6.0';
-export const GAME_STAGE = 'Sobrevivência sandbox · fabricar e construir';
+export const GAME_VERSION = '0.7.0';
+export const GAME_STAGE = 'Zumbis de verdade · andares, carro e gerador';
 
 /** Tamanho de um tile do mapa, em pixels de mundo. */
 export const TILE = 64;

@@ -1302,7 +1302,10 @@ export class GameScene extends Phaser.Scene {
       .map(([k, n]) => `${k.toLowerCase()} ${n}`)
       .join(' · ');
     const th = this.zombies.threat;
-    return `zumbis ${st.alive} vivos, ${st.dead} corpos · LOD ${st.lod.join('/')} · rotas ${st.paths}/s · fluxo ${st.flow}/s · abatidos ${this.zombies.kills}\n${states}\n${this.zombieViews.textureStats} · vistos ${this.zombieViews.count}${th.grabbed ? ` · AGARRADO ${th.grabbed}` : ''}`;
+    const fl = this.model.floors;
+    const upstairs = fl.any ? this.zombies.store.all.filter((z) => !z.dead && fl.spaceAt(z.x, z.y) > 0).length : 0;
+    const here = this.floor ? `${this.floor.id} (dx ${this.floor.dx}, dy ${this.floor.dy})` : 'térreo';
+    return `zumbis ${st.alive} vivos, ${st.dead} corpos · LOD ${st.lod.join('/')} · rotas ${st.paths}/s · fluxo ${st.flow}/s · abatidos ${this.zombies.kills}\n${states}\n${this.zombieViews.textureStats} · vistos ${this.zombieViews.count}${th.grabbed ? ` · AGARRADO ${th.grabbed}` : ''}\nandares ${fl.list.length} · escadas ${fl.stairs.length} · zumbis nos andares ${upstairs} · aqui: ${here} · geradores com energia ${this.power.poweredCount}`;
   }
 
   /** Debug: todo zumbi perto morre. */

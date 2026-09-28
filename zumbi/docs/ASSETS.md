@@ -209,3 +209,16 @@ Ainda não há id de sprite para trocar por PNG; quando houver arte, o caminho �
 
 Ícones novos de item seguem as famílias de `assets/procedural/itemIcons/` (ex.: tocha = `stick` com
 `k: 'torch'`; pratos = `dish`; balde com água = `bucket`).
+
+## Zumbis, escadas e gerador (v0.7.0)
+
+- **Zumbis** não usam sprite fixo: `assets/procedural/zombieArt.ts` desenha uma folha para CADA zumbi
+  (pernas em 6 quadros, tronco, cabeça, braços, corpo deitado) a partir da aparência sorteada (pele,
+  cabelo, roupa por profissão, sangue, sujeira, decomposição, feridas, membros perdidos) na escala 1,5×.
+  As folhas vão para páginas compartilhadas (`render/SlotAtlas.ts`, 3 páginas de 1900 px para vivos e 2
+  para corpos) com envio parcial à GPU — nada de uma textura por zumbi (o Phaser 4 confundia texturas
+  com mais de 16 na cena). Prévia para desenvolvimento: `npx vite` → `/dev/zombies.html`.
+- **Poça de sangue**: atlas `fx.bloodpool` (4 formas).
+- **Escadas** (`render/StairViews.ts`), **gerador** e rachaduras de portas/janelas/estruturas são
+  `Graphics` desenhados em código (sem id de sprite para substituir por enquanto).
+- **Plantas dos andares**: prévia em `/dev/floors.html` (planta do térreo e do andar lado a lado).

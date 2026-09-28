@@ -32,10 +32,10 @@ por cima do mesmo mapa.
 | 4 | Itens (catálogo ampliado, estado, durabilidade, validade) | ✅ v0.5.0 (371 itens) |
 | 5 | Loot contextual (por tipo de construção e cômodo, finito) | ✅ v0.5.0 (+ frutíferas e recursos renováveis) |
 | 6 | Sobrevivência (fome, sede, sono, cansaço, interligados) | ✅ v0.6.0 (+ temperatura, molhado, enjoo, ânimo) |
-| 7 | Zumbis (indivíduos, estados, variação) | ⏳ próxima (desenho em ZUMBIS.md; navegação já vê construções) |
-| 8 | Percepção (visão, audição, memória) | ⏳ |
-| 9 | Ruído (propagação, paredes, portas) | ⏳ (portas já emitem `world:noise`) |
-| 10 | Combate corpo a corpo | ✅ v0.6.0 (contra objetos, portas e janelas; zumbis na etapa 7) |
+| 7 | Zumbis (indivíduos, estados, variação) | ✅ v0.7.0 (17 arquétipos, corpo por partes, arte própria, população persistente, dificuldade separada) |
+| 8 | Percepção (visão, audição, memória) | ✅ v0.7.0 (cone, luz, clima, acúmulo, palpite do som, memória e busca) |
+| 9 | Ruído (propagação, paredes, portas) | ✅ v0.7.0 (21 tipos, paredes abafam, chuva/vento, entre andares pela escada; arcos na tela) |
+| 10 | Combate corpo a corpo | ✅ v0.7.0 (por parte do corpo, empurrão, agarrão/mordida/derrubada, morte explicada) |
 | 11 | Armas de fogo | ✅ v0.6.0 (munição, recarga, emperrar, barulho) |
 | 12 | Ferimentos (por parte do corpo) | ✅ v0.6.0 |
 | 13 | Medicina | ✅ v0.6.0 |
@@ -45,16 +45,17 @@ por cima do mesmo mapa.
 | 17 | Construção (sem ataques programados) | ✅ v0.6.0 (modo construir, 19 peças, derrubar parede, pregar tábuas) |
 | 18 | Agricultura | ✅ v0.6.0 (canteiro, rega, chuva, adubo, colheita) |
 | 19 | Água | ✅ v0.6.0 (torneira até o corte, descarga, chuva, ferver, purificar) |
-| 20 | Eletricidade | ⏳ |
+| 20 | Eletricidade | 🟡 v0.7.0 (gerador: luz, geladeira, extensão, fumaça; falta carregar aparelhos) |
 | 21 | Dia/noite (sem hordas noturnas) | ✅ v0.6.0 |
 | 22 | Clima e temperatura | ✅ v0.6.0 |
-| 23 | Veículos | 🟡 v0.6.0 (portas, compartimentos, peças, gasolina; falta dirigir) |
+| 23 | Veículos | ✅ v0.7.0 (dirigir, ligação direta, atropelo, cerco de zumbis, pose salva) |
 | 24 | NPCs (só depois da base estável) | ⏳ |
 | 25 | Save completo (slots, backup automático, migração) | 🟡 v0.6.0 (save no aparelho, backup, arquivo do jogo antigo; falta escolher slots) |
 | 26 | Configurações | ⏳ |
-| 27 | Debug (ferramentas finais) | ⏳ (cada etapa acrescenta as suas) |
+| 27 | Debug (ferramentas finais) | 🟡 (zumbis, estragos, andares e energia já têm camada/números) |
 | 28 | Otimização Android (APK) | ⏳ |
 | 29 | Polimento (animações, áudio, arte) | ⏳ |
+| + | Andares (1º, 2º, 3º) e cidade expandida 5×5 | ✅ v0.7.0 (camadas: a cidade de sempre não muda) |
 
 ## Filosofia (vale para todas as etapas)
 
@@ -92,4 +93,6 @@ por cima do mesmo mapa.
   hospital e delegacia já existem; falta a construção no mapa).
 - Carregar móvel do mapa para outro lugar (hoje: desmontar e reconstruir).
 - Oclusão da luz da lanterna pelas paredes.
-- Andar de cima (prédios de vários andares, telhado construído que esconde o interior).
+- Telhado construído que esconde o interior; escada construída pelo jogador.
+- Zumbis derrubando paredes do mapa com o tempo; pular muro.
+- Gerador carregando aparelhos (celular, rádio, lanterna recarregável); rede elétrica que cai com os dias.

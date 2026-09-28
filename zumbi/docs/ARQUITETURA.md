@@ -222,3 +222,31 @@ suas camadas.
   no fim da ação, gasta (garrafa pela metade antes da cheia), desgasta, devolve o recipiente vazio e
   entrega (comida nasce fresca; ingrediente estragado deixa o prato contaminado).
 - `CraftService.ts` descobre as estações por perto e faz a ponte com o relógio (ação com tempo).
+
+## Zumbis, som, andares, direção e energia (v0.7.0)
+
+- **Zumbis** (`zombies/`, desenho e mapa dos módulos em [ZUMBIS.md](ZUMBIS.md)): dado puro + `ZombieSystem`
+  (mente) + `render/ZombieViews.ts` (desenho). A colisão dos zumbis é exata e independente da física do
+  Phaser: `sim/SolidIndex.ts` (paredes com cortes, objetos, portas fechadas, construções sólidas e carros
+  que saíram do lugar), por chunk, invalidado pelas mudanças do `WorldState`.
+- **Navegação** ganhou a camada "quebrável" (`NavGrid.soft`: porta fechada, janela, construção do
+  jogador): o A* pode atravessar com custo extra e o `FlowField` (Dijkstra numa janela em volta do alvo,
+  Float64, cada célula uma vez) serve todos os perseguidores.
+- **Som** (`sim/Noise.ts`): a cena solta todo barulho por `emitNoise()` (passos, portas, golpes, tiros,
+  motor, gerador, gemidos), que também repassa pela escada aos outros andares (`floors/NoiseBridge.ts`)
+  e avisa o HUD do que o jogador ouviu.
+- **Andares** (`world/floors/`): `addUpperFloors(buildCity(...))` acrescenta andares como CAMADA — cada
+  andar mora numa faixa abaixo da cidade, em chunks só dele (`Floors.spaceAt` diz o espaço de um ponto
+  pelo chunk). Num andar, o `WorldRenderer` carrega só os chunks do andar + os da rua lá embaixo, o chão do
+  andar é um tilemap próprio, e `render/FloorCamera.ts` desenha a rua com uma segunda câmera (atrás da
+  principal, alinhada pelo deslocamento do andar). A física e a câmera trocam de limites ao mudar de andar.
+- **Cidade expandida**: `buildCity({ ..., core: 3 })` gera o miolo igual à cidade 3×3 (mesmas sementes
+  por setor) e um anel de arredores; o teste de "mapa expandido preservado" continua valendo para a 3×3.
+- **Direção** (`vehicles/Driving.ts` física pura + `DriveSession.ts` regra): o carro que sai do lugar vira
+  camada (`Vehicles.setPose`, `WorldState.moveVehicle`): some do desenho/colisão original, ganha colisores
+  dinâmicos, a pose vai para o save e os recipientes do carro acompanham (`LootSystem.moveRefsOf`).
+- **Energia** (`build/Power.ts` regras + `PowerSystem.ts` tempo): gerador é uma estrutura (`power`), a
+  gasolina é contada pelo relógio; o sistema solta o barulho, mantém quais prédios têm energia (luz dos
+  cômodos, geladeira) e mede a fumaça no prédio do jogador.
+- **Peso nos braços**: item acima de `INVENTORY_TUNING.armsKg` que não cabe na bolsa vai para a mão
+  (`PlayerInventory.carryInArms`); `Crafting` enxerga o que está nos braços como ingrediente.

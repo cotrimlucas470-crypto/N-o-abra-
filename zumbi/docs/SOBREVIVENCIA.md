@@ -50,3 +50,17 @@ chuva e horta seguem o relógio). Tudo serializa. Nada de arquivo gigante.
 - Paredes: madeira 300, tijolo 900, chapa 1200 de resistência (os zumbis vão usar isso).
 - Derrubar parede do mapa: 45 min, cansaço +8, barulho de 750 px, rende 3 tijolos.
 - Horta: `Sandbox.farming.growthSpeed` = 4 (tomate 15 dias); 2 dias sem água param, 5 matam.
+
+## Direção, gerador e peso nos braços (v0.7.0)
+
+- **Dirigir** (`vehicles/Driving.ts`, números em `DRIVE_TUNING`): 470 px/s no máximo (≈34 km/h na escala
+  do jogo), ré 150; tanque de 45 L ≈ 10 km; motor, pneus e lataria gastos deixam o carro mais lento;
+  batida acima de 90 px/s amassa (acima de 300 estoura o vidro da frente e machuca quem dirige);
+  atropelo acima de 70 px/s. Barulho: motor ~520–950 px, buzina 1600, batida 500+.
+- **Gerador** (`build/Power.ts`): tanque de 12 L; 0,5 L/h (+0,15 L/h com as luzes); barulho de 900 px a
+  cada 2,5 s; extensão alcança 8 tiles até a parede do prédio; geladeira ligada: a comida envelhece 20%
+  do tempo; fumaça no mesmo prédio: enjoo +0,006/min e, acumulando, vida caindo até 0,5/min.
+- **Nos braços**: item a partir de 8 kg que não cabe na bolsa (`INVENTORY_TUNING.armsKg`); sem correr,
+  andar até 45% mais lento conforme o peso, fôlego gasta mais, não dá para lutar (empurrar dá).
+- **Pular de andar**: do 1º andar, torção (70%) ou fratura (30%) na perna; do 2º, fratura e pancada;
+  do 3º, pode matar.

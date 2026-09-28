@@ -7,6 +7,33 @@
 
 Implementação na **Fase 5**, em subfases. A Fase 1 já prepara o terreno (ver §10).
 
+## Como ficou (v0.7.0)
+
+| Módulo | O que faz |
+|---|---|
+| `zombies/Archetypes.ts` | 17 arquétipos (roupa por profissão, faixas de corpo e mente, equipamento, cômodos onde nascem) |
+| `zombies/ZombieFactory.ts` | indivíduo pela semente: aparência (`ZombieLook`) e traços (`ZombieTraits`), ferimentos antigos |
+| `zombies/Zombie.ts` | o zumbi como dado: 11 partes do corpo, mente (estado, alerta, memória, alvo, agarrão, pancada, escalada, escada), save por diferença |
+| `zombies/Population.ts` | população inicial por prédio/cômodo e na rua; corpos antigos; zona segura do jogador |
+| `zombies/ZombieStore.ts` | grade espacial de 128 px; save/restauração |
+| `zombies/Senses.ts` | visão (cone, periferia, luz, lanterna, clima, linha de visão, acúmulo) |
+| `zombies/ZombieSystem.ts` | a mente: estados, percepção, audição, memória, rotas (campo de fluxo + A*), grupos, obstáculos, escadas, LOD |
+| `zombies/ZombieMotion.ts` | passo com giro limitado, mancar, colisão exata (`sim/SolidIndex.ts`), separação, empurrão no jogador |
+| `zombies/ZombieObstacles.ts` | portas (empurrar/bater), janelas (vidro, pular), tábuas e estruturas; pressão do grupo |
+| `zombies/Assault.ts` | ataques no jogador: patada, agarrão, empurrão, bote, mordida, tornozelo (trauma, infecção, derrubada) |
+| `zombies/Wounding.ts` | golpe/tiro/empurrão/atropelo por parte do corpo; cambaleio, queda, membro arrancado |
+| `zombies/Difficulty.ts` | 16 ajustes fora da IA + 4 presets (Passeio, Sobrevivência, Apocalipse, Extinção) |
+| `zombies/CorpseLoot.ts` | o que cada corpo carrega (bolsos, trabalho, roupa, mochila) — REVISTAR |
+| `sim/Noise.ts` | sons com tipo, alcance, andar, paredes, clima e palpite do lugar |
+| `world/floors/NoiseBridge.ts` | som entre andares pela escada |
+| `assets/procedural/zombieArt.ts` + `render/ZombieViews.ts` + `render/SlotAtlas.ts` | arte única por zumbi, animação e páginas de textura compartilhadas |
+| `survival/Death.ts` + `ui/ThreatUi.ts` | morte explicada; AGARRADO/NO CHÃO; arcos de audição |
+
+Números em `config/ZombieTuning.ts` e `config/NoiseTuning.ts`. Andares: um zumbi está no "espaço" do andar
+em que pisa (`world/floors/Floors.ts`); espaços diferentes não se veem nem se ouvem direto; a escada liga
+(zumbi que chega nela atrás do jogador ou de um som de outro andar sobe/desce em 1,3–3 s, mais devagar
+mancando ou rastejando).
+
 ---
 
 ## 1. Um zumbi é dado, não um sprite

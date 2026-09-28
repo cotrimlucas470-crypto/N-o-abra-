@@ -3,17 +3,15 @@
 Jogo **original** de sobrevivência zumbi em 2D, câmera de cima (top-down), feito para **celular Android**.
 (Nome provisório — muda em `src/game/config/GameConfig.ts`.)
 
-> Estado atual: **v0.6.0 · sobrevivência sandbox**. Cidade de vários setores em chunks; **406 itens** com
-> função real (comer, beber, vestir, segurar, ligar, tratar ferida, ler, recarregar, cozinhar, consertar,
-> remendar, afiar, lavar, rasgar, desmontar); loot contextual finito; **dia e noite, calendário, clima e
-> temperatura**; corpo (fome, sede, sono, frio/calor, molhado, enjoo, ânimo) e **ferimentos por parte do
-> corpo** com tratamento; golpe e tiro contra um mundo destrutível; **carros** com portas, porta-luvas,
-> bancos, porta-malas, gasolina, bateria e pneus; **69 receitas** (cozinha, curativos, ferramentas, armas);
-> fogueira, água da torneira até o corte, chuva, fervura; **modo construir** (paredes de madeira, tijolo e
-> chapa, portas, janelas, piso, telhado, cama, mesa, baú, estante, bancada, fogão a lenha, coletor de
-> chuva, horta), **derrubar paredes** do mapa e **pregar tábuas** em janelas; save no aparelho com backup.
-> Ainda **não há zumbis** nem direção de veículos. Veja [docs/ROADMAP.md](docs/ROADMAP.md) (ordem das 29 etapas),
-> o plano em [docs/PLANO-GERAL.md](docs/PLANO-GERAL.md), o desenho da sobrevivência em
+> Estado atual: **v0.7.0 · zumbis de verdade**. **Zumbis como indivíduos** (17 arquétipos, arte própria,
+> corpo por 11 partes sem barra de vida, visão/audição/memória, grupos, portas e janelas que cedem,
+> agarrão, mordida, derrubada, infecção, morte explicada) com **dificuldade ajustável** (Passeio,
+> Sobrevivência, Apocalipse, Extinção); **som** com direção na tela; **dirigir carro** (atropelo, cerco
+> ao carro, ligação direta); **gerador** (luz, geladeira, extensão, barulho e fumaça); **andares** (1º, 2º
+> e 3º, com a rua visível lá embaixo e zumbis subindo a escada); **cidade expandida 5×5** com a cidade de
+> sempre no meio. Continua tudo da v0.6.0: 406 itens com função, loot finito, corpo, clima, ferimentos,
+> 70 receitas, construção, água, save com backup. Veja [docs/ROADMAP.md](docs/ROADMAP.md) (ordem das
+> etapas), o desenho dos zumbis em [docs/ZUMBIS.md](docs/ZUMBIS.md), o da sobrevivência em
 > [docs/SOBREVIVENCIA.md](docs/SOBREVIVENCIA.md) e o que cada etapa fez em [docs/FASES.md](docs/FASES.md).
 
 Este jogo mora na pasta `zumbi/` e é independente do jogo "NÃO ABRA" que está na raiz do repositório.
@@ -41,6 +39,8 @@ Há três caminhos, do mais rápido ao mais completo:
 | Botão com a mão: interagir (porta, pegar, abrir, colher, beber na torneira, pôr lenha, dormir...) | E |
 | Botão **⋯**: todas as ações por perto (desmontar, pregar tábuas, cozinhar aqui, plantar, regar...) | Q |
 | Botão de golpe: atacar com o que está na mão (ou atirar) · botão de recarregar com arma de fogo | F ou espaço · R |
+| **EMPURRAR** (afasta/derruba quem está na frente; solta agarrão) · **FURTIVO** (devagar e quase sem barulho) | G · C |
+| Escada: **SUBIR/DESCER** · no carro: joystick aponta para onde ir (para trás = ré), Interagir sai, Atacar buzina | E · F |
 | Botão com a mochila: painel **ITENS / FABRICAR / CORPO / TEMPO** | I |
 | Modo construir (FABRICAR → CONSTRUIR): ande e vire para escolher o lugar; **CONSTRUIR · GIRAR · SAIR** | — |
 | ⏸ pausa (SALVAR, MENU) · ⛶ tela cheia | Esc ou P pausa |
@@ -49,7 +49,8 @@ Parâmetros úteis na URL: `?debug` ou `#debug` no fim do link (painel **DBG**: 
 teleporte, hora, estado das portas, ruído, gerar item, trancar porta, loot dos recipientes, Dia +1), `?direto` (pula a tela de título), `?toque` (força os controles de toque no PC),
 `?setores=1x1` (cidade menor), `?semente=42` (outra cidade), `?hora=20` (começa às 20h),
 `?loot=0.5` (metade do loot), `?colapso=90` (mundo 90 dias depois do colapso: comida estragada, remédio vencido),
-`?mes=7` (começa no inverno), `?chuva=2` (chove o dobro), `?agua=0` e `?gas=0` (água e gás já cortados).
+`?mes=7` (começa no inverno), `?chuva=2` (chove o dobro), `?agua=0` e `?gas=0` (água e gás já cortados),
+`?zumbis=0` (sem zumbis) ou `?zumbis=2` (o dobro), `?dificuldade=passeio|sobrevivencia|apocalipse|extincao`.
 
 ---
 
@@ -109,15 +110,16 @@ zumbi/
 │       ├── survival/       corpo, efeitos, sono, perigos, laço da sobrevivência
 │       ├── health/         ferimentos e tratamentos por parte do corpo
 │       ├── combat/         golpe, tiro, alvos destrutíveis
-│       ├── vehicles/       estado dos carros
+│       ├── vehicles/       estado dos carros, física e sessão de direção
+│       ├── zombies/        zumbis: indivíduos, população, sentidos, mente, ataques, ferimentos, dificuldade
 │       ├── crafting/       receitas, fabricação, estações, modo construir
-│       ├── build/          construções do jogador, fogo, horta, coletor, vãos em paredes do mapa
+│       ├── build/          construções do jogador, fogo, horta, coletor, gerador/energia, vãos em paredes do mapa
 │       ├── skills/         habilidades
 │       ├── save/           save no aparelho com backup
 │       ├── assets/         registro de sprites, atlas, substituição por PNG, arte procedural
 │       ├── entities/       personagem (lógica pura + parte visual)
 │       ├── input/          intenção do jogador; teclado/mouse; joysticks e botões de toque
-│       ├── world/          mapa como dado, cidade (setores), plantas, navegação/visão, desenho em chunks
+│       ├── world/          mapa como dado, cidade (setores), plantas, andares (floors/), navegação/visão, desenho em chunks
 │       ├── systems/        câmera, tela/DPR, tela cheia
 │       ├── scenes/         Boot → Preload → Título → Jogo (+ HUD e Debug por cima)
 │       ├── debug/          ferramentas de debug (só com ?debug)

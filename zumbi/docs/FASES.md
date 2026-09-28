@@ -5,6 +5,128 @@ O que cada etapa entregou, como foi testado e o que ficou pendente. A ordem das 
 
 ---
 
+## Zumbis de verdade, dirigir, gerador, andares e cidade expandida (v0.7.0)
+
+Pedido: zumbis **realistas, profundos e persistentes** — cada um um indivíduo no mundo (estados, visão,
+audição, memória, corpo por partes, agarrão/mordida/derrubada, portas/janelas/estruturas, grupos,
+andares, persistência, LOD e debug) — mais um sistema de **dificuldade separado da IA**, "detalhe máximo"
+na arte e na mecânica, e ainda **gerador, dirigir carro, ruído melhor, densidade, 2º/3º/4º andar e mapa
+maior** ("o principal é os zumbis"). Desenho técnico em [ZUMBIS.md](ZUMBIS.md).
+
+### Z1 Ruído
+- `sim/Noise.ts`: todo som é um evento com tipo (21 tipos: passo, corrida, furtivo, porta, vidro, golpe,
+  tiro, batida, demolição, motor, buzina, alarme, gerador, zumbi...), posição, alcance, andar e origem.
+  Paredes abafam (contadas na grade de visão), chuva e vento mascaram; quem ouve recebe um **palpite** do
+  lugar (erro cresce com a distância e as paredes), nunca a posição exata.
+- O jogador também ouve: **arcos na borda da tela** na direção do som ("gemido", "vidro", "motor"...),
+  vermelhos quando é perigo (o jogo não tem áudio ainda).
+
+### Z2 Indivíduos, corpo e população
+- 17 arquétipos (morador, idoso, caixa, farmacêutico, cozinheiro, mecânico, operário, policial, militar,
+  enfermeiro, corredor, morador de rua, executivo...) → cada zumbi sorteia aparência (pele, cabelo,
+  roupa e cor por profissão, sapatos, óculos, chapéu, mochila, colete) e traços (força, velocidade,
+  coordenação, visão, audição, memória, agressividade, gregarismo) com semente própria.
+- Corpo por **11 partes** com integridade (sem barra de vida): perna ruim manca, as duas arrasta/rasteja,
+  braço perdido não agarra, cabeça destruída mata; ferimentos antigos de antes do colapso.
+- `zombies/Population.ts`: população por prédio e cômodo (densidade por tipo), grupos na rua, 12% de
+  corpos antigos; nada nasce perto do jogador nem dentro do abrigo; **nunca** por timer. Save por diferença
+  (semente + o que mudou).
+
+### Z3 IA
+- Máquina de estados (parado, vagando, alerta, investigando, perseguindo, atacando, agarrando, mordendo,
+  perdendo o alvo, procurando, voltando, grupo, cambaleando, caído, levantando, morto).
+- Visão com cone e periferia, luz (dia/noite, lanterna, fogo, lanterna do carro), chuva/neblina e linha de
+  visão; percebe **acumulando** (de longe demora). Memória do último lugar visto/ouvido; procura em volta.
+- Rotas: **campo de fluxo** para quem persegue (uma conta para todos), A* com custo para obstáculo
+  quebrável, fila de rotas com orçamento por quadro. Grupos seguem um líder e se chamam com gemidos.
+- Níveis de simulação: completo perto, simplificado no meio (0,2 s), longe a cada 2,5 s pela grade.
+
+### Z4 Combate e ambiente
+- Ataques do zumbi: patada, **agarrão** (barra de se soltar: empurrar, bater, puxar), empurrão, bote,
+  **mordida** (pescoço/cabeça pior; no chão pior ainda), pegar o tornozelo de quem rasteja. Vários
+  agarrando = derrubado; no chão com vários em cima não levanta. Mordida quase sempre infecta
+  (febre, delírio, morte em 1,5–3 dias).
+- O jogador acerta partes do corpo (golpe, tiro, empurrão, atropelo); cambaleio e queda; membro arrancado.
+- Portas e janelas: zumbi empurra porta destrancada, **bate** na trancada/barricada (o grupo soma
+  força; madeira ≈80 s com 1, ≈11 s com 5), estoura vidro, pula janela quebrada. Estruturas do jogador
+  racham e caem (100→80→50→20→destruída, com rachaduras no desenho).
+- **Morte explicada**: tela com a causa e o que pesou (cercado, peso demais, sem fôlego, perna ferida,
+  barulho, escuro, mordida antiga) e CARREGAR ÚLTIMO SAVE (nunca apagado).
+- Botões novos: **EMPURRAR** (G) e **FURTIVO** (C: metade da velocidade, passos quase mudos).
+
+### Z5 Arte e animação
+- `assets/procedural/zombieArt.ts`: uma folha própria por zumbi (pernas em 6 quadros, tronco, cabeça,
+  braços, corpo deitado) com roupa, sangue, sujeira, decomposição, feridas e membros perdidos; corpo
+  morto com poça de sangue que cresce.
+- `render/SlotAtlas.ts`: páginas de textura compartilhadas com envio parcial à GPU (o Phaser 4 trocava a
+  textura do jogador quando havia mais de 16 texturas na cena).
+- Animação: braços caídos vagando e esticados perseguindo, mancar, rastejar, cambalear, piscar ao
+  apanhar, cair e levantar.
+
+### Z6 Dificuldade, debug e testes
+- `zombies/Difficulty.ts`: 16 ajustes separados da IA (população, corredores, velocidade, força,
+  resistência, visão, audição, agressividade, memória, dano, agarrão, grupos, destruição, migração,
+  infecção, derrubada) e 4 presets na tela inicial: **Passeio, Sobrevivência, Apocalipse, Extinção**.
+- Debug (`?debug`): cones de visão, memória, alvo, rota, busca, líder do grupo, quem bate em quê,
+  estragos de portas/janelas/estruturas, "Zumbi aqui", "Bando atrás", "Matar perto", "Congelar IA" e
+  números (LOD, rotas/s, campo de fluxo/s, estados, andares).
+
+### V1 Dirigir carro e gerador
+- `vehicles/Driving.ts` + `DriveSession.ts`: física de bicicleta (parado não gira), ré apontando para
+  trás, gasolina, motor/pneus/lataria pesam; colisão exata da lataria com o mundo; batida amassa e
+  machuca; **atropelo** acerta pernas/tronco e derruba; zumbis **cercam o carro parado**, amassam,
+  estouram o vidro e agarram pela janela do motorista. Ligação direta (chave de fenda + alicate),
+  buzina, faróis à noite, painel (km/h, gasolina, lataria). O carro fora do lugar é camada: a pose vai
+  para o save e o porta-malas vai junto.
+- **Gerador** (`build/Power.ts`, `PowerSystem.ts`): instalar pelo modo construir, abastecer com galão,
+  ligar/desligar (gasto às vezes não pega), gasolina pelo relógio. O motor faz **barulho que chama zumbi
+  de longe**; energia no prédio onde está ou no da **extensão** puxada; luz nos cômodos à noite; a
+  geladeira segura a comida (envelhece 20% do tempo). Ligado **dentro de casa a fumaça intoxica** (e
+  mata dormindo — a tela de morte explica).
+- **Coisa pesada nos braços** (gerador, cimento, bateria de carro): vai na mão, anda devagar, sem correr
+  nem lutar; serve de ingrediente; PÔR AQUI no porta-malas.
+
+### M1 Andares e cidade expandida
+- `world/floors/`: **1º, 2º e 3º andares** (prédios de 4 pavimentos) como **camada**: cada andar fica numa
+  faixa fora da cidade, em chunks só dele, com as medidas do prédio; plantas procedurais (casa,
+  apartamento sobre loja, escritório) com quartos, banheiro, cozinha, sala e móveis com loot; escada no
+  térreo num canto livre e o mesmo vão em todos os andares. A cidade não muda (teste).
+- Lá de cima, **uma segunda câmera desenha a rua embaixo** alinhada com o andar: dá para ver os zumbis
+  juntando na porta. Janela de andar alto: pular vira queda (torção/fratura; do 3º pode matar).
+- Som passa entre os andares **pela escada** (abafado pela laje); zumbis de andares diferentes não se
+  enxergam nem se ouvem direto; **sobem e descem** atrás do jogador ou do barulho.
+- **Cidade expandida 5×5** (padrão do jogo novo): o miolo 3×3 é idêntico à cidade de sempre (teste compara
+  objetos, paredes, prédios e chão) e em volta há um anel de arredores novos; seletor na tela inicial
+  (Expandida 5×5 / Clássica 3×3 / Pequena 1×1). Saves antigos continuam na cidade com que foram criados.
+
+### Correções importantes
+- **Travada de segundos** perseguindo o jogador em certos pontos: o campo de fluxo guardava distâncias em
+  Float32 e entradas velhas do heap nunca eram descartadas (12 milhões de passos, ~8 s num quadro). Agora
+  Float64 e cada célula uma vez (teste de regressão).
+- Fechar a cena do jogo (carregar save na tela de morte) quebrava ao tirar colisores de um grupo de física
+  já desmontado. Cor curta (`#abc`) virava NaN em gradiente.
+
+### Testes e medições
+- **338 testes** em 24 arquivos (novos: zumbis, direção, gerador/energia, andares, cidade expandida,
+  campo de fluxo).
+- Smoke no navegador: IA parada nas checagens antigas + seção de zumbis (percebem, desenhados), andares
+  (SUBIR, vista da rua, voltar) e carro (entra, acelera, sai).
+- Desempenho (Node, desktop): cidade expandida com andares gerada em ~0,5 s; **723 zumbis** (Sobrevivência)
+  a 0,26 ms/quadro em média; **2.521** (Extinção) a 0,67 ms, pior quadro 22 ms. Campo de fluxo: 2,8 ms
+  em média (p99 5 ms).
+
+### Pendências conhecidas
+- O navegador de teste deste ambiente está rodando a **~4 FPS** (sem GPU): 4 checagens do smoke que medem
+  velocidade em tempo real falham (correr, andar pelo teclado, andar com o inventário aberto) — a versão
+  v0.6.0 falha 5 do mesmo tipo hoje. FPS de verdade só num aparelho.
+- Sem áudio (os sons existem como eventos e aparecem na tela).
+- Zumbis não quebram paredes do mapa (só portas, janelas e o que o jogador construiu); não sobem em muros.
+- Andares: saves de antes dos andares ganham os zumbis dos andares ao carregar, mas prédios que já
+  estavam saqueados no térreo não mudam; não dá para construir escada nova.
+- Gerador não carrega aparelhos a bateria (celular, rádio) — só luz e geladeira por enquanto.
+
+---
+
 ## Sobrevivência sandbox: itens com função, corpo, ferimentos, veículos, fabricação e construção (v0.6.0)
 
 Pedido: **função real para todos os itens**, veículos saqueáveis com estado, tempo/calendário/clima,
