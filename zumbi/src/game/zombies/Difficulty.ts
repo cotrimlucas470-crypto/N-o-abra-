@@ -68,7 +68,9 @@ export const ZOMBIE_PRESETS: Record<ZombiePresetId, { name: string; description:
   },
 };
 
-export function difficultyFrom(z: ZombieSettings): ZombieDifficulty {
+export function difficultyFrom(given: ZombieSettings | undefined): ZombieDifficulty {
+  // Save de antes dos zumbis não tem `zombies`: usa o padrão (nada de travar ao carregar).
+  const z: ZombieSettings = { ...ZOMBIE_PRESETS.sobrevivencia.settings, ...(given ?? {}) };
   return {
     population: z.population,
     sprinters: z.sprinters,
