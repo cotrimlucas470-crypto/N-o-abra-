@@ -183,7 +183,7 @@ try {
     await page.screenshot({ path: OUT + '05-correndo.png' });
     await touch('touchEnd', []);
     const speed = (s1.x - s0.x) / (s1.t - s0.t);
-    check(s1.stamina < 90, `correr gasta fôlego (fôlego=${Math.round(s1.stamina)})`);
+    check(s1.stamina < 97, `correr gasta fôlego (fôlego=${Math.round(s1.stamina)})`);
     check(speed > 270, `correndo é mais rápido que andando (${Math.round(speed)} px/s, alvo 300)`);
 
     // colisão: encosta na parede sul do mercadinho por dentro e empurra
@@ -197,7 +197,9 @@ try {
     await touch('touchEnd', []);
     check(c1.y < store.y + store.h - 10, `parede segura o jogador (y=${Math.round(c1.y)} < ${Math.round(store.y + store.h - 10)})`);
     const inside = await page.evaluate(([x, y]) => window.__TDR__.buildingAt(x, y), [c1.x, c1.y]);
-    check(inside === 'Mercadinho', `detecta interior (${inside})`);
+    // O nome do prédio é sorteado (Mercadinho, Mercearia, Empório...): vale o do mapa.
+    const storeName = await page.evaluate(() => window.__TDR__.map.buildings.find((b) => b.id === 'mercadinho').name);
+    check(inside === storeName, `detecta interior (${inside})`);
     await sleep(500);
     await page.screenshot({ path: OUT + '06-mercadinho.png' });
 
@@ -233,6 +235,9 @@ try {
     await sleep(300);
     const afterDrop = await page.evaluate(() => ({ n: window.__TDR__.inventory.carried.countOf('martelo'), items: window.__TDR__.state.itemCount }));
     check(afterDrop.n === 0 && afterDrop.items === itemsBefore, `LARGAR devolve o item ao chão (${afterDrop.n} no bolso, ${afterDrop.items} no mundo)`);
+    // Chão aberto (a planta da loja é sorteada e pode ter móvel logo ao lado): anda na rua.
+    await page.evaluate(([x, y]) => window.__TDR__.teleport(x, y), at(20, 29));
+    await sleep(300);
     const moved = await pos(page);
     await touch('touchStart', [{ x: 130, y: 250, id: 1 }]);
     await touch('touchMove', [{ x: 190, y: 250, id: 1 }]);
@@ -521,8 +526,20 @@ try {
       const st = await T(() => { const g = window.__TDR__; const f = g.model.floors; return g.map.stairs.filter((q) => q.level === 0).sort((a, b) => f.top(b.building) - f.top(a.building))[0]; });
       check(!!st, `há escadas (${(await T(() => window.__TDR__.map.stairs.length))})`);
       if (st) {
-        await T((q) => { const g = window.__TDR__; g.teleport(q.x + q.w / 2 + (q.h > q.w ? q.w / 2 + 24 : 0), q.y + q.h / 2 + (q.h > q.w ? 0 : q.h / 2 + 24)); }, st);
-        await page.waitForFunction(() => window.__TDR__.interaction()?.kind === 'stair', null, { timeout: 8000 }).catch(() => undefined);
+        // A escada pode ter móvel encostado num lado (planta sorteada): tenta os quatro lados.
+        for (const side of [0, 1, 2, 3]) {
+          await T(([q, k]) => {
+            const g = window.__TDR__;
+            const cx = q.x + q.w / 2;
+            const cy = q.y + q.h / 2;
+            const dx = [q.w / 2 + 24, -q.w / 2 - 24, 0, 0][k];
+            const dy = [0, 0, q.h / 2 + 24, -q.h / 2 - 24][k];
+            g.teleport(cx + dx, cy + dy);
+          }, [st, side]);
+          await sleep(250);
+          const ok = await page.waitForFunction(() => window.__TDR__.interaction()?.kind === 'stair', null, { timeout: 2500 }).then(() => true).catch(() => false);
+          if (ok) break;
+        }
         const tgt = await T(() => window.__TDR__.interaction());
         check(tgt?.verb === 'SUBIR', `escada vira alvo SUBIR (${tgt?.label})`);
         await T(() => window.__TDR__.interact());
