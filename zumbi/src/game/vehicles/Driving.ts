@@ -59,7 +59,25 @@ export const CAR_REPAIR = {
   oil: { minutes: 15, gain: 0.1, cap: 0.7, minCharge: 0.5 },
   /** Remendo do pneu furado (borracha + cola). */
   patch: { minutes: 15, chance: 0.6, chancePerLevel: 0.08, result: 0.5 },
+  /** Desmontar carro inutilizado (chave inglesa): minutos e o que sai (mínimo–máximo). */
+  strip: {
+    minutes: 45,
+    yields: { pecasMotor: [0, 2], sucata: [3, 6], parafusos: [6, 14], fioEletrico: [1, 2], chapaMetal: [0, 1] } as Record<string, readonly [number, number]>,
+  },
 } as const;
+
+/** Controle de celular: volante (−1..1) e pedais (0..1). Freio com o carro parado vira ré; os dois juntos = freio. */
+export function pedalControls(steer: number, gas: number, brake: number): { throttle: number; steer: number } {
+  const t = brake > 0.05 ? -clamp(brake, 0, 1) : gas > 0.05 ? clamp(gas, 0, 1) : 0;
+  return { throttle: t, steer: clamp(steer, -1, 1) };
+}
+
+/** Volante de toque: quanto o dedo andou para o lado (px) desde que encostou → −1..1. */
+export function wheelSteer(dx: number, radius: number): number {
+  const v = clamp(dx / Math.max(1, radius * 0.85), -1, 1);
+  // Zona morta pequena no meio: o carro anda reto sem tremer.
+  return Math.abs(v) < 0.06 ? 0 : v;
+}
 
 /** Chance de o motor pegar numa tentativa de partida. */
 export function startChance(engine: number): number {

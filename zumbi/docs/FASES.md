@@ -5,6 +5,51 @@ O que cada etapa entregou, como foi testado e o que ficou pendente. A ordem das 
 
 ---
 
+## Sobrevivência: necessidades, sono, ficha, mapa, moradia, expedição e carro no celular
+
+- **P1 Necessidades**:
+  - fome, sede e sono agora sobem devagar, conforme a atividade (parado, andando, correndo, lutando), o peso carregado, o calor (suor), o frio e a roupa;
+  - o avanço é em 4 estágios graduais e comer ou beber bem deixa uma reserva;
+  - a HUD mostra só o que importa (`config/SurvivalTuning.ts`).
+- **P2 Sono de 1 a 10 h**:
+  - o seletor mostra a energia ao acordar em cada opção, a qualidade do sono e o que atrapalha (frio, fome, sede, dor, sangue, barulho);
+  - dormir na moradia rende mais; barulho forte acorda.
+- **P3 Ficha do personagem**:
+  - boneco com os espaços de equipamento;
+  - cartão do item com proteção, durabilidade, peso, isolamento e acessórios;
+  - todos os estados do corpo e os ferimentos (aba FICHA ou tecla P).
+- **P4 Minimapa e mapa completo**:
+  - ruas, prédios, mata, área explorada, posição e direção do jogador;
+  - DEFINIR COMO MORADIA; marcadores com nome e categoria; guia com distância e rumo;
+  - tudo salvo (módulo `marks`).
+- **P5 Moradia como sistema** (`home/Home.ts`), com resumo lido do estado do mundo:
+  - comida e água guardadas e por quantos dias seguram (só o que já foi aberto: olhar não gera loot);
+  - camas, fogo, energia, geladeira, segurança (portas trancadas ou pregadas, janelas com tábuas ou quebradas);
+  - oficina, armas, munição, remédios, coletores e canteiros, mais um conselho do que falta;
+  - em casa o ânimo sobe um pouco;
+  - botão MORADIA no mapa, tecla H.
+- **P6 Preparar expedição** (`home/Expedition.ts`):
+  - destino, distância pelo caminho (ida e volta), tempo no relógio do jogo e hora da volta (avisa se escurece);
+  - água e comida levadas comparadas com o gasto previsto (as mesmas contas do corpo);
+  - energia na volta, peso, munição, temperatura e chuva, condições do corpo, e o veredito;
+  - botão EXPEDIÇÃO no mapa.
+- **P7 Carro no celular**:
+  - dirigindo, a tela troca para **volante** (arrastar na metade esquerda) e **pedais** (ACELERAR, e FREIO/RÉ: segurar parado dá ré);
+  - SAIR e BUZINA continuam; teclado e controle seguem no modo "apontar";
+  - um toque em DIRIGIR abre a porta (destranca com a chave), entra e dá a partida; sem chave, indica a ligação direta;
+  - estado **FUNCIONANDO / DANIFICADO / INUTILIZADO** no Examinar;
+  - carro inutilizado (carcaça, motor destruído) pode ser **desmontado** uma vez (chave inglesa): dá peças, sucata, parafusos, fio e chapa.
+- Testes: `sleep`, `character`, `marks`, `home`, `vehicleEasy`, mais o layout dos controles (a pé e dirigindo). São 450 testes.
+- Smoke: seletor de sono, ficha, minimapa, moradia, resumo, expedição, pedal e volante por toque de verdade.
+
+### Pendências conhecidas
+- **P8 (improvisação entre objetos: lanterna + fita + capacete etc.) ainda não foi feita.** Fica para a próxima etapa.
+- No navegador de teste (sem GPU, com a CPU disputada), algumas medições de velocidade do smoke (correr e virar o volante) às vezes ficam abaixo do alvo.
+  - Numa rodada limpa passaram.
+  - No celular, conferir o volante e os pedais.
+
+---
+
 ## Sons gerados pelo jogo (S1: motor, passos, portas, vidro, combate, ferramentas, carros)
 
 Nenhum arquivo de áudio: cada som é **calculado pelo jogo** a partir de uma receita física (ruído

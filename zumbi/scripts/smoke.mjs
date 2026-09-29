@@ -525,11 +525,35 @@ try {
       await sleep(300);
       const dr = await T((c) => window.__TDR__.drive(c.id), car);
       check(dr?.ok, `entra no carro para dirigir (${dr?.message})`);
+      // A HUD troca para volante/pedais no quadro seguinte (e zera o joystick): espera antes de simular o controle.
+      await page.waitForFunction(() => window.__TDR__.scene.s.touch.drive.active === true, null, { timeout: 8000 }).catch(() => undefined);
+      await sleep(100);
       await T(() => { const g = window.__TDR__; const d = g.driving(); g.scene.s.touch.move = { x: Math.cos(d.a), y: Math.sin(d.a), magnitude: 1, active: true }; });
       await sleep(2500);
       const d1 = await T(() => window.__TDR__.driving());
       await T(() => { window.__TDR__.scene.s.touch.move = { x: 0, y: 0, magnitude: 0, active: false }; });
       check(!!d1 && Math.abs(d1.speed) > 5, `acelera (${d1 ? Math.round(d1.speed) : '-'} px/s)`);
+      // Celular: pedal ACELERAR (toque de verdade) e volante (segundo dedo arrastando para o lado).
+      await sleep(300);
+      const pedal = await T(() => { const hud = window.__TDR__.scene.game.scene.getScenes(true).find((x) => x.sys.settings.key.toLowerCase().includes('hud')); const c = hud.controls.car; return c.isVisible ? { gx: c.gasBox.x + c.gasBox.w / 2, gy: c.gasBox.y + c.gasBox.h / 2, wx: c.wheel.x, wy: c.wheel.y } : null; });
+      check(!!pedal, 'dirigindo: volante à esquerda e pedais à direita');
+      if (pedal) {
+        await T(() => { window.__TDR__.scene.drive.car.speed = 0; });
+        await touch('touchStart', [{ x: pedal.gx, y: pedal.gy, id: 21 }]);
+        await sleep(1500);
+        const g1 = await T(() => window.__TDR__.driving());
+        check(!!g1 && g1.speed > 5, `pedal ACELERAR anda para frente (${g1 ? Math.round(g1.speed) : '-'} px/s)`);
+        const a0 = g1?.a ?? 0;
+        await touch('touchStart', [{ x: pedal.gx, y: pedal.gy, id: 21 }, { x: pedal.wx, y: pedal.wy, id: 22 }]);
+        await sleep(100);
+        await touch('touchMove', [{ x: pedal.gx, y: pedal.gy, id: 21 }, { x: pedal.wx + 70, y: pedal.wy, id: 22 }]);
+        await sleep(900);
+        const g2 = await T(() => ({ d: window.__TDR__.driving(), steer: window.__TDR__.scene.s.touch.drive.steer }));
+        await page.screenshot({ path: OUT + '22b-volante.png' });
+        check(g2.steer > 0.5 && !!g2.d && Math.abs(g2.d.a - a0) > 0.05, `volante vira o carro (direção ${g2.steer.toFixed(2)})`);
+        await touch('touchEnd', []);
+        await sleep(200);
+      }
       await page.screenshot({ path: OUT + '22-carro.png' });
       await T(() => { const g = window.__TDR__; g.scene.drive.car.speed = 0; g.exitCar(true); });
       check(!(await T(() => window.__TDR__.driving())), 'sai do carro');
@@ -689,11 +713,13 @@ try {
     }
     // Deixa o começo da partida assentar (sons sendo gerados no worker, texturas): o teste é do teclado.
     await sleep(2500);
-    const k0 = await pos(page);
+    // Mede depois da arrancada (a poucos FPS a aceleração leva vários quadros).
     await page.keyboard.down('KeyD');
+    await sleep(600);
+    const k0 = await pos(page);
     await sleep(1000);
-    await page.keyboard.up('KeyD');
     const k1 = await pos(page);
+    await page.keyboard.up('KeyD');
     const kv = (k1.x - k0.x) / (k1.t - k0.t);
     check(kv > 140, `teclado move (${Math.round(kv)} px/s)`);
     // E abre a porta do abrigo; I abre o inventário

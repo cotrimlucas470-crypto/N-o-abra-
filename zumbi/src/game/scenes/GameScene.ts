@@ -109,6 +109,7 @@ import { createZombie } from '../zombies/ZombieFactory';
 import { corpseLoot } from '../zombies/CorpseLoot';
 import { explainDeath } from '../survival/Death';
 import { DriveSession } from '../vehicles/DriveSession';
+import { pedalControls } from '../vehicles/Driving';
 import { VEHICLE_SPECS, type VehicleType } from '../vehicles/Vehicles';
 import type { SleepOptions } from '../survival/Sleep';
 
@@ -1233,7 +1234,10 @@ export class GameScene extends Phaser.Scene {
     const d = this.drive!;
     const mag = Math.min(1, Math.hypot(intent.moveX, intent.moveY));
     const held = this.zombies.threat.grabbed > 0 || this.zombies.threat.down || this.dead || this.s.session.paused;
-    d.update(dt, { x: intent.moveX, y: intent.moveY, mag }, held);
+    // Celular: volante + pedais; teclado/controle continuam no modo "apontar para onde ir".
+    const td = this.s.touch.drive;
+    const pedals = td.active && (td.gas > 0 || td.brake > 0 || td.steer !== 0 || mag < 0.2) ? pedalControls(td.steer, td.gas, td.brake) : undefined;
+    d.update(dt, { x: intent.moveX, y: intent.moveY, mag }, held, pedals);
     this.player.placeAt(d.car.x, d.car.y, d.car.a);
     const st = d.st;
     this.s.session.driving = {

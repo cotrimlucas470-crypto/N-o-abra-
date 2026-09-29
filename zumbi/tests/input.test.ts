@@ -77,7 +77,13 @@ describe('layout dos controles', () => {
     for (const [w, h] of [[640, 360], [844, 390], [915, 412], [1280, 800], [390, 844], [360, 740]] as const) {
       const scale = uiScaleFor(w, h);
       const ids = Object.keys(DEFAULT_LAYOUT.controls) as (keyof typeof DEFAULT_LAYOUT.controls)[];
-      const rs = ids.map((id) => ({ id, ...resolvePlacement(placementFor(DEFAULT_LAYOUT, id, h > w), w, h, insets, scale) }));
+      const all = ids.map((id) => ({ id, ...resolvePlacement(placementFor(DEFAULT_LAYOUT, id, h > w), w, h, insets, scale) }));
+      // A pé e dirigindo são telas diferentes: volante e pedais só aparecem no carro (com SAIR, BUZINA, pausa).
+      const car = new Set(['wheel', 'gas', 'brake']);
+      const inCar = new Set([...car, 'interact', 'attack', 'pause', 'fullscreen']);
+      // O pedal de acelerar é alto (retângulo): conta a metade da altura.
+      const sets = [all.filter((r) => !car.has(r.id)), all.filter((r) => inCar.has(r.id)).map((r) => (r.id === 'gas' ? { ...r, radius: r.radius * 1.15 } : r))];
+      for (const rs of sets) {
       for (const r of rs) {
         expect(r.x - r.radius, `${r.id} ${w}x${h}`).toBeGreaterThanOrEqual(0);
         expect(r.y - r.radius, `${r.id} ${w}x${h}`).toBeGreaterThanOrEqual(0);
@@ -91,6 +97,7 @@ describe('layout dos controles', () => {
           const d = Math.hypot(a.x - b.x, a.y - b.y);
           expect(d, `${a.id} x ${b.id} em ${w}x${h}`).toBeGreaterThanOrEqual(a.radius + b.radius);
         }
+      }
       }
     }
   });

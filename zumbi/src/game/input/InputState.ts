@@ -24,10 +24,13 @@ export class TouchInputState {
   aim: StickValue = emptyStick();
   /** Botão "correr" é alternável (toque liga/desliga): com dois polegares ocupados não dá para segurar. */
   sprintToggled = false;
+  /** Dirigindo no toque: volante (−1..1) e pedais (0..1). `active` = controles do carro na tela. */
+  drive = { steer: 0, gas: 0, brake: 0, active: false };
 
   reset(): void {
     this.move = emptyStick();
     this.aim = emptyStick();
+    this.drive = { steer: 0, gas: 0, brake: 0, active: this.drive.active };
   }
 }
 

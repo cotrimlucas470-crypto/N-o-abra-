@@ -12,7 +12,7 @@ import type { PlayerInventory } from '../items/PlayerInventory';
 import type { WorldState } from '../sim/WorldState';
 import type { Survivor } from '../survival/Survivor';
 import { CAR_REPAIR, startChance } from '../vehicles/Driving';
-import { VEHICLE_SPECS, isVehicle, toWorld, type VehicleType } from '../vehicles/Vehicles';
+import { VEHICLE_SPECS, isVehicle, stripYield, toWorld, vehicleCondition, type VehicleType } from '../vehicles/Vehicles';
 import type { PropPlacement } from '../world/MapTypes';
 import type { InteractionCandidate, InteractionOption, InteractionProvider, InteractionResult, Interactor } from './InteractionSystem';
 import type { WorldActionHooks } from './ToolInteractions';
@@ -56,14 +56,14 @@ export class VehicleInteractions implements InteractionProvider {
         const dist = Math.hypot(p.x - who.x, p.y - who.y) - who.radius;
         if (dist > REACH) continue;
         const ds = s.doors[d.id]!;
-        // Porta do motorista aberta, carro que dá para dirigir: a ação principal é DIRIGIR.
-        const drive = d.id === 'motorista' && ds.open && prop.type !== 'carWreck' && !!this.hooks.drive;
+        // Porta do motorista (aberta, ou fechada sem tranca / com a chave): um toque abre, entra e dá a partida.
+        const drive = d.id === 'motorista' && prop.type !== 'carWreck' && !!this.hooks.drive && (ds.open || (!ds.jammed && (!ds.locked || !!this.hasKey(prop.id))));
         const label = drive ? 'Entrar e dirigir' : ds.jammed ? `${cap(d.label)} emperrada` : ds.locked && !ds.open ? `${cap(d.label)} trancada` : `${ds.open ? 'Fechar' : 'Abrir'} ${d.label}`;
         const enabled = drive || (!ds.jammed && (!ds.locked || ds.open));
         out.push({
           target: { key: `carro:${prop.id}:${d.id}`, kind: 'vehicle', x: p.x, y: p.y, radius: 16, verb: drive ? 'DIRIGIR' : ds.open ? 'FECHAR' : 'ABRIR', label, enabled },
           distance: dist,
-          perform: () => (drive ? this.tryStart(prop) : this.door(prop, d.id)),
+          perform: () => (drive ? this.enterAndStart(prop, d.id) : this.door(prop, d.id)),
           more: () => this.doorMore(prop, d.id),
         });
       }
@@ -135,6 +135,7 @@ export class VehicleInteractions implements InteractionProvider {
     else if ((ds.locked || ds.jammed) && !ds.open) out.push({ label: 'Destravar por dentro', enabled: !ds.jammed, perform: () => (this.v.unlockAll(prop.id), { ok: true, message: 'Enfiou a mão e destravou.' }) });
     out.push(...this.fuelOptions(prop));
     if (doorId === 'motorista' && ds.open) out.push({ label: 'Fechar a porta', enabled: true, perform: () => this.door(prop, doorId) });
+    else if (doorId === 'motorista' && !ds.locked && !ds.jammed) out.push({ label: 'Só abrir a porta', enabled: true, perform: () => this.door(prop, doorId) });
     out.push({ label: this.hooks.drive ? 'Entrar e dirigir' : 'Tentar ligar o carro', enabled: reach && prop.type !== 'carWreck', perform: () => this.tryStart(prop) });
     // Sem chave: ligação direta (chave de fenda + alicate, demora, pode não dar).
     if (!this.hasKey(prop.id) && !s.keyInside && !s.hotwired && prop.type !== 'carWreck') {
@@ -335,6 +336,39 @@ export class VehicleInteractions implements InteractionProvider {
     }
     // Capô aberto: a ação principal já é "Examinar o motor" (não repete no fim).
     out.push(...this.repairOptions(prop, !!wrench));
+    // Inutilizado: o que presta vira peça (uma vez só).
+    if (vehicleCondition(s, prop.type).label === 'INUTILIZADO' && !s.stripped) {
+      out.push({
+        label: 'Desmontar componentes (chave inglesa)',
+        enabled: !!wrench,
+        perform: () => {
+          if (!wrench) return { ok: false, message: 'Precisa de chave inglesa.' };
+          this.hooks.start({
+            id: 'desmontar',
+            label: 'Desmontando o carro',
+            minutes: CAR_REPAIR.strip.minutes * this.survivor.skills.speed('mecanica'),
+            done: () => {
+              if (s.stripped) return { ok: false };
+              const got = stripYield(s, () => this.rng());
+              s.stripped = true;
+              s.engine = 0;
+              this.v.touch(prop.id);
+              const drop: { defId: string; count: number }[] = [];
+              for (const g of got) {
+                const left = g.n - this.inventory.add(g.id, g.n);
+                if (left > 0) drop.push({ defId: g.id, count: left });
+              }
+              if (drop.length) this.hooks.drop(drop, prop.x, prop.y);
+              this.survivor.skills.gain('mecanica', 12);
+              this.hooks.noise(prop.x, prop.y, 260, 'metal');
+              const names = got.map((g) => `${g.n}× ${itemDef(g.id)?.name ?? g.id}`).join(', ');
+              return { ok: true, message: `Desmontou: ${names}${drop.length ? ' (o que não coube ficou no chão)' : ''}.`, tone: 'ok' };
+            },
+          });
+          return { ok: true };
+        },
+      });
+    }
     return out;
   }
 
@@ -536,7 +570,9 @@ export class VehicleInteractions implements InteractionProvider {
     const spec = VEHICLE_SPECS[prop.type as VehicleType];
     const pct = (x: number) => `${Math.round(x * 100)}%`;
     const tires = s.tires.map((t) => (t === null ? 'sem' : t < 0.15 ? 'furado' : pct(t))).join(', ');
+    const cond = vehicleCondition(s, prop.type);
     const lines = [
+      `Estado: ${cond.label}${cond.why.length ? ` (${cond.why.join(', ')})` : ''}`,
       `Gasolina: ${br(s.fuel)} L de ${spec.tankLiters} L`,
       `Bateria: ${s.battery === null ? 'não tem' : pct(s.battery)}  ·  Motor: ${pct(s.engine)}`,
       `Pneus: ${tires}`,
@@ -550,11 +586,25 @@ export class VehicleInteractions implements InteractionProvider {
     return { ok: true };
   }
 
+  /** Um toque: abre a porta do motorista (destranca com a chave), entra e tenta dar a partida. */
+  private enterAndStart(prop: PropPlacement, doorId: string): InteractionResult {
+    const ds = this.v.state(prop.id)!.doors[doorId]!;
+    if (!ds.open) {
+      if (ds.locked && this.hasKey(prop.id)) this.v.unlockAll(prop.id);
+      const err = this.v.toggleDoor(prop.id, doorId);
+      if (err) return { ok: false, message: err };
+      this.hooks.noise(prop.x, prop.y, 160, 'porta de carro');
+    }
+    return this.tryStart(prop);
+  }
+
   private tryStart(prop: PropPlacement): InteractionResult {
     const why = this.v.cannotDrive(prop.id, !!this.hasKey(prop.id));
     if (why.length) {
       // Tentar dar a partida faz barulho mesmo sem pegar (motor de arranque).
       if (!why.includes('sem chave')) this.hooks.noise(prop.x, prop.y, 380, 'motor', 'carro.arranque');
+      // Sem chave: diz o caminho (ligação direta no ⋯) em vez de só "não pega".
+      if (why.length === 1 && why[0] === 'sem chave') return { ok: false, message: 'Sem chave. Procure a chave por perto ou faça ligação direta (⋯).' };
       return { ok: false, message: `Não pega: ${why.join(', ')}.` };
     }
     // Motor fraco engasga: às vezes precisa de mais de uma tentativa.

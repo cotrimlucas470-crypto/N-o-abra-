@@ -88,13 +88,14 @@ export class DriveSession {
   /**
    * Um quadro dirigindo. `stick` = direção desejada (joystick/teclado) e
    * intensidade; `held` = agarrado pela janela (não dá para dirigir direito).
+   * `pedals` = volante e pedais do celular (quando vier, manda no lugar do stick).
    */
-  update(dt: number, stick: { x: number; y: number; mag: number }, held: boolean): void {
+  update(dt: number, stick: { x: number; y: number; mag: number }, held: boolean, pedals?: { throttle: number; steer: number }): void {
     const s = this.st;
     this.hornT = Math.max(0, this.hornT - dt);
     const tires = s.tires.map((t) => t ?? 0);
     const cond = { engine: this.stalled ? 0 : s.engine, tires: tires.reduce((a, b) => a + b, 0) / 4, body: s.body, fuel: s.fuel, grip: this.grip };
-    const want = held ? { throttle: 0, steer: 0 } : driveControls(this.car, stick.x, stick.y, stick.mag);
+    const want = held ? { throttle: 0, steer: 0 } : (pedals ?? driveControls(this.car, stick.x, stick.y, stick.mag));
     // Motor morto: ainda dá para esterçar, mas não acelera.
     const ctl = this.stalled ? { throttle: 0, steer: want.steer } : want;
     const before = { x: this.car.x, y: this.car.y };

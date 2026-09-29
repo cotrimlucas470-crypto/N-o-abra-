@@ -21,7 +21,7 @@ export interface ControlPlacement {
 }
 
 /** Controles existentes hoje. Ataque, recarregar etc. entram aqui nas próximas etapas. */
-export type ControlId = 'moveStick' | 'aimStick' | 'sprint' | 'interact' | 'options' | 'attack' | 'reload' | 'inventory' | 'pause' | 'fullscreen' | 'shove' | 'sneak';
+export type ControlId = 'moveStick' | 'aimStick' | 'sprint' | 'interact' | 'options' | 'attack' | 'reload' | 'inventory' | 'pause' | 'fullscreen' | 'shove' | 'sneak' | 'wheel' | 'gas' | 'brake';
 
 export interface ControlsLayoutData {
   version: 1;
@@ -45,6 +45,10 @@ export const DEFAULT_LAYOUT: ControlsLayoutData = {
     fullscreen: { anchor: 'top-right', x: 88, y: 34, size: 22 },
     shove: { anchor: 'bottom-right', x: 60, y: 312, size: 21 },
     sneak: { anchor: 'bottom-left', x: 44, y: 238, size: 21 },
+    // Dirigindo: volante à esquerda, pedais à direita (acelerar alto, freio/ré ao lado).
+    wheel: { anchor: 'bottom-left', x: 130, y: 120, size: 70 },
+    gas: { anchor: 'bottom-right', x: 70, y: 112, size: 56 },
+    brake: { anchor: 'bottom-right', x: 172, y: 84, size: 40 },
   },
   portrait: {
     sprint: { anchor: 'bottom-right', x: 70, y: 250, size: 32 },
@@ -55,6 +59,9 @@ export const DEFAULT_LAYOUT: ControlsLayoutData = {
     inventory: { anchor: 'bottom-right', x: 70, y: 332, size: 25 },
     shove: { anchor: 'bottom-right', x: 312, y: 250, size: 23 },
     sneak: { anchor: 'bottom-left', x: 44, y: 238, size: 21 },
+    wheel: { anchor: 'bottom-left', x: 105, y: 120, size: 62 },
+    gas: { anchor: 'bottom-right', x: 62, y: 110, size: 50 },
+    brake: { anchor: 'bottom-right', x: 160, y: 80, size: 36 },
   },
 };
 

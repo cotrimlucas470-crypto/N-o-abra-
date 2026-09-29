@@ -12,7 +12,7 @@
  * pneus já existem, dá para tirar/pôr bateria e pneu e tirar gasolina.
  */
 import { hashString, Random } from '../core/Random';
-import { DRIVE_TUNING } from './Driving';
+import { CAR_REPAIR, DRIVE_TUNING } from './Driving';
 import type { PropPlacement } from '../world/MapTypes';
 import type { PropType } from '../world/PropCatalog';
 
@@ -93,6 +93,8 @@ export interface VehicleState {
   keyInside: boolean;
   /** Fiação feita (ligação direta): pega sem chave. */
   hotwired?: boolean;
+  /** Já foi desmontado (peças tiradas). */
+  stripped?: boolean;
   /** Saiu do lugar onde estava no mapa: onde está agora (px, graus). */
   pose?: { x: number; y: number; a: number };
 }
@@ -443,4 +445,41 @@ export class Vehicles {
       else delete st.pose;
     }
   }
+}
+
+export type VehicleCondition = 'FUNCIONANDO' | 'DANIFICADO' | 'INUTILIZADO';
+
+/**
+ * Estado geral do veículo: FUNCIONANDO (liga e anda), DANIFICADO (tem
+ * conserto: pneu, bateria, motor fraco, lataria) ou INUTILIZADO (carcaça,
+ * motor destruído ou já desmontado: só serve para tirar peças). Gasolina
+ * vazia não é defeito: vai nos motivos.
+ */
+export function vehicleCondition(s: VehicleState, type: string): { label: VehicleCondition; why: string[] } {
+  const T = DRIVE_TUNING;
+  if (type === 'carWreck') return { label: 'INUTILIZADO', why: ['carcaça queimada'] };
+  if (s.stripped) return { label: 'INUTILIZADO', why: ['desmontado'] };
+  if (s.engine < T.deadEngine) return { label: 'INUTILIZADO', why: ['motor destruído'] };
+  const why: string[] = [];
+  if (s.engine < T.sureStart) why.push('motor fraco');
+  const bad = s.tires.filter((t) => t === null || t < 0.15).length;
+  if (bad) why.push(bad > 1 ? `${bad} pneus ruins` : 'pneu ruim');
+  if (s.battery === null) why.push('sem bateria');
+  else if (s.battery < 0.15) why.push('bateria fraca');
+  if (s.body < 0.4) why.push('lataria amassada');
+  const label: VehicleCondition = why.length ? 'DANIFICADO' : 'FUNCIONANDO';
+  if (s.fuel < 0.5) why.push('tanque vazio');
+  return { label, why };
+}
+
+/** Peças que saem ao desmontar (sorteio com o rng; motor ruim dá menos peça boa). */
+export function stripYield(s: VehicleState, rng: () => number): { id: string; n: number }[] {
+  const out: { id: string; n: number }[] = [];
+  for (const [id, [lo, hi]] of Object.entries(CAR_REPAIR.strip.yields)) {
+    let n = lo + Math.floor(rng() * (hi - lo + 1));
+    if (id === 'pecasMotor' && s.engine < DRIVE_TUNING.deadEngine * 0.5) n = Math.min(n, 1);
+    if (id === 'chapaMetal' && s.body < 0.2) n = 0;
+    if (n > 0) out.push({ id, n });
+  }
+  return out;
 }

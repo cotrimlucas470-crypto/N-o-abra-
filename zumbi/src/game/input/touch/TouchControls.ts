@@ -18,6 +18,7 @@ import { UI } from '../../ui/theme';
 import { loadLayout, placementFor, resolvePlacement, uiScaleFor, type ControlId, type ControlsLayoutData } from './ControlsLayout';
 import { TouchButton } from './TouchButton';
 import { VirtualJoystick } from './VirtualJoystick';
+import { DriveControls } from './DriveControls';
 
 export interface TouchControlsCallbacks {
   onPause: () => void;
@@ -50,6 +51,8 @@ export class TouchControls {
   private driving = false;
   readonly pause: TouchButton;
   readonly fullscreen: TouchButton;
+  /** Volante e pedais (só dirigindo). */
+  readonly car: DriveControls;
   private layoutData: ControlsLayoutData = loadLayout();
   private touchMode: boolean;
   private enabled = true;
@@ -82,6 +85,8 @@ export class TouchControls {
       DEPTH + 1,
       { accent: UI.accentNum, hitScale: 1.5, subtle: true },
     );
+
+    this.car = new DriveControls(scene, DEPTH, s.viewport.dpr);
 
     const input = scene.input;
     input.on(Phaser.Input.Events.POINTER_DOWN, this.onDown, this);
@@ -136,6 +141,7 @@ export class TouchControls {
     this.pause.setLayout(p.x, p.y, p.radius);
     const f = at('fullscreen');
     this.fullscreen.setLayout(f.x, f.y, f.radius);
+    this.car.setLayout(at('wheel'), at('gas'), at('brake'), scale);
   }
 
   setPointerBlocker(fn: ((x: number, y: number) => boolean) | null): void {
@@ -162,6 +168,7 @@ export class TouchControls {
     this.sneak.release();
     this.pause.release();
     this.fullscreen.release();
+    this.car.releaseAll();
     this.s.touch.reset();
     this.s.touch.sprintToggled = false;
   }
@@ -169,7 +176,9 @@ export class TouchControls {
   private applyVisibility(): void {
     const t = this.touchMode;
     const foot = t && !this.driving;
-    this.move.setVisible(t);
+    this.move.setVisible(foot);
+    this.car.setVisible(t && this.driving);
+    this.s.touch.drive.active = t && this.driving;
     this.aim.setVisible(foot);
     this.sprint.setVisible(foot);
     this.interact.setVisible(t);
@@ -216,6 +225,10 @@ export class TouchControls {
     // Joysticks: só toque (mouse no PC é mira com clique).
     if (!this.touchMode || (!p.wasTouch && !DEBUG.forceTouch)) return;
     const leftSide = x < this.cssW * 0.45;
+    if (this.driving) {
+      if (this.car.down(p.id, x, y, leftSide)) this.publish();
+      return;
+    }
     if (leftSide && this.move.pointerId === null) this.move.begin(p.id, x, y);
     else if (!leftSide && this.aim.pointerId === null) this.aim.begin(p.id, x, y);
     this.publish();
@@ -224,6 +237,10 @@ export class TouchControls {
   private onMove(p: Phaser.Input.Pointer): void {
     if (!p.isDown) return;
     const { x, y } = this.toUi(p);
+    if (this.car.move(p.id, x)) {
+      this.publish();
+      return;
+    }
     if (this.move.pointerId === p.id) this.move.move(x, y);
     else if (this.aim.pointerId === p.id) this.aim.move(x, y);
     else return;
@@ -232,6 +249,7 @@ export class TouchControls {
 
   private onUp(p: Phaser.Input.Pointer): void {
     const { x, y } = this.toUi(p);
+    if (this.car.up(p.id)) this.publish();
     if (this.move.pointerId === p.id) {
       this.move.end();
       // Soltou o joystick de movimento: o "correr" desliga sozinho
@@ -292,6 +310,7 @@ export class TouchControls {
     const t = this.s.touch;
     t.move = { ...this.move.value, active: this.move.isActive };
     t.aim = { ...this.aim.value, active: this.aim.isActive };
+    t.drive = { steer: this.car.steer, gas: this.car.gas, brake: this.car.brake, active: this.touchMode && this.driving };
   }
 
   /**
@@ -312,6 +331,12 @@ export class TouchControls {
       this.aim.end();
       this.publish();
     }
+    for (const id of this.car.pointers) {
+      if (stuck(id)) {
+        this.car.up(id!);
+        this.publish();
+      }
+    }
     this.sprint.setState(this.s.touch.sprintToggled, sprintBlocked);
     this.interact.setState(interact === true, interact === null);
     this.options.setState(false, interact === null);
@@ -325,7 +350,10 @@ export class TouchControls {
     if (v === this.driving) return;
     this.driving = v;
     if (v) this.aim.end();
+    this.move.end();
+    this.car.releaseAll();
     this.applyVisibility();
+    this.publish();
   }
 
   /** Arma de fogo na mão: aparece o botão de recarregar. */
