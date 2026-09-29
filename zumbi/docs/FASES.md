@@ -30,6 +30,11 @@ O que cada etapa entregou, como foi testado e o que ficou pendente. A ordem das 
   `save.slot1.mapa1` e o título avisa; nunca é apagado.
 - Impressão digital do mapa (`interaction.test.ts`) atualizada de propósito. 484 testes.
 
+### Ajustes: inventário, fábrica e HUD
+- **HUD:** faixa de necessidades sempre à vista no painel (FOME, SEDE, SONO, TEMP), verde/amarelo/vermelho pelos mesmos limites das pílulas; azul no frio. Relógio e pílulas descem junto.
+- **Inventário:** com 5+ pilhas, a lista se agrupa por categoria (COMIDA · 2 · 1,2 kg...) em ordem alfabética; linhas mais compactas; sem nada escolhido o rodapé vira só uma dica e a lista ganha espaço; descrição comprida encolhe em vez de ir para trás dos botões.
+- **Fábrica:** o que falta aparece por nome ("falta tábua"), nova seção "Falta só uma coisa", dica de fogo só quando não há nada pronto; rodapé compacto quando nada está escolhido (vale também para CORPO e TEMPO sem ação).
+
 ### Correção: nada atrás da parede
 - Encostado numa parede por fora, o jogador via, destacava e abria recipientes e itens do outro lado (a grade de visão ignora a célula onde o jogador está, e a parede fica nela).
 - Agora o `InteractionSystem` só oferece o que não tem parede, janela inteira ou porta fechada entre o jogador e o alvo (`WorldState.wallBetween`, geometria exata). Vale para recipientes, itens, móveis, carros, escadas e desmontar. Nome e destaque também somem. A porta continua oferecida. Cerca baixa não conta; janela quebrada é vão.

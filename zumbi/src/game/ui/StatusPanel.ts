@@ -8,6 +8,18 @@ import type Phaser from 'phaser';
 import type { PlayerStats } from '../entities/player/PlayerStats';
 import { UI, textStyle } from './theme';
 
+/** Uma necessidade do corpo na faixa miúda (0..1 = quanto está bem; cor pela gravidade). */
+export interface NeedGauge {
+  label: string;
+  /** 1 = ótimo, 0 = péssimo. */
+  good: number;
+  /** ok, atenção, ruim; azul para frio. */
+  tone: 'ok' | 'warn' | 'bad' | 'cold';
+}
+
+const NEED_COLOR: Record<NeedGauge['tone'], number> = { ok: 0x6fbf5a, warn: 0xe0a83a, bad: 0xd8543f, cold: 0x5aa0e0 };
+const NEED_H = 22;
+
 interface Bar {
   label: Phaser.GameObjects.Text;
   color: number;
@@ -26,6 +38,8 @@ export class StatusPanel {
   private y = 0;
   private scale = 1;
   private flash = 0;
+  private needs: NeedGauge[] = [];
+  private needLabels: Phaser.GameObjects.Text[] = [];
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -34,6 +48,33 @@ export class StatusPanel {
     this.g = scene.add.graphics().setDepth(90);
     this.addBar('VIDA', UI.health);
     this.addBar('FÔLEGO', UI.stamina);
+    // Faixa de necessidades (fome, sede, sono, temperatura): sempre à vista, sem pílula.
+    for (let i = 0; i < 4; i++) this.needLabels.push(scene.add.text(0, 0, '', textStyle(9, UI.textDim, '800')).setDepth(91).setResolution(dpr));
+  }
+
+  /** Altura total do painel (px de tela), para quem posiciona coisas embaixo dele. */
+  get height(): number {
+    return (12 + this.bars.length * ROW + NEED_H) * this.scale;
+  }
+
+  /** Atualiza a faixa de necessidades (chamar poucas vezes por segundo basta). */
+  setNeeds(needs: readonly NeedGauge[]): void {
+    const same = needs.length === this.needs.length && needs.every((n, i) => n.label === this.needs[i]!.label && n.tone === this.needs[i]!.tone && Math.abs(n.good - this.needs[i]!.good) < 0.01);
+    if (same) return;
+    this.needs = [...needs];
+    this.layoutNeeds();
+    this.draw();
+  }
+
+  private layoutNeeds(): void {
+    const s = this.scale;
+    const cell = (BAR_W + 76 - 20) / 4;
+    this.needLabels.forEach((t, i) => {
+      const n = this.needs[i];
+      t.setVisible(!!n);
+      if (!n) return;
+      t.setText(n.label).setScale(s).setPosition(this.x + (10 + i * cell) * s, this.y + (10 + this.bars.length * ROW) * s);
+    });
   }
 
   private addBar(name: string, color: number): void {
@@ -49,6 +90,7 @@ export class StatusPanel {
     this.bars.forEach((b, i) => {
       b.label.setScale(scale).setPosition(x + 12 * scale, y + (9 + i * ROW) * scale);
     });
+    this.layoutNeeds();
     this.draw();
   }
 
@@ -76,11 +118,25 @@ export class StatusPanel {
     const g = this.g;
     g.clear();
     const w = (BAR_W + 76) * s;
-    const h = (12 + this.bars.length * ROW) * s;
+    const h = (12 + this.bars.length * ROW + (this.needs.length ? NEED_H : 0)) * s;
     g.fillStyle(UI.panel, UI.panelAlpha);
     g.fillRoundedRect(this.x, this.y, w, h, 10 * s);
     g.lineStyle(1, UI.stroke, UI.strokeAlpha);
     g.strokeRoundedRect(this.x, this.y, w, h, 10 * s);
+    // Faixa de necessidades: quatro medidores miúdos com o nome em cima.
+    const cell = (BAR_W + 76 - 20) / 4;
+    this.needs.forEach((n, i) => {
+      const gx = this.x + (10 + i * cell) * s;
+      const gy = this.y + (10 + this.bars.length * ROW + 11) * s;
+      const gw = (cell - 6) * s;
+      g.fillStyle(0x000000, 0.45);
+      g.fillRoundedRect(gx, gy, gw, 5 * s, 2.5 * s);
+      const fw = Math.max(0, Math.min(1, n.good)) * gw;
+      if (fw > 1) {
+        g.fillStyle(NEED_COLOR[n.tone], 1);
+        g.fillRoundedRect(gx, gy, fw, 5 * s, Math.min(2.5 * s, fw / 2));
+      }
+    });
     this.bars.forEach((b, i) => {
       const bx = this.x + 66 * s;
       const by = this.y + (11 + i * ROW) * s;

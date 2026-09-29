@@ -53,11 +53,23 @@ export class CraftTab implements ListSource {
     const rows: ListRow[] = [];
     const near = [...env.stations].map((s) => (s === 'fogo' ? 'fogo' : s === 'forno' ? 'forno' : 'bancada'));
     rows.push({ kind: 'header', text: 'Por perto', right: near.length ? near.join(' · ') : 'nada' });
-    if (!near.length) rows.push({ kind: 'text', text: 'Fogo aceso libera a cozinha; bancada, armas e peças.', color: UI.textDim });
+    if (!near.length && !RECIPES.some((r) => checks.get(r.id)!.ok)) rows.push({ kind: 'text', text: 'Fogo aceso libera a cozinha; bancada, armas e peças.', color: UI.textDim });
 
     const line = (r: Recipe, c: CraftCheck) => {
       const missing = c.lines.filter((l) => !l.ok);
-      const right = c.ok ? timeText(cs.minutesFor(r)) : missing.some((l) => l.kind === 'station') ? (r.station === 'forno' ? 'sem forno' : r.station === 'bancada' ? 'sem bancada' : 'sem fogo') : `falta ${missing.length}`;
+      // O que falta, com nome: uma coisa só aparece por extenso; mais de uma, a conta.
+      const short = (t: string) => (t.length > 15 ? `${t.slice(0, 14)}…` : t);
+      const right = c.ok
+        ? timeText(cs.minutesFor(r))
+        : missing.some((l) => l.kind === 'station')
+          ? r.station === 'forno'
+            ? 'sem forno'
+            : r.station === 'bancada'
+              ? 'sem bancada'
+              : 'sem fogo'
+          : missing.length === 1
+            ? `falta ${short(missing[0]!.label.replace(/\s*\(.*\)\s*$/, ''))}`
+            : `falta ${missing.length}`;
       rows.push({ kind: 'line', id: `r:${r.id}`, ...(iconOf(r) ? { icon: iconOf(r)! } : {}), text: r.name, right, dim: !c.ok, ...(c.ok ? {} : { mark: 'warn' as const }) });
       if (selected === `r:${r.id}`) for (const l of c.lines) rows.push({ kind: 'text', text: `   ${l.ok ? '✓' : '✗'} ${l.label}`, color: l.ok ? OK : MISSING });
     };
@@ -72,6 +84,12 @@ export class CraftTab implements ListSource {
         rows.push({ kind: 'text', text: RECIPE_CAT_LABEL[cat], color: UI.textDim });
         for (const r of list) line(r, checks.get(r.id)!);
       }
+    }
+    // Falta só uma coisa: o que vale ir buscar (não conta construção, o lugar se escolhe depois).
+    const almost = RECIPES.filter((r) => !r.structure && !checks.get(r.id)!.ok && checks.get(r.id)!.lines.filter((l) => !l.ok).length === 1).slice(0, 8);
+    if (almost.length) {
+      rows.push({ kind: 'header', text: 'Falta só uma coisa', right: String(almost.length) });
+      for (const r of almost) line(r, checks.get(r.id)!);
     }
     rows.push({ kind: 'header', text: 'Todas as receitas', right: 'toque para abrir' });
     for (const cat of cats) {

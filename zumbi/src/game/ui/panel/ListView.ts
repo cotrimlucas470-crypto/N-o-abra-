@@ -43,6 +43,8 @@ export interface Box {
 const PAD = 10;
 const H: Record<ListRow['kind'], number> = { header: 24, bar: 24, line: 38, text: 20 };
 const FOOT_H = 104;
+/** Nada escolhido e sem ação: o rodapé vira uma dica e a lista ganha o espaço. */
+const FOOT_IDLE_H = 44;
 const TONE_NUM: Record<Tone, number> = { ok: 0x7fc86a, info: 0x9a988f, warn: 0xe0a040, bad: 0xe0604a };
 
 interface RowView {
@@ -114,11 +116,19 @@ export class ListView {
 
   private get listBox(): Box {
     const b = this.box;
-    return { x: b.x, y: b.y, w: b.w, h: b.h - FOOT_H * this.k };
+    return { x: b.x, y: b.y, w: b.w, h: b.h - this.footH };
+  }
+
+  private idle = false;
+
+  private get footH(): number {
+    return (this.idle ? FOOT_IDLE_H : FOOT_H) * this.k;
   }
 
   refresh(): void {
     if (!this.visible || !this.source) return;
+    const d0 = this.source.detail(this.selected);
+    this.idle = !this.selected && d0.actions.length === 0 && !d0.tags;
     const k = this.k;
     const g = this.g;
     g.clear();
@@ -206,14 +216,14 @@ export class ListView {
   private drawFooter(): void {
     const k = this.k;
     const b = this.box;
-    const fy = b.y + b.h - FOOT_H * k;
+    const fy = b.y + b.h - this.footH;
     this.g.lineStyle(1, 0xffffff, 0.1).lineBetween(b.x + PAD * k, fy, b.x + b.w - PAD * k, fy);
     const d = this.source!.detail(this.selected);
     const tx = b.x + PAD * k;
-    this.title.setText(d.title).setColor(d.titleColor ?? UI.text).setPosition(tx, fy + 8 * k).setScale(k);
+    this.title.setText(this.idle ? '' : d.title).setColor(d.titleColor ?? UI.text).setPosition(tx, fy + 8 * k).setScale(k);
     this.tags.setText(d.tags ?? '').setColor(d.tagsColor ?? UI.textDim).setPosition(tx, fy + 26 * k).setScale(k);
     fit(this.tags, d.tags ?? '', (b.w - PAD * 2 * k) / k);
-    this.desc.setText(d.desc ?? '').setPosition(tx, fy + 42 * k).setScale(k);
+    this.desc.setText(d.desc ?? '').setPosition(tx, fy + (this.idle ? 14 : 42) * k).setScale(k);
     fit(this.desc, d.desc ?? '', (b.w - PAD * 2 * k) / k);
     this.buttons.layout(d.actions, tx, b.y + b.h - 22 * k, b.w - PAD * 2 * k, k);
   }

@@ -27,7 +27,9 @@ import { StatePills } from '../ui/StatePills';
 import { hasClock } from '../ui/tabs/BodyTab';
 import { timeText } from '../ui/tabs/TimeTab';
 import { SKY_LABEL } from '../sim/Weather';
-import { StatusPanel } from '../ui/StatusPanel';
+import { StatusPanel, type NeedGauge } from '../ui/StatusPanel';
+import { STATE_LEVELS, THERMAL_TUNING } from '../config/SurvivalTuning';
+import type { Body } from '../survival/Body';
 import { Toast } from '../ui/Toast';
 import { UiButton } from '../ui/UiButton';
 import { loadVolume, nextVolume, saveVolume, volumeLabel } from '../audio/Volume';
@@ -458,8 +460,10 @@ export class HudScene extends Phaser.Scene {
 
     this.vignette.setDisplaySize(w, h);
     this.status.setPosition(ins.left + 12, ins.top + 10, k);
-    this.clockText.setPosition(ins.left + 16, ins.top + 10 + 56 * k).setScale(k);
-    this.pills.setPosition(ins.left + 14, ins.top + 10 + 94 * k, k, Math.min(360 * k, w * 0.45));
+    // A faixa de necessidades cresce o painel: relógio e pílulas descem junto.
+    const extra = 22 * k;
+    this.clockText.setPosition(ins.left + 16, ins.top + 10 + 56 * k + extra).setScale(k);
+    this.pills.setPosition(ins.left + 14, ins.top + 10 + 94 * k + extra, k, Math.min(360 * k, w * 0.45));
     this.savedText.setPosition(ins.left + 12 + 216 * k, ins.top + 14 * k).setScale(k);
     this.actionBar.layout(w, h, h * (s.viewport.isPortrait ? 0.42 : 0.3), k);
     // Barra do modo construir: no alto, no meio, abaixo do nome da região (em pé, abaixo do relógio).
@@ -576,6 +580,7 @@ export class HudScene extends Phaser.Scene {
     if (sv && this.hudTimer <= 0) {
       this.hudTimer = 0.25;
       this.pills.update(hudStates(sv.survivor.states()));
+      this.status.setNeeds(needGauges(sv.survivor.body));
     }
     const act = sv?.runner.current;
     // Painel aberto na horizontal: a barra de ação vai para o espaço livre à esquerda.
@@ -646,4 +651,26 @@ export function hudStates(list: readonly { id: string; label: string; level: num
   const out = shown.slice(0, 4).map((x) => ({ label: x.label, tone: x.tone }));
   if (shown.length > 4) out.push({ label: `+${shown.length - 4}`, tone: 'info' });
   return out;
+}
+
+
+/** Fome, sede, sono e temperatura como medidores (verde bem, amarelo atenção, vermelho ruim; azul = frio). */
+function needGauges(b: Body): NeedGauge[] {
+  const need = (label: string, v: number, [warn, bad]: readonly [number, number, ...number[]] | readonly number[]): NeedGauge => ({
+    label,
+    good: 1 - v / 100,
+    tone: v >= (bad ?? 100) ? 'bad' : v >= (warn ?? 100) ? 'warn' : 'ok',
+  });
+  const cold = STATE_LEVELS.coldTemp;
+  const hot = STATE_LEVELS.hotTemp;
+  const t = b.temp;
+  const tone: NeedGauge['tone'] = t < cold[1] ? 'cold' : t < cold[0] ? 'warn' : t > hot[1] ? 'bad' : t > hot[0] ? 'warn' : 'ok';
+  // Temperatura: cheio no normal, esvazia para os dois lados.
+  const spread = t < THERMAL_TUNING.normal ? THERMAL_TUNING.normal - cold[2] : hot[2] - THERMAL_TUNING.normal;
+  return [
+    need('FOME', b.hunger, [STATE_LEVELS.hunger[1], STATE_LEVELS.hunger[2]]),
+    need('SEDE', b.thirst, [STATE_LEVELS.thirst[1], STATE_LEVELS.thirst[2]]),
+    need('SONO', b.fatigue, [STATE_LEVELS.fatigue[1], STATE_LEVELS.fatigue[2]]),
+    { label: 'TEMP', good: Math.max(0, 1 - Math.abs(t - THERMAL_TUNING.normal) / spread), tone },
+  ];
 }

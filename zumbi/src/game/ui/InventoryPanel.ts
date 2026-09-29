@@ -30,10 +30,15 @@ import { HealthRows } from './tabs/HealthRows';
 import { TimeTab } from './tabs/TimeTab';
 import { UI, textStyle } from './theme';
 
-const ROW_H = 40;
+const ROW_H = 36;
 const HEAD_H = 22;
+const GROUP_H = 20;
+/** Recipiente com pelo menos tantas pilhas ganha subtítulos por categoria. */
+const GROUP_FROM = 5;
 const PAD = 10;
 const FOOT_H = 104;
+/** Sem nada escolhido (e sem recipiente aberto), o rodapé é só uma dica: a lista ganha o espaço. */
+const FOOT_IDLE_H = 44;
 const TAB_H = 34;
 const DEPTH = 120;
 
@@ -52,7 +57,12 @@ export type TabId = 'itens' | 'corpo' | 'tempo' | string;
 type PaneId = 'loot' | 'inv';
 
 /** Uma linha da lista: cabeçalho de recipiente, item na mão ou pilha. */
-type Row = { kind: 'header'; container: ItemContainer; title: string } | { kind: 'hand' } | { kind: 'stack'; container: ItemContainer; index: number };
+type Row =
+  | { kind: 'header'; container: ItemContainer; title: string }
+  | { kind: 'hand' }
+  | { kind: 'stack'; container: ItemContainer; index: number }
+  /** Subtítulo de categoria (COMIDA · 3 · 1,2 kg): organiza a lista, não é tocável. */
+  | { kind: 'group'; title: string; count: number; kg: number };
 
 interface RowView {
   icon: Phaser.GameObjects.Image;
@@ -267,7 +277,8 @@ export class InventoryPanel {
       this.box = { x: right - width, y: ins.top + 10, w: width, h: h - ins.top - ins.bottom - 20 };
     }
     const b = this.box;
-    const foot = FOOT_H * k;
+    const foot = (this.selected || this.loot || this.tab !== 'itens' ? FOOT_H : FOOT_IDLE_H) * k;
+    this.footIdle = foot < FOOT_H * k;
     this.foot = { x: b.x, y: b.y + b.h - foot, w: b.w, h: foot };
     const top = b.y + (30 + TAB_H) * k;
     const listH = b.h - foot - (30 + TAB_H) * k;
@@ -296,22 +307,51 @@ export class InventoryPanel {
     if (inv.hand) rows.push({ kind: 'hand' });
     for (const c of inv.containers) {
       rows.push({ kind: 'header', container: c, title: c.id === BAG_ID ? `Mochila · ${c.name}` : c.name });
-      c.stacks.forEach((_, index) => rows.push({ kind: 'stack', container: c, index }));
+      rows.push(...this.stackRows(c));
     }
     return rows;
   }
 
   private lootRows(): Row[] {
     const l = this.loot;
-    return l ? l.container.stacks.map((_, index) => ({ kind: 'stack', container: l.container, index })) : [];
+    return l ? this.stackRows(l.container) : [];
   }
 
+  /**
+   * Pilhas de um recipiente em ordem útil: agrupadas por categoria (comida, bebida, remédio...),
+   * as mais pesadas do grupo primeiro dentro de cada nome. Recipiente pequeno fica como está.
+   */
+  private stackRows(c: ItemContainer): Row[] {
+    const items = c.stacks.map((st, index) => ({ st, index, def: itemDef(st.defId) }));
+    if (items.length < GROUP_FROM) return items.map(({ index }) => ({ kind: 'stack' as const, container: c, index }));
+    const order = Object.keys(CATEGORY_INFO);
+    const rank = (d: ReturnType<typeof itemDef>) => (d ? order.indexOf(d.category) : order.length);
+    items.sort((a, b) => rank(a.def) - rank(b.def) || (a.def?.name ?? '').localeCompare(b.def?.name ?? '', 'pt-BR'));
+    const out: Row[] = [];
+    let last = -1;
+    for (const it of items) {
+      const r = rank(it.def);
+      if (r !== last) {
+        last = r;
+        const same = items.filter((x) => rank(x.def) === r);
+        const title = it.def ? CATEGORY_INFO[it.def.category].label : 'Outros';
+        out.push({ kind: 'group', title, count: same.length, kg: same.reduce((n, x) => n + x.st.count * (x.def?.weight ?? 0), 0) });
+      }
+      out.push({ kind: 'stack', container: c, index: it.index });
+    }
+    return out;
+  }
+
+  private footIdle = false;
+
   private rowHeight(r: Row): number {
-    return (r.kind === 'header' ? HEAD_H : ROW_H) * this.k;
+    return (r.kind === 'header' ? HEAD_H : r.kind === 'group' ? GROUP_H : ROW_H) * this.k;
   }
 
   refresh(): void {
     if (!this.open) return;
+    // Escolheu (ou soltou) um item: o rodapé cresce (ou volta a ser só a dica) antes de desenhar.
+    if (this.footIdle !== !(this.selected || this.loot || this.tab !== 'itens')) this.relayout();
     const k = this.k;
     const b = this.box;
     const g = this.bg;
@@ -418,7 +458,7 @@ export class InventoryPanel {
 
     const listTop = y + 26 * k;
     const listH = p.box.h - 26 * k;
-    const stacks = p.rows.filter((r) => r.kind !== 'header').length;
+    const stacks = p.rows.filter((r) => r.kind !== 'header' && r.kind !== 'group').length;
     if (!stacks && !(p.id === 'inv' && p.rows.length > 1)) {
       p.empty.setText(emptyText).setPosition(x + w / 2, listTop + listH / 2).setScale(k).setVisible(true).setWordWrapWidth((w - 20 * k) / k);
     }
@@ -460,6 +500,7 @@ export class InventoryPanel {
   private rowLoc(p: PaneId, r: Row): ItemWhere | null {
     if (r.kind === 'hand') return { where: 'hand' };
     if (r.kind === 'stack') return p === 'loot' ? { where: 'loot', index: r.index } : { where: 'inv', containerId: r.container.id, index: r.index };
+    if (r.kind === 'group') return null;
     return r.container.id === BAG_ID ? { where: 'bag' } : null;
   }
 
@@ -468,6 +509,13 @@ export class InventoryPanel {
     const g = this.bg;
     const loc = this.rowLoc(p.id, r);
     const selected = !!loc && !!this.selected && this.selected.pane === p.id && sameLoc(this.selected.loc, loc);
+    if (r.kind === 'group') {
+      const kg = r.kg >= 0.05 ? ` · ${formatKg(r.kg)}` : '';
+      v.name.setText(`${r.title.toUpperCase()} · ${r.count}`).setColor('#c9a24a').setFontStyle('800').setPosition(x + PAD * k, y + rh / 2).setScale(k * 0.8).setVisible(true);
+      v.right.setText(kg.slice(3)).setPosition(x + w - PAD * k, y + rh / 2).setScale(k * 0.85).setVisible(!!kg);
+      g.fillStyle(0xffffff, 0.035).fillRect(x + 6 * k, y + 1, w - 12 * k, rh - 2);
+      return;
+    }
     if (r.kind === 'header') {
       if (selected) g.fillStyle(UI.accentNum, 0.22).fillRoundedRect(x + 6 * k, y + 1, w - 12 * k, rh - 2, 6 * k);
       v.name.setText(r.title.toUpperCase()).setColor(UI.textDim).setFontStyle('800').setPosition(x + PAD * k, y + rh / 2).setScale(k * 0.9).setVisible(true);
@@ -486,7 +534,7 @@ export class InventoryPanel {
     const worst = worstTone(tags.map((t) => t.tone));
     if (worst === 'warn' || worst === 'bad') g.fillStyle(TONE_NUM[worst], 0.9).fillRoundedRect(x + 7 * k, y + 8 * k, 3 * k, rh - 16 * k, 1.5 * k);
     const ref = this.assets.ref(def.icon);
-    v.icon.setTexture(ref.key, ref.frame).setDisplaySize(30 * k, 30 * k).setPosition(x + (PAD + 18) * k, y + rh / 2).setVisible(true);
+    v.icon.setTexture(ref.key, ref.frame).setDisplaySize(28 * k, 28 * k).setPosition(x + (PAD + 18) * k, y + rh / 2).setVisible(true);
     const nameColor = def.rarity === 'comum' ? UI.text : RARITY_INFO[def.rarity].color;
     const label = r.kind === 'hand' ? `✋ ${def.name}` : count > 1 ? `${def.name}  ×${count}` : def.name;
     v.name.setText(label).setColor(nameColor).setFontStyle('600').setPosition(x + (PAD + 38) * k, y + rh / 2).setScale(k).setVisible(true);
@@ -540,8 +588,12 @@ export class InventoryPanel {
     this.detailName.setPosition(tx, f.y + 8 * k).setScale(k);
     this.detailTags.setPosition(tx, f.y + 26 * k).setScale(k);
     fit(this.detailTags, this.detailTags.text, (f.w - PAD * 2 * k) / k);
-    this.detailDesc.setPosition(tx, f.y + 42 * k).setScale(k).setWordWrapWidth((f.w - PAD * 2 * k) / k);
+    this.detailDesc.setPosition(tx, f.y + (this.footIdle ? 14 : 42) * k).setScale(k).setWordWrapWidth((f.w - PAD * 2 * k) / k);
     fit(this.detailDesc, this.detailDesc.text, (f.w - PAD * 2 * k) / k);
+    // Texto comprido não vai para trás dos botões: encolhe até caber (até 70%).
+    const room = f.h - 42 * k - 40 * k;
+    const need = this.detailDesc.height * k;
+    if (need > room && room > 0) this.detailDesc.setScale(k * Math.max(0.7, room / need));
     this.buttons.layout(actions, tx, f.y + f.h - 22 * k, f.w - PAD * 2 * k, k);
   }
 
