@@ -3,10 +3,11 @@ import { Rng } from '../src/game/audio/dsp';
 import { bulletSound, objectSound, zombieVoiceOf } from '../src/game/audio/GameAudio';
 import { GAITS, SURFACES } from '../src/game/audio/recipes/steps';
 import { SOUNDS, soundDef, variantSeed } from '../src/game/audio/SoundCatalog';
-import { gaitFor, gunClassFor, soundForContainer, soundForNoise, surfaceFor, swingWeight } from '../src/game/audio/SoundMap';
+import { actionSound, gaitFor, gunClassFor, soundForContainer, soundForNoise, surfaceFor, swingWeight } from '../src/game/audio/SoundMap';
+import { RECIPES } from '../src/game/crafting/Recipes';
 import { pickVariant, placeSound, playVariation } from '../src/game/audio/spatial';
 import { nextVolume, volumeLabel } from '../src/game/audio/Volume';
-import { Ambience, engineRpm, type AmbienceState } from '../src/game/audio/Ambience';
+import { Ambience, engineRpm, gearOf, type AmbienceState } from '../src/game/audio/Ambience';
 import type { AudioEngine } from '../src/game/audio/AudioEngine';
 import { AMBIENCE_TUNING } from '../src/game/config/AudioTuning';
 import { VOLUME_STEPS } from '../src/game/config/AudioTuning';
@@ -360,5 +361,34 @@ describe('sons: zumbis e corpo', () => {
 
   it('todos os sons de zumbi e do corpo existem', () => {
     for (const id of ['zumbi.gemido', 'zumbi.rosnado', 'zumbi.ataque', 'zumbi.morte', 'zumbi.mordida', 'zumbi.agarrao', 'zumbi.passo', 'zumbi.rastejar', 'corpo.dor', 'corpo.respira', 'corpo.coracao', 'corpo.comer', 'corpo.beber', 'ui.ziper', 'ui.pegar']) expect(SOUNDS.has(id), id).toBe(true);
+  });
+});
+
+describe('sons: ações, itens e sintomas', () => {
+  it('toda ação demorada com som toca sons que existem (e fabricar usa a habilidade)', () => {
+    const ids = ['tratar', 'rasgar', 'ler', 'lavar', 'encherAgua', 'cozinhar', 'sifao', 'afiar', 'pneu', 'motor', 'cortar', 'quebrar', 'pregarTabuas', 'plantar', 'acenderFogo', 'pular', 'arrombar', 'derrubarParede'];
+    for (const id of ids) {
+      const a = actionSound(id);
+      expect(a, id).not.toBeNull();
+      for (const s of a!.ids) expect(SOUNDS.has(s), `${id} → ${s}`).toBe(true);
+    }
+    for (const r of RECIPES) for (const s of actionSound(`fabricar:${r.id}`)!.ids) expect(SOUNDS.has(s), r.id).toBe(true);
+    expect(actionSound('dormir')).toBeNull();
+    expect(actionSound(null)).toBeNull();
+  });
+
+  it('porta soa pelo material (madeira, metal, vidro)', () => {
+    for (const id of ['porta.abrir', 'porta.fechar', 'porta.abrirMetal', 'porta.fecharMetal', 'porta.abrirVidro', 'porta.fecharVidro']) expect(SOUNDS.has(id), id).toBe(true);
+  });
+
+  it('sons de sintomas, casa, estrada e itens existem', () => {
+    for (const id of ['corpo.barriga', 'corpo.tosse', 'corpo.tremor', 'corpo.bocejo', 'corpo.vomito', 'corpo.zumbido', 'amb.casa', 'amb.geladeira', 'amb.cigarras', 'amb.rodagem', 'amb.rangido', 'bicho.cachorro', 'carro.derrapar', 'carro.marcha', 'item.largarLeve', 'item.largarPesado', 'item.sacar', 'acao.equipamento']) expect(SOUNDS.has(id), id).toBe(true);
+  });
+
+  it('marcha pela velocidade', () => {
+    expect(gearOf(0)).toBe(0);
+    expect(gearOf(10)).toBe(1);
+    expect(gearOf(30)).toBe(2);
+    expect(gearOf(200)).toBe(5);
   });
 });

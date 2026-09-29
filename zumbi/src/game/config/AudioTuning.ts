@@ -53,6 +53,16 @@ export const AMBIENCE_TUNING = {
   fire: 0.7,
   generator: 0.85,
   engine: 0.7,
+  /** Entrar/sair de casa: tempo da troca de clima (s, constante da curva). */
+  transition: 0.45,
+  roomTone: 0.12,
+  fridge: 0.18,
+  cicadas: 0.28,
+  carRain: 0.55,
+  road: 0.6,
+  /** Pneu canta: curva (rad/s × km/h) ou freada (km/h por s). */
+  skidLateral: 90,
+  skidBrake: 30,
   /** Em média, quantos por segundo (sorteio de Poisson). */
   birdsPerSec: 0.12,
   crowsPerSec: 0.02,

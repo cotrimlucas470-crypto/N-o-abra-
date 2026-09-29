@@ -493,7 +493,10 @@ export class GameScene extends Phaser.Scene {
           return { ok: true };
         },
         noise: worldHooks.noise,
-        drop: (defId, count, st, x, y) => this.lootActions.dropLoose(defId, count, st, x, y),
+        drop: (defId, count, st, x, y) => {
+          this.sfx?.dropped(defId);
+          this.lootActions.dropLoose(defId, count, st, x, y);
+        },
       }),
     );
     this.interaction.add(new DemolishInteractions(this.state, this.inventory, this.survivor, worldHooks));
@@ -832,12 +835,14 @@ export class GameScene extends Phaser.Scene {
             dayHours: season.dayHours,
             winter: season.winter,
             summer: season.summer,
-            sheltered: this.loop.sheltered || !!this.floor,
+            // Dentro do carro também é "coberto": a chuva de fora abafa, a do teto do carro entra.
+            sheltered: this.loop.sheltered || !!this.floor || !!this.drive,
+            powered: this.power.poweredAt(this.player.x, this.player.y),
             // Dormindo ou em tempo acelerado: sem bicho nem estalo (seriam dezenas por segundo real).
             busy: this.loop.sleeping || (this.loop.runner.active && this.clock.timeScale > this.clock.userScale * 2),
             fires,
             generators,
-            engine: this.drive && d ? { kmh: d.kmh, stalled: this.drive.stalled || d.fuel <= 0 } : null,
+            engine: this.drive && d ? { kmh: d.kmh, stalled: this.drive.stalled || d.fuel <= 0, heading: this.drive.car.a } : null,
           };
         },
         zombies: () => {
@@ -850,8 +855,21 @@ export class GameScene extends Phaser.Scene {
         },
         body: () => {
           const st = this.player.stats;
-          return { health: st.health / Math.max(1, st.maxHealth), stamina: st.stamina / Math.max(1, st.maxStamina), dead: this.dead, asleep: this.loop.sleeping };
+          const b = this.survivor.body;
+          return {
+            health: st.health / Math.max(1, st.maxHealth),
+            stamina: st.stamina / Math.max(1, st.maxStamina),
+            dead: this.dead,
+            asleep: this.loop.sleeping,
+            load: this.inventory.effectiveLoad / Math.max(1, this.inventory.capacity),
+            hunger: b.hunger,
+            thirst: b.thirst,
+            fatigue: b.fatigue,
+            temp: b.temp,
+            sickness: b.sickness,
+          };
         },
+        action: () => this.loop.runner.current?.id ?? null,
         containerSound: (id) => {
           const name = this.state.loot.ref(id)?.name ?? id;
           // Porta-malas: o barulho do porta-malas já tocou (VehicleInteractions).

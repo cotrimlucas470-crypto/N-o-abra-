@@ -66,6 +66,42 @@ export const doorClose: Recipe = (rng, sr) => {
   return trim(finish(out, sr, 0.9), sr);
 };
 
+/** Porta de aço (abrindo): trinco pesado, dobradiça grave e a folha ressoando. */
+export const metalDoorOpen: Recipe = (rng, sr) => {
+  const out = buffer(1.4, sr);
+  click(out, sr, rng, 0.01, 0.7, 0.65);
+  click(out, sr, rng, rng.range(0.07, 0.12), 0.5, 0.55);
+  if (rng.chance(0.55))
+    creak(out, sr, rng, { at: 0.15, dur: rng.range(0.4, 0.9), gain: 0.35, rate0: rng.range(15, 35), rate1: rng.range(40, 90), res: [{ f: rng.range(320, 560), q: 10, a: 1 }, { f: rng.range(900, 1400), q: 12, a: 0.5 }] });
+  modes(out, sr, 0.02, materialModes(rng, 'metal', rng.range(2.5, 3.5), 0.6), 0.12, rng);
+  return trim(finish(out, sr, 0.8), sr);
+};
+
+/** Porta de aço (fechando): batida funda, a chapa vibrando e o trinco. */
+export const metalDoorClose: Recipe = (rng, sr) => {
+  const out = buffer(1.6, sr);
+  const f = rng.range(0.6, 1);
+  burst(out, sr, rng, { at: 0.02, dur: 0.04, tau: 0.01, gain: f, type: 'lowpass', freq: 1200, q: 0.7 });
+  thump(out, sr, 0.02, rng.vary(85, 0.15), 45, 0.15, f * 0.7);
+  modes(out, sr, 0.02, materialModes(rng, 'metal', rng.range(2.5, 3.5), 0.25), f * 0.5, rng);
+  click(out, sr, rng, 0.025, f * 0.6, 0.7);
+  return trim(finish(out, sr, 0.9), sr);
+};
+
+/** Porta de vidro (loja): trinco, o vidro tremendo na moldura de alumínio. */
+export function glassDoor(closing: boolean): Recipe {
+  return (rng, sr) => {
+    const out = buffer(1.2, sr);
+    click(out, sr, rng, 0.01, 0.5, 1.1);
+    const t = closing ? rng.range(0.05, 0.15) : 0.08;
+    if (closing) hit(out, sr, rng, { at: t, m: 'metal', gain: 0.5, size: 1.2, hard: 0.6, damp: 0.8 });
+    const n = rng.int(3, 6);
+    for (let i = 0; i < n; i++) modes(out, sr, t + rng.range(0, 0.06), materialModes(rng, 'vidro', rng.range(1, 1.6), 0.4), rng.range(0.05, 0.15) * (closing ? 1.5 : 0.7), rng);
+    burst(out, sr, rng, { at: 0.05, dur: 0.4, tau: 0.15, gain: 0.05, type: 'lowpass', freq: 600, q: 0.6, color: 'pink' });
+    return trim(finish(out, sr, closing ? 0.85 : 0.7), sr);
+  };
+}
+
 /** Maçaneta de porta trancada: sacode, a lingueta bate no batente. */
 export const lockedRattle: Recipe = (rng, sr) => {
   const out = buffer(0.9, sr);

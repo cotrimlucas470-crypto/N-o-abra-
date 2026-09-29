@@ -9,7 +9,8 @@
  */
 import type { Rng } from './dsp';
 import { bodyFall, fleshHit, objectHit, whoosh } from './recipes/combat';
-import { barricadeHit, carDoor, doorBang, doorClose, doorOpen, doorPushed, forceDoor, lockedRattle, rollingGate, trunk } from './recipes/doors';
+import { barricadeHit, carDoor, doorBang, doorClose, doorOpen, doorPushed, forceDoor, glassDoor, lockedRattle, metalDoorClose, metalDoorOpen, rollingGate, trunk } from './recipes/doors';
+import { cicadas, climb, cloth, cook, cough, dig, dog, draw, drop, fridgeHum, gear, gearShift, glug, houseCreak, match, page, road, roomTone, sharpen, shiver, skid, stomach, tear, tinnitus, tool, vomit, water, yawn } from './recipes/actions';
 import { carGlass, glassKnock, windowBreak } from './recipes/glass';
 import { bulletImpact, casing, dryFire, GUN_CLASSES, gunshot, jam, reload } from './recipes/guns';
 import { footstep, GAITS, SURFACES } from './recipes/steps';
@@ -60,6 +61,10 @@ for (const s of SURFACES)
 // ---------------------------------------------------------------- portas e vidro
 add('porta.abrir', doorOpen, { range: 520, gain: 0.7 });
 add('porta.fechar', doorClose, { range: 700, gain: 0.85 });
+add('porta.abrirMetal', metalDoorOpen, { range: 600, gain: 0.75 });
+add('porta.fecharMetal', metalDoorClose, { range: 900, gain: 0.9 });
+add('porta.abrirVidro', glassDoor(false), { range: 480, gain: 0.65 });
+add('porta.fecharVidro', glassDoor(true), { range: 650, gain: 0.8 });
 add('porta.trancada', lockedRattle, { range: 380, gain: 0.7 });
 add('porta.portao', rollingGate, { range: 900, gain: 0.8, variants: 4 });
 add('porta.empurrada', doorPushed, { range: 600, gain: 0.7 });
@@ -161,6 +166,40 @@ add('corpo.comer', eat, { ...CORPO, variants: 5, gain: 0.6 });
 add('corpo.beber', drink, { ...CORPO, variants: 4, gain: 0.6 });
 add('ui.ziper', zipper, { cat: 'ui', variants: 5, range: 200, gain: 0.5, reverb: 0.1, maxVoices: 1, pitch: 0.06 });
 add('ui.pegar', pickup, { cat: 'ui', variants: 6, range: 200, gain: 0.55, reverb: 0.1, maxVoices: 2, pitch: 0.08 });
+
+// ---------------------------------------------------------------- ações, itens, sintomas
+const ACAO = { cat: 'sfx' as SoundCategory, range: 320, reverb: 0.25, pitch: 0.06, maxVoices: 2, sr: 24000 };
+add('acao.pano', cloth, { ...ACAO, variants: 8, gain: 0.5 });
+add('acao.rasgar', tear, { ...ACAO, variants: 6, gain: 0.6 });
+add('acao.pagina', page, { ...ACAO, variants: 6, gain: 0.4, range: 200 });
+add('acao.cozinhar', cook, { ...ACAO, variants: 5, gain: 0.5 });
+add('acao.ferramenta', tool, { ...ACAO, variants: 8, gain: 0.55, range: 420 });
+add('acao.agua', water, { ...ACAO, variants: 5, gain: 0.5 });
+add('acao.combustivel', glug, { ...ACAO, variants: 4, gain: 0.5 });
+add('acao.afiar', sharpen, { ...ACAO, variants: 6, gain: 0.45 });
+add('acao.fosforo', match, { ...ACAO, variants: 5, gain: 0.55, maxVoices: 1 });
+add('acao.cavar', dig, { ...ACAO, variants: 6, gain: 0.55 });
+add('acao.escalar', climb, { ...ACAO, variants: 4, gain: 0.7, range: 500, maxVoices: 1 });
+add('acao.equipamento', gear, { ...ACAO, variants: 8, gain: 0.35, range: 260, maxVoices: 2, pitch: 0.1 });
+add('item.largarLeve', drop(false), { ...ACAO, variants: 6, gain: 0.5 });
+add('item.largarPesado', drop(true), { ...ACAO, variants: 6, gain: 0.75, range: 500 });
+add('item.sacar', draw, { ...ACAO, variants: 6, gain: 0.5 });
+const SINTOMA = { cat: 'voz' as SoundCategory, range: 260, reverb: 0.15, pitch: 0.04, maxVoices: 1, sr: 24000 };
+add('corpo.barriga', stomach, { ...SINTOMA, variants: 5, gain: 0.45, sr: 16000 });
+add('corpo.tosse', cough, { ...SINTOMA, variants: 6, gain: 0.6, range: 420 });
+add('corpo.tremor', shiver, { ...SINTOMA, variants: 4, gain: 0.4 });
+add('corpo.bocejo', yawn, { ...SINTOMA, variants: 4, gain: 0.45 });
+add('corpo.vomito', vomit, { ...SINTOMA, variants: 3, gain: 0.7, range: 420 });
+add('corpo.zumbido', tinnitus, { ...SINTOMA, variants: 3, gain: 0.35, reverb: 0, pitch: 0.03 });
+// Casa e rua
+add('amb.casa', roomTone, { ...LOOP, sr: 16000 });
+add('amb.geladeira', fridgeHum, { ...LOOP, sr: 16000, range: 500 });
+add('amb.cigarras', cicadas, { ...LOOP, sr: 22050 });
+add('amb.rodagem', road, { ...LOOP, sr: 16000 });
+add('amb.rangido', houseCreak, { cat: 'amb', sr: 16000, variants: 6, range: 700, reverb: 0.4, pitch: 0.08, maxVoices: 1, gain: 0.45 });
+add('bicho.cachorro', dog, { cat: 'amb', sr: 22050, variants: 6, range: 2500, reverb: 0.7, pitch: 0.05, maxVoices: 1, gain: 0.45 });
+add('carro.derrapar', skid, { cat: 'sfx', sr: 22050, variants: 4, range: 900, reverb: 0.4, pitch: 0.08, maxVoices: 1, gain: 0.6 });
+add('carro.marcha', gearShift, { cat: 'sfx', sr: 22050, variants: 4, range: 200, reverb: 0.1, pitch: 0.06, maxVoices: 1, gain: 0.5 });
 
 export function soundDef(id: string): SoundDef | undefined {
   return SOUNDS.get(id);

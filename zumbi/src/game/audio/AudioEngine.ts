@@ -177,6 +177,15 @@ export class AudioEngine {
     this.applyMaster();
   }
 
+  /** Abafa o ambiente (clima, bichos) por alguns segundos: depois de um tiro perto, o resto some. */
+  dip(to: number, seconds: number): void {
+    const g = this.buses.get('amb')!.gain;
+    const now = this.ctx.currentTime;
+    g.cancelScheduledValues(now);
+    g.setTargetAtTime(T.bus.amb * to, now, 0.03);
+    g.setTargetAtTime(T.bus.amb, now + seconds * 0.4, seconds * 0.3);
+  }
+
   /** Pausa: abaixa tudo (sem cortar seco). */
   duck(on: boolean): void {
     this.ducked = on;

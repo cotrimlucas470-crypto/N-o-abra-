@@ -78,7 +78,8 @@ export class DoorInteractions implements InteractionProvider {
     if (!this.state.setDoorOpen(d.id, !s.open)) return { ok: false };
     const radius = DOOR_TUNING.noiseRadius[d.style] * DOOR_TUNING.noiseMaterial[d.material];
     // Som exato (o estado já mudou): abriu (trinco + dobradiça) ou fechou (batida no batente).
-    const sound = d.style === 'rolling' ? 'porta.portao' : s.open ? 'porta.abrir' : 'porta.fechar';
+    const kind = d.material === 'metal' ? 'Metal' : d.material === 'glass' ? 'Vidro' : '';
+    const sound = d.style === 'rolling' ? 'porta.portao' : `${s.open ? 'porta.abrir' : 'porta.fechar'}${kind}`;
     this.bus.emit('world:noise', { x: d.x, y: d.y, radius, source: d.style === 'rolling' ? 'portão' : 'porta', sound });
     return { ok: true };
   }

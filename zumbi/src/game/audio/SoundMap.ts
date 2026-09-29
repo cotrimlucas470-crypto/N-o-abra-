@@ -7,6 +7,7 @@ import type { GunClass } from './recipes/guns';
 import type { Gait, Surface } from './recipes/steps';
 import type { Weight } from './recipes/combat';
 import { Ground as G } from '../world/MapTypes';
+import { RECIPES } from '../crafting/Recipes';
 
 /** Barulhos cujo som sai de outro lugar (com mais detalhe): passo, golpe e tiro. */
 const DIRECT = new Set(['passos', 'golpe', 'tiro']);
@@ -139,4 +140,75 @@ export function gunClassFor(iconKind: string | undefined, caliber: string): GunC
 export function swingWeight(kg: number | undefined): Weight {
   if (!kg || kg < 0.6) return 'leve';
   return kg < 2 ? 'medio' : 'pesado';
+}
+
+/** Som que se repete enquanto uma ação demorada acontece (ids do catálogo e intervalo em s). */
+export interface ActionSound {
+  ids: readonly string[];
+  every: readonly [number, number];
+  gain: number;
+}
+
+const ACTION_SOUNDS: Record<string, ActionSound> = {
+  tratar: { ids: ['acao.pano', 'acao.rasgar'], every: [1.1, 2], gain: 0.8 },
+  rasgar: { ids: ['acao.rasgar'], every: [0.8, 1.3], gain: 0.9 },
+  costura: { ids: ['acao.pano'], every: [1.2, 2], gain: 0.7 },
+  remendar: { ids: ['acao.pano'], every: [1.2, 2], gain: 0.7 },
+  vestir: { ids: ['acao.pano'], every: [0.8, 1.4], gain: 0.8 },
+  tirar: { ids: ['acao.pano'], every: [0.8, 1.4], gain: 0.8 },
+  ler: { ids: ['acao.pagina'], every: [3, 6], gain: 0.8 },
+  lavar: { ids: ['acao.agua'], every: [1, 1.8], gain: 0.8 },
+  higiene: { ids: ['acao.agua'], every: [1.2, 2.2], gain: 0.7 },
+  beberTorneira: { ids: ['acao.agua'], every: [1, 1.6], gain: 0.8 },
+  encherAgua: { ids: ['acao.agua'], every: [0.9, 1.4], gain: 0.9 },
+  juntarChuva: { ids: ['acao.agua'], every: [2, 3.5], gain: 0.5 },
+  purificar: { ids: ['acao.agua', 'acao.cozinhar'], every: [1.5, 2.5], gain: 0.6 },
+  cozinhar: { ids: ['acao.cozinhar'], every: [1.2, 1.8], gain: 0.8 },
+  sifao: { ids: ['acao.combustivel'], every: [1.2, 1.8], gain: 0.8 },
+  abastecer: { ids: ['acao.combustivel'], every: [1.2, 1.8], gain: 0.8 },
+  'abastecer-gerador': { ids: ['acao.combustivel'], every: [1.2, 1.8], gain: 0.8 },
+  afiar: { ids: ['acao.afiar'], every: [0.55, 0.85], gain: 0.8 },
+  consertar: { ids: ['acao.ferramenta'], every: [1, 2], gain: 0.8 },
+  bateria: { ids: ['acao.ferramenta'], every: [1, 1.8], gain: 0.8 },
+  pneu: { ids: ['acao.ferramenta'], every: [0.9, 1.6], gain: 0.9 },
+  motor: { ids: ['acao.ferramenta'], every: [0.9, 1.6], gain: 0.9 },
+  vela: { ids: ['acao.ferramenta'], every: [1, 1.8], gain: 0.8 },
+  oleo: { ids: ['acao.ferramenta', 'acao.combustivel'], every: [1.2, 2], gain: 0.7 },
+  'remendo-pneu': { ids: ['acao.ferramenta'], every: [1, 1.8], gain: 0.8 },
+  'ligacao-direta': { ids: ['acao.ferramenta'], every: [1.2, 2.2], gain: 0.6 },
+  extensao: { ids: ['acao.ferramenta'], every: [1.4, 2.4], gain: 0.6 },
+  'recolher-gerador': { ids: ['acao.ferramenta'], every: [1.4, 2.4], gain: 0.6 },
+  desmontar: { ids: ['acao.ferramenta', 'obra.desmonte'], every: [1.2, 2], gain: 0.7 },
+  cortar: { ids: ['obra.machado'], every: [1.3, 1.8], gain: 0.7 },
+  quebrar: { ids: ['obra.picareta'], every: [1.3, 1.9], gain: 0.7 },
+  derrubar: { ids: ['obra.demolicao', 'acerto.madeira'], every: [2, 3], gain: 0.6 },
+  derrubarParede: { ids: ['obra.picareta', 'obra.demolicao'], every: [1.6, 2.6], gain: 0.6 },
+  pregarTabuas: { ids: ['obra.martelo'], every: [1.6, 2.4], gain: 0.7 },
+  arrancarTabuas: { ids: ['obra.tabuas', 'acao.ferramenta'], every: [1.3, 2], gain: 0.7 },
+  plantar: { ids: ['acao.cavar'], every: [1.2, 1.8], gain: 0.8 },
+  cacos: { ids: ['objeto.revirar', 'vidro.batida'], every: [1, 1.6], gain: 0.4 },
+  acenderFogo: { ids: ['acao.fosforo'], every: [3, 5], gain: 0.9 },
+  pular: { ids: ['acao.escalar'], every: [99, 99], gain: 1 },
+  'pular-andar': { ids: ['acao.escalar'], every: [99, 99], gain: 1 },
+  arrombar: { ids: ['acao.ferramenta', 'porta.trancada'], every: [0.9, 1.5], gain: 0.8 },
+};
+
+/** Fabricar: o som pela habilidade da receita (serrar/martelar, cozinhar, costurar...). */
+const SKILL_SOUNDS: Record<string, ActionSound> = {
+  carpintaria: { ids: ['obra.martelo', 'acao.ferramenta', 'obra.tabuas'], every: [1.3, 2.2], gain: 0.55 },
+  culinaria: { ids: ['acao.cozinhar'], every: [1.2, 1.8], gain: 0.8 },
+  medicina: { ids: ['acao.pano', 'acao.rasgar'], every: [1.2, 2], gain: 0.7 },
+  costura: { ids: ['acao.pano', 'acao.rasgar'], every: [1.2, 2], gain: 0.7 },
+  mecanica: { ids: ['acao.ferramenta'], every: [1, 1.8], gain: 0.8 },
+  armas: { ids: ['acao.ferramenta'], every: [1.2, 2], gain: 0.6 },
+};
+const CRAFT_DEFAULT: ActionSound = { ids: ['objeto.revirar', 'acao.ferramenta'], every: [1.4, 2.4], gain: 0.6 };
+
+export function actionSound(id: string | null | undefined): ActionSound | null {
+  if (!id) return null;
+  if (id.startsWith('fabricar:')) {
+    const r = RECIPES.find((x) => x.id === id.slice(9));
+    return (r?.skill && SKILL_SOUNDS[r.skill.id]) || CRAFT_DEFAULT;
+  }
+  return ACTION_SOUNDS[id] ?? null;
 }

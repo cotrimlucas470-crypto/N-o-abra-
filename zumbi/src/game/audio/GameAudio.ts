@@ -11,7 +11,8 @@ import type { ItemDef } from '../items/ItemTypes';
 import type { Material as PropMaterial } from '../world/PropDurability';
 import type { AudioEngine, PlayOptions } from './AudioEngine';
 import { soundDef } from './SoundCatalog';
-import { gaitFor, gunClassFor, soundForNoise, swingWeight } from './SoundMap';
+import { actionSound, gaitFor, gunClassFor, soundForNoise, swingWeight } from './SoundMap';
+import { itemDef } from '../items/ItemCatalog';
 import { placeSound, type Placement } from './spatial';
 import { Ambience, type AmbienceState } from './Ambience';
 import type { Surface } from './recipes/steps';
@@ -33,8 +34,23 @@ export interface AudioWorld {
   ambience?(): AmbienceState | null;
   /** Zumbis andando perto (passos arrastados). */
   zombies?(): readonly { id: string; x: number; y: number; speed: number; crawler: boolean }[];
-  /** Corpo do jogador (0..1): fôlego curto e coração quando está mal. */
-  body?(): { health: number; stamina: number; dead: boolean; asleep: boolean };
+  /** Corpo do jogador: vida/fôlego/carga 0..1, necessidades 0..100, temperatura °C, doença 0..1. */
+  body?(): BodyAudio;
+  /** Ação demorada em andamento (id) ou null. */
+  action?(): string | null;
+}
+
+export interface BodyAudio {
+  health: number;
+  stamina: number;
+  dead: boolean;
+  asleep: boolean;
+  load?: number;
+  hunger?: number;
+  thirst?: number;
+  fatigue?: number;
+  temp?: number;
+  sickness?: number;
 }
 
 /** A voz de um zumbi: duas variações e uma altura só dele (pela identidade, sempre as mesmas). */
@@ -69,6 +85,11 @@ export class GameAudio {
   private heartT = 0;
   private lastHealth = -1;
   private painT = 0;
+  private actionId: string | null = null;
+  private actionT = 0;
+  private handId: string | null | undefined = undefined;
+  private stepN = 0;
+  private readonly symptomT = { barriga: 40, tosse: 60, tremor: 5, bocejo: 50, doente: 40 };
 
   constructor(
     private readonly engine: AudioEngine,
@@ -117,6 +138,8 @@ export class GameAudio {
     if (!this.engine.muted) {
       this.zombieSteps(dt);
       this.bodySounds(dt);
+      this.actionSounds(dt);
+      this.handChange();
     }
     this.warmT -= dt;
     if (this.warmT > 0) return;
@@ -192,8 +215,43 @@ export class GameAudio {
     });
   }
 
+  /** Passo: o chão manda no som; carregado, o passo pesa e o equipamento chacoalha. */
   private footstep(x: number, y: number, loudness: number): void {
-    this.near(`passo.${this.world.surface(x, y)}.${gaitFor(loudness)}`);
+    const gait = gaitFor(loudness);
+    const load = this.world.body?.().load ?? 0;
+    const heavy = load > 0.75;
+    this.near(`passo.${this.world.surface(x, y)}.${gait}`, heavy ? { rate: 0.93, gain: 1.15 } : {});
+    this.stepN++;
+    if (load > 0.45 && gait !== 'furtivo' && (gait === 'corrida' || this.stepN % 3 === 0) && this.stepN % 2 === 0) this.near('acao.equipamento', { gain: Math.min(1, 0.4 + load * 0.5) });
+  }
+
+  /** Largou algo no chão: pesado faz baque, leve só o pano/plástico. */
+  dropped(defId: string): void {
+    const d = itemDef(defId);
+    this.near((d?.weight ?? 0) >= 1.5 ? 'item.largarPesado' : 'item.largarLeve');
+  }
+
+  /** Trocou o que está na mão: sacar/guardar. */
+  private handChange(): void {
+    const d = this.hand();
+    const id = d?.id ?? null;
+    if (this.handId !== undefined && id !== this.handId && d && (d.gun || d.melee || d.tool)) this.near('item.sacar', { gain: d.gun ? 0.9 : 0.7 });
+    this.handId = id;
+  }
+
+  /** Ação demorada: o som dela se repetindo (atadura, ferramenta, água, página...). */
+  private actionSounds(dt: number): void {
+    const id = this.world.action?.() ?? null;
+    if (id !== this.actionId) {
+      this.actionId = id;
+      this.actionT = 0.15;
+    }
+    const a = actionSound(id);
+    if (!a) return;
+    this.actionT -= dt;
+    if (this.actionT > 0) return;
+    this.actionT = a.every[0] + Math.random() * (a.every[1] - a.every[0]);
+    this.near(a.ids[Math.floor(Math.random() * a.ids.length)]!, { gain: a.gain });
   }
 
   /** Resultado de um golpe/tiro do jogador. */
@@ -212,6 +270,13 @@ export class GameAudio {
     }
     if (r.tracer && gun) {
       this.near(`tiro.${gun}`);
+      // Tiro em lugar fechado (ou arma grossa): ouvido zumbindo e o resto some por um instante.
+      const loud = gun === 'espingarda' || gun === 'dupla' || gun === 'rifle308';
+      const indoor = this.world.listener().indoor;
+      if (indoor || loud) {
+        this.near('corpo.zumbido', { delay: 0.05, gain: indoor ? (loud ? 0.9 : 0.6) : 0.35 });
+        this.engine.dip(indoor ? 0.3 : 0.6, indoor ? 2 : 1.2);
+      }
       if (EJECTS.has(gun)) {
         const l = this.world.listener();
         const hard = HARD.has(this.world.surface(l.x, l.y));
@@ -311,6 +376,38 @@ export class GameAudio {
       const bpm = 80 + (0.35 - b.health) * 150;
       this.heartT = 60 / bpm;
       this.near('corpo.coracao', { gain: 0.45 + (0.35 - b.health) * 1.5 });
+    }
+    this.symptoms(dt, b);
+  }
+
+  /**
+   * Sintomas de vez em quando, só quando fazem sentido: barriga roncando com
+   * fome, tosse seca com sede ou doença, tremendo de frio, bocejo de sono.
+   * Raros de propósito: o corpo avisa, não enche.
+   */
+  private symptoms(dt: number, b: BodyAudio): void {
+    const t = this.symptomT;
+    const r = (a: number, c: number) => a + Math.random() * (c - a);
+    const hunger = b.hunger ?? 0;
+    const thirst = b.thirst ?? 0;
+    const fatigue = b.fatigue ?? 0;
+    const temp = b.temp ?? 37;
+    const sick = b.sickness ?? 0;
+    if (hunger >= 60 && (t.barriga -= dt) <= 0) {
+      t.barriga = r(70, 160) * (hunger >= 85 ? 0.6 : 1);
+      this.near('corpo.barriga', { gain: hunger >= 85 ? 1 : 0.7 });
+    }
+    if ((thirst >= 75 || sick > 0.45) && (t.tosse -= dt) <= 0) {
+      t.tosse = sick > 0.45 ? r(35, 90) : r(90, 200);
+      this.near('corpo.tosse', { gain: 0.8 });
+    }
+    if (temp < 35.8 && (t.tremor -= dt) <= 0) {
+      t.tremor = temp < 35 ? r(4, 8) : r(9, 18);
+      this.near('corpo.tremor', { gain: temp < 35 ? 1 : 0.7 });
+    }
+    if (fatigue >= 75 && (t.bocejo -= dt) <= 0) {
+      t.bocejo = r(70, 180);
+      this.near('corpo.bocejo');
     }
   }
 
