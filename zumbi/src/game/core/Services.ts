@@ -63,6 +63,8 @@ export interface GameSession {
   map: import('../world/MapTypes').MapData | null;
   /** Onde o jogador está no mapa da cidade (andar de cima: o ponto do prédio) e para onde olha. */
   player: { x: number; y: number; facing: number } | null;
+  /** Resumo da moradia e preparação de expedição (a HUD pede, a cena responde). */
+  planner: import('../home/Planner').Planner | null;
 }
 
 export interface GameServices {
@@ -110,6 +112,7 @@ export function createServices(game: Phaser.Game, viewport: Viewport, bus: Event
       death: null,
       atHome: false,
       marks: null,
+      planner: null,
       map: null,
       player: null,
       options: null,

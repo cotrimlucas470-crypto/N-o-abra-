@@ -74,6 +74,8 @@ export interface GameEvents {
   'ui:fullmap': Record<string, never>;
   /** Preparar expedição até a moradia (0) ou um marcador. */
   'ui:expedition': { target: number };
+  /** Abrir o resumo da moradia. */
+  'ui:home': Record<string, never>;
   /** Abrir a ficha do personagem (equipamento e estados). */
   'ui:character': Record<string, never>;
   /** Abrir o seletor de horas de sono (1–10) para dormir neste lugar. */

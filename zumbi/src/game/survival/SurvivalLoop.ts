@@ -27,6 +27,8 @@ export interface PlayerFrame {
   sprinting: boolean;
   /** Lutou há pouco (golpe, tiro, empurrão, agarrado): gasta como correr. */
   fighting?: boolean;
+  /** Na moradia (ânimo). */
+  home?: boolean;
 }
 
 export interface SurvivalHooks {
@@ -96,6 +98,7 @@ export class SurvivalLoop {
         activity,
         fireHeat: this.hooks.fireHeat?.(p.x, p.y) ?? 0,
         sleep: this.sleepInfo,
+        home: !!p.home,
       });
       const o = r.advance(minutes);
       if (o) this.hooks.outcome(o);

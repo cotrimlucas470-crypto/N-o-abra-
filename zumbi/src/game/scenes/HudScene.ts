@@ -21,6 +21,7 @@ import { MAP_TUNING } from '../config/MapTuning';
 import { DriveHud } from '../ui/DriveHud';
 import { InfoCard } from '../ui/InfoCard';
 import { SleepPicker } from '../ui/SleepPicker';
+import { SummaryCard } from '../ui/SummaryCard';
 import { CharacterScreen } from '../ui/CharacterScreen';
 import { StatePills } from '../ui/StatePills';
 import { hasClock } from '../ui/tabs/BodyTab';
@@ -71,6 +72,7 @@ export class HudScene extends Phaser.Scene {
   private minimap!: Minimap;
   private infoCard!: InfoCard;
   private sleepPicker!: SleepPicker;
+  private card!: SummaryCard;
   private character!: CharacterScreen;
   private ammoText!: Phaser.GameObjects.Text;
   private debugText: Phaser.GameObjects.Text | null = null;
@@ -122,6 +124,7 @@ export class HudScene extends Phaser.Scene {
     this.infoCard = new InfoCard(this, dpr);
     this.character = new CharacterScreen(this, this.s, s.assets!, dpr);
     this.sleepPicker = new SleepPicker(this, dpr, (place, hours) => this.s.bus.emit('body:sleep', { place, hours }));
+    this.card = new SummaryCard(this, dpr);
     this.ammoText = this.add.text(0, 0, '', textStyle(11, UI.text, '800')).setOrigin(0.5).setDepth(102).setResolution(dpr);
     this.ammoText.setShadow(0, 1, 'rgba(0,0,0,0.9)', 3, false, true);
     this.toast = new Toast(this, dpr);
@@ -176,7 +179,7 @@ export class HudScene extends Phaser.Scene {
       // Fechar o painel também fecha o recipiente aberto.
       if (s.session.openContainer) s.bus.emit('ui:container-close', {});
     });
-    this.controls.setPointerBlocker((x, y) => this.fullMap.isOpen || this.minimap.contains(x, y) || this.sleepPicker.isOpen || this.character.isOpen || this.inventory.contains(x, y) || this.optionsMenu.contains(x, y) || this.buildBar.contains(x, y) || (this.actionBar.visible && this.actionBarHit(x, y)));
+    this.controls.setPointerBlocker((x, y) => this.fullMap.isOpen || this.card.isOpen || this.minimap.contains(x, y) || this.sleepPicker.isOpen || this.character.isOpen || this.inventory.contains(x, y) || this.optionsMenu.contains(x, y) || this.buildBar.contains(x, y) || (this.actionBar.visible && this.actionBarHit(x, y)));
     // Aviso do alvo de interação: acima do botão (toque) ou embaixo, com a tecla (PC).
     this.prompt = this.add.text(0, 0, '', textStyle(12, UI.text, '700')).setOrigin(0.5, 1).setDepth(93).setResolution(dpr);
     this.prompt.setBackgroundColor('rgba(12,13,16,0.62)').setPadding(8, 4, 8, 4).setVisible(false);
@@ -256,6 +259,8 @@ export class HudScene extends Phaser.Scene {
       s.bus.on('ui:info', (e) => this.infoCard.show(e.title, e.lines, s.viewport.cssWidth, s.viewport.cssHeight, uiScaleFor(s.viewport.cssWidth, s.viewport.cssHeight))),
       s.bus.on('ui:map', (e) => this.openMap(e.annotated)),
       s.bus.on('ui:fullmap', () => this.openMap(false)),
+      s.bus.on('ui:home', () => this.openHome()),
+      s.bus.on('ui:expedition', (e) => this.openExpedition(e.target)),
       s.bus.on('game:saved', (e) => {
         this.savedText.setText(e.ok ? 'jogo salvo' : 'não foi possível salvar').setColor(e.ok ? UI.textDim : '#f07a6a').setAlpha(1);
         this.tweens.add({ targets: this.savedText, alpha: 0, delay: 1400, duration: 700 });
@@ -266,6 +271,11 @@ export class HudScene extends Phaser.Scene {
       if (this.paused) return;
       if (this.character.isOpen) this.character.hide();
       else this.s.bus.emit('ui:character', {});
+    });
+    this.input.keyboard?.on('keydown-H', () => {
+      if (this.paused) return;
+      if (this.card.isOpen) this.card.close();
+      else this.openHome();
     });
     this.input.keyboard?.on('keydown-I', () => {
       if (!this.paused) this.inventory.toggle();
@@ -360,6 +370,58 @@ export class HudScene extends Phaser.Scene {
     this.fullMap.show(annotated, w, h, uiScaleFor(w, h));
   }
 
+  /** Resumo da MORADIA (por cima do mapa, se ele estiver aberto). */
+  private openHome(): void {
+    const v = this.s.session.planner?.home();
+    if (!v) {
+      this.s.bus.emit('player:feedback', { text: 'Sem moradia: no mapa, toque num lugar e DEFINA COMO MORADIA.', tone: 'info' });
+      return;
+    }
+    const w = this.s.viewport.cssWidth;
+    const h = this.s.viewport.cssHeight;
+    const notes = v.advice ? [{ text: v.advice, tone: 'warn' as const }] : [{ text: 'Casa bem abastecida e fechada.', tone: 'ok' as const }];
+    const marks = this.s.session.marks;
+    this.card.open(
+      {
+        title: `MORADIA · ${v.summary.name.toUpperCase()}`,
+        subtitle: v.where,
+        rows: v.rows,
+        notes,
+        buttons: v.here || !marks ? [] : [{ label: 'GUIAR ATÉ LÁ', action: () => (marks.target = 0) }],
+      },
+      w,
+      h,
+      uiScaleFor(w, h),
+    );
+  }
+
+  /** PREPARAR EXPEDIÇÃO até um marcador (ou voltar para casa). */
+  private openExpedition(target: number): void {
+    const v = this.s.session.planner?.expedition(target);
+    if (!v) return;
+    if (typeof v === 'string') {
+      this.s.bus.emit('player:feedback', { text: v, tone: 'info' });
+      return;
+    }
+    const w = this.s.viewport.cssWidth;
+    const h = this.s.viewport.cssHeight;
+    const marks = this.s.session.marks;
+    const p = v.plan;
+    const notes = [{ text: p.verdict.text, tone: p.verdict.tone }, ...p.warnings.slice(0, 3).map((t) => ({ text: t, tone: 'warn' as const }))];
+    this.card.open(
+      {
+        title: v.goingHome ? 'VOLTAR PARA CASA' : 'PREPARAR EXPEDIÇÃO',
+        subtitle: v.goingHome ? `Até ${v.name}` : marks?.home ? `Até ${v.name} e de volta para casa` : `Até ${v.name} e de volta até aqui`,
+        rows: p.rows.filter((r) => r.label !== 'Destino'),
+        notes,
+        buttons: marks ? [{ label: 'GUIAR ATÉ LÁ', action: () => (marks.target = target) }] : [],
+      },
+      w,
+      h,
+      uiScaleFor(w, h),
+    );
+  }
+
   private setPaused(paused: boolean, reason: 'button' | 'hidden'): void {
     if (paused === this.paused) return;
     this.paused = paused;
@@ -370,6 +432,7 @@ export class HudScene extends Phaser.Scene {
     if (paused) this.sleepPicker.close();
     if (paused) this.character.hide();
     if (paused) this.fullMap.hide();
+    if (paused) this.card.close();
     if (paused) {
       this.scene.pause(SCENES.game);
       this.s.bus.emit('game:paused', { reason });
@@ -411,6 +474,7 @@ export class HudScene extends Phaser.Scene {
     this.sleepPicker.layout(w, h, k);
     this.character.layout(w, h, k);
     this.fullMap.layout(w, h, k);
+    this.card.layout(w, h, k);
     // Minimapa: deitado, à esquerda da coluna de botões do alto; em pé, embaixo deles.
     const mini = MAP_TUNING.miniSize * k;
     if (w > h) this.minimap.layout(w - ins.right - 128 * k - mini, ins.top + 8, k);
@@ -523,7 +587,7 @@ export class HudScene extends Phaser.Scene {
     this.inventory.tick(dt);
     this.infoCard.update(dt);
     this.character.tick(dt);
-    this.minimap.setVisible(!this.fullMap.isOpen && !this.character.isOpen && !this.inventory.isOpen);
+    this.minimap.setVisible(!this.fullMap.isOpen && !this.character.isOpen && !this.inventory.isOpen && !this.card.isOpen);
     this.minimap.update();
     this.fullMap.update();
     const handDef = inv?.handDef;

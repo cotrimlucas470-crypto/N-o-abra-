@@ -31,6 +31,8 @@ export interface Environment {
   fireHeat: number;
   /** Dormindo e em quê (home = na moradia). */
   sleep: { quality: number; blanket: boolean; home?: boolean } | null;
+  /** Está na moradia (ânimo). */
+  home?: boolean;
 }
 
 /** Ganchos da etapa de ferimentos (vazios até lá). */
@@ -81,6 +83,7 @@ export class Survivor {
       woundsBlockRegen: inj?.blocksRegen() ?? false,
       pain,
       load: this.inventory.effectiveLoad / Math.max(1, this.inventory.capacity),
+      home: !!env.home || !!env.sleep?.home,
     };
     // Dormindo: o lugar (cama, sofa, chão) e o que atrapalha AGORA (frio, fome, sede, dor, sangue).
     if (env.sleep) ctx.sleepQuality = env.sleep.quality * this.sleepComfort(ctx, env.sleep.home).factor;

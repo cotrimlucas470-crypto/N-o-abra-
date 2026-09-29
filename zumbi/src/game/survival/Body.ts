@@ -8,6 +8,7 @@
  * (inanição, desidratação, hipotermia, doença; ou recuperação natural) e
  * quem chama aplica. Os EFEITOS no movimento/fôlego/ações ficam em Effects.ts.
  */
+import { HOME_TUNING } from '../config/HomeTuning';
 import { HEALTH_DRAIN, NEEDS_TUNING, STATE_LEVELS, THERMAL_TUNING, WET_TUNING } from '../config/SurvivalTuning';
 import { clamp } from '../core/math';
 import type { ConsumeEffect, Tone } from '../items/condition';
@@ -53,6 +54,8 @@ export interface BodyContext {
   pain: number;
   /** Carga: peso carregado / capacidade (0..1+). */
   load?: number;
+  /** Na moradia que escolheu (lugar conhecido: o ânimo sobe um pouco). */
+  home?: boolean;
 }
 
 export const DEFAULT_CONTEXT: BodyContext = {
@@ -221,6 +224,7 @@ export class Body {
     if (this.sickness > 0.3) m -= 12;
     if (this.fatigue > 75) m -= 8;
     m -= ctx.pain * 0.3;
+    if (ctx.home && ctx.sheltered) m += HOME_TUNING.morale;
     return clamp(m, 5, 90);
   }
 

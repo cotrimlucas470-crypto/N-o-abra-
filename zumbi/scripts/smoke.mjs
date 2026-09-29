@@ -377,7 +377,38 @@ try {
     const home = await page.evaluate(() => { const m = window.__TDR__.scene.s.session.marks; return m.home ? { name: m.home.name, target: m.target } : null; });
     check(!!home && home.target === 0, `moradia definida e guiando até ela (${home?.name})`);
     await page.screenshot({ path: OUT + '07d-mapa.png' });
-    await page.evaluate(() => window.__TDR__.scene.game.scene.getScenes(true).find((x) => x.sys.settings.key.toLowerCase().includes('hud')).fullMap.hide());
+    // Resumo da moradia (botão MORADIA ao tocar nela) e preparação de expedição até um marcador.
+    await page.evaluate(() => {
+      const sc = window.__TDR__.scene;
+      const hud = sc.game.scene.getScenes(true).find((x) => x.sys.settings.key.toLowerCase().includes('hud'));
+      const h = sc.s.session.marks.home;
+      hud.fullMap.select({ x: h.x, y: h.y });
+    });
+    await sleep(300);
+    check(await hudBtn('MORADIA'), 'mapa: moradia tem o botão MORADIA (resumo)');
+    await sleep(400);
+    const card = await page.evaluate(() => {
+      const hud = window.__TDR__.scene.game.scene.getScenes(true).find((x) => x.sys.settings.key.toLowerCase().includes('hud'));
+      return { open: hud.card.isOpen, title: hud.card.data?.title ?? '', rows: hud.card.data?.rows.length ?? 0 };
+    });
+    check(card.open && /MORADIA/.test(card.title) && card.rows >= 8, `resumo da moradia abre (${card.rows} linhas)`);
+    await page.screenshot({ path: OUT + '07e-moradia.png' });
+    const exp = await page.evaluate(() => {
+      const sc = window.__TDR__.scene;
+      const hud = sc.game.scene.getScenes(true).find((x) => x.sys.settings.key.toLowerCase().includes('hud'));
+      hud.card.close();
+      const m = sc.s.session.marks.add(sc.player.x + 1800, sc.player.y + 300, 'Farmácia', 'hospital');
+      sc.s.bus.emit('ui:expedition', { target: m.id });
+      const d = hud.card.data;
+      return { open: hud.card.isOpen, title: d?.title ?? '', labels: d?.rows.map((r) => r.label) ?? [] };
+    });
+    check(exp.open && exp.title === 'PREPARAR EXPEDIÇÃO' && ['Distância', 'Tempo', 'Água', 'Comida', 'Energia', 'Peso', 'Munição', 'Temperatura', 'Condições'].every((l) => exp.labels.includes(l)), 'preparar expedição: distância, tempo, água, comida, energia, peso, munição, temperatura e condições');
+    await page.screenshot({ path: OUT + '07f-expedicao.png' });
+    await page.evaluate(() => {
+      const hud = window.__TDR__.scene.game.scene.getScenes(true).find((x) => x.sys.settings.key.toLowerCase().includes('hud'));
+      hud.card.close();
+      hud.fullMap.hide();
+    });
 
     // visão geral da rua
     await page.evaluate(([x, y]) => window.__TDR__.teleport(x, y), at(37, 29));

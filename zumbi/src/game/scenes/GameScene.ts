@@ -87,6 +87,8 @@ import { kindFromSource, NoiseSystem } from '../sim/Noise';
 import { SLEEP_TUNING } from '../config/SurvivalTuning';
 import { MAP_TUNING } from '../config/MapTuning';
 import { PlayerMarks, type PlayerMarksSave } from '../world/PlayerMarks';
+import { HOME_TUNING } from '../config/HomeTuning';
+import { createPlanner } from '../home/Planner';
 import { AudioEngine } from '../audio/AudioEngine';
 import { GameAudio } from '../audio/GameAudio';
 import { soundForContainer, surfaceFor } from '../audio/SoundMap';
@@ -336,6 +338,18 @@ export class GameScene extends Phaser.Scene {
 
     const nowDays = () => this.clock.minutes / MINUTES_PER_DAY;
     s.session.nowDays = nowDays;
+    s.session.planner = createPlanner({
+      state: this.state,
+      power: this.power,
+      inventory: this.inventory,
+      loop: this.loop,
+      clock: this.clock,
+      marks: this.marks,
+      walkMultiplier: s.settings.player.walkSpeedMultiplier,
+      gasOn,
+      player: () => s.session.player ?? { x: this.player.x, y: this.player.y },
+      atHome: () => s.session.atHome,
+    });
     this.doors = new DoorViews(this, this.state, this.world);
     this.items = new ItemViews(this, this.state, this.world, assets);
     this.nature = new NatureViews(this, this.state, this.world, assets, nowDays);
@@ -631,6 +645,7 @@ export class GameScene extends Phaser.Scene {
       s.session.map = null;
       s.session.player = null;
       s.session.atHome = false;
+      s.session.planner = null;
     });
 
     this.scene.launch(SCENES.hud);
@@ -654,7 +669,7 @@ export class GameScene extends Phaser.Scene {
     const moving = Math.hypot(intent.moveX, intent.moveY) > 0.15;
     // Lutando (golpe, tiro, agarrado) há pouco: o corpo gasta como correndo.
     const fighting = this.elapsed - this.lastFight < 6 || this.zombies.threat.grabbed > 0;
-    this.loop.frame(delta / 1000, { x: this.player.x, y: this.player.y, moving, sprinting: this.player.isSprinting, fighting });
+    this.loop.frame(delta / 1000, { x: this.player.x, y: this.player.y, moving, sprinting: this.player.isSprinting, fighting, home: s.session.atHome });
     // Dormindo: o corpo fica parado; o resto do estado físico vira velocidade e fôlego.
     this.player.frozen = this.loop.sleeping || this.loop.runner.current?.id === 'descansar';
     const fx = this.loop.effects;
@@ -817,7 +832,7 @@ export class GameScene extends Phaser.Scene {
     let at = false;
     if (h) {
       const b = this.model.map.buildings.find((bb) => !bb.floorOf && h.x >= bb.bounds.x && h.y >= bb.bounds.y && h.x <= bb.bounds.x + bb.bounds.w && h.y <= bb.bounds.y + bb.bounds.h);
-      at = b ? real.x >= b.bounds.x && real.y >= b.bounds.y && real.x <= b.bounds.x + b.bounds.w && real.y <= b.bounds.y + b.bounds.h : Math.hypot(real.x - h.x, real.y - h.y) < 300;
+      at = b ? real.x >= b.bounds.x && real.y >= b.bounds.y && real.x <= b.bounds.x + b.bounds.w && real.y <= b.bounds.y + b.bounds.h : Math.hypot(real.x - h.x, real.y - h.y) < HOME_TUNING.campRadius;
     }
     s.session.atHome = at;
   }

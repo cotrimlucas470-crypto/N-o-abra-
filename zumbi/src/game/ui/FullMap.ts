@@ -319,6 +319,7 @@ export class FullMap {
     if (pk.kind === 'home') {
       return [
         { label: marks.target === 0 ? 'GUIANDO' : 'GUIAR', run: () => (marks.target = 0) },
+        { label: 'MORADIA', run: () => this.s.bus.emit('ui:home', {}) },
         { label: 'EXPEDIÇÃO', run: () => this.s.bus.emit('ui:expedition', { target: 0 }) },
         { label: 'TIRAR MORADIA', run: () => (marks.clearHome(), (this.pick = null)) },
       ];
