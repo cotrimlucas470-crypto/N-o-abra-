@@ -370,6 +370,12 @@ try {
     await page.evaluate(() => window.__TDR__.scene.game.scene.getScenes(true).find((x) => x.sys.settings.key.toLowerCase().includes('hud')).character.hide());
     const mini = await page.evaluate(() => window.__TDR__.scene.game.scene.getScenes(true).find((x) => x.sys.settings.key.toLowerCase().includes('hud')).minimap.ready);
     check(mini, 'minimapa aparece na tela');
+    // Tirar e pôr o minimapa quando quiser (fica gravado).
+    const hiddenNow = await page.evaluate(() => { const m = (window.__hudOf ??= () => window.__TDR__.scene.game.scene.getScenes(true).find((x) => x.sys.settings.key.toLowerCase().includes('hud')).minimap)(); m.setShown(false); return { img: m.img.visible, saved: localStorage.getItem('tdr.ui.minimap') }; });
+    await page.evaluate(() => window.__hudOf().setShown(true));
+    await sleep(500);
+    const shownNow = await page.evaluate(() => { const m = window.__hudOf(); return { img: m.img.visible, shown: m.shown, saved: localStorage.getItem('tdr.ui.minimap') }; });
+    check(!hiddenNow.img && hiddenNow.saved === 'false' && shownNow.img && shownNow.shown && shownNow.saved === 'true', `minimapa some e volta pelo botão (${JSON.stringify({ hiddenNow, shownNow })})`);
     // O mapa começa sem nenhuma marcação do jogo (nada de base pronta).
     const clean = await page.evaluate(() => { const m = window.__TDR__.scene.s.session.marks; return !m.home && m.marks.length === 0; });
     check(clean, 'mapa começa sem moradia nem marcadores pré-definidos');

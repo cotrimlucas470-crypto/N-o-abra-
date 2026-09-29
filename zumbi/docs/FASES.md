@@ -30,6 +30,9 @@ O que cada etapa entregou, como foi testado e o que ficou pendente. A ordem das 
   `save.slot1.mapa1` e o título avisa; nunca é apagado.
 - Impressão digital do mapa (`interaction.test.ts`) atualizada de propósito. 484 testes.
 
+### Minimapa liga/desliga
+- Botão no canto do minimapa: **×** tira, **MAPA** devolve. A escolha fica gravada no aparelho (`tdr.ui.minimap`). Escondido, o toque na área não move o personagem.
+
 ### Ajustes: inventário, fábrica e HUD
 - **HUD:** faixa de necessidades sempre à vista no painel (FOME, SEDE, SONO, TEMP), verde/amarelo/vermelho pelos mesmos limites das pílulas; azul no frio. Relógio e pílulas descem junto.
 - **Inventário:** com 5+ pilhas, a lista se agrupa por categoria (COMIDA · 2 · 1,2 kg...) em ordem alfabética; linhas mais compactas; sem nada escolhido o rodapé vira só uma dica e a lista ganha espaço; descrição comprida encolhe em vez de ir para trás dos botões.
