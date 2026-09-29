@@ -13,6 +13,7 @@ import { WorldState } from '../src/game/sim/WorldState';
 import { buildCity } from '../src/game/world/districts/CityGenerator';
 import { buildStarterDistrict } from '../src/game/world/districts/StarterDistrict';
 import { WorldModel } from '../src/game/world/WorldModel';
+import { BUILDING_FAMILY, type BuildingKind } from '../src/game/world/MapTypes';
 
 const TABLES = LOOT_TABLES as Record<string, (typeof LOOT_TABLES)[keyof typeof LOOT_TABLES]>;
 
@@ -42,7 +43,7 @@ describe('tabelas de loot', () => {
 
   it('todo recipiente tem tabela em todo contexto onde aparece', () => {
     const kinds = new Set<ContainerKind>(Object.values(PROP_CONTAINERS).flatMap((l) => l!.map((s) => s.kind)));
-    const buildings = ['house', 'store', 'garage', 'shelter', 'pharmacy', 'restaurant', 'clothing', 'warehouse', null] as const;
+    const buildings = [...(Object.keys(BUILDING_FAMILY) as BuildingKind[]), null] as const;
     for (const kind of kinds) {
       expect(CONTAINER_DEFS[kind], kind).toBeDefined();
       for (const b of buildings) {

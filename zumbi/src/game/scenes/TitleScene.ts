@@ -7,7 +7,7 @@ import { GAME_STAGE, GAME_TITLE, GAME_VERSION, SCENES } from '../config/GameConf
 import { services } from '../core/Services';
 import { SANDBOX_PRESETS, type SandboxPresetId } from '../config/Sandbox';
 import { requestFullscreenLandscape } from '../systems/fullscreen';
-import { archiveCurrent, loadGame, saveSummary } from '../save/SaveGame';
+import { archiveCurrent, loadGame, oldMapSummary, saveSummary } from '../save/SaveGame';
 import { UiButton } from '../ui/UiButton';
 import { UI, textStyle } from '../ui/theme';
 import { ZOMBIE_PRESETS, type ZombiePresetId } from '../zombies/Difficulty';
@@ -45,6 +45,8 @@ export class TitleScene extends Phaser.Scene {
     const version = this.add.text(0, 0, `v${GAME_VERSION} · ${GAME_STAGE}`, textStyle(11, '#6f6d67', '600')).setOrigin(1, 1).setResolution(dpr);
 
     const summary = saveSummary();
+    // Save de antes do mapa novo: não abre aqui (os ids do mundo mudaram), mas fica guardado.
+    const oldMap = summary ? null : oldMapSummary();
     // Dificuldade dos zumbis (só vale para jogo novo; o save guarda a sua).
     const presets = Object.keys(ZOMBIE_PRESETS) as ZombiePresetId[];
     const same = (a: object, b: object) => JSON.stringify(a) === JSON.stringify(b);
@@ -67,7 +69,8 @@ export class TitleScene extends Phaser.Scene {
     );
     // Tamanho da cidade (jogo novo). A expandida tem a cidade de sempre no meio.
     const cities: { id: SandboxPresetId; label: string }[] = [
-      { id: 'padrao', label: 'Expandida 5×5' },
+      { id: 'padrao', label: 'Grande 9×9' },
+      { id: 'cidade-grande', label: 'Média 5×5' },
       { id: 'cidade-classica', label: 'Clássica 3×3' },
       { id: 'cidade-pequena', label: 'Pequena 1×1' },
     ];
@@ -110,8 +113,18 @@ export class TitleScene extends Phaser.Scene {
     };
     const play = new UiButton(this, summary ? 'CONTINUAR' : 'JOGAR', 220, 52, () => start(!!summary), true, dpr);
     const saveInfo = this.add
-      .text(0, 0, summary ? `Dia ${summary.day} · salvo em ${new Date(summary.savedAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : '', textStyle(11, UI.textDim, '600'))
+      .text(
+        0,
+        0,
+        summary
+          ? `Dia ${summary.day} · salvo em ${new Date(summary.savedAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`
+          : oldMap
+            ? `O mapa mudou: o save antigo (dia ${oldMap.day}) fica guardado à parte.\nJOGAR começa um jogo novo na cidade nova.`
+            : '',
+        textStyle(11, UI.textDim, '600'),
+      )
       .setOrigin(0.5)
+      .setAlign('center')
       .setResolution(dpr);
     // Jogo novo com save existente: pede confirmação antes.
     const confirmText = this.add

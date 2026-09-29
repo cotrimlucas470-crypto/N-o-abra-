@@ -416,6 +416,181 @@ export const LOOT_TABLES = {
     wear: 'trabalho',
     entries: [i('parafusos', 3, [2, 10]), i('pregos', 3, [2, 10]), i('sucata', 3), i('trapo', 3), i('chaveFenda', 1), i('fitaIsolante', 1), i('tabua', 1), i('garrafaPet', 1), i('luvasTrabalho', 0.6), i('cano', 0.6), i('barraFerro', 0.5)],
   },
+  // ------------------------------------------------------------------ expansão do mapa: casa
+  comoda: {
+    rolls: [2, 5],
+    empty: 0.15,
+    wear: 'casa',
+    entries: [
+      i('camiseta', 6, [1, 3]), i('camisetaBranca', 4), i('regata', 3), i('meias', 6, [1, 4]), i('bermuda', 4), i('calcaJeans', 4), i('calcaMoletom', 3),
+      i('moletom', 3), i('lencol', 2), i('toalha', 2), i('documentos', 2), i('fotografia', 2), i('dinheiro', 2, [5, 60]), i('relogioPulso', 1),
+      i('colar', 1), i('alianca', 0.5), i('carteira', 1), i('pilhas', 1, [2, 4]), i('vela', 1),
+    ],
+  },
+  'estante-livros': {
+    rolls: [2, 6],
+    empty: 0.1,
+    wear: 'casa',
+    entries: [
+      i('livroRomance', 5), i('livroSuspense', 5), i('livroCarpintaria', 1), i('livroMecanica', 1), i('livroPrimeirosSocorros', 1), i('livroAgricultura', 1),
+      i('livroEletronica', 1), i('livroCulinaria', 2), i('livroPesca', 1), i('revista', 5, [1, 3]), i('gibi', 3, [1, 3]), i('jornal', 3), i('mapaCidade', 1),
+      i('diario', 1), i('fotografia', 2), i('baralho', 2), i('vela', 1),
+    ],
+  },
+  'maquina-lavar': {
+    rolls: [1, 4],
+    empty: 0.3,
+    wear: 'casa',
+    entries: [i('camiseta', 5), i('meias', 5, [1, 3]), i('toalha', 5), i('lencol', 3), i('calcaJeans', 3), i('bermuda', 3), i('moletom', 2), i('trapo', 2, [1, 2])],
+  },
+  lavanderia: {
+    rolls: [2, 6],
+    empty: 0.25,
+    wear: 'novo',
+    entries: [
+      i('detergente', 5), i('sabaoBarra', 5, [1, 3]), i('aguaSanitaria', 5), i('toalha', 4), i('lencol', 4), i('cobertor', 3), i('camiseta', 3), i('calcaJeans', 2),
+      i('moletom', 2), i('sacoPlastico', 3, [1, 4]), i('balde', 1), i('vassoura', 1),
+    ],
+  },
+  sapateira: {
+    rolls: [1, 3],
+    empty: 0.2,
+    wear: 'casa',
+    entries: [i('tenis', 5), i('chinelo', 5), i('sapatoSocial', 3), i('botaTrabalho', 2), i('meias', 3, [1, 2])],
+  },
+  bau: {
+    rolls: [2, 6],
+    empty: 0.2,
+    wear: 'casa',
+    entries: [
+      i('cobertor', 5), i('lencol', 4), i('travesseiro', 2), i('casacoInverno', 3), i('luvasLa', 2), i('gorro', 2), i('cachecol', 2), i('jaquetaCouro', 1),
+      i('martelo', 1), i('serrote', 1), i('corda', 2), i('lona', 2), i('vela', 3, [1, 4]), i('fosforos', 2), i('fotografia', 2), i('diario', 1),
+      i('dinheiro', 1, [10, 100]), i('relogioPulso', 1), i('livroRomance', 1),
+    ],
+  },
+  'freezer-casa': {
+    rolls: [2, 5],
+    empty: 0.15,
+    wear: 'casa',
+    stockAge: [0, 4],
+    entries: [i('carneBovina', 5), i('frango', 5), i('peixe', 3), i('linguica', 4), i('marmita', 3), i('pizzaCongelada', 3), i('lasanhaCongelada', 3)],
+  },
+  cabideiro: {
+    rolls: [1, 3],
+    empty: 0.25,
+    wear: 'casa',
+    entries: [i('casacoInverno', 3), i('jaquetaJeans', 3), i('moletom', 4), i('capaChuva', 3), i('bone', 3), i('gorro', 2), i('cachecol', 2), i('bolsaLateral', 1), i('mochilaEscolar', 1), i('chaveCasa', 1), i('chaveCarro', 0.6)],
+  },
+  brinquedos: {
+    rolls: [1, 3],
+    empty: 0.2,
+    wear: 'casa',
+    entries: [i('gibi', 4, [1, 3]), i('balas', 3), i('chocolate', 2), i('baralho', 2), i('lanterna', 1), i('pilhas', 2, [2, 4]), i('barbante', 2), i('fita', 1), i('fotografia', 1)],
+  },
+  churrasqueira: {
+    rolls: [1, 2],
+    empty: 0.4,
+    wear: 'casa',
+    entries: [i('lenha', 3, [1, 3]), i('fosforos', 3), i('isqueiro', 1), i('garfo', 1), i('faca', 1), i('sal', 1), i('jornal', 2)],
+  },
+  banca: {
+    rolls: [2, 5],
+    empty: 0.3,
+    wear: 'novo',
+    entries: [
+      i('revista', 6, [1, 4]), i('jornal', 5, [1, 3]), i('gibi', 4, [1, 3]), i('revistaArmas', 1), i('mapaCidade', 3), i('balas', 3, [1, 3]), i('chocolate', 3),
+      i('isqueiro', 2), i('pilhas', 2, [2, 4]), i('baralho', 2), i('refrigerante', 2), i('agua', 2),
+    ],
+  },
+  // ------------------------------------------------------------------ expansão do mapa: comércio
+  'freezer-comercio': {
+    rolls: [3, 8],
+    empty: 0.2,
+    wear: 'novo',
+    stockAge: [0, 3],
+    entries: [i('carneBovina', 5, [1, 3]), i('frango', 5, [1, 3]), i('peixe', 3, [1, 2]), i('linguica', 4, [1, 3]), i('marmita', 3, [1, 3]), i('pizzaCongelada', 4, [1, 3]), i('lasanhaCongelada', 4, [1, 3])],
+  },
+  'vitrine-padaria': {
+    rolls: [2, 6],
+    empty: 0.2,
+    wear: 'novo',
+    stockAge: [0, 2],
+    entries: [
+      i('paoFrances', 6, [2, 8]), i('paoForma', 4), i('bolo', 4), i('biscoito', 3), i('bolachaAgua', 2), i('chocolate', 2), i('balas', 2), i('salgadinho', 2),
+      i('sanduiche', 3), i('sucoCaixa', 2),
+    ],
+  },
+  'maquina-venda': {
+    rolls: [2, 6],
+    empty: 0.35,
+    wear: 'novo',
+    entries: [
+      i('refrigerante', 6, [1, 3]), i('agua', 5), i('sucoCaixa', 3), i('energetico', 3), i('isotonico', 3), i('cafeLata', 2), i('chaGelado', 2), i('salgadinho', 5),
+      i('chocolate', 4), i('barraCereal', 4), i('balas', 3), i('amendoim', 3), i('biscoito', 3),
+    ],
+  },
+  'bar-balcao': {
+    rolls: [2, 6],
+    empty: 0.25,
+    wear: 'trabalho',
+    entries: [
+      i('cerveja', 6, [1, 6]), i('cachaca', 4), i('vinho', 2), i('refrigerante', 3, [1, 3]), i('amendoim', 3), i('salgadinho', 3), i('isqueiro', 2), i('fosforos', 2),
+      i('baralho', 2), i('dinheiro', 3, [5, 80]), i('copo', 3), i('garrafaVidro', 3, [1, 3]), i('abridor', 2), i('faca', 1),
+    ],
+  },
+  // ------------------------------------------------------------------ expansão do mapa: trabalho
+  'porta-paletes': {
+    rolls: [3, 9],
+    empty: 0.2,
+    wear: 'novo',
+    entries: [
+      i('cimento', 4), i('areia', 3), i('tijolo', 3, [4, 12]), i('telha', 2, [2, 6]), i('tinta', 3), i('lona', 3), i('corda', 3), i('sacoVazio', 3, [2, 6]),
+      i('pregos', 3, [20, 60]), i('parafusos', 3, [20, 60]), i('arame', 2), i('oleoMotor', 2), i('aguaGalao', 3), i('arroz', 3, [2, 6]), i('feijaoCru', 3, [2, 6]),
+      i('pneu', 1), i('galaoVazio', 2), i('fitaIsolante', 2), i('fita', 2),
+    ],
+  },
+  vestiario: {
+    rolls: [1, 5],
+    empty: 0.3,
+    wear: 'trabalho',
+    entries: [
+      i('macacao', 3), i('botaTrabalho', 3), i('luvasTrabalho', 4), i('camiseta', 4), i('meias', 3), i('toalha', 3), i('sabonete', 3), i('shampoo', 2), i('cadeado', 2),
+      i('dinheiro', 2, [5, 40]), i('carteira', 1), i('celular', 1), i('capaceteObra', 2), i('oculosProtecao', 2), i('bolsaEsportiva', 1), i('barraCereal', 2),
+      i('isqueiro', 2), i('chaveCarro', 1), i('chaveCasa', 1),
+    ],
+  },
+  arquivo: {
+    rolls: [1, 4],
+    empty: 0.3,
+    wear: 'trabalho',
+    entries: [
+      i('documentos', 8, [1, 3]), i('jornal', 3), i('revista', 2), i('mapaCidade', 2), i('dinheiro', 1, [10, 200]), i('chaveCasa', 1), i('chaveCarro', 1), i('fita', 2),
+      i('cola', 2), i('tesoura', 2), i('pilhas', 2, [2, 4]), i('bilhete', 2), i('fotografia', 1), i('estilete', 1),
+    ],
+  },
+  conteiner: {
+    rolls: [4, 10],
+    empty: 0.3,
+    wear: 'novo',
+    entries: [
+      i('lona', 3), i('corda', 3), i('pneu', 2), i('tijolo', 2, [6, 20]), i('cimento', 3), i('chapaMetal', 2), i('sucata', 2, [2, 6]), i('oleoMotor', 2), i('combustivel', 1),
+      i('aguaGalao', 3), i('arroz', 3, [4, 10]), i('feijaoCru', 3, [4, 10]), i('macarrao', 3, [4, 10]), i('acucar', 2, [2, 6]), i('sal', 2), i('oleoSoja', 2, [2, 6]),
+      i('camiseta', 2, [2, 6]), i('tenis', 1, [1, 3]), i('cobertor', 2, [1, 4]), i('sacoVazio', 2),
+    ],
+  },
+  // ------------------------------------------------------------------ expansão do mapa: serviços
+  'carteira-escolar': {
+    rolls: [1, 2],
+    empty: 0.5,
+    wear: 'casa',
+    entries: [i('gibi', 3), i('revista', 2), i('balas', 3), i('chocolate', 2), i('barraCereal', 2), i('bilhete', 3), i('tesoura', 1), i('cola', 2), i('sucoCaixa', 2), i('baralho', 1)],
+  },
+  altar: {
+    rolls: [1, 4],
+    empty: 0.2,
+    wear: 'casa',
+    entries: [i('vela', 8, [2, 8]), i('fosforos', 4), i('isqueiro', 1), i('dinheiro', 3, [2, 50]), i('bilhete', 2), i('fotografia', 2), i('colar', 1), i('vinho', 2), i('garrafaVidro', 1)],
+  },
   // ------------------------------------------------------------------ prontas para construções futuras
   'delegacia-armario': {
     rolls: [2, 6],

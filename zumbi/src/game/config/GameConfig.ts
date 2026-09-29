@@ -4,8 +4,15 @@
  */
 
 export const GAME_TITLE = 'Toque de Recolher';
-export const GAME_VERSION = '0.7.0';
-export const GAME_STAGE = 'Zumbis de verdade · andares, carro e gerador';
+export const GAME_VERSION = '0.8.0';
+export const GAME_STAGE = 'Cidade 3× maior · prédios todos diferentes';
+/**
+ * Versão do TRAÇADO do mapa. O save guarda o que mudou no mundo por ids de
+ * porta, móvel e recipiente; se o gerador muda o mapa, esses ids não batem
+ * mais. Save de outra versão não abre neste mapa (fica guardado à parte).
+ * 1 = plantas fixas; 2 = gerador de prédios + cidade 9×9.
+ */
+export const MAP_VERSION = 2;
 
 /** Tamanho de um tile do mapa, em pixels de mundo. */
 export const TILE = 64;

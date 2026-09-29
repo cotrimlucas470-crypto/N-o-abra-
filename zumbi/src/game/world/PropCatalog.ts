@@ -115,6 +115,70 @@ export const PROP_DEFS = {
   workbench: { sprites: ['prop.workbench'], width: 152, height: 54, collider: rect(150, 52), layer: 'object', shadowHeight: 0.5 },
   toolShelf: { sprites: ['prop.toolshelf'], width: 132, height: 42, collider: rect(130, 40), layer: 'object', shadowHeight: 1 },
   cabinet: { sprites: ['prop.cabinet'], width: 52, height: 42, collider: rect(50, 40), layer: 'object', shadowHeight: 0.8 },
+
+  // ---------- casa (mais) ----------
+  dresser: { sprites: ['prop.dresser'], width: 100, height: 44, collider: rect(98, 42), layer: 'object', shadowHeight: 0.6 },
+  bookshelf: { sprites: ['prop.bookshelf'], width: 104, height: 32, collider: rect(102, 30), layer: 'object', shadowHeight: 1 },
+  bunkBed: { sprites: ['prop.bunkbed'], width: 84, height: 140, collider: rect(80, 136), layer: 'object', shadowHeight: 0.9 },
+  crib: { sprites: ['prop.crib'], width: 60, height: 100, collider: rect(58, 98), layer: 'object', shadowHeight: 0.5 },
+  washer: { sprites: ['prop.washer'], width: 58, height: 58, collider: rect(56, 56), layer: 'object', shadowHeight: 0.6 },
+  laundrySink: { sprites: ['prop.laundrysink'], width: 60, height: 48, collider: rect(58, 46), layer: 'object', shadowHeight: 0.5 },
+  shoeRack: { sprites: ['prop.shoerack'], width: 72, height: 28, collider: rect(70, 26), layer: 'object', shadowHeight: 0.4 },
+  shower: { sprites: ['prop.shower'], width: 72, height: 72, collider: none, layer: 'floor', shadowHeight: 0 },
+  chest: { sprites: ['prop.chest'], width: 72, height: 42, collider: rect(70, 40), layer: 'object', shadowHeight: 0.4 },
+  plantPot: { sprites: ['prop.plantpot.a', 'prop.plantpot.b'], width: 32, height: 32, collider: circle(12), layer: 'object', shadowHeight: 0.5 },
+  freezer: { sprites: ['prop.freezer'], width: 112, height: 58, collider: rect(110, 56), layer: 'object', shadowHeight: 0.6 },
+  ironingBoard: { sprites: ['prop.ironingboard'], width: 108, height: 32, collider: rect(104, 24), layer: 'object', shadowHeight: 0.4 },
+
+  // ---------- comércio ----------
+  gondola: { sprites: ['prop.gondola'], width: 250, height: 74, collider: rect(248, 72), layer: 'object', shadowHeight: 0.9 },
+  bakeryCounter: { sprites: ['prop.bakerycounter'], width: 150, height: 56, collider: rect(148, 54), layer: 'object', shadowHeight: 0.6 },
+  clothesRack: { sprites: ['prop.clothesrack'], width: 120, height: 44, collider: rect(116, 22), layer: 'object', shadowHeight: 0.9 },
+  mannequin: { sprites: ['prop.mannequin'], width: 36, height: 32, collider: circle(13), layer: 'object', shadowHeight: 1 },
+  vending: { sprites: ['prop.vending'], width: 72, height: 54, collider: rect(70, 52), layer: 'object', shadowHeight: 1 },
+  barCounter: { sprites: ['prop.barcounter'], width: 190, height: 52, collider: rect(188, 50), layer: 'object', shadowHeight: 0.5 },
+  shopCounter: { sprites: ['prop.shopcounter'], width: 150, height: 52, collider: rect(148, 50), layer: 'object', shadowHeight: 0.5 },
+  fuelPump: { sprites: ['prop.fuelpump'], width: 48, height: 64, collider: rect(46, 62), layer: 'object', shadowHeight: 1 },
+
+  // ---------- trabalho ----------
+  palletRack: { sprites: ['prop.palletrack'], width: 280, height: 72, collider: rect(278, 70), layer: 'object', shadowHeight: 1 },
+  lathe: { sprites: ['prop.lathe'], width: 132, height: 56, collider: rect(128, 52), layer: 'object', shadowHeight: 0.6 },
+  compressor: { sprites: ['prop.compressor'], width: 72, height: 48, collider: rect(68, 44), layer: 'object', shadowHeight: 0.6 },
+  welder: { sprites: ['prop.welder'], width: 52, height: 40, collider: rect(50, 38), layer: 'object', shadowHeight: 0.5 },
+  toolbox: { sprites: ['prop.toolbox'], width: 66, height: 42, collider: rect(64, 40), layer: 'object', shadowHeight: 0.6 },
+  locker: { sprites: ['prop.locker'], width: 92, height: 40, collider: rect(90, 38), layer: 'object', shadowHeight: 1 },
+  fileCabinet: { sprites: ['prop.filecabinet'], width: 46, height: 52, collider: rect(44, 50), layer: 'object', shadowHeight: 0.8 },
+  cargoContainer: { sprites: ['prop.container.a', 'prop.container.b'], width: 384, height: 152, collider: rect(382, 150), layer: 'object', shadowHeight: 1.2 },
+
+  // ---------- serviços ----------
+  schoolDesk: { sprites: ['prop.schooldesk'], width: 52, height: 44, collider: rect(48, 40), layer: 'object', shadowHeight: 0.35 },
+  blackboard: { sprites: ['prop.blackboard'], width: 190, height: 14, collider: rect(188, 12), layer: 'object', shadowHeight: 0.9 },
+  pew: { sprites: ['prop.pew'], width: 172, height: 40, collider: rect(168, 36), layer: 'object', shadowHeight: 0.35 },
+  altar: { sprites: ['prop.altar'], width: 132, height: 60, collider: rect(128, 56), layer: 'object', shadowHeight: 0.5 },
+  stretcher: { sprites: ['prop.stretcher'], width: 74, height: 150, collider: rect(70, 146), layer: 'object', shadowHeight: 0.4 },
+  medCabinet: { sprites: ['prop.medcabinet'], width: 84, height: 34, collider: rect(82, 32), layer: 'object', shadowHeight: 1 },
+  treadmill: { sprites: ['prop.treadmill'], width: 72, height: 150, collider: rect(68, 146), layer: 'object', shadowHeight: 0.4 },
+  weightBench: { sprites: ['prop.weightbench'], width: 60, height: 130, collider: rect(56, 126), layer: 'object', shadowHeight: 0.4 },
+  dumbbellRack: { sprites: ['prop.dumbbellrack'], width: 122, height: 40, collider: rect(118, 38), layer: 'object', shadowHeight: 0.5 },
+
+  // ---------- miudezas de casa (densidade com sentido) ----------
+  floorLamp: { sprites: ['prop.floorlamp'], width: 28, height: 28, collider: circle(9), layer: 'object', shadowHeight: 1 },
+  stool: { sprites: ['prop.stool'], width: 30, height: 30, collider: circle(11), layer: 'object', shadowHeight: 0.3 },
+  sideTable: { sprites: ['prop.sidetable'], width: 40, height: 40, collider: rect(38, 38), layer: 'object', shadowHeight: 0.4 },
+  laundryBasket: { sprites: ['prop.laundrybasket'], width: 36, height: 32, collider: circle(14), layer: 'object', shadowHeight: 0.35 },
+  wallShelf: { sprites: ['prop.wallshelf'], width: 92, height: 22, collider: rect(90, 20), layer: 'object', shadowHeight: 0.9 },
+  coatRack: { sprites: ['prop.coatrack'], width: 32, height: 32, collider: circle(10), layer: 'object', shadowHeight: 1 },
+  toyBox: { sprites: ['prop.toybox'], width: 50, height: 36, collider: rect(48, 34), layer: 'object', shadowHeight: 0.35 },
+
+  // ---------- quintal e rua ----------
+  clothesline: { sprites: ['prop.clothesline'], width: 170, height: 40, collider: none, layer: 'overhead', shadowHeight: 0.2, fadeWhenNear: true },
+  grill: { sprites: ['prop.grill'], width: 56, height: 44, collider: rect(52, 40), layer: 'object', shadowHeight: 0.6 },
+  waterTank: { sprites: ['prop.watertank'], width: 76, height: 76, collider: circle(34), layer: 'object', shadowHeight: 1 },
+  doghouse: { sprites: ['prop.doghouse'], width: 58, height: 52, collider: rect(54, 48), layer: 'object', shadowHeight: 0.6 },
+  bicycle: { sprites: ['prop.bicycle'], width: 96, height: 30, collider: rect(88, 14), layer: 'object', shadowHeight: 0.3 },
+  gardenBed: { sprites: ['prop.gardenbed'], width: 130, height: 60, collider: none, layer: 'floor', shadowHeight: 0 },
+  busStop: { sprites: ['prop.busstop'], width: 190, height: 60, collider: rect(186, 16, 0, -20), layer: 'object', shadowHeight: 1 },
+  newsstand: { sprites: ['prop.newsstand'], width: 120, height: 84, collider: rect(116, 80), layer: 'object', shadowHeight: 1 },
 } as const satisfies Record<string, PropDef>;
 
 export type PropType = keyof typeof PROP_DEFS;

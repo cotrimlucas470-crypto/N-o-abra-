@@ -7,7 +7,7 @@
 import type { Random } from '../../../core/Random';
 import type { BuildingKind, RoofStyle } from '../../MapTypes';
 import type { EntranceSpec, LayoutRecipe } from './layout';
-import type { RoomDef, RoomKind } from './rooms';
+import type { RoomKind } from './rooms';
 
 export type Condition = 'conservado' | 'abandonado' | 'saqueado' | 'incendiado' | 'ocupado';
 
@@ -28,8 +28,6 @@ export interface Archetype {
   floors?: boolean;
   /** Pesos de conservação (padrão da cidade se faltar). */
   condition?: Partial<Record<Condition, number>>;
-  /** Mobília própria deste lugar para um cômodo (o salão da farmácia não é o da ferragem). */
-  furnish?: Partial<Record<RoomKind, RoomDef>>;
 }
 
 function shuffle<T>(rng: Random, list: T[]): T[] {
@@ -216,6 +214,8 @@ const mercadinho: Archetype = {
   roofs: ['flat'],
   entrance: { main: 'double', back: 0.8 },
   recipe: (_W, _H, _w, rng) => ({ style: 'bands', front: ['Salão'], back: shuffle(rng, ['Estoque', 'Banheiro', rng.chance(0.5) ? 'Escritório' : 'Estoque']), depth: [0.62, 0.75] }),
+  // Pode ter andar em cima (apartamento/escritório): guarda o vão da escada.
+  floors: true,
 };
 
 const supermercado: Archetype = {
@@ -240,6 +240,8 @@ const conveniencia: Archetype = {
   roofs: ['flat'],
   entrance: { main: 'double', back: 0.6 },
   recipe: () => ({ style: 'bands', front: ['Salão'], back: ['Estoque', 'Banheiro'], depth: [0.65, 0.75] }),
+  // Pode ter andar em cima (apartamento/escritório): guarda o vão da escada.
+  floors: true,
 };
 
 const farmacia: Archetype = {
@@ -252,6 +254,8 @@ const farmacia: Archetype = {
   roofs: ['flat'],
   entrance: { main: 'double', back: 0.7 },
   recipe: (_W, _H, _w, rng) => ({ style: 'bands', front: ['Salão'], back: shuffle(rng, ['Estoque', 'Banheiro', rng.chance(0.5) ? 'Escritório' : 'Despensa']), depth: [0.58, 0.7] }),
+  // Pode ter andar em cima (apartamento/escritório): guarda o vão da escada.
+  floors: true,
 };
 
 const lanchonete: Archetype = {
@@ -264,6 +268,8 @@ const lanchonete: Archetype = {
   roofs: ['flat'],
   entrance: { main: 'double', back: 0.8 },
   recipe: (_W, _H, _w, rng) => ({ style: 'bands', front: ['Sala de jantar'], back: shuffle(rng, ['Cozinha industrial', 'Banheiro', ...(rng.chance(0.5) ? ['Despensa' as RoomKind] : [])]), depth: [0.55, 0.65] }),
+  // Pode ter andar em cima (apartamento/escritório): guarda o vão da escada.
+  floors: true,
 };
 
 const restaurante: Archetype = {
@@ -276,6 +282,8 @@ const restaurante: Archetype = {
   roofs: ['flat', 'shingle-a'],
   entrance: { main: 'double', back: 1, side: 0.3 },
   recipe: (_W, _H, _w, rng) => ({ style: 'bands', front: ['Sala de jantar'], back: shuffle(rng, ['Cozinha industrial', 'Despensa', 'Banheiro', 'Banheiro', 'Escritório']), depth: [0.55, 0.65] }),
+  // Pode ter andar em cima (apartamento/escritório): guarda o vão da escada.
+  floors: true,
 };
 
 const padaria: Archetype = {
@@ -288,6 +296,8 @@ const padaria: Archetype = {
   roofs: ['flat'],
   entrance: { main: 'double', back: 0.9 },
   recipe: (_W, _H, _w, rng) => ({ style: 'bands', front: ['Salão'], back: shuffle(rng, ['Cozinha industrial', 'Despensa', 'Banheiro']), depth: [0.5, 0.6] }),
+  // Pode ter andar em cima (apartamento/escritório): guarda o vão da escada.
+  floors: true,
 };
 
 const bar: Archetype = {
@@ -301,6 +311,8 @@ const bar: Archetype = {
   entrance: { main: 'double', back: 0.6 },
   recipe: (_W, _H, _w, rng) => ({ style: 'bands', front: ['Sala de jantar'], back: shuffle(rng, ['Despensa', 'Banheiro', ...(rng.chance(0.5) ? ['Cozinha' as RoomKind] : [])]), depth: [0.6, 0.72] }),
   condition: { conservado: 1, abandonado: 1, saqueado: 3, ocupado: 1 },
+  // Pode ter andar em cima (apartamento/escritório): guarda o vão da escada.
+  floors: true,
 };
 
 const lojaRoupas: Archetype = {
@@ -313,6 +325,8 @@ const lojaRoupas: Archetype = {
   roofs: ['flat'],
   entrance: { main: 'double', back: 0.6 },
   recipe: (_W, _H, _w, rng) => ({ style: 'bands', front: ['Salão'], back: shuffle(rng, ['Estoque', 'Vestiário', 'Banheiro']), depth: [0.62, 0.74] }),
+  // Pode ter andar em cima (apartamento/escritório): guarda o vão da escada.
+  floors: true,
 };
 
 const ferragem: Archetype = {
@@ -325,6 +339,8 @@ const ferragem: Archetype = {
   roofs: ['flat'],
   entrance: { main: 'double', back: 1, side: 0.3 },
   recipe: (_W, _H, _w, rng) => ({ style: 'bands', front: ['Salão'], back: shuffle(rng, ['Depósito', 'Estoque', 'Banheiro', 'Escritório']), depth: [0.55, 0.68] }),
+  // Pode ter andar em cima (apartamento/escritório): guarda o vão da escada.
+  floors: true,
 };
 
 const lavanderia: Archetype = {
@@ -337,6 +353,8 @@ const lavanderia: Archetype = {
   roofs: ['flat'],
   entrance: { main: 'double', back: 0.5 },
   recipe: () => ({ style: 'bands', front: ['Salão'], back: ['Área de serviço', 'Banheiro'], depth: [0.6, 0.72] }),
+  // Pode ter andar em cima (apartamento/escritório): guarda o vão da escada.
+  floors: true,
 };
 
 // ---------------------------------------------------------------- trabalho
@@ -351,6 +369,8 @@ const oficina: Archetype = {
   roofs: ['flat'],
   entrance: { main: 'rolling', back: 0.5 },
   recipe: (_W, _H, _w, rng) => ({ style: 'hall', main: 'Oficina', strip: shuffle(rng, ['Escritório', 'Banheiro', 'Depósito']), side: rng.pick(['back', 'left', 'right'] as const), depth: [2.5, 3.5] }),
+  // Pode ter andar em cima (apartamento/escritório): guarda o vão da escada.
+  floors: true,
 };
 
 const borracharia: Archetype = {
@@ -363,6 +383,8 @@ const borracharia: Archetype = {
   roofs: ['flat'],
   entrance: { main: 'rolling' },
   recipe: () => ({ style: 'hall', main: 'Oficina', strip: ['Depósito', 'Banheiro'], side: 'back', depth: [2.2, 2.8] }),
+  // Pode ter andar em cima (apartamento/escritório): guarda o vão da escada.
+  floors: true,
 };
 
 const serralheria: Archetype = {
@@ -375,6 +397,8 @@ const serralheria: Archetype = {
   roofs: ['flat'],
   entrance: { main: 'rolling', back: 0.7, side: 0.3 },
   recipe: (_W, _H, _w, rng) => ({ style: 'hall', main: 'Oficina', strip: shuffle(rng, ['Escritório', 'Vestiário', 'Depósito', 'Banheiro']), side: rng.pick(['back', 'left', 'right'] as const), depth: [2.8, 3.6] }),
+  // Pode ter andar em cima (apartamento/escritório): guarda o vão da escada.
+  floors: true,
 };
 
 const galpao: Archetype = {
@@ -387,6 +411,8 @@ const galpao: Archetype = {
   roofs: ['flat'],
   entrance: { main: 'rolling', back: 0.8, side: 0.4 },
   recipe: (_W, _H, _w, rng) => ({ style: 'hall', main: 'Galpão', strip: shuffle(rng, ['Escritório', 'Banheiro', 'Vestiário', 'Refeitório']), side: rng.pick(['back', 'left', 'right'] as const), depth: [3, 4] }),
+  // Pode ter andar em cima (apartamento/escritório): guarda o vão da escada.
+  floors: true,
 };
 
 // ---------------------------------------------------------------- serviços
@@ -414,6 +440,8 @@ const postoSaude: Archetype = {
   roofs: ['flat'],
   entrance: { main: 'double', back: 0.8, side: 0.3 },
   recipe: (_W, _H, _w, rng) => ({ style: 'corridor', rooms: shuffle(rng, ['Consultório', 'Consultório', 'Enfermaria', 'Banheiro', 'Despensa', 'Escritório']), lobby: 'Recepção', width: [1.8, 2.2] }),
+  // Pode ter andar em cima (apartamento/escritório): guarda o vão da escada.
+  floors: true,
 };
 
 const escola: Archetype = {
@@ -426,6 +454,8 @@ const escola: Archetype = {
   roofs: ['flat'],
   entrance: { main: 'double', back: 1, side: 0.5 },
   recipe: (_W, _H, _w, rng) => ({ style: 'corridor', rooms: shuffle(rng, ['Sala de aula', 'Sala de aula', 'Sala de aula', 'Sala de aula', 'Escritório', 'Banheiro']), lobby: 'Recepção', backHall: 'Refeitório', width: [2, 2.5] }),
+  // Pode ter andar em cima (apartamento/escritório): guarda o vão da escada.
+  floors: true,
 };
 
 const igreja: Archetype = {

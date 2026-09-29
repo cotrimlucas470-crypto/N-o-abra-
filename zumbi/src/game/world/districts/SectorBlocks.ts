@@ -190,28 +190,11 @@ function residential(b: SectorBuilder, area: BlockArea, idPrefix: string): void 
     }
   }
 
-  // Quintais
+  // Quintais: cada lote tem o seu (varal, horta, churrasqueira, caixa d'água, cachorro...).
   const band = backBand(area, 8, setback);
-  if (rng.chance(0.4)) {
-    const gx = rng.range(band.x0 + 2, band.x1 - 8);
-    const gy = area.front === 's' ? band.y0 + 1 : band.y1 - 4;
-    b.fill(Math.round(gx), Math.round(gy), 5, 3, Ground.Dirt);
-    keep.addRect(gx, gy, gx + 5, gy + 3);
-  }
-  scatterProps(
-    b,
-    band,
-    keep,
-    [
-      { type: 'treeLarge', r: 1.2, weight: 2 },
-      { type: 'treeSmall', r: 0.9, weight: 2 },
-      { type: 'bush', r: 0.6, weight: 3 },
-      { type: 'trashCan', r: 0.4, weight: 1 },
-      { type: 'tire', r: 0.4, weight: 1 },
-      { type: 'crate', r: 0.5, weight: 0.5, angle: true },
-    ],
-    rng.int(5, 9),
-  );
+  const fences = placed.slice(0, -1).map((a) => a.x + a.w + 1.5);
+  const edges = [band.x0, ...fences, band.x1];
+  for (let i = 0; i + 1 < edges.length; i++) backyard(b, { x0: edges[i]!, y0: band.y0, x1: edges[i + 1]!, y1: band.y1 }, keep);
   b.scatterDecals(['leaves'], 6, band.x0, band.y0, band.x1 - band.x0, band.y1 - band.y0, [0.7, 1.2], [0.5, 0.9]);
 
   // Cercas curtas entre quintais (com folga: não fecham passagem).
@@ -221,6 +204,44 @@ function residential(b: SectorBuilder, area: BlockArea, idPrefix: string): void 
     if (area.front === 's') b.wall(fx, band.y0, fx, band.y0 + Math.max(0, band.y1 - band.y0 - 3), 'fence');
     else b.wall(fx, band.y0 + 3, fx, band.y1, 'fence');
   }
+}
+
+/**
+ * Um quintal: o que a família usava (e deixou). Cada lote sorteia o seu
+ * conjunto, então dois quintais vizinhos não saem iguais; a árvore e o
+ * arbusto continuam, mas junto do varal, da horta, da churrasqueira...
+ */
+function backyard(b: SectorBuilder, lot: { x0: number; y0: number; x1: number; y1: number }, keep: Keepout): void {
+  const rng = b.rng;
+  const area = (lot.x1 - lot.x0) * (lot.y1 - lot.y0);
+  if (area < 12) return;
+  // Horta às vezes com chão de terra em volta.
+  if (rng.chance(0.3) && lot.x1 - lot.x0 >= 5 && lot.y1 - lot.y0 >= 3.5) {
+    const gx = Math.round(rng.range(lot.x0 + 1, lot.x1 - 4));
+    const gy = Math.round(rng.range(lot.y0 + 1, lot.y1 - 2.5));
+    b.fill(gx, gy, 3, 2, Ground.Dirt);
+  }
+  scatterProps(
+    b,
+    lot,
+    keep,
+    [
+      { type: 'clothesline', r: 1.4, weight: 3 },
+      { type: 'gardenBed', r: 1.1, weight: 2 },
+      { type: 'grill', r: 0.5, weight: 1.5 },
+      { type: 'waterTank', r: 0.7, weight: 1.2 },
+      { type: 'doghouse', r: 0.5, weight: 1 },
+      { type: 'bicycle', r: 0.8, weight: 0.8, angle: true },
+      { type: 'treeLarge', r: 1.2, weight: 1.2 },
+      { type: 'treeSmall', r: 0.9, weight: 1.5 },
+      { type: 'bush', r: 0.6, weight: 2 },
+      { type: 'trashCan', r: 0.4, weight: 1 },
+      { type: 'tire', r: 0.4, weight: 0.6 },
+      { type: 'crate', r: 0.5, weight: 0.5, angle: true },
+    ],
+    Math.max(2, Math.min(5, Math.round(area / 12))),
+    0.8,
+  );
 }
 
 // ---------------------------------------------------------------- comercial
@@ -276,6 +297,19 @@ function commercial(b: SectorBuilder, area: BlockArea, idPrefix: string): void {
     if (rng.chance(0.6)) b.prop('cart', lotX0 + rng.range(2, lotW - 2), (ly0 + ly1) / 2 + (area.front === 's' ? 2 : -2), rng.range(0, 360));
     b.scatterDecals(['oil', 'paper'], 5, lotX0, ly0, lotW, depth);
     keep.addRect(lotX0, ly0, lotX0 + lotW, ly1);
+  }
+
+  // Calçada da frente: ponto de ônibus e banca de jornal (fora da frente das portas).
+  const fyMid = (fy0 + fy1) / 2;
+  for (const [type, chance, r] of [['busStop', 0.5, 1.6], ['newsstand', 0.35, 1.1]] as const) {
+    if (!rng.chance(chance)) continue;
+    for (let k = 0; k < 8; k++) {
+      const x = rng.range(area.x0 + 2, area.x1 - 2);
+      if (!keep.free(x, fyMid, r)) continue;
+      b.prop(type, x, fyMid, area.front === 's' ? 0 : 180);
+      keep.addPoint(x, fyMid, r);
+      break;
+    }
   }
 
   // Pátio de serviço nos fundos
@@ -334,6 +368,9 @@ function industrial(b: SectorBuilder, area: BlockArea, idPrefix: string): void {
         { type: 'pallet', r: 0.7, weight: 2, angle: true },
         { type: 'crate', r: 0.5, weight: 2, angle: true },
         { type: 'carWreck', r: 1.6, weight: band.y1 - band.y0 >= 5 ? 1.5 : 0, angle: true },
+        // Contêiner de carga (dá para abrir): só em pátio fundo.
+        { type: 'cargoContainer', r: 3.1, weight: band.y1 - band.y0 >= 7.5 ? 1.2 : 0 },
+        { type: 'palletRack', r: 2.3, weight: band.y1 - band.y0 >= 5.5 ? 0.6 : 0 },
       ],
       rng.int(6, 11),
     );

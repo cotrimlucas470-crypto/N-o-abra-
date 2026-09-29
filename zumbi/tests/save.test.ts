@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { SANDBOX_DEFAULTS } from '../src/game/config/Sandbox';
 import { PlayerInventory } from '../src/game/items/PlayerInventory';
-import { archiveCurrent, loadGame, saveGame, saveSummary } from '../src/game/save/SaveGame';
+import { MAP_VERSION } from '../src/game/config/GameConfig';
+import { archiveCurrent, keepOldMapSave, loadGame, oldMapSummary, saveGame, saveSummary } from '../src/game/save/SaveGame';
 import { WorldState } from '../src/game/sim/WorldState';
 import { Body } from '../src/game/survival/Body';
 import { buildStarterDistrict } from '../src/game/world/districts/StarterDistrict';
@@ -68,6 +69,27 @@ describe('save no aparelho', () => {
     archiveCurrent();
     expect(JSON.parse(store.getItem('tdr.save.slot1.old')!).clock.minutes).toBe(500);
     expect(loadGame()?.clock.minutes).toBe(500);
+  });
+
+  it('save do mapa antigo: não abre no mapa novo, fica guardado à parte e nunca é apagado', () => {
+    // Save de antes do gerador de prédios: sem mapVersion (= 1).
+    const old = { version: 1, savedAt: '2026-01-01T10:00:00.000Z', game: '0.7.0', ...sample(1440 * 4) };
+    store.setItem('tdr.save.slot1', JSON.stringify(old));
+    expect(loadGame()).toBeNull();
+    expect(saveSummary()).toBeNull();
+    expect(oldMapSummary()?.day).toBe(5);
+    // Jogo novo: o antigo vai para a chave dele, e o primeiro save do jogo novo não o apaga.
+    archiveCurrent();
+    saveGame(sample(60));
+    expect(JSON.parse(store.getItem('tdr.save.slot1.mapa1')!).clock.minutes).toBe(1440 * 4);
+    expect(loadGame()?.clock.minutes).toBe(60);
+    expect(loadGame()?.mapVersion).toBe(MAP_VERSION);
+    expect(oldMapSummary()).toBeNull();
+    // Outro save antigo da mesma versão não sobrescreve o que já estava guardado.
+    store.setItem('tdr.save.slot1', JSON.stringify({ ...old, savedAt: '2026-02-02T10:00:00.000Z' }));
+    keepOldMapSave();
+    expect(JSON.parse(store.getItem('tdr.save.slot1.mapa1')!).savedAt).toBe(old.savedAt);
+    expect(store.getItem('tdr.save.slot1.mapa1.2026-02-02T10:00:00.000Z')).not.toBeNull();
   });
 
   it('restaurar o inventário e o corpo devolve o mesmo estado', () => {

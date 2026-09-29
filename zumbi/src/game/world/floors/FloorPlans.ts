@@ -230,7 +230,7 @@ export function floorPlan(W: number, H: number, use: FloorUse, stair: LocalRect,
     doors: [],
   };
   // Zumbi sobe pela escada: todo cômodo alcançável a partir dela na grade deles.
-  return openForNav(tpl, doorsAt, [stair.x + stair.w / 2, stair.y + stair.h / 2]);
+  return openForNav(tpl, [stair.x + stair.w / 2, stair.y + stair.h / 2]);
 }
 
 // ------------------------------------------------------------------ móveis

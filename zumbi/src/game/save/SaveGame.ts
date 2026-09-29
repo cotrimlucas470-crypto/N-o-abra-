@@ -10,7 +10,7 @@
  * O conteúdo vem de cada sistema (`serialize()`/`snapshot()`); aqui só se
  * junta, versiona e grava. Campo desconhecido é ignorado ao carregar.
  */
-import { GAME_VERSION } from '../config/GameConfig';
+import { GAME_VERSION, MAP_VERSION } from '../config/GameConfig';
 import { SANDBOX_DEFAULTS, sanitizeSandbox, type SandboxSettings } from '../config/Sandbox';
 import { readJson, writeJson } from '../core/Storage';
 import type { PlayerStatsSnapshot } from '../entities/player/PlayerStats';
@@ -25,6 +25,8 @@ export interface GameSave {
   savedAt: string;
   /** Versão do jogo que gravou. */
   game: string;
+  /** Versão do traçado do mapa (ausente = 1, das plantas fixas). */
+  mapVersion?: number;
   settings: SandboxSettings;
   clock: ClockSnapshot;
   player: { x: number; y: number; facing: number; stats: PlayerStatsSnapshot };
@@ -44,25 +46,33 @@ export interface SaveSummary {
 const SLOT = 'save.slot1';
 const BACKUP = 'save.slot1.bak';
 const ARCHIVE = 'save.slot1.old';
+/** Saves de mapas anteriores: uma chave por versão do traçado, nunca sobrescrita. */
+const OLD_MAP = 'save.slot1.mapa';
 
 function valid(s: unknown): s is GameSave {
   const g = s as GameSave | null;
   return !!g && g.version === 1 && typeof g.clock?.minutes === 'number' && !!g.world && !!g.inventory && !!g.player && !!g.settings;
 }
 
-export function saveGame(data: Omit<GameSave, 'version' | 'savedAt' | 'game'>): boolean {
-  const full: GameSave = { version: 1, savedAt: new Date().toISOString(), game: GAME_VERSION, ...data };
+const mapOf = (g: GameSave): number => g.mapVersion ?? 1;
+/** Save deste mapa (válido e da mesma versão do traçado). */
+const current = (s: unknown): boolean => valid(s) && mapOf(s) === MAP_VERSION;
+
+export function saveGame(data: Omit<GameSave, 'version' | 'savedAt' | 'game' | 'mapVersion'>): boolean {
+  const full: GameSave = { version: 1, savedAt: new Date().toISOString(), game: GAME_VERSION, mapVersion: MAP_VERSION, ...data };
+  // Save do mapa antigo no slot: vai para a chave dele antes (nunca some).
+  keepOldMapSave();
   const prev = readJson<unknown>(SLOT, null);
-  if (valid(prev)) writeJson(BACKUP, prev);
+  if (current(prev)) writeJson(BACKUP, prev);
   return writeJson(SLOT, full);
 }
 
-/** Save atual (ou o backup, se o atual estiver estragado). */
+/** Save atual (ou o backup, se o atual estiver estragado). Save de outro mapa não abre aqui. */
 export function loadGame(): GameSave | null {
   const s = readJson<unknown>(SLOT, null);
-  const g = valid(s) ? s : readJson<unknown>(BACKUP, null);
+  const g = current(s) ? s : readJson<unknown>(BACKUP, null);
   // Save de versão antiga pode não ter opções novas: completa com o padrão (senão trava ao abrir).
-  if (!valid(g)) return null;
+  if (!valid(g) || !current(g)) return null;
   const settings = sanitizeSandbox(g.settings);
   // Dia de 48 min era o padrão antigo: passa para o novo (15 min). Quem escolheu outro valor mantém.
   if (settings.time.dayLengthMinutes === 48) settings.time.dayLengthMinutes = SANDBOX_DEFAULTS.time.dayLengthMinutes;
@@ -80,6 +90,27 @@ export function saveSummary(): SaveSummary | null {
  * automático do jogo novo grava no slot; o antigo continua em `.old`.
  */
 export function archiveCurrent(): void {
+  keepOldMapSave();
   const s = readJson<unknown>(SLOT, null);
-  if (valid(s)) writeJson(ARCHIVE, s);
+  if (current(s)) writeJson(ARCHIVE, s);
+}
+
+/** Resumo do save de um mapa anterior que está no slot (o traçado mudou; ele não abre neste mapa). */
+export function oldMapSummary(): SaveSummary | null {
+  const s = readJson<unknown>(SLOT, null);
+  if (!valid(s) || current(s)) return null;
+  return { day: Math.floor(s.clock.minutes / 1440) + 1, savedAt: s.savedAt, game: s.game };
+}
+
+/**
+ * Guarda o save do mapa anterior numa chave só dele (`save.slot1.mapa1`...).
+ * Nunca sobrescreve: se já houver um guardado dessa versão, o novo leva a data.
+ */
+export function keepOldMapSave(): void {
+  const s = readJson<unknown>(SLOT, null);
+  if (!valid(s) || current(s)) return;
+  const key = `${OLD_MAP}${mapOf(s)}`;
+  const there = readJson<unknown>(key, null);
+  if (!valid(there)) writeJson(key, s);
+  else if (there.savedAt !== s.savedAt) writeJson(`${key}.${s.savedAt}`, s);
 }

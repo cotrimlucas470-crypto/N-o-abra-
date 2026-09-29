@@ -98,11 +98,12 @@ function northWest(b: SectorBuilder): void {
   b.decal('blood', 27.6, 22.2, undefined, 0.7, 0.8);
 
   // Cerca-viva na frente, com vãos nos caminhos
-  for (const x of [1, 3, 5]) b.prop('hedge', x + 0.2, AV_Y - 2.65);
-  for (const x of [10.5, 12.5]) b.prop('hedge', x, AV_Y - 2.65);
-  b.prop('hedge', 17.8, AV_Y - 2.65);
-  b.prop('hedge', 26.5, AV_Y - 2.65);
-  b.prop('hedge', 28.6, AV_Y - 2.65);
+  // As portas são sorteadas: a cerca-viva deixa vão diante de cada uma.
+  const doorXs = [...house.doors, ...shelter.doors].map((d) => d.x);
+  for (const x of [1.2, 3.2, 5.2, 10.5, 12.5, 17.8, 26.5, 28.6]) {
+    if (doorXs.some((dx) => Math.abs(dx - x) < 2)) continue;
+    b.prop('hedge', x, AV_Y - 2.65);
+  }
 
   b.setSpawn(19 + gen.spawn![0], 13 + gen.spawn![1]);
 }
@@ -152,13 +153,18 @@ function southWest(b: SectorBuilder): void {
   const stallW = 144 / 64;
   const topRow = [0, 2, 3, 6, 8, 10];
   const bottomRow = [1, 4, 7, 9];
+  // O mercadinho vem antes: a porta dele é sorteada e nenhum carro para na frente dela.
+  const { placed: store } = place(b, { arch: 'mercadinho', x: 9, y: 43, W: 14, H: 10, id: 'mercadinho', front: 'n' });
+  const doorXs = store.doors.map((d) => d.x);
   for (const i of topRow) {
     const x = 3.5 + stallW * (i + 0.5);
     b.prop(i === 6 ? 'carWreck' : 'car', x, 36.1, 90 + b.rng.range(-6, 6));
   }
   for (const i of bottomRow) {
     const x = 3.5 + stallW * (i + 0.5);
-    b.prop('car', x, 40.9, -90 + b.rng.range(-6, 6));
+    const angle = -90 + b.rng.range(-6, 6);
+    if (doorXs.some((dx) => Math.abs(dx - x) < 2.2)) continue;
+    b.prop('car', x, 40.9, angle);
   }
   b.prop('cart', 12.6, 38.4, 35);
   b.prop('cart', 22.8, 39.2, -70);
@@ -168,9 +174,7 @@ function southWest(b: SectorBuilder): void {
   b.decal('blood', 18.5, 38.7, undefined, 1.1, 0.85);
   b.decal('bloodTrail', 20.3, 39.1, 15, 1, 0.8);
 
-  // Mercadinho
-  const { placed: store } = place(b, { arch: 'mercadinho', x: 9, y: 43, W: 14, H: 10, id: 'mercadinho', front: 'n' });
-  void store;
+  // Mercadinho (posto acima, antes do estacionamento)
   b.prop('dumpster', 25.6, 51.2, 90);
   b.prop('trashBags', 24.6, 53.2);
   b.prop('trashBags', 26.6, 53.6, 60);
@@ -231,12 +235,15 @@ function southEast(b: SectorBuilder): void {
  * pegou, acabou. Coordenadas em tiles locais; não mexem no traçado do setor.
  */
 function starterItems(b: SectorBuilder): void {
+  const taken: [number, number][] = [];
   const put = (id: string, rooms: readonly string[], list: readonly (readonly [string, number])[]) => {
     const g = PLACED.get(id)!;
-    const spots = floorSpots(g.placed, g.gen, rooms, list.length);
+    const spots = floorSpots(g.placed, g.gen, rooms, list.length, taken);
     list.forEach(([item, n], i) => {
       const at = spots[i];
-      if (at) b.item(item, at[0], at[1], n);
+      if (!at) return;
+      b.item(item, at[0], at[1], n);
+      taken.push(at);
     });
   };
   // Casa onde se acorda: o básico que alguém deixou para trás.

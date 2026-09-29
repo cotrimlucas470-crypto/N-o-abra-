@@ -117,6 +117,57 @@ export function tableFor(kind: ContainerKind, ctx: LootContext, prop?: PropType)
       return prop === 'carWreck' ? 'banco-destrocado' : 'banco-carro';
     case 'tambor':
       return 'tambor-industrial';
+    case 'comoda':
+      return 'comoda';
+    case 'estanteLivros':
+      return b === 'office' || b === 'school' || b === 'clinic' ? 'arquivo' : 'estante-livros';
+    case 'maquinaLavar':
+      return b === 'laundry' ? 'lavanderia' : 'maquina-lavar';
+    case 'sapateira':
+      return 'sapateira';
+    case 'bau':
+      return 'bau';
+    case 'freezer':
+      return isShop(b) ? 'freezer-comercio' : 'freezer-casa';
+    case 'vitrine':
+      return b === 'pharmacy' ? 'farmacia-balcao' : 'vitrine-padaria';
+    case 'arara':
+    case 'manequim':
+      return b === 'laundry' ? 'lavanderia' : 'loja-roupas';
+    case 'maquinaVenda':
+      return 'maquina-venda';
+    case 'balcao':
+      if (isFood(b)) return 'bar-balcao';
+      if (b === 'pharmacy') return 'farmacia-balcao';
+      if (b === 'hardware' || isWork(b)) return 'oficina-prateleira';
+      if (b === 'store' || b === 'clothing') return 'caixa-registradora';
+      return 'armario-loja';
+    case 'portaPaletes':
+      return b === 'store' ? 'estoque-mercado' : 'porta-paletes';
+    case 'caixaFerramentas':
+      return 'oficina-prateleira';
+    case 'armarioMetal':
+      return 'vestiario';
+    case 'arquivo':
+      return 'arquivo';
+    case 'conteiner':
+      return 'conteiner';
+    case 'carteiraEscolar':
+      return 'carteira-escolar';
+    case 'altar':
+      return 'altar';
+    case 'armarioRemedios':
+      return b === 'clinic' ? 'hospital-armario' : b === 'pharmacy' ? 'farmacia-estoque' : 'banheiro';
+    case 'cesto':
+      return b === 'laundry' ? 'lavanderia' : 'maquina-lavar';
+    case 'cabideiro':
+      return 'cabideiro';
+    case 'brinquedos':
+      return 'brinquedos';
+    case 'banca':
+      return 'banca';
+    case 'churrasqueira':
+      return 'churrasqueira';
     case 'chao':
       if (isShop(b)) return 'chao-loja';
       if (isWork(b)) return 'chao-trabalho';

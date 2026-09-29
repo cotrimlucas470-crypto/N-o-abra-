@@ -30,6 +30,10 @@ const SOURCES: Partial<Record<PropType, Source>> = {
   kitchenCounter: { name: 'pia', tap: true, verbName: 'da torneira' },
   bathSink: { name: 'pia', tap: true, verbName: 'da torneira' },
   bathtub: { name: 'banheira', tap: true, verbName: 'da torneira da banheira' },
+  laundrySink: { name: 'tanque', tap: true, verbName: 'da torneira do tanque' },
+  shower: { name: 'chuveiro', tap: true, verbName: 'do chuveiro' },
+  // Caixa d'água do quintal: depois do corte ainda guarda um bom tanto (parada, sem tratamento).
+  waterTank: { name: "caixa d'água", tap: true, tank: WATER_TUNING.toiletTankDoses * 8, verbName: "da caixa d'água" },
   hydrant: { name: 'hidrante', tap: true, verbName: 'do hidrante' },
   toilet: { name: 'vaso', tap: false, tank: WATER_TUNING.toiletTankDoses, verbName: 'da caixa da descarga' },
 };

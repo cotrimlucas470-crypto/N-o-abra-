@@ -252,6 +252,9 @@ function linkScore(parent: GRoom, child: GRoom): number {
   if (child.kind === 'Garagem' && (parent.kind === 'Cozinha' || parent.kind === 'Sala')) s += 2;
   if ((child.kind === 'Estoque' || child.kind === 'Depósito') && (parent.kind === 'Salão' || parent.kind === 'Oficina' || parent.kind === 'Galpão')) s += 3;
   if (parent.kind === 'Banheiro') s -= 20;
+  // Garagem, quarto e despensa são "fim de linha": só servem de passagem se não houver outro jeito.
+  if (parent.kind === 'Garagem' || parent.kind === 'Despensa') s -= 8;
+  if (parent.kind === 'Quarto' || parent.kind === 'Quarto de criança') s -= 4;
   return s;
 }
 
@@ -321,12 +324,13 @@ export function makePlan(recipe: LayoutRecipe, W: number, H: number, rng: Random
   }
   // Cômodo que ficou sem ligação (parede curta demais): porta para a rua depois.
   const orphans = rooms.filter((_, i) => !linked.has(i));
-  // Passagens extras (circulação em volta), nunca em banheiro.
+  // Passagens extras (circulação em volta), nunca em cômodo "fim de linha" (banheiro, quarto, garagem, despensa).
+  const deadEnd = (k: RoomKind) => k === 'Banheiro' || k === 'Garagem' || k === 'Despensa' || k === 'Quarto' || k === 'Quarto de criança';
   for (const e of edges) {
     if (openingsByEdge.has(e)) continue;
     const a = rooms[e.a]!;
     const b = rooms[e.b]!;
-    if (a.kind === 'Banheiro' || b.kind === 'Banheiro') continue;
+    if (deadEnd(a.kind) || deadEnd(b.kind)) continue;
     if (e.to - e.from < dlInt + 1.2 || !rng.chance(a.hub || b.hub ? 0.25 : 0.1)) continue;
     addDoor(e, dlInt);
   }

@@ -58,7 +58,7 @@ function objectTable(g: GroundId, zone: Zone): [number, Pick<PropType>[]] | null
     if (zone === 'comercial') return [0.06, [p('treeYoung', 3), p('treeBroad', 1), p('treePalm', 1.5), p('bushRound', 2), p('bushFlower', 1), p('treeDead', 0.5)]];
     return [0.07, [p('treeDead', 2), p('treeYoung', 1), p('bushRound', 1), p('rock', 1.5), p('scrapPile', 1.5), p('stump', 1), p('treeBroad', 0.6)]];
   }
-  if (g === Ground.Gravel) return [0.04, [p('scrapPile', 3), p('rock', 1.5), p('treeDead', 0.5)]];
+  if (g === Ground.Gravel) return [0.04, [p('scrapPile', 3), p('rock', 1.5), p('stump', 0.5)]];
   if (g === Ground.Dirt) return [0.02, [p('bushRound', 1), p('rock', 1), p('stump', 0.5)]];
   return null;
 }

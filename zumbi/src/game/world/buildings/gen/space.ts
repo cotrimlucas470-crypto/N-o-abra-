@@ -58,6 +58,8 @@ export class RoomGrid {
   private readonly free: Uint8Array;
   /** 1 = reservado para passagem: nenhum móvel sólido encosta. */
   private readonly reserved: Uint8Array;
+  private seenBuf: Uint8Array | undefined;
+  private stackBuf: Int32Array | undefined;
 
   constructor(readonly room: LRect) {
     this.cols = Math.max(1, Math.round(room.w / CELL));
@@ -94,6 +96,15 @@ export class RoomGrid {
       }
     }
     return best;
+  }
+
+  /** Cópia das células livres (para desfazer um móvel que fechou passagem). */
+  snapshot(): Uint8Array {
+    return this.free.slice();
+  }
+
+  restore(s: Uint8Array): void {
+    this.free.set(s);
   }
 
   /** Marca como ocupado o que o móvel tira do corpo (folga BODY). */
@@ -181,29 +192,52 @@ export class RoomGrid {
     return true;
   }
 
-  /** Inundação a partir dos pontos (portas): 1 = o corpo chega. */
-  reach(from: readonly (readonly [number, number])[]): Uint8Array {
-    const seen = new Uint8Array(this.cols * this.rows);
-    const stack: number[] = [];
+  /** Células de partida (livres, mais perto de cada ponto). */
+  startCells(from: readonly (readonly [number, number])[]): number[] {
+    const out: number[] = [];
     for (const [x, y] of from) {
       const c = this.cellNear(x, y);
-      if (c >= 0 && !seen[c]) {
-        seen[c] = 1;
-        stack.push(c);
-      }
+      if (c >= 0) out.push(c);
     }
-    while (stack.length) {
-      const c = stack.pop()!;
-      const i = c % this.cols;
-      const j = (c - i) / this.cols;
-      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
-        const ni = i + di;
-        const nj = j + dj;
-        if (ni < 0 || nj < 0 || ni >= this.cols || nj >= this.rows) continue;
-        const n = nj * this.cols + ni;
-        if (!this.free[n] || seen[n]) continue;
-        seen[n] = 1;
-        stack.push(n);
+    return out;
+  }
+
+  /** Inundação a partir dos pontos (portas): 1 = o corpo chega. */
+  reach(from: readonly (readonly [number, number])[]): Uint8Array {
+    return this.reachFrom(this.startCells(from));
+  }
+
+  /** Inundação a partir de células (buffers reaproveitados: roda a cada móvel posto). */
+  reachFrom(starts: readonly number[]): Uint8Array {
+    const n = this.cols * this.rows;
+    const seen = (this.seenBuf ??= new Uint8Array(n));
+    const stack = (this.stackBuf ??= new Int32Array(n));
+    seen.fill(0);
+    let top = 0;
+    for (const c of starts) {
+      if (!this.free[c] || seen[c]) continue;
+      seen[c] = 1;
+      stack[top++] = c;
+    }
+    const cols = this.cols;
+    while (top > 0) {
+      const c = stack[--top]!;
+      const i = c % cols;
+      if (i > 0 && this.free[c - 1] && !seen[c - 1]) {
+        seen[c - 1] = 1;
+        stack[top++] = c - 1;
+      }
+      if (i < cols - 1 && this.free[c + 1] && !seen[c + 1]) {
+        seen[c + 1] = 1;
+        stack[top++] = c + 1;
+      }
+      if (c >= cols && this.free[c - cols] && !seen[c - cols]) {
+        seen[c - cols] = 1;
+        stack[top++] = c - cols;
+      }
+      if (c + cols < n && this.free[c + cols] && !seen[c + cols]) {
+        seen[c + cols] = 1;
+        stack[top++] = c + cols;
       }
     }
     return seen;

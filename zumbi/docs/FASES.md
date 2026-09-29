@@ -5,6 +5,38 @@ O que cada etapa entregou, como foi testado e o que ficou pendente. A ordem das 
 
 ---
 
+## Cidade 3× maior, prédios todos diferentes e 3× mais objetos (v0.8.0)
+
+**Análise da geração antiga (cidade 5×5, semente 1337):** 163 prédios de térreo com só **9 plantas distintas**
+(68× a mesma casa 10×8, 29× a 9×8, 17× a mesma oficina...), 4,6 objetos por cômodo (1,3 por 10 tiles²),
+17 cômodos vazios nos andares, 49 dos 69 tipos de objeto usados.
+
+- **Gerador de prédios** (`world/buildings/gen/`): 29 arquétipos (moradia, comércio, trabalho, serviços);
+  a planta (faixas, salão com fundos, corredor), as portas (em árvore), as janelas e a entrada mudam a cada prédio;
+  riqueza (pobre/média/rica) e conservação (conservado, abandonado, saqueado, incendiado, ocupado) mudam móveis e chão.
+  Resultado: 182 prédios, **182 plantas diferentes**.
+- **Mobília por regra de cômodo** (`rooms.ts`, `identity.ts`): oficina tem bancada, compressor, pneus; supermercado tem
+  gôndolas duplas e freezers; lavanderia tem fileira de máquinas; igreja tem altar e bancos; escola tem lousa e carteiras.
+  Móvel nunca fecha passagem (grade do jogador) e uma segunda conferência na grade dos zumbis (`navcheck.ts`) tira o que a fecha.
+- **~59 objetos novos** (desenho, resistência/desmonte, recipiente, loot): cômoda, estante, beliche, berço, máquina de lavar,
+  gôndola, arara, vitrine, porta-paletes, torno, armário de metal, contêiner, carteira, banco de igreja, maca, esteira,
+  varal, churrasqueira, caixa d'água, ponto de ônibus, banca... 87 tipos de objeto em uso (antes 49).
+- **Densidade:** térreo 1,3 → 3,0 objetos por 10 tiles² (recipientes por cômodo 2,65 → 4,2); andares de cima 3,7, **0 cômodos vazios**.
+- **Andares** usam o mesmo mobiliador; escada só em canto que o corpo alcança; escritórios, lojas e apartamentos ganham andar.
+- **Quintais com propósito** (varal, horta, churrasqueira, caixa d'água, casinha de cachorro, bicicleta), ponto de ônibus e banca
+  na calçada comercial, contêineres e porta-paletes no pátio industrial.
+- **Cidade padrão 9×9 setores** (648×504 tiles, ≈ 3,2× a área). Presets: Média 5×5, Clássica 3×3, Pequena 1×1.
+- **Saves:** `MAP_VERSION`. Save do mapa antigo não abre no mapa novo (os ids do mundo mudaram), fica guardado em
+  `save.slot1.mapa1` e o título avisa; nunca é apagado.
+- Impressão digital do mapa (`interaction.test.ts`) atualizada de propósito. 484 testes.
+
+### Pendências conhecidas
+- Geração num Web Worker e decoração assada por chunk (a geração 9×9 leva ~1,5 s no Node, na thread principal).
+- Fase de **improvisação** (fita, móveis, alarmes, lanterna na cabeça...) ainda não feita; existe só `config/ImproviseTuning.ts`.
+- 12% dos quadrados de 8×8 sem objeto (ruas e quintais); teste de orçamento por chunk e smoke visitando 6 lugares.
+
+---
+
 ## Sobrevivência: necessidades, sono, ficha, mapa, moradia, expedição e carro no celular
 
 - **P1 Necessidades**:

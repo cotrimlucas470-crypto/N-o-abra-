@@ -373,7 +373,7 @@ try {
       sc.s.bus.emit('ui:fullmap', {});
       const hud = sc.game.scene.getScenes(true).find((x) => x.sys.settings.key.toLowerCase().includes('hud'));
       const p = hud.fullMap.toScreen(sc.s.session.player.x, sc.s.session.player.y);
-      return { x: p.x + 30, y: p.y + 20 };
+      return { x: p.x + 6, y: p.y + 4 };
     });
     await sleep(400);
     // Tocar e SEGURAR o dedo num lugar já visto → MARCAR LOCAL.

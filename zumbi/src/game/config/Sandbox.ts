@@ -111,8 +111,8 @@ export type SandboxPresetId = 'padrao' | 'cidade-classica' | 'cidade-pequena' | 
 
 export const SANDBOX_DEFAULTS: SandboxSettings = {
   version: 1,
-  // Jogo novo: a cidade de sempre (3×3) no meio de arredores novos (5×5).
-  world: { seed: 1337, sectorsX: 5, sectorsY: 5, core: 3 },
+  // Jogo novo: cidade grande (9×9 setores, ≈ 3× a área de antes) com o miolo 3×3 no centro.
+  world: { seed: 1337, sectorsX: 9, sectorsY: 9, core: 3 },
   // Um dia do jogo ≈ 15 min reais (as estações andam com o "passar dias no abrigo").
   time: { dayLengthMinutes: 15, startDay: 1, startHour: 8, startMonth: 5, startDayOfMonth: 3 },
   climate: { temperatureOffset: 0, rainMultiplier: 1 },
@@ -126,7 +126,7 @@ export const SANDBOX_DEFAULTS: SandboxSettings = {
 };
 
 export const SANDBOX_PRESETS: Record<SandboxPresetId, { name: string; description: string; settings: SandboxSettings }> = {
-  padrao: { name: 'Padrão', description: 'A cidade de sempre (3×3) com arredores em volta (5×5). Dia de 48 minutos.', settings: SANDBOX_DEFAULTS },
+  padrao: { name: 'Padrão', description: 'Cidade grande, 9×9 setores, todos os prédios diferentes.', settings: SANDBOX_DEFAULTS },
   'cidade-classica': {
     name: 'Cidade clássica',
     description: 'Só a cidade de sempre, 3×3 setores (aparelhos mais fracos).',
@@ -139,7 +139,7 @@ export const SANDBOX_PRESETS: Record<SandboxPresetId, { name: string; descriptio
   },
   'cidade-grande': {
     name: 'Cidade grande',
-    description: 'Cidade 5×5 setores, toda sorteada (sem a cidade de sempre no meio).',
+    description: 'Cidade 5×5 setores (aparelhos medianos).',
     settings: { ...SANDBOX_DEFAULTS, world: { ...SANDBOX_DEFAULTS.world, sectorsX: 5, sectorsY: 5, core: 0 } },
   },
 };

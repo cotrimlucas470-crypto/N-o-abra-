@@ -23,6 +23,12 @@ const SEATS: Partial<Record<PropType, Seat>> = {
   armchair: { name: 'poltrona', sit: true },
   chair: { name: 'cadeira', sit: true },
   bench: { name: 'banco', sit: true },
+  bunkBed: { name: 'beliche', sleep: 'cama', sit: true },
+  stretcher: { name: 'maca', sleep: 'cama', sit: true },
+  pew: { name: 'banco', sleep: 'sofa', sit: true },
+  weightBench: { name: 'supino', sit: true },
+  stool: { name: 'banquinho', sit: true },
+  busStop: { name: 'banco do ponto', sit: true },
 };
 
 export interface RestHooks {

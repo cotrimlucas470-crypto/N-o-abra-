@@ -94,13 +94,27 @@ describe('mapa inicial na grade de navegação', () => {
     const map = buildStarterDistrict();
     const grid = NavGrid.fromMap(map);
     const pf = new Pathfinder(grid);
+    const start = grid.cellOf(map.spawn.x, map.spawn.y);
+    const reach = grid.reachableFrom(start.cx, start.cy);
     const missing: string[] = [];
     for (const b of map.buildings) {
       for (const room of b.rooms) {
+        // Alvo: a parte alcançável do cômodo mais perto do meio (mesa no meio da sala é normal);
+        // o A* precisa achar o caminho até ela.
         const cx = room.rect.x + room.rect.w / 2;
         const cy = room.rect.y + room.rect.h / 2;
-        const r = pf.find(map.spawn.x, map.spawn.y, cx, cy, { maxExpanded: 60000, smooth: false });
-        if (!r.found) missing.push(`${b.id}/${room.name}`);
+        let target: [number, number] | null = null;
+        let best = Infinity;
+        for (let y = room.rect.y + grid.cell / 2; y < room.rect.y + room.rect.h; y += grid.cell) {
+          for (let x = room.rect.x + grid.cell / 2; x < room.rect.x + room.rect.w; x += grid.cell) {
+            const c = grid.cellOf(x, y);
+            if (!reach[c.cy * grid.cols + c.cx]) continue;
+            const d = Math.hypot(x - cx, y - cy);
+            if (d < best) [best, target] = [d, [x, y]];
+          }
+        }
+        const r = target ? pf.find(map.spawn.x, map.spawn.y, target[0], target[1], { maxExpanded: 60000, smooth: false }) : null;
+        if (!r?.found) missing.push(`${b.id}/${room.name}`);
       }
     }
     expect(missing).toEqual([]);

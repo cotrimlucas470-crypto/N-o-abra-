@@ -8,10 +8,10 @@
 import { Random, hashString } from '../../../core/Random';
 import type { DecalType } from '../../DecalCatalog';
 import type { BuildingKind, GroundId } from '../../MapTypes';
-import type { PropType } from '../../PropCatalog';
 import type { BuildingTemplate } from '../BuildingTemplate';
 import { ARCHETYPES, type Archetype, type ArchetypeId, type Condition } from './archetypes';
 import { furnishRoom, type Placed, type Span } from './furnish';
+import { IDENTITY } from './identity';
 import { makePlan, type Plan } from './layout';
 import { openForNav } from './navcheck';
 import { ROOMS, type FurnRule, type RoomDef, type RoomKind } from './rooms';
@@ -93,28 +93,26 @@ export function generateBuilding(archId: ArchetypeId, W: number, H: number, key:
   if (opts.spawn) {
     const r = plan.rooms[0]!;
     spawn = [Math.round((r.x + r.w / 2) * 100) / 100, Math.round((r.y + r.h / 2) * 100) / 100];
+    // Acorda de frente para a porta da rua (2,2 tiles dentro dela), com o caminho até ela livre.
+    const main = plan.exterior.find((d) => d.side === 's' && contains(r, d.at[0], d.at[1] - 0.1, 0.05));
+    if (main && r.h >= 3.4) {
+      spawn = [Math.round(main.at[0] * 100) / 100, Math.round((main.at[1] - 2.2) * 100) / 100];
+      for (const t of [0.4, 0.8, 1.2, 1.6]) free.push([spawn[0], spawn[1] + t, 0.6]);
+    }
     free.push([spawn[0], spawn[1], 0.9]);
   }
   plan.rooms.forEach((room, i) => {
     const doors = plan!.doors.filter((d) => d.a === i || d.b === i).map((d) => [d.x, d.y] as const);
     const windows = plan!.windows.filter((s) => onBorder(room, s));
     const keepFree = free.filter(([x, y]) => contains(room, x, y));
-    const base = { rect: room, doors, windows, keepFree, wealth, keep, ...(nook && contains(room, nook.x + nook.w / 2, nook.y + nook.h / 2) ? { keepOut: [nook] } : {}) };
-    const def: RoomDef = arch.furnish?.[room.kind] ?? ROOMS[room.kind];
+    const base = { rect: room, doors, windows, keepFree, wealth, keep, messy: condition !== 'conservado' && condition !== 'ocupado', ...(nook && contains(room, nook.x + nook.w / 2, nook.y + nook.h / 2) ? { keepOut: [nook] } : {}) };
+    const def: RoomDef = IDENTITY[archId]?.[room.kind] ?? ROOMS[room.kind];
     const placed = furnishRoom({ ...base, def }, rng);
     // Extras do estado (ocupado / saqueado) no que sobrou de espaço.
     const extra = condition === 'ocupado' && (room.hub || room.kind === 'Sala') ? OCCUPIED_EXTRA : condition === 'saqueado' && rng.chance(0.6) ? LOOTED_EXTRA : null;
     if (extra) {
-      const more = furnishRoom({ ...base, def: extra, keepOut: [...(base.keepOut ?? []), ...placed.map((p) => p.box)] }, rng);
+      const more = furnishRoom({ ...base, def: extra, existing: placed }, rng);
       placed.push(...more);
-    }
-    // Saque/incêndio: parte dos móveis fora do lugar (tortos) — sem entrar na parede.
-    if (condition === 'saqueado' || condition === 'incendiado') {
-      for (const p of placed) {
-        if (BIG.has(p.type) || !rng.chance(0.25)) continue;
-        const turn = rng.range(-18, 18);
-        if (fitsTurned(p, turn, room)) p.angle += turn;
-      }
     }
     props.push(...placed);
   });
@@ -124,7 +122,7 @@ export function generateBuilding(archId: ArchetypeId, W: number, H: number, key:
       if (room.kind === 'Banheiro') continue;
       const doors = plan.doors.filter((d) => d.a === i || d.b === i).map((d) => [d.x, d.y] as const);
       const inRoom = props.filter((p) => contains(room, p.at[0], p.at[1]));
-      const more = furnishRoom({ rect: room, def: { ground: ROOMS.Sala.ground, rules: opts.extra }, doors, windows: [], keepFree: free.filter(([x, y]) => contains(room, x, y)), keepOut: inRoom.map((p) => p.box), wealth, keep: 1 }, rng);
+      const more = furnishRoom({ rect: room, def: { ground: ROOMS.Sala.ground, rules: opts.extra }, doors, windows: [], keepFree: free.filter(([x, y]) => contains(room, x, y)), existing: inRoom, wealth, keep: 1 }, rng);
       if (!more.length) continue;
       props.push(...more);
       break;
@@ -146,7 +144,7 @@ export function generateBuilding(archId: ArchetypeId, W: number, H: number, key:
 
   const floors = plan.rooms.map((r) => ({
     rect: [r.x, r.y, r.w, r.h] as const,
-    ground: groundFor(arch.furnish?.[r.kind] ?? ROOMS[r.kind], wealth, condition),
+    ground: groundFor(IDENTITY[archId]?.[r.kind] ?? ROOMS[r.kind], wealth, condition),
     room: r.kind as string,
   }));
   const raw: BuildingTemplate = {
@@ -163,25 +161,12 @@ export function generateBuilding(archId: ArchetypeId, W: number, H: number, key:
     doors: plan.exterior,
   };
   // A grade dos zumbis é mais grossa que a do jogador: tira o móvel que fecha passagem para ela.
-  const tpl = openForNav(raw, [...plan.doors.map((d) => [d.x, d.y] as const), ...plan.exterior.map((d) => d.at)]);
+  const tpl = openForNav(raw);
   return { tpl, wealth, condition, arch: archId, ...(spawn ? { spawn } : {}) };
 }
 
-/** Grandes demais para "ficar torto" no saque (carro, cama, balcão). */
-const BIG = new Set<PropType>(['car', 'carWreck', 'bedDouble', 'kitchenCounter', 'storeShelf', 'displayFridge', 'checkout', 'workbench', 'toolShelf', 'wardrobe', 'bathtub']);
-
 function groundFor(def: RoomDef, wealth: number, _condition: Condition): GroundId {
   return def.ground[Math.max(0, Math.min(2, wealth))]!;
-}
-
-/** Girado `turn` graus, o móvel ainda cabe no cômodo (sem tocar parede)? */
-function fitsTurned(p: Placed, turn: number, room: LRect): boolean {
-  const a = (Math.abs(turn) * Math.PI) / 180;
-  const w = p.box.w * Math.cos(a) + p.box.h * Math.sin(a);
-  const h = p.box.w * Math.sin(a) + p.box.h * Math.cos(a);
-  const cx = p.box.x + p.box.w / 2;
-  const cy = p.box.y + p.box.h / 2;
-  return cx - w / 2 > room.x + 0.14 && cx + w / 2 < room.x + room.w - 0.14 && cy - h / 2 > room.y + 0.14 && cy + h / 2 < room.y + room.h - 0.14;
 }
 
 /** A janela está na borda deste cômodo? */
