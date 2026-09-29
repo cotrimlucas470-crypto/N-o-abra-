@@ -31,7 +31,8 @@ export interface WorldActionHooks {
   start(spec: TimedActionSpec): void;
   /** Larga itens no chão num ponto. */
   drop(items: readonly { defId: string; count: number; st?: ItemState }[], x: number, y: number): void;
-  noise(x: number, y: number, radius: number, source: string): void;
+  /** `sound`: som exato do catálogo (quando o texto de origem não basta). */
+  noise(x: number, y: number, radius: number, source: string, sound?: string): void;
   /** Coloca o jogador em outro ponto (pular janela). */
   moveTo(x: number, y: number): void;
   now(): number;

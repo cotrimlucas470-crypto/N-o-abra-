@@ -67,6 +67,8 @@ export interface GameServices {
   /** Opções de mundo da partida (ver config/Sandbox.ts). */
   settings: SandboxSettings;
   session: GameSession;
+  /** Motor de som (um por jogo: as variações geradas ficam entre partidas). null = sem Web Audio. */
+  audio: import('../audio/AudioEngine').AudioEngine | null;
 }
 
 const registry = new WeakMap<Phaser.Game, GameServices>();
@@ -80,6 +82,7 @@ export function createServices(game: Phaser.Game, viewport: Viewport, bus: Event
     assets: null,
     overrides: { sprites: {}, patterns: {} },
     settings,
+    audio: null,
     session: {
       stats: null,
       clock: null,

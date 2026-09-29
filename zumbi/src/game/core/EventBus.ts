@@ -15,7 +15,9 @@ export interface GameEvents {
    * ouvir. O sistema de ruído/zumbis vai escutar; hoje o debug desenha.
    */
   /** Um som no mundo. `kind` ausente = deduzido do texto de origem (ver sim/Noise.ts). */
-  'world:noise': { x: number; y: number; radius: number; source: string; kind?: import('../sim/Noise').NoiseKind; byPlayer?: boolean };
+  'world:noise': { x: number; y: number; radius: number; source: string; kind?: import('../sim/Noise').NoiseKind; byPlayer?: boolean; sound?: string };
+  /** Tocar um som do catálogo (audio/SoundCatalog): no ponto (x, y) ou junto do jogador. */
+  'sound:play': { id: string; x?: number; y?: number; gain?: number; rate?: number; delay?: number };
   /** Resultado de uma ação do jogador para mostrar na tela ("Trancada.", "+1 Atadura"). */
   'player:feedback': { text: string; tone: 'info' | 'ok' | 'warn' };
   'game:paused': { reason: 'button' | 'hidden' };

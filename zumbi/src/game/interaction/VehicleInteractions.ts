@@ -554,15 +554,15 @@ export class VehicleInteractions implements InteractionProvider {
     const why = this.v.cannotDrive(prop.id, !!this.hasKey(prop.id));
     if (why.length) {
       // Tentar dar a partida faz barulho mesmo sem pegar (motor de arranque).
-      if (!why.includes('sem chave')) this.hooks.noise(prop.x, prop.y, 380, 'motor');
+      if (!why.includes('sem chave')) this.hooks.noise(prop.x, prop.y, 380, 'motor', 'carro.arranque');
       return { ok: false, message: `Não pega: ${why.join(', ')}.` };
     }
     // Motor fraco engasga: às vezes precisa de mais de uma tentativa.
     if (this.rng() >= startChance(this.v.state(prop.id)!.engine)) {
-      this.hooks.noise(prop.x, prop.y, 380, 'motor');
+      this.hooks.noise(prop.x, prop.y, 380, 'motor', 'carro.arranque');
       return { ok: false, message: 'O motor engasgou e não pegou. Tente de novo.' };
     }
-    this.hooks.noise(prop.x, prop.y, 700, 'motor');
+    this.hooks.noise(prop.x, prop.y, 700, 'motor', 'carro.partida');
     if (this.hooks.drive) return this.hooks.drive(prop);
     return { ok: true, message: 'O motor pegou!' };
   }

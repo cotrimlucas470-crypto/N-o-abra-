@@ -25,6 +25,7 @@ import { SKY_LABEL } from '../sim/Weather';
 import { StatusPanel } from '../ui/StatusPanel';
 import { Toast } from '../ui/Toast';
 import { UiButton } from '../ui/UiButton';
+import { loadVolume, nextVolume, saveVolume, volumeLabel } from '../audio/Volume';
 import { UI, textStyle } from '../ui/theme';
 import { DeathScreen, HearingRing, ThreatBanner } from '../ui/ThreatUi';
 import { loadGame, saveSummary } from '../save/SaveGame';
@@ -59,6 +60,8 @@ export class HudScene extends Phaser.Scene {
   private savedText!: Phaser.GameObjects.Text;
   private saveBtn!: UiButton;
   private menuBtn!: UiButton;
+  /** Volume do jogo (100% → 60% → 30% → desligado), salvo no aparelho. */
+  private soundBtn!: UiButton;
   private hudTimer = 0;
   private mapView!: MapView;
   private infoCard!: InfoCard;
@@ -300,7 +303,21 @@ export class HudScene extends Phaser.Scene {
       false,
       dpr,
     );
-    this.pauseLayer = this.add.container(0, 0, [this.pauseDim, this.pauseTitle, this.pauseHint, this.resumeBtn, this.saveBtn, this.menuBtn]);
+    this.soundBtn = new UiButton(
+      this,
+      volumeLabel(loadVolume()),
+      308,
+      42,
+      () => {
+        const v = nextVolume(loadVolume());
+        saveVolume(v);
+        this.s.audio?.setVolume(v);
+        this.soundBtn.setLabel(volumeLabel(v));
+      },
+      false,
+      dpr,
+    );
+    this.pauseLayer = this.add.container(0, 0, [this.pauseDim, this.pauseTitle, this.pauseHint, this.resumeBtn, this.saveBtn, this.menuBtn, this.soundBtn]);
     this.pauseLayer.setDepth(150).setVisible(false);
     // Bloqueia toques no que está por baixo enquanto pausado.
     this.pauseDim.setInteractive();
@@ -362,6 +379,7 @@ export class HudScene extends Phaser.Scene {
     this.resumeBtn.setPosition(w / 2, h * 0.58).setScale(k);
     this.saveBtn.setPosition(w / 2 - 82 * k, h * 0.58 + 58 * k).setScale(k);
     this.menuBtn.setPosition(w / 2 + 82 * k, h * 0.58 + 58 * k).setScale(k);
+    this.soundBtn.setPosition(w / 2, h * 0.58 + 108 * k).setScale(k);
 
     const portraitPhone = s.viewport.isPortrait && this.controls.isTouchMode;
     // Em pé: aviso no meio-alto da tela, longe do nome do local (topo) e dos controles (base).

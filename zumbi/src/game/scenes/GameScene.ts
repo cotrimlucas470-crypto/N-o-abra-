@@ -83,6 +83,10 @@ import { WorldModel } from '../world/WorldModel';
 import { WorldRenderer, type Upstairs } from '../world/render/WorldRenderer';
 import { NOISE_RADIUS } from '../config/NoiseTuning';
 import { kindFromSource, NoiseSystem } from '../sim/Noise';
+import { AudioEngine } from '../audio/AudioEngine';
+import { GameAudio } from '../audio/GameAudio';
+import { soundForContainer, surfaceFor } from '../audio/SoundMap';
+import { loadVolume } from '../audio/Volume';
 import { ZombieSystem } from '../zombies/ZombieSystem';
 import { difficultyFrom } from '../zombies/Difficulty';
 import { generatePopulation } from '../zombies/Population';
@@ -198,6 +202,8 @@ export class GameScene extends Phaser.Scene {
   private dangerTimer = 0;
   /** Ao volante (null = a pé). */
   private drive: DriveSession | null = null;
+  /** Diretor de som desta partida (null sem Web Audio). */
+  private sfx: GameAudio | null = null;
 
   constructor() {
     super(SCENES.game);
@@ -234,6 +240,7 @@ export class GameScene extends Phaser.Scene {
     this.loudNoises.length = 0;
     this.dangerTimer = 0;
     this.drive = null;
+    this.sfx = null;
   }
 
   create(): void {
@@ -407,7 +414,7 @@ export class GameScene extends Phaser.Scene {
       drop: (items, x, y) => {
         for (const it of items) this.lootActions.dropLoose(it.defId, it.count, it.st, x, y);
       },
-      noise: (x, y, radius, source) => s.bus.emit('world:noise', { x, y, radius, source }),
+      noise: (x, y, radius, source, sound) => s.bus.emit('world:noise', { x, y, radius, source, ...(sound ? { sound } : {}) }),
       moveTo: (x, y) => this.teleport(x, y),
       now: nowDays,
       damage: (n) => this.player.stats.setHealth(this.player.stats.health - n),
@@ -576,9 +583,12 @@ export class GameScene extends Phaser.Scene {
       s.bus.on('game:save-request', () => this.save()),
       s.bus.on('game:paused', () => this.save()),
     ];
+    this.startAudio();
     this.events.on(Phaser.Scenes.Events.PAUSE, () => this.keyboardMouse.reset(s.keyboardMouse));
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       offs.forEach((u) => u());
+      this.sfx?.destroy();
+      this.sfx = null;
       s.session.inventory = null;
       s.session.openContainer = null;
       s.session.interaction = null;
@@ -750,6 +760,62 @@ export class GameScene extends Phaser.Scene {
     }
     this.highlight.update(this.dt);
     this.debugLayer?.update(this.player.x, this.player.y, this.dt);
+    this.sfx?.update(this.dt);
+  }
+
+  /**
+   * Som: o motor é um por jogo (as variações geradas ficam entre partidas);
+   * o diretor é desta partida e pergunta à cena onde o jogador está, o chão
+   * e as paredes no caminho.
+   */
+  private startAudio(): void {
+    const s = this.s;
+    s.audio ??= AudioEngine.create(this.sound);
+    if (!s.audio) return;
+    s.audio.setVolume(loadVolume());
+    const floors = this.model.floors;
+    const map = this.model.map;
+    this.sfx = new GameAudio(
+      s.audio,
+      s.bus,
+      {
+        listener: () => ({ x: this.player.x, y: this.player.y, indoor: !!this.floor || !!this.world.roofs.buildingAt(this.player.x, this.player.y) }),
+        locate: (x, y, radius) => {
+          const px = this.player.x;
+          const py = this.player.y;
+          const ps = floors.spaceAt(px, py);
+          if (floors.spaceAt(x, y) === ps) return Math.hypot(x - px, y - py) >= radius ? null : { x, y, walls: this.noise.wallsBetween(px, py, x, y, 6) };
+          // Outro andar: vem pela escada, abafado como duas paredes.
+          let best: { x: number; y: number; d: number } | null = null;
+          for (const b of bridgeNoise(floors, x, y, radius)) {
+            if (floors.spaceAt(b.x, b.y) !== ps) continue;
+            const d = Math.hypot(b.x - px, b.y - py);
+            if (!best || d < best.d) best = { x: b.x, y: b.y, d };
+          }
+          return best && best.d < radius ? { x: best.x, y: best.y, walls: this.noise.wallsBetween(px, py, best.x, best.y, 4) + 2 } : null;
+        },
+        surface: (x, y) => {
+          const tx = Math.floor(x / map.tileSize);
+          const ty = Math.floor(y / map.tileSize);
+          const inside = tx >= 0 && ty >= 0 && tx < map.widthTiles && ty < map.heightTiles;
+          const g = this.loop.ground;
+          return surfaceFor(inside ? map.ground[ty * map.widthTiles + tx]! : -1, {
+            outdoor: !this.floor && (this.groundWeather?.isOutdoorGround(x, y) ?? false),
+            snow: g.snow,
+            snowCm: g.snowCm,
+            wet: Math.max(g.wet, this.loop.weather.rain * 0.6),
+            upstairs: !!this.floor,
+          });
+        },
+        containerSound: (id) => {
+          const name = this.state.loot.ref(id)?.name ?? id;
+          // Porta-malas: o barulho do porta-malas já tocou (VehicleInteractions).
+          if (this.state.vehicles.vehicle(id.split(':')[0]!) && /porta-malas/i.test(name)) return null;
+          return soundForContainer(name);
+        },
+      },
+      () => this.inventory.handDef ?? null,
+    );
   }
 
   /** Chama na mão (vela, tocha) e fogueiras acesas: luz em volta (tremendo). */
@@ -839,8 +905,10 @@ export class GameScene extends Phaser.Scene {
     if (this.loop.runner.active) this.loop.cancelAction();
     const gun = !!this.inventory.handDef?.gun;
     const facing = this.attackAngle();
+    const weapon = this.inventory.handDef ?? null;
     const r: AttackResult = gun ? this.combat.shoot(this.player.x, this.player.y, facing) : this.combat.melee(this.player.x, this.player.y, facing);
     this.attackCooldown = r.cooldown;
+    this.sfx?.attack(r, weapon);
     if (r.swing) {
       this.combatFx.swing(r.swing.x, r.swing.y, r.swing.angle, r.swing.reach);
       this.player.strike();
@@ -912,7 +980,10 @@ export class GameScene extends Phaser.Scene {
     if (this.s.session.paused) return;
     const r = this.combat.reload(this.survivor.skills.speed('armas') * this.loop.effects.actionTime);
     if (typeof r === 'string') this.outcome({ ok: false, message: r, tone: 'warn' });
-    else this.loop.start(r);
+    else {
+      this.loop.start(r);
+      this.sfx?.reload(this.inventory.handDef ?? null);
+    }
   }
 
   /** Lanterna ligada na mão ou na cabeça: facho para onde o jogador olha. */

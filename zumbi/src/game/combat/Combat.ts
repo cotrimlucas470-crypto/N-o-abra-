@@ -37,7 +37,9 @@ export interface AttackResult {
   message?: string;
   tone?: 'ok' | 'info' | 'warn' | 'bad';
   /** Onde bateu e como ficou (para a barrinha de resistência). */
-  hit?: { x: number; y: number; name: string; hp: number; max: number; destroyed: boolean };
+  hit?: { x: number; y: number; name: string; hp: number; max: number; destroyed: boolean; material?: Material };
+  /** Janelas que a bala estourou no caminho (para o som). */
+  broke?: { x: number; y: number }[];
   noise?: { x: number; y: number; radius: number; source: string };
   drops?: Drop[];
   /** Tiro: linha do disparo (`wall`: a bala parou numa parede). */
@@ -234,7 +236,7 @@ export class Combat {
         message = `${cap(dur.name)} quebrou.`;
         tone = 'ok';
       }
-      return { ok: true, ...(message ? { message, tone } : {}), hit: { x: t.x, y: t.y, name: dur.name, hp: Math.max(0, hp), max: dur.hp, destroyed }, noise: { x: t.x, y: t.y, radius: IMPACT_NOISE[dur.material] * (destroyed ? 1.3 : 1), source }, drops };
+      return { ok: true, ...(message ? { message, tone } : {}), hit: { x: t.x, y: t.y, name: dur.name, hp: Math.max(0, hp), max: dur.hp, destroyed, material: dur.material }, noise: { x: t.x, y: t.y, radius: IMPACT_NOISE[dur.material] * (destroyed ? 1.3 : 1), source }, drops };
     }
     if (t.kind === 'door') {
       const d = t.door;
@@ -248,7 +250,7 @@ export class Combat {
         message = d.material === 'glass' ? 'O vidro da porta estourou!' : 'A porta cedeu!';
         tone = 'ok';
       }
-      return { ok: true, ...(message ? { message, tone } : {}), hit: { x: t.x, y: t.y, name: doorLabel(d), hp: Math.max(0, hp), max: Math.max(max, 1), destroyed }, noise: { x: t.x, y: t.y, radius: IMPACT_NOISE[material] * (destroyed ? 1.4 : 1.1), source } };
+      return { ok: true, ...(message ? { message, tone } : {}), hit: { x: t.x, y: t.y, name: doorLabel(d), hp: Math.max(0, hp), max: Math.max(max, 1), destroyed, material }, noise: { x: t.x, y: t.y, radius: IMPACT_NOISE[material] * (destroyed ? 1.4 : 1.1), source } };
     }
     // Janela
     this.state.breakWindow(t.wall);
@@ -261,7 +263,7 @@ export class Combat {
         tone = 'bad';
       }
     }
-    return { ok: true, message: message ?? 'A janela estourou.', tone: message ? tone : 'info', hit: { x: t.x, y: t.y, name: 'janela', hp: 0, max: 1, destroyed: true }, noise: { x: t.x, y: t.y, radius: IMPACT_NOISE.vidro, source: 'vidro' } };
+    return { ok: true, message: message ?? 'A janela estourou.', tone: message ? tone : 'info', hit: { x: t.x, y: t.y, name: 'janela', hp: 0, max: 1, destroyed: true, material: 'vidro' }, noise: { x: t.x, y: t.y, radius: IMPACT_NOISE.vidro, source: 'vidro' } };
   }
 
   /** Soco em coisa dura machuca (luva grossa protege). */
@@ -312,6 +314,7 @@ export class Combat {
     let hit: AttackResult | null = null;
     const creature = this.hooks.creatures?.ray(x, y, a, range) ?? null;
     let creatureHit: (CreatureHit & { dir: number }) | undefined;
+    const broke: { x: number; y: number }[] = [];
     for (let d = 20; d <= range; d += 8) {
       // Zumbi na linha antes de parede/objeto: a bala para nele.
       if (creature && creature.dist <= d) {
@@ -324,7 +327,10 @@ export class Combat {
       const py = y + dy * d;
       // Janela: estoura e a bala segue.
       const win = this.state.windowsNear(px, py, 2).find((w) => !this.state.isWindowBroken(w.id));
-      if (win) this.state.breakWindow(win.wall);
+      if (win) {
+        this.state.breakWindow(win.wall);
+        broke.push({ x: px, y: py });
+      }
       const door = this.doorAt(px, py);
       if (door) {
         const t: Target = { kind: 'door', door, dist: d, x: px, y: py };
@@ -353,6 +359,7 @@ export class Combat {
       ...(creatureHit ? { creature: creatureHit } : {}),
       ...(hit?.hit ? { hit: hit.hit } : {}),
       ...(hit?.drops?.length ? { drops: hit.drops } : {}),
+      ...(broke.length ? { broke } : {}),
       ...(hit?.message ? { message: hit.message, tone: hit.tone } : {}),
     };
   }

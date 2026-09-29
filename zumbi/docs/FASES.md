@@ -5,6 +5,70 @@ O que cada etapa entregou, como foi testado e o que ficou pendente. A ordem das 
 
 ---
 
+## Sons gerados pelo jogo (S1: motor, passos, portas, vidro, combate, ferramentas, carros)
+
+Nenhum arquivo de áudio: cada som é **calculado pelo jogo** a partir de uma receita física (ruído
+filtrado, ressonância de material, pulso de pressão, grãos). Tudo original. Cada som tem de 3 a 8
+**variações** (sementes diferentes), e cada toque ainda sorteia altura e volume, sem repetir a
+variação anterior: o mesmo passo nunca soa igual duas vezes.
+
+### O que tem
+- `audio/dsp.ts`: sorteio com semente, filtros biquad, ruído rosa e marrom, ressonadores modais,
+  grãos, baque, rangido (atrito), voz (pulso glotal e formantes), saturação e eco gerado.
+- `audio/recipes/`:
+  - **passos** em 14 chãos × 3 andares: grama, terra, cascalho, asfalto, calçada, garagem, madeira,
+    cerâmica, carpete, neve, neve funda, molhado, poça e escada;
+  - **portas**: abrir, fechar, trancada, portão de enrolar, empurrada, batida (madeira e metal),
+    barricada, arrombamento, porta e porta-malas de carro;
+  - **vidro**: janela estourando (estalo e cacos), vidro de carro, batida no vidro;
+  - **combate**: ar do golpe por peso, acerto em carne (contundente, corte, perfuração, soco), acerto
+    em madeira, metal, concreto, plástico, cerâmica e lataria, corpo caindo;
+  - **armas de fogo**: 8 classes, cada uma com estalo, estouro, grave e mecânica próprios
+    (ferrolho, tambor, bombeada, rajada); recarga por classe, cápsula quicando, clique sem bala,
+    arma emperrando e bala na parede, madeira ou metal (com ricochete);
+  - **ferramentas e objetos**: martelo, machado, picareta, tábuas, demolição, desmonte, gaveta,
+    armário, geladeira e revirar;
+  - **carros**: buzina, batida, pneu estourando, arranque falhando, motor pegando, atropelo.
+- `audio/SoundCatalog.ts` (108 sons), `audio/SoundMap.ts` (qual som para cada barulho, chão e arma)
+  e `audio/spatial.ts` (distância, lado, parede, eco).
+- `audio/AudioEngine.ts`, no contexto de áudio do Phaser:
+  - eco de **rua** e de **cômodo**, com respostas geradas no próprio jogo;
+  - **parede no caminho abafa** (tira o agudo e o volume); som de outro andar vem pela escada;
+  - limite de 24 vozes e até 20 MB de memória (esquece o menos usado);
+  - variações geradas num **worker**, fora da linha do jogo, sem travar. Se o worker falhar, gera
+    aos poucos na linha principal.
+- `audio/GameAudio.ts` (o diretor) escuta `world:noise`, `player:footstep`, recipientes e pausa, e
+  recebe da cena o resultado do golpe/tiro e da recarga. Nenhuma regra do jogo mudou.
+- Mudanças mínimas fora do áudio:
+  - `world:noise` ganhou `sound?` (o som exato: porta abrindo ou fechando, motor pegando ou não);
+  - evento novo `sound:play`;
+  - o resultado do combate diz o material do alvo e as janelas que a bala estourou.
+- **Botão SOM na pausa**: 100% → 60% → 30% → desligado, salvo no aparelho. Na pausa tudo silencia.
+
+### Testes
+- `tests/audio.test.ts` (16 testes):
+  - toda receita gera som finito, sem estourar, audível e com duração certa;
+  - mesma semente dá o mesmo som; outra semente, outro tom;
+  - todo barulho do jogo tem som;
+  - toda arma do catálogo tem tiro e recarga;
+  - chão com neve, molhado e dentro de casa;
+  - distância, parede e lado; variação sem repetir; ciclo do botão SOM.
+- `npm run smoke` confere:
+  - o motor ligado e o worker gerando;
+  - a memória abaixo do limite e sons tocando;
+  - o botão SOM na pausa.
+- `dev/audiocheck.mjs` toca os 108 sons no navegador e mede o sinal que sai no mestre: nenhum mudo,
+  nenhum erro. Com o jogo pausado, o sinal medido é 0.
+
+### Pendências (próximas etapas de som)
+- **S2**: chuva (no telhado quando se está dentro), vento, trovão com atraso pela distância,
+  pássaros, grilos e corvos por estação e hora, fogo, gerador ligado, alarme de carro, ronco do motor
+  pela velocidade.
+- **S3**: zumbis (voz própria de cada um: gemido, rosnado, ataque, mordida, morte), passos arrastados,
+  o corpo do jogador (respiração, coração, dor, comer, beber) e a interface.
+
+---
+
 ## Clima: estações graduais, neve que acumula e visual do clima refeito
 
 ### Núcleo (tempo, calendário, estações)

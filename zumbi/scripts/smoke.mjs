@@ -309,6 +309,12 @@ try {
     // Pausar também salva o jogo: espera o quadro (headless é lento).
     const paused = await page.waitForFunction(() => window.__TDR__.scene.scene.isPaused(), null, { timeout: 3000 }).then(() => true, () => false);
     check(paused, 'botão de pausa pausa o jogo');
+    const somLabel = await page.evaluate(() => {
+      const hud = window.__TDR__.scene.game.scene.getScenes(true).find((x) => x.sys.settings.key.toLowerCase().includes('hud'));
+      const vis = (o) => { for (let q = o; q; q = q.parentContainer) if (!q.visible) return false; return true; };
+      return hud?.children.list.flatMap((o) => (o.list ? o.list : [o])).find((o) => o.label?.text?.startsWith('SOM') && vis(o))?.label.text ?? null;
+    });
+    check(!!somLabel, `pausa tem o botão SOM (${somLabel})`);
     await page.screenshot({ path: OUT + '07-pausa.png' });
     await touch('touchStart', [{ x: 422, y: 234, id: 5 }]);
     await sleep(60);
@@ -439,6 +445,21 @@ try {
       await page.screenshot({ path: OUT + '22-carro.png' });
       await T(() => { const g = window.__TDR__; g.scene.drive.car.speed = 0; g.exitCar(true); });
       check(!(await T(() => window.__TDR__.driving())), 'sai do carro');
+    }
+    // Som (gerado pelo jogo): motor ligado, variações no worker, memória no limite, sons tocando.
+    const snd = await page.evaluate(async () => {
+      const sc = window.__TDR__.scene;
+      const a = sc.s.audio;
+      if (!a) return null;
+      if (a.ctx.state !== 'running') await a.ctx.resume().catch(() => {});
+      for (const id of ['tiro.espingarda', 'vidro.janela', 'porta.fechar', 'passo.neve.corrida']) sc.s.bus.emit('sound:play', { id });
+      return { state: a.ctx.state, worker: !!a.worker, mb: a.memoryMb, playing: a.playing };
+    });
+    check(!!snd, 'motor de som ligado (Web Audio)');
+    if (snd) {
+      check(snd.worker, 'variações de som geradas no worker (sem travar o jogo)');
+      check(snd.mb < 20, `memória de som no limite (${snd.mb.toFixed(1)} MB)`);
+      check(snd.state !== 'running' || snd.playing > 0, `sons tocando (${snd.playing} vozes, contexto ${snd.state})`);
     }
     check(errors.length === 0, `sem erros no console (${errors.length}) ${errors.slice(0, 3).join(' | ')}`);
     await ctx.close();
