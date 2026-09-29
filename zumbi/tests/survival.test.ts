@@ -19,8 +19,51 @@ describe('corpo: necessidades', () => {
     b.fatigue = 0;
     b.update(12 * 60, ctx());
     expect(b.thirst).toBeGreaterThan(b.hunger);
-    expect(b.hunger).toBeGreaterThan(25);
-    expect(b.fatigue).toBeGreaterThan(55);
+    // Ritmo lento: 12 h parado mal dá fome; a sede começa; o cansaço pesa em ~1 dia.
+    expect(b.hunger).toBeGreaterThan(5);
+    expect(b.hunger).toBeLessThan(15);
+    expect(b.thirst).toBeLessThan(25);
+    expect(b.fatigue).toBeGreaterThan(25);
+  });
+
+  it('expedição longa: 2 dias andando com água e comida razoáveis não vira lista de sintomas', () => {
+    const b = new Body();
+    b.hunger = 0;
+    b.thirst = 0;
+    b.fatigue = 0;
+    // 14 h andando, 8 h dormindo, 2 h parado por dia; bebe meio litro (60) e come uma lata (25) por dia.
+    for (let d = 0; d < 2; d++) {
+      b.update(14 * 60, ctx({ activity: 'walk', load: 0.6, sheltered: false }));
+      b.update(2 * 60, ctx());
+      b.update(8 * 60, ctx({ sleeping: true }));
+      b.consume({ hunger: 25, thirst: 60, kcal: 400, health: 0, sickness: 0, message: '', tone: 'ok' });
+    }
+    const serious = b.states().filter((x) => x.level >= 2);
+    expect(serious).toEqual([]);
+  });
+
+  it('a sede depende da atividade, da carga e do calor (roupa quente sua)', () => {
+    const at = (o: Partial<BodyContext>) => {
+      const b = new Body();
+      b.thirst = 0;
+      b.update(6 * 60, ctx(o));
+      return b.thirst;
+    };
+    const idle = at({});
+    const walk = at({ activity: 'walk' });
+    const run = at({ activity: 'run' });
+    const loaded = at({ activity: 'walk', load: 1 });
+    const hot = at({ activity: 'walk', airTemp: 34, sheltered: false, insulation: 1.5 });
+    expect(walk).toBeGreaterThan(idle);
+    expect(run).toBeGreaterThan(walk * 1.4);
+    expect(loaded).toBeGreaterThan(walk);
+    expect(hot).toBeGreaterThan(walk * 1.3);
+    // Beber bem guarda reserva: segura por mais tempo.
+    const b = new Body();
+    b.thirst = 10;
+    b.consume({ hunger: 0, thirst: 60, kcal: 0, health: 0, sickness: 0, message: '', tone: 'ok' });
+    expect(b.thirst).toBeLessThan(0);
+    expect(b.states().some((x) => x.id === 'sede')).toBe(false);
   });
 
   it('correr gasta mais; dormir recupera o cansaço e gasta menos', () => {

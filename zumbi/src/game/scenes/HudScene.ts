@@ -464,7 +464,7 @@ export class HudScene extends Phaser.Scene {
     this.hudTimer -= dt;
     if (sv && this.hudTimer <= 0) {
       this.hudTimer = 0.25;
-      this.pills.update(sv.survivor.states().map((x) => ({ label: x.label, tone: x.tone })));
+      this.pills.update(hudStates(sv.survivor.states()));
     }
     const act = sv?.runner.current;
     // Painel aberto na horizontal: a barra de ação vai para o espaço livre à esquerda.
@@ -518,4 +518,17 @@ export class HudScene extends Phaser.Scene {
       }
     }
   }
+}
+
+/**
+ * O que aparece no HUD: só o que pede atenção (2º estágio em diante), mais
+ * sangramento/infecção/perna sempre; o mais grave primeiro, no máximo 4.
+ * A lista completa fica na ficha do personagem.
+ */
+const ALWAYS = new Set(['sangrando', 'infeccao', 'zumbi', 'mancando']);
+export function hudStates(list: readonly { id: string; label: string; level: number; tone: 'info' | 'ok' | 'warn' | 'bad' }[]): { label: string; tone: 'info' | 'ok' | 'warn' | 'bad' }[] {
+  const shown = list.filter((x) => x.level >= 2 || ALWAYS.has(x.id)).sort((a, b) => b.level - a.level);
+  const out = shown.slice(0, 4).map((x) => ({ label: x.label, tone: x.tone }));
+  if (shown.length > 4) out.push({ label: `+${shown.length - 4}`, tone: 'info' });
+  return out;
 }

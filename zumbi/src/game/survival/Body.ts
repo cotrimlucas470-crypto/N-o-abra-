@@ -22,7 +22,7 @@ export interface BodySnapshot {
   morale: number;
 }
 
-export type Activity = 'idle' | 'walk' | 'run';
+export type Activity = 'idle' | 'walk' | 'run' | 'fight';
 
 /** O que o mundo diz ao corpo neste intervalo. */
 export interface BodyContext {
@@ -51,6 +51,8 @@ export interface BodyContext {
   woundsBlockRegen: boolean;
   /** Dor 0..100 (tira ânimo). */
   pain: number;
+  /** Carga: peso carregado / capacidade (0..1+). */
+  load?: number;
 }
 
 export const DEFAULT_CONTEXT: BodyContext = {
@@ -80,10 +82,24 @@ export interface BodyRates {
 export interface BodyState {
   id: string;
   label: string;
-  /** 1 = leve, 2 = médio, 3 = grave. */
-  level: 1 | 2 | 3;
+  /** 1 = começando (só na ficha), 2 = médio, 3 = grave, 4 = crítico. */
+  level: 1 | 2 | 3 | 4;
   tone: Tone;
 }
+
+/** Estágio 0..4 de uma necessidade pelas faixas (0 = tudo bem). */
+export function needStage(v: number, th: readonly number[]): 0 | 1 | 2 | 3 | 4 {
+  let i = 0;
+  while (i < th.length && v >= th[i]!) i++;
+  return i as 0 | 1 | 2 | 3 | 4;
+}
+
+/** Nomes dos estágios (0 = bem ... 4 = crítico). */
+export const NEED_LABELS = {
+  fome: ['Satisfeito', 'Começando a ter fome', 'Com fome', 'Fome forte', 'Inanição'],
+  sede: ['Hidratado', 'Começando a ter sede', 'Sede forte', 'Desidratação', 'Desidratação crítica'],
+  sono: ['Descansado', 'Cansado', 'Com sono', 'Muito cansado', 'Exausto'],
+} as const;
 
 /** Temperatura "sentida" (°C) — o que decide se o corpo esfria ou esquenta. */
 export function feltTemperature(ctx: BodyContext, wet: number): number {
@@ -92,11 +108,31 @@ export function feltTemperature(ctx: BodyContext, wet: number): number {
   if (ctx.sheltered && air < t.indoorTarget) air += (t.indoorTarget - air) * t.indoorBlend;
   let felt = air + ctx.insulation * t.insulationC + ctx.fireHeat * t.fireC;
   if (ctx.activity === 'walk') felt += t.walkC;
-  else if (ctx.activity === 'run') felt += t.runC;
+  else if (ctx.activity === 'run' || ctx.activity === 'fight') felt += t.runC;
   const wind = ctx.sheltered ? 0 : ctx.wind;
   felt -= wet * t.wetC * (1 + wind) + wind * t.windC;
   if (ctx.sleeping) felt += ctx.blanket ? t.blanketC : t.sleepC;
   return felt;
+}
+
+/**
+ * Multiplicadores do gasto agora (puro): atividade, carga, calor sentido
+ * (roupa quente faz suar), corpo quente, frio e doença. 1 = parado, bem.
+ */
+export function needRates(ctx: BodyContext, temp: number, wet: number, sickness: number): { hunger: number; thirst: number; fatigue: number } {
+  const n = NEEDS_TUNING;
+  if (ctx.sleeping) return { hunger: n.sleepHunger, thirst: n.sleepThirst * (sickness > 0.3 ? 1.3 : 1), fatigue: 1 };
+  const a = n.activity[ctx.activity] ?? n.activity.idle;
+  const over = clamp(((ctx.load ?? 0) - n.loadFrom) / (1 - n.loadFrom), 0, 1.5);
+  const felt = feltTemperature(ctx, wet);
+  const sweat = 1 + clamp((felt - n.sweatFrom) * n.sweatPerC, 0, n.sweatMax);
+  const hot = temp > STATE_LEVELS.hotTemp[0] ? n.heatThirst : 1;
+  const cold = temp < STATE_LEVELS.coldTemp[0] || felt < n.coldFeltFrom ? n.coldHunger : 1;
+  return {
+    hunger: a.hunger * (1 + n.loadHunger * over) * cold,
+    thirst: a.thirst * (1 + n.loadThirst * over) * sweat * hot * (sickness > 0.3 ? 1.3 : 1),
+    fatigue: a.fatigue * (1 + n.loadFatigue * over),
+  };
 }
 
 export class Body {
@@ -127,16 +163,13 @@ export class Body {
 
   private step(h: number, ctx: BodyContext): number {
     const n = NEEDS_TUNING;
-    const run = ctx.activity === 'run';
-    const cold = this.temp < STATE_LEVELS.coldTemp[0];
-    const hot = this.temp > STATE_LEVELS.hotTemp[0];
-    // Necessidades
-    this.hunger += n.hungerPerHour * this.rates.hunger * h * (ctx.sleeping ? n.sleepHunger : run ? n.sprintHunger : 1) * (cold ? n.coldHunger : 1);
-    this.thirst += n.thirstPerHour * this.rates.thirst * h * (ctx.sleeping ? n.sleepThirst : run ? n.sprintThirst : 1) * (hot ? n.heatThirst : 1) * (this.sickness > 0.3 ? 1.3 : 1);
+    const r = needRates(ctx, this.temp, this.wet, this.sickness);
+    this.hunger += n.hungerPerHour * this.rates.hunger * h * r.hunger;
+    this.thirst += n.thirstPerHour * this.rates.thirst * h * r.thirst;
     if (ctx.sleeping) this.fatigue -= n.sleepRecoveryPerHour * ctx.sleepQuality * h;
-    else this.fatigue += n.fatiguePerHour * this.rates.fatigue * h * (run ? n.sprintFatigue : 1);
-    this.hunger = clamp(this.hunger, 0, 100);
-    this.thirst = clamp(this.thirst, 0, 100);
+    else this.fatigue += n.fatiguePerHour * this.rates.fatigue * h * r.fatigue;
+    this.hunger = clamp(this.hunger, -n.reserve, 100);
+    this.thirst = clamp(this.thirst, -n.reserve, 100);
     this.fatigue = clamp(this.fatigue, 0, 100);
 
     // Molhado: chuva lá fora molha (capa segura quase tudo); abrigo, fogo e calor secam.
@@ -167,7 +200,7 @@ export class Body {
     if (this.temp < 35) health -= d.hypothermia * h * Math.min(2, 35 - this.temp + 0.5);
     if (this.temp > 39.5) health -= d.hyperthermia * h * Math.min(2, this.temp - 39.5 + 0.5);
     if (this.sickness > 0.25) health -= d.sickness * this.sickness * h;
-    const fine = this.hunger < 70 && this.thirst < 70 && this.sickness < 0.25 && this.temp > 35.5 && this.temp < 38.8 && !ctx.woundsBlockRegen;
+    const fine = this.hunger < 80 && this.thirst < 75 && this.sickness < 0.25 && this.temp > 35.5 && this.temp < 38.8 && !ctx.woundsBlockRegen;
     if (fine) health += (ctx.sleeping ? d.regenSleeping : d.regen) * h;
 
     // Ânimo: vai devagar até o que as condições permitem.
@@ -181,8 +214,8 @@ export class Body {
   private moraleTarget(ctx: BodyContext): number {
     let m = 65;
     if (this.hunger < 30 && this.thirst < 30) m += 10;
-    if (this.hunger > 55) m -= 12;
-    if (this.thirst > 50) m -= 12;
+    if (this.hunger > 60) m -= 10;
+    if (this.thirst > 55) m -= 10;
     if (this.wet > 0.5) m -= 10;
     if (this.temp < 36 || this.temp > 38) m -= 14;
     if (this.sickness > 0.3) m -= 12;
@@ -193,8 +226,10 @@ export class Body {
 
   /** Aplica o que foi comido/bebido (a doença entra aqui e tira vida com o tempo). */
   consume(e: ConsumeEffect): void {
-    this.hunger = clamp(this.hunger - e.hunger, 0, 100);
-    this.thirst = clamp(this.thirst - e.thirst, 0, 100);
+    // Além do necessário guarda um pouco (reserva): uma boa refeição/água segura por mais tempo.
+    const R = NEEDS_TUNING.reserve;
+    this.hunger = clamp(this.hunger - e.hunger, -R, 100);
+    this.thirst = clamp(this.thirst - e.thirst, -R, 100);
     if (e.sickness > 0) this.sickness = clamp(this.sickness + e.sickness * 0.7, 0, 1);
     // Comer bem com fome levanta o ânimo; comida estragada derruba.
     if (e.sickness > 0) this.morale = clamp(this.morale - 8, 0, 100);
@@ -220,12 +255,12 @@ export class Body {
       const cmp = (x: number, t: number) => (rising ? x >= t : x <= t);
       return cmp(v, th[2]!) ? 3 : cmp(v, th[1]!) ? 2 : cmp(v, th[0]!) ? 1 : 0;
     };
-    const push = (id: string, level: number, labels: readonly [string, string, string]) => {
-      if (level > 0) out.push({ id, label: labels[level - 1]!, level: level as 1 | 2 | 3, tone: level === 1 ? 'info' : level === 2 ? 'warn' : 'bad' });
+    const push = (id: string, level: number, labels: readonly string[]) => {
+      if (level > 0) out.push({ id, label: labels[level - 1]!, level: level as 1 | 2 | 3 | 4, tone: level === 1 ? 'info' : level === 2 ? 'warn' : 'bad' });
     };
-    push('fome', lvl(this.hunger, L.hunger), ['Com fome', 'Fome', 'Faminto']);
-    push('sede', lvl(this.thirst, L.thirst), ['Com sede', 'Sede', 'Desidratado']);
-    push('sono', lvl(this.fatigue, L.fatigue), ['Cansado', 'Muito cansado', 'Exausto']);
+    push('fome', needStage(this.hunger, L.hunger), NEED_LABELS.fome.slice(1));
+    push('sede', needStage(this.thirst, L.thirst), NEED_LABELS.sede.slice(1));
+    push('sono', needStage(this.fatigue, L.fatigue), NEED_LABELS.sono.slice(1));
     push('frio', lvl(this.temp, L.coldTemp, false), ['Com frio', 'Frio intenso', 'Hipotermia']);
     push('calor', lvl(this.temp, L.hotTemp), ['Com calor', 'Calor intenso', 'Hipertermia']);
     push('molhado', lvl(this.wet, L.wet), ['Úmido', 'Molhado', 'Encharcado']);
@@ -241,8 +276,8 @@ export class Body {
   restore(s: Partial<BodySnapshot> | undefined): void {
     if (!s) return;
     const n = (v: unknown, def: number, lo: number, hi: number) => (typeof v === 'number' && Number.isFinite(v) ? clamp(v, lo, hi) : def);
-    this.hunger = n(s.hunger, this.hunger, 0, 100);
-    this.thirst = n(s.thirst, this.thirst, 0, 100);
+    this.hunger = n(s.hunger, this.hunger, -NEEDS_TUNING.reserve, 100);
+    this.thirst = n(s.thirst, this.thirst, -NEEDS_TUNING.reserve, 100);
     this.fatigue = n(s.fatigue, this.fatigue, 0, 100);
     this.temp = n(s.temp, this.temp, 30, 43);
     this.wet = n(s.wet, this.wet, 0, 1);

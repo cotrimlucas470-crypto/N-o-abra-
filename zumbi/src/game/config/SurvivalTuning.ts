@@ -3,24 +3,42 @@
  * salvo indicação. Os multiplicadores gerais ficam no Sandbox (`survival`).
  */
 export const NEEDS_TUNING = {
-  /** 0 → 100 em ~36 h sem comer. */
-  hungerPerHour: 100 / 36,
-  /** 0 → 100 em ~24 h sem beber. */
-  thirstPerHour: 100 / 24,
-  /** 0 → 100 em ~18 h acordado. */
-  fatiguePerHour: 100 / 18,
-  /** Dormindo numa cama: ~8 h zeram o cansaço. */
+  /**
+   * Ritmos BEM mais lentos que antes (o dia do jogo dura 15 min reais): dá
+   * para passar dias em expedição com uma mochila razoável.
+   * Parado: fome 0 → 100 em ~6 dias; sede em ~3 dias; cansaço em ~40 h.
+   */
+  hungerPerHour: 100 / 144,
+  thirstPerHour: 100 / 72,
+  fatiguePerHour: 100 / 40,
+  /** Dormindo numa cama: ~7,5 h zeram o cansaço (proporcional às horas). */
   sleepRecoveryPerHour: 100 / 7.5,
-  /** Correndo gasta mais. */
-  sprintHunger: 1.6,
-  sprintThirst: 2,
-  sprintFatigue: 1.6,
+  /** Quanto cada atividade gasta (multiplica o ritmo parado). */
+  activity: {
+    idle: { hunger: 1, thirst: 1, fatigue: 1 },
+    walk: { hunger: 1.25, thirst: 1.4, fatigue: 1.2 },
+    run: { hunger: 1.8, thirst: 2.4, fatigue: 1.7 },
+    fight: { hunger: 1.6, thirst: 2.2, fatigue: 1.6 },
+  },
   /** Dormindo gasta menos. */
-  sleepHunger: 0.45,
-  sleepThirst: 0.5,
-  /** Corpo com frio queima mais; com calor, sua. */
-  coldHunger: 1.3,
-  heatThirst: 1.8,
+  sleepHunger: 0.5,
+  sleepThirst: 0.45,
+  /** Carga acima de metade da capacidade: gasta mais (no limite da capacidade, estes acréscimos). */
+  loadFrom: 0.5,
+  loadHunger: 0.4,
+  loadThirst: 0.6,
+  loadFatigue: 0.5,
+  /** Calor sentido (roupa quente conta) acima disto faz suar: +% de sede por °C, até o teto. */
+  sweatFrom: 26,
+  sweatPerC: 0.07,
+  sweatMax: 1.2,
+  /** Corpo quente (febre/calor) ainda sua mais. */
+  heatThirst: 1.4,
+  /** Frio: o corpo queima mais para se esquentar. */
+  coldFeltFrom: 12,
+  coldHunger: 1.4,
+  /** Comer/beber além do necessário guarda um pouco (até -reserva): "bem alimentado/hidratado". */
+  reserve: 20,
   /** Doença alimentar some sozinha em ~14 h. */
   sicknessDecayPerHour: 1 / 14,
 } as const;
@@ -75,14 +93,17 @@ export const WET_TUNING = {
   raincoat: 0.15,
 } as const;
 
-/** Faixas dos estados (texto na tela). */
+/**
+ * Faixas dos estados (texto na tela). Fome, sede e sono têm 4 estágios
+ * graduais (começando → forte → problema → crítico); o HUD só mostra do 2º em diante.
+ */
 export const STATE_LEVELS = {
-  hunger: [30, 55, 80],
-  thirst: [25, 50, 75],
-  fatigue: [50, 75, 90],
-  wet: [0.15, 0.5, 0.85],
+  hunger: [35, 60, 80, 93],
+  thirst: [30, 55, 75, 90],
+  fatigue: [55, 72, 85, 95],
+  wet: [0.25, 0.55, 0.85],
   sickness: [0.1, 0.4, 0.7],
-  coldTemp: [36.5, 35.8, 35],
-  hotTemp: [37.6, 38.3, 39.3],
-  morale: [40, 25, 12],
+  coldTemp: [36.3, 35.8, 35],
+  hotTemp: [37.7, 38.3, 39.3],
+  morale: [35, 22, 12],
 } as const;

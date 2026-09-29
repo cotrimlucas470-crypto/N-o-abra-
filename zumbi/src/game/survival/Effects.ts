@@ -53,35 +53,44 @@ export function physicalEffects(body: Body, load: number, capacity: number, inju
   let aim = 0;
   let trip = 0;
 
-  // Sono
-  if (body.fatigue >= 90) {
-    walk *= 0.82;
-    run *= 0.8;
+  // Sono (estágios: cansado 55, com sono 72, muito cansado 85, exausto 95): só pesa no fim.
+  if (body.fatigue >= 95) {
+    walk *= 0.85;
+    run *= 0.82;
     canSprint = false;
-    regen *= 0.5;
-    action *= 1.35;
-    melee *= 0.75;
-    aim += 0.25;
-  } else if (body.fatigue >= 75) {
-    walk *= 0.92;
-    run *= 0.9;
-    regen *= 0.7;
-    action *= 1.15;
-    melee *= 0.88;
-    aim += 0.12;
-  } else if (body.fatigue >= 50) {
-    regen *= 0.88;
+    regen *= 0.55;
+    action *= 1.3;
+    melee *= 0.78;
+    aim += 0.22;
+  } else if (body.fatigue >= 85) {
+    walk *= 0.94;
+    run *= 0.92;
+    regen *= 0.75;
+    action *= 1.12;
+    melee *= 0.9;
+    aim += 0.1;
+  } else if (body.fatigue >= 72) {
+    regen *= 0.9;
   }
-  // Fome e sede
-  if (body.hunger >= 80) {
-    regen *= 0.65;
-    melee *= 0.85;
-  } else if (body.hunger >= 55) regen *= 0.85;
-  if (body.thirst >= 75) {
+  // Fome e sede (fome forte 80 / inanição 93; sede forte 55 / desidratação 75 / crítica 90).
+  if (body.hunger >= 93) {
     regen *= 0.6;
-    drain *= 1.25;
+    melee *= 0.82;
     action *= 1.1;
-  } else if (body.thirst >= 50) regen *= 0.85;
+  } else if (body.hunger >= 80) {
+    regen *= 0.8;
+    melee *= 0.92;
+  } else if (body.hunger >= 60) regen *= 0.93;
+  if (body.thirst >= 90) {
+    regen *= 0.55;
+    drain *= 1.3;
+    action *= 1.15;
+    aim += 0.1;
+  } else if (body.thirst >= 75) {
+    regen *= 0.72;
+    drain *= 1.15;
+    action *= 1.05;
+  } else if (body.thirst >= 55) regen *= 0.9;
   // Temperatura
   if (body.temp < 35) {
     walk *= 0.8;
@@ -118,7 +127,7 @@ export function physicalEffects(body: Body, load: number, capacity: number, inju
     walk *= 1 - 0.22 * over;
     run *= 1 - 0.3 * over;
     drain *= 1 + 0.8 * over;
-    trip += 0.004 * over;
+    trip += 0.0015 * over;
   }
 
   // Coisa pesada nos braços (gerador, cimento): não corre, anda arrastado.
@@ -147,8 +156,8 @@ export function physicalEffects(body: Body, load: number, capacity: number, inju
     action *= 1 + 0.25 * p;
     aim += 0.2 * p;
   }
-  // Exausto e pesado demais: tropeça.
-  if (body.fatigue >= 85) trip += 0.003;
+  // Exausto e correndo: tropeça (raro; só no fim da linha).
+  if (body.fatigue >= 95) trip += 0.0008;
 
   return {
     walk: clamp(walk, 0.3, 1),

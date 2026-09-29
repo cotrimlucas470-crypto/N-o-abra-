@@ -4,6 +4,8 @@
  * ações: tirar, guardar, ligar...). Ferimentos entram aqui na etapa de
  * ferimentos. Só lê o estado e emite pedidos pelo EventBus.
  */
+import { NEED_LABELS, needStage } from '../../survival/Body';
+import { STATE_LEVELS } from '../../config/SurvivalTuning';
 import type { GameServices } from '../../core/Services';
 import type { ItemWhere } from '../../interaction/itemActions/types';
 import { conditionTags, type Tone } from '../../items/condition';
@@ -50,14 +52,15 @@ export class BodyTab implements ListSource {
     rows.push({ kind: 'header', text: 'Estado' });
     const hp = stats.health / stats.maxHealth;
     rows.push({ kind: 'bar', label: 'Vida', value: hp, text: `${Math.round(stats.health)}`, color: barColor(hp) });
-    const need = (label: string, v: number, words: [string, string, string, string]) => {
-      const good = 1 - v / 100;
-      const text = v < 30 ? words[0] : v < 55 ? words[1] : v < 80 ? words[2] : words[3];
+    // Estágios graduais (os mesmos do corpo): começando → forte → problema → crítico.
+    const need = (label: string, v: number, th: readonly number[], words: readonly string[]) => {
+      const good = Math.max(0, Math.min(1, 1 - v / 100));
+      const text = v < 0 ? (label === 'Sede' ? 'Bem hidratado' : 'Bem alimentado') : words[needStage(v, th)]!;
       rows.push({ kind: 'bar', label, value: good, text, color: barColor(good) });
     };
-    need('Fome', b.hunger, ['Saciado', 'Com fome', 'Fome', 'Faminto']);
-    need('Sede', b.thirst, ['Hidratado', 'Com sede', 'Sede', 'Desidratado']);
-    need('Energia', b.fatigue, ['Descansado', 'Cansado', 'Muito cansado', 'Exausto']);
+    need('Fome', b.hunger, STATE_LEVELS.hunger, NEED_LABELS.fome);
+    need('Sede', b.thirst, STATE_LEVELS.thirst, NEED_LABELS.sede);
+    need('Energia', b.fatigue, STATE_LEVELS.fatigue, NEED_LABELS.sono);
     const t = b.temp;
     const tv = Math.max(0, Math.min(1, (t - 33) / 8));
     // Só com termômetro dá para saber o número; sem ele, a sensação.

@@ -78,6 +78,7 @@ export class Survivor {
       fever: inj?.fever() ?? 0,
       woundsBlockRegen: inj?.blocksRegen() ?? false,
       pain,
+      load: this.inventory.effectiveLoad / Math.max(1, this.inventory.capacity),
     };
     let dh = this.body.update(minutes, ctx);
     if (inj) dh += inj.update(minutes, { sleeping: !!env.sleep, body: this.body });

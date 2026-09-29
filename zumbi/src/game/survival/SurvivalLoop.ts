@@ -25,6 +25,8 @@ export interface PlayerFrame {
   /** O jogador está pedindo para andar (joystick/teclado). */
   moving: boolean;
   sprinting: boolean;
+  /** Lutou há pouco (golpe, tiro, empurrão, agarrado): gasta como correr. */
+  fighting?: boolean;
 }
 
 export interface SurvivalHooks {
@@ -84,7 +86,7 @@ export class SurvivalLoop {
       this.ground.integrate(c.minutes);
     }
     this.sheltered = isSheltered(this.model, p.x, p.y, this.hooks.extraCover);
-    const activity: Activity = this.sleepInfo ? 'idle' : p.sprinting ? 'run' : p.moving ? 'walk' : 'idle';
+    const activity: Activity = this.sleepInfo ? 'idle' : p.fighting ? 'fight' : p.sprinting ? 'run' : p.moving ? 'walk' : 'idle';
     if (minutes > 0) {
       this.survivor.update(minutes, {
         weather: this.weather,

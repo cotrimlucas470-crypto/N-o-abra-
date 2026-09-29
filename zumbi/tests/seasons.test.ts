@@ -211,8 +211,9 @@ describe('passar dias', () => {
       expect(t.clock.day).toBe(151 + days);
       expect(t.cal.dateOf(t.clock.dayIndex).dayOfYear).toBe(150 + days);
       expect(t.ground.at).toBe(t.clock.minutes);
-      expect(r.meals).toBeGreaterThanOrEqual(Math.floor(days * 1.5));
-      expect(r.drinks).toBeGreaterThanOrEqual(days * 2 - 1);
+      // Ritmo novo (lento): uma refeição boa segura ~2 dias parado; água ~1 dia.
+      expect(r.meals).toBeGreaterThanOrEqual(Math.floor(days * 0.3));
+      expect(r.drinks).toBeGreaterThanOrEqual(Math.floor(days * 0.7));
       expect(r.minTemp).toBeLessThanOrEqual(r.maxTemp);
       expect(t.sv.body.hunger).toBeLessThan(90);
     });
@@ -233,15 +234,17 @@ describe('passar dias', () => {
 
   it('provisões: quantos dias a comida e a água seguram', () => {
     const need = dailyNeed();
-    expect(need.hunger).toBeGreaterThan(40);
+    // Parado no abrigo: ~14 de fome e ~27 de sede por dia (uma lata de feijão = 25).
+    expect(need.hunger).toBeGreaterThan(10);
+    expect(need.hunger).toBeLessThan(20);
     expect(need.thirst).toBeGreaterThan(need.hunger);
     const beans = itemDef('feijao')!;
     const water = itemDef('agua')!;
     const d = provisionDays([{ def: beans, count: 10 }, { def: water, count: 6 }], 0, () => true, { hunger: 20, thirst: 20 });
-    expect(d.food).toBeGreaterThan(1);
-    expect(d.water).toBeGreaterThan(0.5);
+    expect(d.food).toBeGreaterThan(10);
+    expect(d.water).toBeGreaterThan(8);
     const none = provisionDays([], 0, () => true, { hunger: 50, thirst: 50 });
-    expect(none.food).toBeLessThan(0.2);
+    expect(none.food).toBeLessThan(0.5);
   });
 });
 

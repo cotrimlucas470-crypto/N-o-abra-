@@ -203,6 +203,8 @@ export class GameScene extends Phaser.Scene {
   private dangerTimer = 0;
   /** Ao volante (null = a pé). */
   private drive: DriveSession | null = null;
+  /** Última vez que lutou (s, relógio da cena). */
+  private lastFight = -99;
   /** Diretor de som desta partida (null sem Web Audio). */
   private sfx: GameAudio | null = null;
 
@@ -242,6 +244,7 @@ export class GameScene extends Phaser.Scene {
     this.dangerTimer = 0;
     this.drive = null;
     this.sfx = null;
+    this.lastFight = -99;
   }
 
   create(): void {
@@ -633,7 +636,9 @@ export class GameScene extends Phaser.Scene {
     this.keyboardMouse.read(s.keyboardMouse, this.player.x, this.player.y, this.cameras.main, s.session.pointerOverUi);
     const intent = resolveIntent(s.touch, s.keyboardMouse);
     const moving = Math.hypot(intent.moveX, intent.moveY) > 0.15;
-    this.loop.frame(delta / 1000, { x: this.player.x, y: this.player.y, moving, sprinting: this.player.isSprinting });
+    // Lutando (golpe, tiro, agarrado) há pouco: o corpo gasta como correndo.
+    const fighting = this.elapsed - this.lastFight < 6 || this.zombies.threat.grabbed > 0;
+    this.loop.frame(delta / 1000, { x: this.player.x, y: this.player.y, moving, sprinting: this.player.isSprinting, fighting });
     // Dormindo: o corpo fica parado; o resto do estado físico vira velocidade e fôlego.
     this.player.frozen = this.loop.sleeping || this.loop.runner.current?.id === 'descansar';
     const fx = this.loop.effects;
@@ -969,6 +974,7 @@ export class GameScene extends Phaser.Scene {
     const gun = !!this.inventory.handDef?.gun;
     const facing = this.attackAngle();
     const weapon = this.inventory.handDef ?? null;
+    this.lastFight = this.elapsed;
     const r: AttackResult = gun ? this.combat.shoot(this.player.x, this.player.y, facing) : this.combat.melee(this.player.x, this.player.y, facing);
     this.attackCooldown = r.cooldown;
     this.sfx?.attack(r, weapon);
@@ -1298,6 +1304,7 @@ export class GameScene extends Phaser.Scene {
   private zombieAttack(z: Zombie, kind: AttackKind): AttackOutcome | null {
     if (this.dead) return null;
     const out = resolveAttack(z, kind, this.defense(z), this.zombies.diff);
+    this.lastFight = this.elapsed;
     this.sfx?.zombieHit(out, z.x);
     // A roupa daquela parte segurou (ou não): gasta e, com azar, rasga.
     let torn: string | null = null;
