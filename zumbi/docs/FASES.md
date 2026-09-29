@@ -30,6 +30,10 @@ O que cada etapa entregou, como foi testado e o que ficou pendente. A ordem das 
   `save.slot1.mapa1` e o título avisa; nunca é apagado.
 - Impressão digital do mapa (`interaction.test.ts`) atualizada de propósito. 484 testes.
 
+### Improvisação (primeira fatia)
+- **Fita adesiva no batente** (menu "⋯" de qualquer porta fechada): gasta 1 fita, soma resistência (`IMPROVISE_TUNING.doorTapeHp`) até 25% acima da máxima; não tranca. Salva junto com a vida da porta.
+- Falta (só existe `config/ImproviseTuning.ts`): fita/pano em janela, móveis contra porta, alarme de latas, rádio de distração, lanterna na cabeça, corda na janela, mochila escondida, carro.
+
 ### Pendências conhecidas
 - Geração num Web Worker e decoração assada por chunk (a geração 9×9 leva ~1,5 s no Node, na thread principal).
 - Fase de **improvisação** (fita, móveis, alarmes, lanterna na cabeça...) ainda não feita; existe só `config/ImproviseTuning.ts`.

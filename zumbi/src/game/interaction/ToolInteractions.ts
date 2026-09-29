@@ -9,6 +9,7 @@
  * - Cacos no chão: juntar (com vassoura é seguro; com a mão, pode cortar).
  * A ferramenta gasta, a habilidade sobe, o esforço cansa.
  */
+import { IMPROVISE_TUNING } from '../config/ImproviseTuning';
 import { INTERACTION_TUNING } from '../config/WorldTuning';
 import { condition, isBroken, type ItemState } from '../items/condition';
 import { itemDef } from '../items/ItemCatalog';
@@ -284,6 +285,8 @@ export class ToolInteractions implements InteractionProvider {
     if (!s.open || this.state.boardedOn(d.id)) out.push(...boardOptions(this.state, this.inventory, this.survivor, this.hooks, doorSpot(d), 'na porta'));
     if (this.state.boardedOn(d.id)) return out;
     const name = doorLabel(d);
+    // Improviso por propriedade: fita PRENDE, então serve para reforçar o batente de qualquer porta fechada.
+    if (!s.open) out.push(this.tapeDoor(d, name));
     if (s.locked) {
       const key = this.keyFor(d);
       if (key) out.push({ label: `Destrancar (${key})`, enabled: true, perform: () => (this.state.unlockDoor(d.id), { ok: true, message: 'Destrancada.' }) });
@@ -315,6 +318,37 @@ export class ToolInteractions implements InteractionProvider {
       if (inside) out.push({ label: `Trancar a ${name}`, enabled: true, perform: () => (this.state.setDoorLocked(d.id, true), { ok: true, message: 'Trancada por dentro.' }) });
     }
     return out;
+  }
+
+  /** Fita no batente: a porta aguenta mais uma rasgada antes de ceder (gasta 1 fita; não empilha sem limite). */
+  private tapeDoor(d: DoorPlacement, name: string): InteractionOption {
+    const has = this.inventory.countOf('fita') > 0;
+    const full = this.state.doorHealth(d.id) >= this.state.doorMaxHealth(d.id) * 1.25 - 0.5;
+    return {
+      label: full ? `Fita na ${name} (já reforçada)` : `Fita adesiva na ${name}`,
+      enabled: has && !full,
+      perform: () => {
+        if (!has) return { ok: false, message: 'Precisa de fita adesiva.' };
+        if (full) return { ok: false, message: 'Já tem fita demais: não segura mais.' };
+        this.hooks.start({
+          id: 'fitaPorta',
+          label: `Passando fita na ${name}`,
+          minutes: IMPROVISE_TUNING.minutes.fitaPorta * this.speed(),
+          done: () => {
+            for (const st of [...this.inventory.stacks()]) {
+              if (st.def.id !== 'fita') continue;
+              st.container.take(st.container.stacks.indexOf(st.stack), 1);
+              break;
+            }
+            this.inventory.changed();
+            this.state.reinforceDoor(d.id, IMPROVISE_TUNING.doorTapeHp);
+            this.hooks.noise(d.x, d.y, 90, 'fita');
+            return { ok: true, message: 'Fita no batente: rasga antes de a porta ceder. Não é tranca.', tone: 'ok' };
+          },
+        });
+        return { ok: true };
+      },
+    };
   }
 
   /** Tem a chave desta porta? Devolve o nome da chave. */

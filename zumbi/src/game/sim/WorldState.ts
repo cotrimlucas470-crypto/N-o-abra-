@@ -414,6 +414,16 @@ export class WorldState {
     return d ? (d.material === 'glass' ? 25 : d.material === 'metal' ? 260 : d.style === 'double' ? 110 : 80) : 0;
   }
 
+  /** Gambiarra: soma resistência à porta (fita, escora), até 25% acima da máxima. Devolve a resistência nova. */
+  reinforceDoor(id: string, amount: number): number {
+    const cur = this.doorHealth(id);
+    const cap = this.doorMaxHealth(id) * 1.25;
+    if (cur >= cap) return cur;
+    const hp = Math.min(cap, cur + amount);
+    this.doorHp.set(id, hp);
+    return hp;
+  }
+
   /** Bate na porta fechada. Chegou a zero: quebra (fica aberta para sempre). */
   damageDoor(id: string, amount: number): number {
     const i = this.doorIndex.get(id);
