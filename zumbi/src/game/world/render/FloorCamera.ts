@@ -20,7 +20,12 @@ export class FloorCamera {
     /** Objetos só da câmera principal (escuridão, chuva...). */
     private readonly screenOnly: () => Phaser.GameObjects.GameObject[],
   ) {
-    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.set(null));
+    // Ao fechar a cena as câmeras já foram destruídas pelo Phaser: só esquecer a nossa
+    // (mexer na câmera principal aqui travava a volta ao menu depois da morte).
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.below = null;
+      this.floor = null;
+    });
   }
 
   get active(): boolean {
@@ -30,6 +35,7 @@ export class FloorCamera {
   set(f: FloorData | null): void {
     this.floor = f;
     const main = this.scene.cameras.main;
+    if (!main) return;
     if (!f) {
       if (this.below) {
         this.scene.cameras.remove(this.below, true);

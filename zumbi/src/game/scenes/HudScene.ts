@@ -73,6 +73,14 @@ export class HudScene extends Phaser.Scene {
   }
 
   create(): void {
+    // A cena é reaproveitada ao voltar do menu: nada da partida anterior fica
+    // (com `paused` preso em true, o botão de pausa não pausava no 1º toque).
+    this.promptKey = '';
+    this.clockLabel = '';
+    this.hudTimer = 0;
+    this.debugText = null;
+    this.debugTimer = 0;
+    this.paused = false;
     this.s = services(this.game);
     const s = this.s;
     const dpr = s.viewport.dpr;

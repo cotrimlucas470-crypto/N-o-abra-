@@ -48,6 +48,11 @@ export class DebugScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Cena reaproveitada ao recomeçar: o mapa aberto da partida anterior já foi destruído.
+    this.open = false;
+    this.infoTimer = 0;
+    this.picking = false;
+    this.mapLayer = null;
     this.s = services(this.game);
     const dpr = this.s.viewport.dpr;
     this.cameras.main.setOrigin(0, 0).setZoom(dpr);

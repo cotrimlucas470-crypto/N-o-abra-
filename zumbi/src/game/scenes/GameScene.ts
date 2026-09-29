@@ -203,7 +203,41 @@ export class GameScene extends Phaser.Scene {
     super(SCENES.game);
   }
 
+  /**
+   * O Phaser REAPROVEITA a mesma cena ao recomeçar (morrer → carregar o save,
+   * menu → jogo novo): valor inicial de campo não roda de novo. Tudo o que é
+   * da partida volta ao começo aqui (antes, `dead` ficava true depois de
+   * carregar da tela de morte e o jogador não morria mais).
+   */
+  private resetRunState(): void {
+    this.dt = 1 / 60;
+    this.region = null;
+    this.debugLayer = null;
+    this.elapsed = 0;
+    this.attackCooldown = 0;
+    this.muzzleFlash = null;
+    this.lastAttackText = { text: '', t: -99 };
+    this.lastMissNote = -99;
+    this.floor = null;
+    this.powerTimer = 0;
+    this.fumes = 0;
+    this.fumesWarn = 0;
+    this.fireTimer = 0;
+    this.buildTimer = 0;
+    this.buildRecipe = null;
+    this.alarmTimer = 0;
+    this.options = [];
+    this.lightSources.length = 0;
+    this.scanTimer = 0;
+    this.autosaveTimer = AUTOSAVE_SECONDS;
+    this.dead = false;
+    this.loudNoises.length = 0;
+    this.dangerTimer = 0;
+    this.drive = null;
+  }
+
   create(): void {
+    this.resetRunState();
     this.s = services(this.game);
     const s = this.s;
     const assets = s.assets;

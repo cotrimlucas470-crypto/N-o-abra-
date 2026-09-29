@@ -504,6 +504,63 @@ try {
     await ctx.close();
   }
 
+  // ---------------------------------------------------------------- morte → carregar / menu → continuar
+  {
+    // Antes: voltar ao menu depois de morrer dava erro (câmera do andar de cima já
+    // destruída) e, carregando da tela de morte, o jogador não morria mais.
+    const { ctx, page, errors } = await mobilePage(844, 390);
+    await page.goto(BASE + '?debug&direto');
+    await waitGame(page);
+    const T = (fn, a) => page.evaluate(fn, a);
+    // Botão = objeto com rótulo (UiButton) visível; aperta como um toque.
+    const press = (scene, label) =>
+      T(
+        ([scene, label]) => {
+          const sc = window.__TDR__.scene.game.scene.getScene(scene);
+          const all = [];
+          const walk = (o) => {
+            all.push(o);
+            for (const c of o.list ?? []) walk(c);
+          };
+          sc.children.list.forEach(walk);
+          const vis = (o) => {
+            for (let q = o; q; q = q.parentContainer) if (!q.visible) return false;
+            return true;
+          };
+          const b = all.find((o) => o.label?.text === label && vis(o));
+          if (!b) return false;
+          b.emit('pointerdown', {});
+          b.emit('pointerup', {});
+          return true;
+        },
+        [scene, label],
+      );
+    const kill = () => T(() => { const sc = window.__TDR__.scene; if (!sc.dead) sc.die(); });
+    await T(() => window.__TDR__.save());
+    await page.goto(BASE + '?debug&direto');
+    await waitGame(page);
+    await kill();
+    await sleep(3500);
+    await T(() => { window.__old = window.__TDR__; });
+    check(await press('Hud', 'CARREGAR ÚLTIMO SAVE'), 'tela de morte tem CARREGAR ÚLTIMO SAVE');
+    await page.waitForFunction(() => window.__TDR__ !== window.__old, null, { timeout: 60000 }).catch(() => undefined);
+    await waitGame(page);
+    check(!(await T(() => window.__TDR__.dead())), 'carregar da tela de morte volta vivo');
+    await kill();
+    await sleep(3500);
+    check(await T(() => window.__TDR__.dead()), 'depois de carregar dá para morrer de novo');
+    check(await press('Hud', 'MENU'), 'tela de morte tem MENU');
+    await page.waitForFunction(() => window.__TDR__.scene.game.scene.getScenes(true).some((s) => s.sys.settings.key === 'Title'), null, { timeout: 30000 }).catch(() => undefined);
+    check(await T(() => window.__TDR__.scene.game.scene.isActive('Title')), 'MENU volta ao título');
+    await T(() => { window.__old = window.__TDR__; });
+    check(await press('Title', 'CONTINUAR'), 'título tem CONTINUAR');
+    await page.waitForFunction(() => window.__TDR__ !== window.__old, null, { timeout: 60000 }).catch(() => undefined);
+    await waitGame(page);
+    check(await T(() => window.__TDR__.scene.game.scene.isActive('Game') && !window.__TDR__.dead()), 'continuar do título abre o jogo');
+    check(errors.length === 0, `morte e menu sem erros no console (${errors.length}) ${errors.slice(0, 3).join(' | ')}`);
+    await ctx.close();
+  }
+
   // ---------------------------------------------------------------- PC com teclado
   {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
