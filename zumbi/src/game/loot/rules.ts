@@ -18,6 +18,29 @@ const isFood = (b: BuildingKind | null) => b === 'restaurant' || b === 'bakery' 
 export function tableFor(kind: ContainerKind, ctx: LootContext, prop?: PropType): LootTableId | null {
   const b = ctx.building;
   const room = ctx.room;
+  // Casa inicial: mais e melhor (comida, remédio, ferramenta, roupa), sorteado a cada jogo novo.
+  if (b === 'shelter') {
+    switch (kind) {
+      case 'geladeira':
+      case 'fogao':
+      case 'armarioCozinha':
+        return 'abrigo-cozinha';
+      case 'armario':
+        return room === 'Cozinha' ? 'abrigo-cozinha' : room === 'Banheiro' ? 'banheiro' : 'abrigo-armario';
+      case 'guardaRoupa':
+      case 'criadoMudo':
+      case 'escrivaninha':
+      case 'rack':
+      case 'prateleira':
+      case 'comoda':
+      case 'estanteLivros':
+      case 'bau':
+      case 'sapateira':
+        return 'abrigo-armario';
+      default:
+        break;
+    }
+  }
   switch (kind) {
     case 'construido':
     case 'corpo':

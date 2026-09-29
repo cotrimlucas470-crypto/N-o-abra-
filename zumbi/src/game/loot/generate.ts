@@ -16,7 +16,7 @@ import type { LootEntry, LootTable, Wear } from './LootTypes';
 
 export type LootSettings = SandboxSettings['loot'];
 
-export const DEFAULT_LOOT: LootSettings = { abundance: 1, rareMultiplier: 1, alreadyLooted: 0, collapseAgeDays: 0, floorItems: 1 };
+export const DEFAULT_LOOT: LootSettings = { abundance: 1, rareMultiplier: 1, alreadyLooted: 0, collapseAgeDays: 0, floorItems: 1, runSalt: 0 };
 
 /** Peso de um item conforme a raridade (e o ajuste de raros da partida). */
 export function rarityWeight(def: ItemDef, s: LootSettings): number {

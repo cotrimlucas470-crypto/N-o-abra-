@@ -247,9 +247,9 @@ function starterItems(b: SectorBuilder): void {
     });
   };
   // Casa onde se acorda: o básico que alguém deixou para trás.
-  put('abrigo', ['Cozinha', 'Sala'], [['agua', 2], ['biscoito', 1]]);
-  put('abrigo', ['Sala'], [['martelo', 1], ['pregos', 24], ['lanterna', 1]]);
-  put('abrigo', ['Banheiro', 'Quarto'], [['atadura', 2]]);
+  put('abrigo', ['Cozinha', 'Sala'], [['agua', 2], ['biscoito', 3], ['agua', 3], ['feijao', 2], ['sardinha', 2]]);
+  put('abrigo', ['Sala'], [['martelo', 1], ['pregos', 40], ['lanterna', 1], ['pilhas', 6], ['tabua', 3], ['corda', 1]]);
+  put('abrigo', ['Banheiro', 'Quarto'], [['atadura', 4], ['kitPrimeirosSocorros', 1], ['analgesico', 1], ['cobertor', 1]]);
   // Casa (noroeste): cozinha e banheiro.
   put('casa-no', ['Cozinha'], [['feijao', 2], ['faca', 1]]);
   put('casa-no', ['Banheiro'], [['analgesico', 1]]);

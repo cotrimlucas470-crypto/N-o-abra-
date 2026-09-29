@@ -107,7 +107,7 @@ export class TitleScene extends Phaser.Scene {
         // Jogo novo: o save antigo é ARQUIVADO (nunca apagado sem pedir).
         archiveCurrent();
         s.session.pendingLoad = null;
-        s.settings = { ...s.settings, world: { ...SANDBOX_PRESETS[city.id].settings.world, seed: s.settings.world.seed }, zombies: { ...ZOMBIE_PRESETS[preset].settings } };
+        s.settings = { ...s.settings, world: { ...SANDBOX_PRESETS[city.id].settings.world, seed: s.settings.world.seed }, zombies: { ...ZOMBIE_PRESETS[preset].settings }, loot: { ...s.settings.loot, runSalt: 1 + Math.floor(Math.random() * 2 ** 30) } };
       }
       this.scene.start(SCENES.game);
     };

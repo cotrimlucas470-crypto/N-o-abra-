@@ -165,7 +165,9 @@ export class LootSystem {
     const table = ref.table ? lootTable(ref.table) : null;
     if (!table && ref.gen) for (const s of ref.gen()) c.add(s.defId, s.count, s.st);
     if (table) {
-      const rng = new Random(hashString(`${this.seed}:loot:${id}`));
+      // A casa inicial muda a cada jogo novo (sorteio da partida); o resto do mundo é o mesmo da semente.
+      const salt = ref.table?.startsWith('abrigo') && this.settings.runSalt ? `:${this.settings.runSalt}` : '';
+      const rng = new Random(hashString(`${this.seed}:loot:${id}${salt}`));
       for (const s of generateLoot(table, rng, { capacity: ref.capacity, settings: this.settings })) {
         // Chave encontrada abre algo de verdade por perto (a casa vizinha, o carro da garagem).
         const key = s.defId === 'chaveCasa' || s.defId === 'chaveCarro' ? this.keyTarget(s.defId, ref) : undefined;

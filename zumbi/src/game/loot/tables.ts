@@ -297,11 +297,38 @@ export const LOOT_TABLES = {
     entries: [i('documentos', 5), i('mapaCidade', 2), i('mapaAnotado', 0.7), i('chaveCarro', 3), i('chaveCasa', 2), i('dinheiro', 3, [10, 150]), i('radio', 1), i('radioComunicador', 0.6), i('lanterna', 2), i('pilhas', 2, [2, 6]), i('cafePo', 2), i('cafeLata', 1), i('revistaArmas', 0.5), i('jornal', 2), i('bilhete', 1), i('revolver38', 1), i('municao38', 1.2, [3, 12])],
   },
   // ------------------------------------------------------------------ abrigo (base do jogador)
+  // Casa inicial: mais e melhor que uma casa qualquer (sorteio novo a cada jogo).
   'abrigo-caixas': {
-    rolls: [1, 3],
-    empty: 0.2,
+    rolls: [4, 7],
+    empty: 0.03,
     wear: 'casa',
-    entries: [i('agua', 5, [1, 2]), i('feijao', 3), i('sardinha', 3), i('miojo', 3, [1, 3]), i('vela', 4, [2, 4]), i('fosforos', 3), i('pilhas', 3, [2, 4]), i('corda', 2), i('fita', 2), i('lona', 1), i('trapo', 3, [1, 4]), i('atadura', 2), i('sacoVazio', 2, [2, 6]), i('garrafaPet', 2, [1, 3])],
+    entries: [
+      i('agua', 6, [2, 4]), i('aguaGalao', 2), i('feijao', 4, [1, 3]), i('sardinha', 4, [1, 3]), i('miojo', 3, [2, 4]), i('racaoMilitar', 2, [1, 2]), i('barraCereal', 3, [2, 4]),
+      i('kitPrimeirosSocorros', 3), i('atadura', 4, [2, 4]), i('analgesico', 3), i('vela', 4, [3, 6]), i('fosforos', 3), i('isqueiro', 2), i('pilhas', 4, [3, 6]),
+      i('lanterna', 3), i('corda', 3), i('fita', 3, [1, 2]), i('lona', 2), i('trapo', 3, [2, 4]), i('facaCacador', 1.5), i('machadinha', 1.5), i('canivete', 2), i('serrote', 1.5),
+      i('pregos', 3, [12, 30]), i('tabua', 2, [1, 3]), i('cobertor', 2), i('mochilaTrilha', 1), i('sacoVazio', 2, [2, 6]), i('garrafaPet', 2, [1, 3]),
+    ],
+  },
+  'abrigo-armario': {
+    rolls: [3, 6],
+    empty: 0.05,
+    wear: 'casa',
+    entries: [
+      i('camiseta', 3), i('moletom', 3), i('calcaJeans', 3), i('meias', 3, [1, 3]), i('casacoInverno', 2), i('capaChuva', 2), i('botaTrabalho', 1.5), i('tenis', 2), i('luvasTrabalho', 2), i('bone', 1.5),
+      i('cobertor', 3), i('lencol', 2), i('toalha', 2), i('mochilaEscolar', 1.5), i('bolsaLateral', 1), i('kitPrimeirosSocorros', 2), i('gaze', 3, [2, 6]), i('alcool70', 2), i('antiInflamatorio', 2),
+      i('analgesico', 3), i('antibiotico', 1.5), i('martelo', 1.5), i('chaveFenda', 2), i('alicate', 2), i('lanterna', 2), i('pilhas', 3, [2, 5]), i('radio', 1), i('mapaCidade', 2), i('dinheiro', 2, [20, 120]), i('chaveCarro', 0.6),
+    ],
+  },
+  'abrigo-cozinha': {
+    rolls: [4, 8],
+    empty: 0.03,
+    wear: 'casa',
+    stockAge: [0, 3],
+    entries: [
+      i('agua', 6, [2, 4]), i('refrigerante', 3, [1, 3]), i('sucoLitro', 2), i('leiteCaixa', 3, [1, 2]), i('cafePo', 1),
+      i('feijao', 4, [1, 3]), i('sardinha', 3, [1, 3]), i('miojo', 3, [2, 4]), i('arroz', 3), i('macarrao', 3), i('biscoito', 4, [1, 3]), i('barraCereal', 3, [2, 4]), i('chocolate', 2),
+      i('ovos', 2, [4, 8]), i('queijo', 2), i('presunto', 2), i('paoForma', 2), i('bolo', 1), i('marmita', 2, [1, 2]), i('frango', 1.5), i('carneBovina', 1.5), i('batata', 2, [2, 4]), i('cebola', 2, [1, 3]), i('tomate', 2, [1, 4]),
+    ],
   },
   // ------------------------------------------------------------------ quintal, rua, lixo
   'caixote-quintal': {

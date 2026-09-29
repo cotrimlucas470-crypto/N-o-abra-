@@ -60,6 +60,8 @@ export interface SandboxSettings {
     collapseAgeDays: number;
     /** Itens soltos pelo chão das construções (1 = normal, 0 = nenhum). */
     floorItems: number;
+    /** Sorteio desta partida: muda o que a casa inicial guarda a cada jogo novo (0 = o de sempre). */
+    runSalt: number;
   };
   survival: {
     /** Velocidade com que fome, sede e cansaço aumentam (1 = normal). */
@@ -117,7 +119,7 @@ export const SANDBOX_DEFAULTS: SandboxSettings = {
   time: { dayLengthMinutes: 15, startDay: 1, startHour: 8, startMonth: 5, startDayOfMonth: 3 },
   climate: { temperatureOffset: 0, rainMultiplier: 1 },
   player: { walkSpeedMultiplier: 1, runSpeedMultiplier: 1, staminaDrainMultiplier: 1, staminaRegenMultiplier: 1 },
-  loot: { abundance: 1, rareMultiplier: 1, alreadyLooted: 0, collapseAgeDays: 0, floorItems: 1 },
+  loot: { abundance: 1, rareMultiplier: 1, alreadyLooted: 0, collapseAgeDays: 0, floorItems: 1, runSalt: 0 },
   survival: { hungerRate: 1, thirstRate: 1, fatigueRate: 1 },
   utilities: { waterDays: 12, gasDays: 18 },
   farming: { growthSpeed: 4 },
@@ -186,6 +188,7 @@ export function sanitizeSandbox(input: DeepPartial<SandboxSettings> | null | und
       alreadyLooted: num(i.loot?.alreadyLooted, d.loot.alreadyLooted, 0, 0.95),
       collapseAgeDays: num(i.loot?.collapseAgeDays, d.loot.collapseAgeDays, 0, 365),
       floorItems: num(i.loot?.floorItems, d.loot.floorItems, 0, 3),
+      runSalt: num(i.loot?.runSalt, 0, 0, 2 ** 31 - 1, true),
     },
     survival: {
       hungerRate: num(i.survival?.hungerRate, d.survival.hungerRate, 0, 5),
