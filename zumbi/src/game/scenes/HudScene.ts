@@ -15,9 +15,13 @@ import { BuildBar } from '../ui/BuildBar';
 import { ActionFeedback } from '../ui/ActionFeedback';
 import { InventoryPanel } from '../ui/InventoryPanel';
 import { OptionsMenu } from '../ui/OptionsMenu';
-import { MapView } from '../ui/MapView';
+import { FullMap } from '../ui/FullMap';
+import { Minimap } from '../ui/Minimap';
+import { MAP_TUNING } from '../config/MapTuning';
 import { DriveHud } from '../ui/DriveHud';
 import { InfoCard } from '../ui/InfoCard';
+import { SleepPicker } from '../ui/SleepPicker';
+import { CharacterScreen } from '../ui/CharacterScreen';
 import { StatePills } from '../ui/StatePills';
 import { hasClock } from '../ui/tabs/BodyTab';
 import { timeText } from '../ui/tabs/TimeTab';
@@ -63,8 +67,11 @@ export class HudScene extends Phaser.Scene {
   /** Volume do jogo (100% → 60% → 30% → desligado), salvo no aparelho. */
   private soundBtn!: UiButton;
   private hudTimer = 0;
-  private mapView!: MapView;
+  private fullMap!: FullMap;
+  private minimap!: Minimap;
   private infoCard!: InfoCard;
+  private sleepPicker!: SleepPicker;
+  private character!: CharacterScreen;
   private ammoText!: Phaser.GameObjects.Text;
   private debugText: Phaser.GameObjects.Text | null = null;
   private debugTimer = 0;
@@ -105,8 +112,16 @@ export class HudScene extends Phaser.Scene {
       s.bus.emit('interaction:option', { index: i });
     });
     this.savedText = this.add.text(0, 0, 'jogo salvo', textStyle(10, UI.textDim, '700')).setDepth(91).setResolution(dpr).setAlpha(0);
-    this.mapView = new MapView(this, dpr);
+    // Teclado do jogo desligado enquanto digita o nome de um marcador.
+    const setKeyboard = (on: boolean) => {
+      if (this.game.input.keyboard) this.game.input.keyboard.enabled = on;
+      for (const sc of this.game.scene.getScenes(true)) if (sc.input.keyboard) sc.input.keyboard.enabled = on;
+    };
+    this.fullMap = new FullMap(this, this.s, dpr, setKeyboard);
+    this.minimap = new Minimap(this, this.s, dpr, () => this.s.bus.emit('ui:fullmap', {}));
     this.infoCard = new InfoCard(this, dpr);
+    this.character = new CharacterScreen(this, this.s, s.assets!, dpr);
+    this.sleepPicker = new SleepPicker(this, dpr, (place, hours) => this.s.bus.emit('body:sleep', { place, hours }));
     this.ammoText = this.add.text(0, 0, '', textStyle(11, UI.text, '800')).setOrigin(0.5).setDepth(102).setResolution(dpr);
     this.ammoText.setShadow(0, 1, 'rgba(0,0,0,0.9)', 3, false, true);
     this.toast = new Toast(this, dpr);
@@ -161,7 +176,7 @@ export class HudScene extends Phaser.Scene {
       // Fechar o painel também fecha o recipiente aberto.
       if (s.session.openContainer) s.bus.emit('ui:container-close', {});
     });
-    this.controls.setPointerBlocker((x, y) => this.mapView.isOpen || this.inventory.contains(x, y) || this.optionsMenu.contains(x, y) || this.buildBar.contains(x, y) || (this.actionBar.visible && this.actionBarHit(x, y)));
+    this.controls.setPointerBlocker((x, y) => this.fullMap.isOpen || this.minimap.contains(x, y) || this.sleepPicker.isOpen || this.character.isOpen || this.inventory.contains(x, y) || this.optionsMenu.contains(x, y) || this.buildBar.contains(x, y) || (this.actionBar.visible && this.actionBarHit(x, y)));
     // Aviso do alvo de interação: acima do botão (toque) ou embaixo, com a tecla (PC).
     this.prompt = this.add.text(0, 0, '', textStyle(12, UI.text, '700')).setOrigin(0.5, 1).setDepth(93).setResolution(dpr);
     this.prompt.setBackgroundColor('rgba(12,13,16,0.62)').setPadding(8, 4, 8, 4).setVisible(false);
@@ -222,21 +237,36 @@ export class HudScene extends Phaser.Scene {
         this.inventory.setOpen(true);
         this.inventory.setTab(e.tab);
       }),
-      s.bus.on('ui:info', (e) => this.infoCard.show(e.title, e.lines, s.viewport.cssWidth, s.viewport.cssHeight, uiScaleFor(s.viewport.cssWidth, s.viewport.cssHeight))),
-      s.bus.on('ui:map', (e) => {
-        const handle = (window as unknown as { __TDR__?: { map: import('../world/MapTypes').MapData } }).__TDR__;
-        const game = this.scene.get(SCENES.game) as unknown as { worldModel?: { map: import('../world/MapTypes').MapData }; playerPosition?: () => { x: number; y: number } };
-        const map = game.worldModel?.map ?? handle?.map;
-        if (!map || !game.playerPosition) return;
+      s.bus.on('ui:character', () => {
+        const w = s.viewport.cssWidth;
+        const h = s.viewport.cssHeight;
         this.inventory.setOpen(false);
-        this.mapView.open(map, game.playerPosition(), e.annotated, s.viewport.cssWidth, s.viewport.cssHeight);
+        this.character.show(w, h, uiScaleFor(w, h));
       }),
+      s.bus.on('ui:sleep-picker', (e) => {
+        const sv = s.session.survival;
+        const inv = s.session.inventory;
+        if (!sv || !inv) return;
+        const p = sv.sleepPreview({ place: e.place, pillow: inv.hasTag('travesseiro'), blanket: inv.hasTag('aquecer'), home: s.session.atHome });
+        this.inventory.setOpen(false);
+        const w = s.viewport.cssWidth;
+        const h = s.viewport.cssHeight;
+        this.sleepPicker.open({ place: e.place, fatigue: sv.survivor.body.fatigue, quality: p.quality, reasons: p.reasons }, w, h, uiScaleFor(w, h));
+      }),
+      s.bus.on('ui:info', (e) => this.infoCard.show(e.title, e.lines, s.viewport.cssWidth, s.viewport.cssHeight, uiScaleFor(s.viewport.cssWidth, s.viewport.cssHeight))),
+      s.bus.on('ui:map', (e) => this.openMap(e.annotated)),
+      s.bus.on('ui:fullmap', () => this.openMap(false)),
       s.bus.on('game:saved', (e) => {
         this.savedText.setText(e.ok ? 'jogo salvo' : 'não foi possível salvar').setColor(e.ok ? UI.textDim : '#f07a6a').setAlpha(1);
         this.tweens.add({ targets: this.savedText, alpha: 0, delay: 1400, duration: 700 });
       }),
     );
     this.input.on(Phaser.Input.Events.POINTER_WHEEL, (p: Phaser.Input.Pointer, _o: unknown, _dx: number, dy: number) => this.inventory.wheel(p.x / dpr, p.y / dpr, dy * 0.5));
+    this.input.keyboard?.on('keydown-P', () => {
+      if (this.paused) return;
+      if (this.character.isOpen) this.character.hide();
+      else this.s.bus.emit('ui:character', {});
+    });
     this.input.keyboard?.on('keydown-I', () => {
       if (!this.paused) this.inventory.toggle();
     });
@@ -323,6 +353,13 @@ export class HudScene extends Phaser.Scene {
     this.pauseDim.setInteractive();
   }
 
+  private openMap(annotated: boolean): void {
+    this.inventory.setOpen(false);
+    const w = this.s.viewport.cssWidth;
+    const h = this.s.viewport.cssHeight;
+    this.fullMap.show(annotated, w, h, uiScaleFor(w, h));
+  }
+
   private setPaused(paused: boolean, reason: 'button' | 'hidden'): void {
     if (paused === this.paused) return;
     this.paused = paused;
@@ -330,6 +367,9 @@ export class HudScene extends Phaser.Scene {
     this.controls.setEnabled(!paused);
     this.pauseLayer.setVisible(paused);
     if (paused) this.inventory.setOpen(false);
+    if (paused) this.sleepPicker.close();
+    if (paused) this.character.hide();
+    if (paused) this.fullMap.hide();
     if (paused) {
       this.scene.pause(SCENES.game);
       this.s.bus.emit('game:paused', { reason });
@@ -368,6 +408,13 @@ export class HudScene extends Phaser.Scene {
     this.feedback.setPosition(w / 2, h * 0.64, k);
     this.threat.setPosition(w / 2, h * (s.viewport.isPortrait ? 0.5 : 0.72), k, ins.left + 14, ins.top + 10 + 128 * k);
     this.death.layout(w, h, k);
+    this.sleepPicker.layout(w, h, k);
+    this.character.layout(w, h, k);
+    this.fullMap.layout(w, h, k);
+    // Minimapa: deitado, à esquerda da coluna de botões do alto; em pé, embaixo deles.
+    const mini = MAP_TUNING.miniSize * k;
+    if (w > h) this.minimap.layout(w - ins.right - 128 * k - mini, ins.top + 8, k);
+    else this.minimap.layout(w - ins.right - mini - 12, ins.top + 74 * k, k);
     this.hearing.layout(w, h);
     this.inventory.layout(w, h, ins, k);
     this.promptKey = '';
@@ -475,6 +522,10 @@ export class HudScene extends Phaser.Scene {
     this.buildBar.update(this.inventory.isOpen ? null : this.s.session.build);
     this.inventory.tick(dt);
     this.infoCard.update(dt);
+    this.character.tick(dt);
+    this.minimap.setVisible(!this.fullMap.isOpen && !this.character.isOpen && !this.inventory.isOpen);
+    this.minimap.update();
+    this.fullMap.update();
     const handDef = inv?.handDef;
     this.controls.setReloadVisible(!!handDef?.gun);
     const dr = this.s.session.driving;

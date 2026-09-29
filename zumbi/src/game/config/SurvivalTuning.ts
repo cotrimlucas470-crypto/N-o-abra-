@@ -107,3 +107,22 @@ export const STATE_LEVELS = {
   hotTemp: [37.7, 38.3, 39.3],
   morale: [35, 22, 12],
 } as const;
+
+/** Qualidade do sono (Sleep.sleepComfort): o que atrapalha e quanto. */
+export const SLEEP_TUNING = {
+  /** Temperatura sentida (°C, já com a roupa): frio, frio forte, calor. */
+  cold: 16,
+  coldHard: 10,
+  hot: 30,
+  /** Cobertor soma tantos °C. */
+  blanketC: 7,
+  hunger: 60,
+  thirst: 55,
+  pain: 30,
+  /** Dormir na moradia rende um pouco mais (lugar conhecido). */
+  homeBonus: 1.1,
+  /** Barulho ouvido com esta força acorda (0..1). */
+  wakeNoise: 0.35,
+  /** Depois de dormir, não dá para dormir de novo antes disso (cansaço mínimo). */
+  minFatigue: 25,
+} as const;

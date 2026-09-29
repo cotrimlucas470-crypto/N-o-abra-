@@ -322,6 +322,63 @@ try {
     const resumed = await page.waitForFunction(() => !window.__TDR__.scene.scene.isPaused(), null, { timeout: 3000 }).then(() => true, () => false);
     check(resumed, 'CONTINUAR volta ao jogo');
 
+    // Sono: deitar abre o seletor de horas; escolher 3 h dorme e acorda sozinho.
+    await page.evaluate(() => {
+      const sc = window.__TDR__.scene;
+      sc.survivor.body.fatigue = 80;
+      sc.s.bus.emit('body:sleep', { place: 'chao' });
+    });
+    await sleep(400);
+    const picker = await page.evaluate(() => {
+      const hud = window.__TDR__.scene.game.scene.getScenes(true).find((x) => x.sys.settings.key.toLowerCase().includes('hud'));
+      const vis = (o) => { for (let q = o; q; q = q.parentContainer) if (!q.visible) return false; return true; };
+      const btn = hud.children.list.flatMap((o) => (o.list ? o.list : [o])).find((o) => o.label?.text?.startsWith('3 h') && vis(o));
+      if (!btn) return null;
+      const label = btn.label.text;
+      btn.emit('pointerdown', { x: 0, y: 0 });
+      btn.emit('pointerup', { x: 0, y: 0 });
+      return label;
+    });
+    check(!!picker, `deitar abre o seletor de horas (${picker})`);
+    const slept = await page.waitForFunction(() => window.__TDR__.scene.loop.sleeping, null, { timeout: 3000 }).then(() => true, () => false);
+    check(slept, 'escolher 3 h começa a dormir');
+    await page.screenshot({ path: OUT + '07b-dormindo.png' });
+    const woke = await page.waitForFunction(() => !window.__TDR__.scene.loop.sleeping, null, { timeout: 20000 }).then(() => true, () => false);
+    const fat = await page.evaluate(() => window.__TDR__.scene.survivor.body.fatigue);
+    check(woke && fat < 76, `acorda depois das horas escolhidas, descansado em parte (cansaço ${Math.round(fat)})`);
+
+    // Ficha do personagem, minimapa e mapa: definir moradia tocando no mapa.
+    const hudBtn = (label) => page.evaluate((label) => {
+      const hud = window.__TDR__.scene.game.scene.getScenes(true).find((x) => x.sys.settings.key.toLowerCase().includes('hud'));
+      const vis = (o) => { for (let q = o; q; q = q.parentContainer) if (!q.visible) return false; return true; };
+      const btn = hud.children.list.flatMap((o) => (o.list ? o.list : [o])).find((o) => o.label?.text === label && vis(o));
+      if (!btn) return false;
+      btn.emit('pointerdown', { x: 0, y: 0 });
+      btn.emit('pointerup', { x: 0, y: 0 });
+      return true;
+    }, label);
+    await page.evaluate(() => window.__TDR__.scene.s.bus.emit('ui:character', {}));
+    await sleep(500);
+    const ficha = await page.evaluate(() => window.__TDR__.scene.game.scene.getScenes(true).find((x) => x.sys.settings.key.toLowerCase().includes('hud')).character.isOpen);
+    check(ficha, 'ficha do personagem abre');
+    await page.screenshot({ path: OUT + '07c-ficha.png' });
+    await page.evaluate(() => window.__TDR__.scene.game.scene.getScenes(true).find((x) => x.sys.settings.key.toLowerCase().includes('hud')).character.hide());
+    const mini = await page.evaluate(() => window.__TDR__.scene.game.scene.getScenes(true).find((x) => x.sys.settings.key.toLowerCase().includes('hud')).minimap.ready);
+    check(mini, 'minimapa aparece na tela');
+    await page.evaluate(() => {
+      const sc = window.__TDR__.scene;
+      sc.s.bus.emit('ui:fullmap', {});
+      const hud = sc.game.scene.getScenes(true).find((x) => x.sys.settings.key.toLowerCase().includes('hud'));
+      hud.fullMap.select({ x: sc.player.x, y: sc.player.y });
+    });
+    await sleep(400);
+    check(await hudBtn('DEFINIR COMO MORADIA'), 'mapa: tocar num ponto oferece DEFINIR COMO MORADIA');
+    await sleep(300);
+    const home = await page.evaluate(() => { const m = window.__TDR__.scene.s.session.marks; return m.home ? { name: m.home.name, target: m.target } : null; });
+    check(!!home && home.target === 0, `moradia definida e guiando até ela (${home?.name})`);
+    await page.screenshot({ path: OUT + '07d-mapa.png' });
+    await page.evaluate(() => window.__TDR__.scene.game.scene.getScenes(true).find((x) => x.sys.settings.key.toLowerCase().includes('hud')).fullMap.hide());
+
     // visão geral da rua
     await page.evaluate(([x, y]) => window.__TDR__.teleport(x, y), at(37, 29));
     await sleep(900);
@@ -599,6 +656,8 @@ try {
       await page.screenshot({ path: OUT + '12-pc-erro.png' });
       throw new Error('PC não iniciou: ' + errors.join(' | '));
     }
+    // Deixa o começo da partida assentar (sons sendo gerados no worker, texturas): o teste é do teclado.
+    await sleep(2500);
     const k0 = await pos(page);
     await page.keyboard.down('KeyD');
     await sleep(1000);

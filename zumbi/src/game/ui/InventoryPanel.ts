@@ -142,6 +142,7 @@ export class InventoryPanel {
     this.body.extensions.push(new HealthRows(s));
     this.addTab('itens', 'ITENS', null);
     this.addTab('fabricar', 'FABRICAR', new CraftTab(s));
+    this.addTab('ficha', 'FICHA', null);
     this.addTab('corpo', 'CORPO', this.body);
     this.addTab('tempo', 'TEMPO', new TimeTab(s));
     this.root.setDepth(DEPTH).setVisible(false);
@@ -198,6 +199,11 @@ export class InventoryPanel {
 
   setTab(id: TabId): void {
     if (!this.tabs.some((t) => t.id === id)) return;
+    // FICHA abre a tela cheia do personagem (o boneco não cabe no painel).
+    if (id === 'ficha') {
+      this.s.bus.emit('ui:character', {});
+      return;
+    }
     this.tab = id;
     this.selected = null;
     const t = this.tabs.find((x) => x.id === id)!;

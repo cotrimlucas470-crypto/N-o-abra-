@@ -12,7 +12,9 @@ import { Flag, charge, type ItemState } from '../items/condition';
 import { itemDef } from '../items/ItemCatalog';
 import type { PlayerInventory } from '../items/PlayerInventory';
 import type { WeatherSample } from '../sim/Weather';
-import { Body, type Activity, type BodyContext, type BodyRates, type BodyState } from './Body';
+import { Body, feltTemperature, type Activity, type BodyContext, type BodyRates, type BodyState } from './Body';
+import { sleepComfort } from './Sleep';
+import { SLEEP_TUNING } from '../config/SurvivalTuning';
 import { NO_INJURY, physicalEffects, type InjuryEffects, type PhysicalEffects } from './Effects';
 
 export interface HealthTarget {
@@ -27,8 +29,8 @@ export interface Environment {
   activity: Activity;
   /** Calor de fogo perto (0..1). */
   fireHeat: number;
-  /** Dormindo e em quê. */
-  sleep: { quality: number; blanket: boolean } | null;
+  /** Dormindo e em quê (home = na moradia). */
+  sleep: { quality: number; blanket: boolean; home?: boolean } | null;
 }
 
 /** Ganchos da etapa de ferimentos (vazios até lá). */
@@ -73,13 +75,15 @@ export class Survivor {
       activity: env.sleep ? 'idle' : env.activity,
       sleeping: !!env.sleep,
       blanket: env.sleep?.blanket ?? false,
-      sleepQuality: env.sleep?.quality ?? 1,
+      sleepQuality: 1,
       fireHeat: env.fireHeat,
       fever: inj?.fever() ?? 0,
       woundsBlockRegen: inj?.blocksRegen() ?? false,
       pain,
       load: this.inventory.effectiveLoad / Math.max(1, this.inventory.capacity),
     };
+    // Dormindo: o lugar (cama, sofa, chão) e o que atrapalha AGORA (frio, fome, sede, dor, sangue).
+    if (env.sleep) ctx.sleepQuality = env.sleep.quality * this.sleepComfort(ctx, env.sleep.home).factor;
     let dh = this.body.update(minutes, ctx);
     if (inj) dh += inj.update(minutes, { sleeping: !!env.sleep, body: this.body });
     if (dh) this.stats.setHealth(this.stats.health + dh);
@@ -143,10 +147,43 @@ export class Survivor {
     return out;
   }
 
+  /** O que atrapalha o sono neste contexto (fator e motivos). */
+  sleepComfort(ctx: BodyContext, home = false): { factor: number; reasons: string[] } {
+    return sleepComfort({
+      feltTemp: feltTemperature({ ...ctx, sleeping: false }, this.body.wet),
+      blanket: ctx.blanket,
+      hunger: this.body.hunger,
+      thirst: this.body.thirst,
+      pain: this.injuries?.effects().pain ?? 0,
+      bleeding: (this.injuries?.states() ?? []).some((x) => x.id === 'sangrando' && x.level >= 2),
+      home,
+    });
+  }
+
+  /** Contexto do corpo agora (para prever o sono). */
+  context(env: Environment): BodyContext {
+    return {
+      airTemp: env.weather.temp,
+      sheltered: env.sheltered,
+      rain: env.weather.rain + env.weather.snow * 0.3,
+      wind: env.weather.wind,
+      insulation: this.inventory.insulation(),
+      raincoat: this.inventory.wearsTag('impermeavel'),
+      activity: 'idle',
+      sleeping: false,
+      blanket: env.sleep?.blanket ?? false,
+      sleepQuality: 1,
+      fireHeat: env.fireHeat,
+      fever: this.injuries?.fever() ?? 0,
+      woundsBlockRegen: false,
+      pain: this.injuries?.effects().pain ?? 0,
+    };
+  }
+
   /** Motivo para não conseguir dormir agora (ou null). */
   cantSleep(): string | null {
     const b = this.body;
-    if (b.fatigue < 25) return 'Você não está com sono.';
+    if (b.fatigue < SLEEP_TUNING.minFatigue) return 'Você não está com sono.';
     if (b.hunger >= 85) return 'Fome demais para dormir.';
     if (b.thirst >= 85) return 'Sede demais para dormir.';
     if ((this.injuries?.effects().pain ?? 0) >= 60) return 'Dói demais para dormir.';

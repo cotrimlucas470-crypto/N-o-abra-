@@ -69,7 +69,15 @@ export interface GameEvents {
   /** Cancelar a ação em andamento (ou acordar). */
   'action:cancel': Record<string, never>;
   /** Dormir no chão / onde estiver (painel CORPO). */
-  'body:sleep': { place: 'cama' | 'sofa' | 'chao'; wakeAt?: number };
+  'body:sleep': { place: 'cama' | 'sofa' | 'chao'; wakeAt?: number; hours?: number };
+  /** Abrir o mapa completo (minimapa ou botão). */
+  'ui:fullmap': Record<string, never>;
+  /** Preparar expedição até a moradia (0) ou um marcador. */
+  'ui:expedition': { target: number };
+  /** Abrir a ficha do personagem (equipamento e estados). */
+  'ui:character': Record<string, never>;
+  /** Abrir o seletor de horas de sono (1–10) para dormir neste lugar. */
+  'ui:sleep-picker': { place: 'cama' | 'sofa' | 'chao' };
   /** Tratar o ferimento `wound` com a opção `option` (aba CORPO). */
   'health:treat': { wound: number; option: string };
   /** O jogo foi salvo (automático ou manual). */

@@ -84,6 +84,9 @@ import { WorldModel } from '../world/WorldModel';
 import { WorldRenderer, type Upstairs } from '../world/render/WorldRenderer';
 import { NOISE_RADIUS } from '../config/NoiseTuning';
 import { kindFromSource, NoiseSystem } from '../sim/Noise';
+import { SLEEP_TUNING } from '../config/SurvivalTuning';
+import { MAP_TUNING } from '../config/MapTuning';
+import { PlayerMarks, type PlayerMarksSave } from '../world/PlayerMarks';
 import { AudioEngine } from '../audio/AudioEngine';
 import { GameAudio } from '../audio/GameAudio';
 import { soundForContainer, surfaceFor } from '../audio/SoundMap';
@@ -203,6 +206,9 @@ export class GameScene extends Phaser.Scene {
   private dangerTimer = 0;
   /** Ao volante (null = a pé). */
   private drive: DriveSession | null = null;
+  /** Moradia, marcadores e explorado (mapa). */
+  private marks!: PlayerMarks;
+  private exploreT = 0;
   /** Última vez que lutou (s, relógio da cena). */
   private lastFight = -99;
   /** Diretor de som desta partida (null sem Web Audio). */
@@ -282,6 +288,12 @@ export class GameScene extends Phaser.Scene {
     this.clock = new GameClock(s.settings.time);
     if (load) this.clock.restore(load.clock);
     s.session.clock = this.clock;
+
+    // Moradia/marcadores/explorado: o jogador escolhe onde mora (nada de base obrigatória).
+    this.marks = new PlayerMarks(map.widthTiles, map.cityHeightTiles ?? map.heightTiles, map.tileSize);
+    this.marks.restore(load?.modules?.['marks'] as PlayerMarksSave | undefined);
+    s.session.marks = this.marks;
+    s.session.map = map;
 
     this.inventory = new PlayerInventory();
     if (load) this.inventory.restore(load.inventory);
@@ -459,10 +471,7 @@ export class GameScene extends Phaser.Scene {
       new ContainerInteractions(this.state, s.bus),
       new NatureInteractions(this.state, this.inventory, nowDays),
       new FurnitureInteractions(this.state, {
-        sleep: (place: SleepPlace) => {
-          const why = this.trySleep({ place, blanket: this.inventory.hasTag('aquecer'), pillow: this.inventory.hasTag('travesseiro') });
-          return why ? { ok: false, message: why } : { ok: true };
-        },
+        sleep: (place: SleepPlace) => this.requestSleep(place),
         rest: (where) => {
           this.loop.start(restAction(this.survivor, (f) => (this.player.stats.stamina = Math.min(this.player.stats.maxStamina, this.player.stats.stamina + f * this.player.stats.maxStamina)), where));
           return { ok: true };
@@ -487,10 +496,7 @@ export class GameScene extends Phaser.Scene {
         start: (spec) => this.loop.start(spec),
         minutes: () => this.clock.minutes,
         openCraft: () => s.bus.emit('ui:tab', { tab: 'fabricar' }),
-        sleep: (place) => {
-          const why = this.trySleep({ place, blanket: this.inventory.hasTag('aquecer'), pillow: this.inventory.hasTag('travesseiro') });
-          return why ? { ok: false, message: why } : { ok: true };
-        },
+        sleep: (place) => this.requestSleep(place),
         rest: (where) => {
           this.loop.start(restAction(this.survivor, (f) => (this.player.stats.stamina = Math.min(this.player.stats.maxStamina, this.player.stats.stamina + f * this.player.stats.maxStamina)), where));
           return { ok: true };
@@ -569,7 +575,13 @@ export class GameScene extends Phaser.Scene {
       s.bus.on('interaction:option', (e) => this.chooseOption(e.index)),
       s.bus.on('action:cancel', () => this.loop.cancelAction()),
       s.bus.on('body:sleep', (e) => {
-        const why = this.trySleep({ place: e.place, blanket: this.inventory.hasTag('aquecer'), pillow: this.inventory.hasTag('travesseiro'), ...(e.wakeAt !== undefined ? { wakeAt: e.wakeAt } : {}) });
+        // Sem horas nem alarme: abre o seletor (1–10 h) antes de deitar.
+        if (e.hours === undefined && e.wakeAt === undefined) {
+          const r = this.requestSleep(e.place);
+          if (!r.ok && r.message) this.outcome({ ok: false, message: r.message, tone: 'warn' });
+          return;
+        }
+        const why = this.trySleep({ place: e.place, blanket: this.inventory.hasTag('aquecer'), pillow: this.inventory.hasTag('travesseiro'), home: s.session.atHome, ...(e.wakeAt !== undefined ? { wakeAt: e.wakeAt } : {}), ...(e.hours !== undefined ? { hours: e.hours } : {}) });
         if (why) this.outcome({ ok: false, message: why, tone: 'warn' });
       }),
       s.bus.on('health:treat', (e) => this.treat(e.wound, e.option)),
@@ -615,6 +627,10 @@ export class GameScene extends Phaser.Scene {
       this.events.off(Phaser.Scenes.Events.POST_UPDATE, this.afterPhysics, this);
       s.session.stats = null;
       s.session.clock = null;
+      s.session.marks = null;
+      s.session.map = null;
+      s.session.player = null;
+      s.session.atHome = false;
     });
 
     this.scene.launch(SCENES.hud);
@@ -776,6 +792,34 @@ export class GameScene extends Phaser.Scene {
     this.highlight.update(this.dt);
     this.debugLayer?.update(this.player.x, this.player.y, this.dt);
     this.sfx?.update(this.dt);
+    this.trackMap();
+  }
+
+  /**
+   * Mapa: onde o jogador está na cidade (no andar de cima, o ponto do
+   * prédio), o que já viu (explorado) e se está na moradia.
+   */
+  private trackMap(): void {
+    const s = this.s;
+    const fl = this.model.floors;
+    const real = this.floor ? fl.toReal(this.player.x, this.player.y) : { x: this.player.x, y: this.player.y };
+    const pl = s.session.player ?? (s.session.player = { x: 0, y: 0, facing: 0 });
+    pl.x = real.x;
+    pl.y = real.y;
+    pl.facing = this.drive ? this.drive.car.a : this.player.facingAngle;
+    this.exploreT -= this.dt;
+    if (this.exploreT > 0) return;
+    this.exploreT = MAP_TUNING.exploreEvery;
+    const indoor = !!this.floor || this.loop.sheltered;
+    this.marks.explore(real.x, real.y, indoor ? MAP_TUNING.exploreIndoor : MAP_TUNING.exploreRadius);
+    // Na moradia: dentro do mesmo prédio, ou a uns 6 m do ponto marcado.
+    const h = this.marks.home;
+    let at = false;
+    if (h) {
+      const b = this.model.map.buildings.find((bb) => !bb.floorOf && h.x >= bb.bounds.x && h.y >= bb.bounds.y && h.x <= bb.bounds.x + bb.bounds.w && h.y <= bb.bounds.y + bb.bounds.h);
+      at = b ? real.x >= b.bounds.x && real.y >= b.bounds.y && real.x <= b.bounds.x + b.bounds.w && real.y <= b.bounds.y + b.bounds.h : Math.hypot(real.x - h.x, real.y - h.y) < 300;
+    }
+    s.session.atHome = at;
   }
 
   /**
@@ -1271,6 +1315,15 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** Dormir só sem zumbis atrás de você. */
+  /** Deitar: confere se dá para dormir aqui e agora e abre o seletor de horas. */
+  private requestSleep(place: SleepPlace): { ok: boolean; message?: string } {
+    if (this.zombies.dangerNear(this.player.x, this.player.y, 900) > 0) return { ok: false, message: 'Não dá para dormir: tem zumbi atrás de você.' };
+    const why = this.survivor.cantSleep();
+    if (why) return { ok: false, message: why };
+    this.s.bus.emit('ui:sleep-picker', { place });
+    return { ok: true };
+  }
+
   private trySleep(opts: SleepOptions): string | null {
     if (this.zombies.dangerNear(this.player.x, this.player.y, 900) > 0) return 'Não dá para dormir: tem zumbi atrás de você.';
     return this.loop.sleep(opts);
@@ -1399,6 +1452,11 @@ export class GameScene extends Phaser.Scene {
       if (floors.spaceAt(ev.x, ev.y) !== ps) continue;
       const h = this.noise.heard(ev, this.player.x, this.player.y, 1.15, pl);
       if (h && h.strength > 0.08) {
+        // Dormindo: barulho forte perto (zumbi, vidro, batida) acorda.
+        if (this.loop.sleeping && h.strength > SLEEP_TUNING.wakeNoise) {
+          this.loop.cancelAction();
+          this.outcome({ ok: false, message: 'Um barulho acordou você.', tone: 'warn' });
+        }
         const label = HEARD_LABEL[kind] ?? source;
         const danger = kind === 'zumbi' || kind === 'batida' || kind === 'demolicao' || kind === 'vidro';
         this.s.bus.emit('player:heard', { angle: Math.atan2(h.y - this.player.y, h.x - this.player.x), strength: h.strength, label: ev.via ? `${label} (${ev.via.level > pl ? 'em cima' : 'embaixo'})` : label, danger });
@@ -1594,6 +1652,7 @@ export class GameScene extends Phaser.Scene {
         radioDay: this.loop.radioDay,
         climate: { ground: this.loop.ground.serialize() },
         zombies: this.zombies.serialize(this.s.settings.loot.collapseAgeDays),
+        marks: this.marks.serialize(),
       },
     };
   }

@@ -8,6 +8,7 @@
  * - Fome/sede extremas ou frio forte acordam antes.
  * - Descansar sentado recupera o fôlego rápido e tira um pouco do cansaço.
  */
+import { NEEDS_TUNING, SLEEP_TUNING } from '../config/SurvivalTuning';
 import type { TimedActionSpec } from '../sim/Actions';
 import type { GameClock } from '../sim/GameClock';
 import type { Survivor } from './Survivor';
@@ -22,6 +23,8 @@ const PLACE_LABEL: Record<SleepPlace, string> = { cama: 'na cama', sofa: 'no sof
 export interface SleepInfo {
   quality: number;
   blanket: boolean;
+  /** Dormindo na moradia. */
+  home?: boolean;
 }
 
 export interface SleepOptions {
@@ -31,6 +34,44 @@ export interface SleepOptions {
   pillow?: boolean;
   /** Acordar neste minuto do dia (alarme do relógio). */
   wakeAt?: number;
+  /** Dormir tantas horas (1–10, escolha do jogador). */
+  hours?: number;
+  /** Na moradia (dorme melhor). */
+  home?: boolean;
+}
+
+/** O que atrapalha o sono agora (puro): o fator multiplica a recuperação e os motivos vão para a tela. */
+export interface SleepComfortInput {
+  feltTemp: number;
+  blanket: boolean;
+  hunger: number;
+  thirst: number;
+  pain: number;
+  bleeding: boolean;
+  /** Em casa (moradia): dorme mais tranquilo. */
+  home?: boolean;
+}
+
+export function sleepComfort(i: SleepComfortInput): { factor: number; reasons: string[] } {
+  const T = SLEEP_TUNING;
+  let f = 1;
+  const why: string[] = [];
+  const felt = i.feltTemp + (i.blanket ? T.blanketC : 0);
+  if (felt < T.coldHard) (f *= 0.65), why.push('frio');
+  else if (felt < T.cold) (f *= 0.85), why.push('frio');
+  else if (felt > T.hot) (f *= 0.8), why.push('calor');
+  if (i.hunger >= T.hunger) (f *= 0.85), why.push('fome');
+  if (i.thirst >= T.thirst) (f *= 0.85), why.push('sede');
+  if (i.pain > T.pain) (f *= 0.8), why.push('dor');
+  if (i.bleeding) (f *= 0.8), why.push('sangrando');
+  if (i.home) f *= T.homeBonus;
+  return { factor: Math.max(0.3, Math.min(1.25, f)), reasons: why };
+}
+
+/** Energia prevista depois de dormir `hours` (0..100, 100 = descansado). */
+export function restAfter(fatigue: number, hours: number, quality: number): number {
+  const left = Math.max(0, fatigue - NEEDS_TUNING.sleepRecoveryPerHour * quality * hours);
+  return Math.round(100 - left);
 }
 
 /** Minutos até o próximo `minuteOfDay` a partir de agora. */
@@ -43,7 +84,9 @@ export function minutesUntil(clock: GameClock, minuteOfDay: number): number {
 
 export function sleepAction(survivor: Survivor, clock: GameClock, opts: SleepOptions, onEnd: (info: SleepInfo | null) => void): TimedActionSpec {
   const b = survivor.body;
-  const max = opts.wakeAt !== undefined ? Math.min(12 * 60, minutesUntil(clock, opts.wakeAt)) : 12 * 60;
+  // Horas escolhidas (1–10) ou o alarme; sem nada, até descansar (máx. 12 h).
+  const chosen = opts.hours !== undefined ? Math.max(1, Math.min(10, Math.round(opts.hours))) * 60 : null;
+  const max = chosen ?? (opts.wakeAt !== undefined ? Math.min(12 * 60, minutesUntil(clock, opts.wakeAt)) : 12 * 60);
   const startFatigue = b.fatigue;
   let reason = '';
   return {
@@ -54,7 +97,7 @@ export function sleepAction(survivor: Survivor, clock: GameClock, opts: SleepOpt
     realSeconds: Math.max(3, max / 36),
     interruptible: false,
     until: () => {
-      if (opts.wakeAt === undefined && b.fatigue <= 1) return true;
+      if (chosen === null && opts.wakeAt === undefined && b.fatigue <= 1) return true;
       if (b.hunger >= 92) return (reason = 'A fome acordou você.'), true;
       if (b.thirst >= 92) return (reason = 'A sede acordou você.'), true;
       if (b.temp < 35.2) return (reason = 'Acordou tremendo de frio.'), true;
@@ -66,7 +109,8 @@ export function sleepAction(survivor: Survivor, clock: GameClock, opts: SleepOpt
       else if (opts.place === 'cama') b.cheer(4);
       if (opts.pillow) b.comfort(2, 85);
       const rested = Math.round(startFatigue - b.fatigue);
-      return reason ? { ok: true, message: reason, tone: 'warn' } : { ok: true, message: `Acordou. ${rested > 0 ? 'Descansou.' : ''}`.trim(), tone: 'ok' };
+      const energy = Math.round(100 - b.fatigue);
+      return reason ? { ok: true, message: `${reason} Energia ${energy}%.`, tone: 'warn' } : { ok: true, message: rested > 0 ? `Acordou. Energia ${energy}%.` : 'Acordou.', tone: 'ok' };
     },
     cancelled: () => {
       onEnd(null);

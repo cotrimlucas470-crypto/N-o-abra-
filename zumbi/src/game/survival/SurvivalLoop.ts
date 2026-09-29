@@ -48,6 +48,7 @@ export class SurvivalLoop {
   /** Debug (?debug): clima forçado para ver/testar a aparência. null = clima de verdade. */
   debugWeather: Partial<WeatherSample> | null = null;
   private sleepInfo: SleepInfo | null = null;
+  private lastPos = { x: 0, y: 0 };
   private weatherAt = -1;
 
   constructor(
@@ -86,6 +87,7 @@ export class SurvivalLoop {
       this.ground.integrate(c.minutes);
     }
     this.sheltered = isSheltered(this.model, p.x, p.y, this.hooks.extraCover);
+    this.lastPos = { x: p.x, y: p.y };
     const activity: Activity = this.sleepInfo ? 'idle' : p.fighting ? 'fight' : p.sprinting ? 'run' : p.moving ? 'walk' : 'idle';
     if (minutes > 0) {
       this.survivor.update(minutes, {
@@ -127,9 +129,20 @@ export class SurvivalLoop {
   sleep(opts: SleepOptions): string | null {
     const why = this.survivor.cantSleep();
     if (why) return why;
-    this.sleepInfo = { quality: SLEEP_QUALITY[opts.place] * (opts.pillow ? PILLOW_BONUS : 1), blanket: opts.blanket };
+    this.sleepInfo = { quality: SLEEP_QUALITY[opts.place] * (opts.pillow ? PILLOW_BONUS : 1), blanket: opts.blanket, ...(opts.home ? { home: true } : {}) };
     this.start(sleepAction(this.survivor, this.clock, opts, () => (this.sleepInfo = null)));
     return null;
+  }
+
+  /**
+   * Prévia do sono (seletor de horas): qualidade (lugar × o que atrapalha
+   * agora) e os motivos. A recuperação por hora é a mesma do sono de verdade.
+   */
+  sleepPreview(opts: Pick<SleepOptions, 'place' | 'pillow' | 'blanket' | 'home'>): { quality: number; reasons: string[] } {
+    const base = SLEEP_QUALITY[opts.place] * (opts.pillow ? PILLOW_BONUS : 1);
+    const ctx = this.survivor.context({ weather: this.weather, sheltered: this.sheltered, activity: 'idle', fireHeat: this.hooks.fireHeat?.(this.lastPos.x, this.lastPos.y) ?? 0, sleep: { quality: base, blanket: opts.blanket } });
+    const c = this.survivor.sleepComfort(ctx, !!opts.home);
+    return { quality: base * c.factor, reasons: c.reasons };
   }
 
   /** Acordar / cancelar a ação atual (botão na tela). */

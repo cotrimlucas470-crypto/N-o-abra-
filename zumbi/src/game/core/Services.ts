@@ -55,6 +55,14 @@ export interface GameSession {
   floor: { level: number; name: string } | null;
   /** Morreu: relatório (a tela de morte mostra). */
   death: import('../survival/Death').DeathReport | null;
+  /** O jogador está na moradia que escolheu (sono e ânimo melhores). */
+  atHome: boolean;
+  /** Moradia, marcadores e explorado (o mapa mexe aqui; o save guarda). */
+  marks: import('../world/PlayerMarks').PlayerMarks | null;
+  /** Mapa da partida (minimapa e mapa completo). */
+  map: import('../world/MapTypes').MapData | null;
+  /** Onde o jogador está no mapa da cidade (andar de cima: o ponto do prédio) e para onde olha. */
+  player: { x: number; y: number; facing: number } | null;
 }
 
 export interface GameServices {
@@ -100,6 +108,10 @@ export function createServices(game: Phaser.Game, viewport: Viewport, bus: Event
       driving: null,
       floor: null,
       death: null,
+      atHome: false,
+      marks: null,
+      map: null,
+      player: null,
       options: null,
       pendingLoad: null,
     },
