@@ -24,8 +24,8 @@ for (const [name, vp] of [['deitado', { width: 844, height: 390 }], ['em-pe', { 
     // Anda pela cidade para ter área explorada.
     for (let i = -6; i <= 6; i++) m.explore(sc.player.x + i * 300, sc.player.y, 700);
     m.setHome(sc.player.x, sc.player.y, 'Moradia · Casa');
-    m.add(sc.player.x + 1500, sc.player.y - 400, 'Mercado saqueado', 'comida');
-    m.add(sc.player.x - 1200, sc.player.y + 600, 'Muitos zumbis', 'perigo');
+    m.add(sc.player.x + 1500, sc.player.y - 400, 'Mercado saqueado', 'marcador');
+    m.add(sc.player.x - 1200, sc.player.y + 600, 'Poço', 'agua');
     sc.s.bus.emit('ui:fullmap', {});
   });
   await sleep(900);

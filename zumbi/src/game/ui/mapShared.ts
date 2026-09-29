@@ -36,7 +36,7 @@ export function mapTextures(scene: Phaser.Scene, map: MapData, marks: PlayerMark
   return { map: MAP_KEY, fog: FOG_KEY };
 }
 
-/** Ícone de moradia (casinha) ou marcador (pino com a cor da categoria). */
+/** Ícone de moradia (casinha) ou marcador (círculo com a cor e o desenho da categoria). */
 export function drawMarkIcon(g: Phaser.GameObjects.Graphics, x: number, y: number, r: number, cat: MarkCat, color: number, selected: boolean): void {
   if (selected) g.lineStyle(2, 0xffffff, 0.95).strokeCircle(x, y, r * 1.7);
   if (cat === 'moradia') {
@@ -48,8 +48,9 @@ export function drawMarkIcon(g: Phaser.GameObjects.Graphics, x: number, y: numbe
   }
   g.fillStyle(0x0b0c0f, 0.9).fillCircle(x, y, r * 1.25);
   g.fillStyle(color, 1).fillCircle(x, y, r * 0.9);
-  if (cat === 'esconderijo') g.fillStyle(0x0b0c0f, 1).fillRect(x - r * 0.45, y - r * 0.35, r * 0.9, r * 0.7);
-  else if (cat === 'perigo') g.fillStyle(0x0b0c0f, 1).fillRect(x - r * 0.12, y - r * 0.55, r * 0.24, r * 0.7).fillRect(x - r * 0.12, y + r * 0.3, r * 0.24, r * 0.24);
-  else if (cat === 'hospital') g.fillStyle(0xd0453a, 1).fillRect(x - r * 0.15, y - r * 0.55, r * 0.3, r * 1.1).fillRect(x - r * 0.55, y - r * 0.15, r * 1.1, r * 0.3);
-  else g.fillStyle(0x0b0c0f, 1).fillCircle(x, y, r * 0.3);
+  g.fillStyle(0x0b0c0f, 1);
+  if (cat === 'esconderijo') g.fillRect(x - r * 0.45, y - r * 0.35, r * 0.9, r * 0.7);
+  else if (cat === 'carro') g.fillRect(x - r * 0.55, y - r * 0.2, r * 1.1, r * 0.4).fillRect(x - r * 0.3, y - r * 0.45, r * 0.6, r * 0.3);
+  else if (cat === 'agua') g.fillCircle(x, y + r * 0.15, r * 0.34).fillTriangle(x - r * 0.3, y + r * 0.05, x + r * 0.3, y + r * 0.05, x, y - r * 0.55);
+  else g.fillCircle(x, y, r * 0.3);
 }

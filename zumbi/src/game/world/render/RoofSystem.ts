@@ -286,7 +286,8 @@ export class RoofSystem {
   update(px: number, py: number, dt: number): void {
     const now = this.buildingAt(px, py);
     if (now !== this.current) {
-      const info = (b: BuildingData) => ({ buildingId: b.id, name: b.name, kind: b.kind });
+      // Nenhum prédio é "a base": o de partida aparece como uma casa qualquer.
+      const info = (b: BuildingData) => ({ buildingId: b.id, name: b.kind === 'shelter' ? 'Casa' : b.name, kind: b.kind });
       if (this.current) this.bus.emit('player:exit-building', info(this.current));
       if (now) this.bus.emit('player:enter-building', info(now));
       this.current = now;

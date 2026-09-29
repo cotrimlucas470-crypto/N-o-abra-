@@ -6,7 +6,7 @@
  * - OUVIR (rádio): boletim e previsão do tempo; CHAMAR (rádio comunicador);
  * - CARREGAR (carregador portátil → celular/lanterna); ACENDER vela;
  * - VER HORA (relógio, celular); ABRIR carteira; JOGAR paciência; OLHAR foto;
- *   VER MAPA (mapa da cidade; o anotado marca lugares).
+ *   VER MAPA (abre o mapa do jogador; nenhum lugar vem marcado).
  */
 import { charge, Flag } from '../../items/condition';
 import { useLighter } from '../../items/consumables';
@@ -83,7 +83,7 @@ export const GEAR_ACTIONS: ItemActionDef[] = [
     run: (c) => {
       const id = c.def.id;
       if (id === 'mapaCidade' || id === 'mapaAnotado') {
-        c.hooks.show?.('mapa', { annotated: id === 'mapaAnotado' });
+        c.hooks.show?.('mapa');
         return ok();
       }
       const minutes = c.def.read!.minutes;

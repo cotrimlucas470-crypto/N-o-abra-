@@ -18,7 +18,7 @@ for (const [name, vp] of [['deitado', { width: 844, height: 390 }], ['em-pe', { 
     const sc = window.__TDR__.scene;
     const m = sc.s.session.marks;
     m.setHome(sc.player.x, sc.player.y, 'Casa da esquina');
-    m.add(sc.player.x + 2500, sc.player.y - 900, 'Mercado', 'comida');
+    m.add(sc.player.x + 2500, sc.player.y - 900, 'Mercado', 'marcador');
     sc.s.bus.emit('ui:home', {});
   });
   await sleep(700);

@@ -209,7 +209,7 @@ export class HudScene extends Phaser.Scene {
 
     // Eventos do jogo
     this.unsubs.push(
-      s.bus.on('player:enter-building', (e) => this.toast.show(e.name, e.kind === 'shelter' ? 'sua base · por enquanto, segura' : 'interior')),
+      s.bus.on('player:enter-building', (e) => this.toast.show(e.name, 'interior')),
       // Dirigindo, o painel do carro ocupa o alto da tela: o nome da região não aparece por cima.
       s.bus.on('world:region-entered', (e) => !s.session.driving && this.toast.show(e.name, `Dia ${s.session.clock?.day ?? 1} · v${GAME_VERSION}`, 2600)),
       s.bus.on('viewport:changed', () => this.layout()),
@@ -257,8 +257,8 @@ export class HudScene extends Phaser.Scene {
         this.sleepPicker.open({ place: e.place, fatigue: sv.survivor.body.fatigue, quality: p.quality, reasons: p.reasons }, w, h, uiScaleFor(w, h));
       }),
       s.bus.on('ui:info', (e) => this.infoCard.show(e.title, e.lines, s.viewport.cssWidth, s.viewport.cssHeight, uiScaleFor(s.viewport.cssWidth, s.viewport.cssHeight))),
-      s.bus.on('ui:map', (e) => this.openMap(e.annotated)),
-      s.bus.on('ui:fullmap', () => this.openMap(false)),
+      s.bus.on('ui:map', () => this.openMap()),
+      s.bus.on('ui:fullmap', () => this.openMap()),
       s.bus.on('ui:home', () => this.openHome()),
       s.bus.on('ui:expedition', (e) => this.openExpedition(e.target)),
       s.bus.on('game:saved', (e) => {
@@ -363,18 +363,18 @@ export class HudScene extends Phaser.Scene {
     this.pauseDim.setInteractive();
   }
 
-  private openMap(annotated: boolean): void {
+  private openMap(): void {
     this.inventory.setOpen(false);
     const w = this.s.viewport.cssWidth;
     const h = this.s.viewport.cssHeight;
-    this.fullMap.show(annotated, w, h, uiScaleFor(w, h));
+    this.fullMap.show(w, h, uiScaleFor(w, h));
   }
 
   /** Resumo da MORADIA (por cima do mapa, se ele estiver aberto). */
   private openHome(): void {
     const v = this.s.session.planner?.home();
     if (!v) {
-      this.s.bus.emit('player:feedback', { text: 'Sem moradia: no mapa, toque num lugar e DEFINA COMO MORADIA.', tone: 'info' });
+      this.s.bus.emit('player:feedback', { text: 'Sem moradia: no mapa, segure o dedo num lugar e marque como 🏠 Moradia.', tone: 'info' });
       return;
     }
     const w = this.s.viewport.cssWidth;

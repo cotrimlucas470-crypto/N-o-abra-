@@ -1,26 +1,32 @@
 /**
- * MORADIA E MARCADORES do jogador (puro, vai no save):
+ * MORADIA E MARCADORES do jogador (puro, vai no save). O jogo não marca
+ * nada sozinho: o mapa é do jogador e cresce com o que ele descobre.
  * - a moradia é onde o jogador escolheu morar (qualquer ponto; trocar ou
- *   remover a qualquer hora). Nada de base obrigatória;
- * - marcadores com nome e categoria (esconderijo, perigo, comida...);
+ *   remover a qualquer hora, quantas vezes quiser). Nada de base fixa;
+ * - marcadores com nome e categoria (🏠 moradia, 📦 esconderijo, 🚗 veículo,
+ *   💧 água, 📍 personalizado). Marcar como 🏠 muda a moradia para ali;
  * - o alvo selecionado (bússola na tela: direção e distância);
  * - as áreas já exploradas (o mapa escurece o resto), em células de
  *   EXPLORE_CELL tiles, guardadas como bits.
  */
 import { MAP_TUNING as T } from '../config/MapTuning';
 
-export type MarkCat = 'moradia' | 'esconderijo' | 'marcador' | 'casaSegura' | 'perigo' | 'comida' | 'carro' | 'hospital' | 'retorno';
+export type MarkCat = 'moradia' | 'esconderijo' | 'carro' | 'agua' | 'marcador';
 
-export const MARK_CATS: readonly { id: MarkCat; label: string; color: number }[] = [
-  { id: 'marcador', label: 'Marcador', color: 0xe0a84a },
-  { id: 'esconderijo', label: 'Esconderijo', color: 0xb98a5a },
-  { id: 'casaSegura', label: 'Casa segura', color: 0x7fbf7a },
-  { id: 'perigo', label: 'Área perigosa', color: 0xd0453a },
-  { id: 'comida', label: 'Estoque de comida', color: 0x9ccf6a },
-  { id: 'carro', label: 'Carro', color: 0x8fb3d9 },
-  { id: 'hospital', label: 'Hospital', color: 0xf0f0f0 },
-  { id: 'retorno', label: 'Voltar aqui', color: 0xc9a0e0 },
+export const MARK_CATS: readonly { id: MarkCat; label: string; icon: string; color: number }[] = [
+  { id: 'moradia', label: 'Moradia', icon: '🏠', color: 0xf2e6c8 },
+  { id: 'esconderijo', label: 'Esconderijo', icon: '📦', color: 0xb98a5a },
+  { id: 'carro', label: 'Veículo', icon: '🚗', color: 0x8fb3d9 },
+  { id: 'agua', label: 'Água', icon: '💧', color: 0x5fa8d3 },
+  { id: 'marcador', label: 'Personalizado', icon: '📍', color: 0xe0a84a },
 ];
+
+export function catInfo(cat: MarkCat): (typeof MARK_CATS)[number] {
+  return MARK_CATS.find((c) => c.id === cat) ?? MARK_CATS[MARK_CATS.length - 1]!;
+}
+
+/** O que foi tocado no mapa: a moradia ou um marcador. */
+export type MarkRef = { kind: 'home' } | { kind: 'mark'; id: number };
 
 export interface Mark {
   id: number;
@@ -101,6 +107,47 @@ export class PlayerMarks {
     if (o.name !== undefined) m.name = o.name.trim().slice(0, T.nameMax) || m.name;
     if (o.cat) m.cat = o.cat;
     return true;
+  }
+
+  /**
+   * MARCAR LOCAL: 🏠 muda a moradia para o ponto (a antiga deixa de ser);
+   * o resto vira marcador. Devolve o que foi criado.
+   */
+  place(x: number, y: number, name: string, cat: MarkCat): MarkRef {
+    if (cat === 'moradia') {
+      this.setHome(x, y, name.trim().slice(0, T.nameMax) || 'Moradia');
+      return { kind: 'home' };
+    }
+    return { kind: 'mark', id: this.add(x, y, name, cat).id };
+  }
+
+  /** Editar nome/categoria. Trocar para 🏠 (ou tirar dela) move a moradia. */
+  update(ref: MarkRef, name: string, cat: MarkCat): MarkRef | null {
+    if (ref.kind === 'home') {
+      const h = this.home;
+      if (!h) return null;
+      if (cat === 'moradia') {
+        h.name = name.trim().slice(0, T.nameMax) || h.name;
+        return ref;
+      }
+      const wasTarget = this.target === 0;
+      this.clearHome();
+      const m = this.add(h.x, h.y, name || h.name, cat);
+      if (wasTarget) this.target = m.id;
+      return { kind: 'mark', id: m.id };
+    }
+    const m = this.marks.find((x) => x.id === ref.id);
+    if (!m) return null;
+    if (cat !== 'moradia') {
+      this.edit(m.id, { name, cat });
+      return ref;
+    }
+    const wasTarget = this.target === m.id;
+    this.marks.splice(this.marks.indexOf(m), 1);
+    this.setHome(m.x, m.y, name.trim().slice(0, T.nameMax) || m.name);
+    if (wasTarget) this.target = 0;
+    else if (this.target !== null && this.target !== 0 && !this.marks.some((x) => x.id === this.target)) this.target = 0;
+    return { kind: 'home' };
   }
 
   remove(id: number): boolean {
@@ -191,7 +238,12 @@ export class PlayerMarks {
     if (!s) return;
     const ok = (v: unknown) => typeof v === 'number' && Number.isFinite(v);
     this.home = s.home && ok(s.home.x) && ok(s.home.y) ? { x: s.home.x, y: s.home.y, name: String(s.home.name ?? 'Moradia') } : null;
-    this.marks = Array.isArray(s.marks) ? s.marks.filter((m) => m && ok(m.x) && ok(m.y) && ok(m.id)).map((m) => ({ id: m.id, x: m.x, y: m.y, name: String(m.name).slice(0, T.nameMax), cat: MARK_CATS.some((c) => c.id === m.cat) ? m.cat : 'marcador' })) : [];
+    // Categorias antigas (perigo, comida, hospital...) viram 📍 personalizado, com o nome que tinham.
+    this.marks = Array.isArray(s.marks)
+      ? s.marks
+          .filter((m) => m && ok(m.x) && ok(m.y) && ok(m.id))
+          .map((m) => ({ id: m.id, x: m.x, y: m.y, name: String(m.name).slice(0, T.nameMax), cat: MARK_CATS.some((c) => c.id === m.cat) && m.cat !== 'moradia' ? m.cat : ('marcador' as MarkCat) }))
+      : [];
     this.next = ok(s.next) ? Math.max(s.next!, ...this.marks.map((m) => m.id + 1), 1) : Math.max(1, ...this.marks.map((m) => m.id + 1));
     this.target = s.target === null || s.target === undefined ? null : s.target === 0 ? (this.home ? 0 : null) : this.marks.some((m) => m.id === s.target) ? s.target : null;
     if (typeof s.explored === 'string') {

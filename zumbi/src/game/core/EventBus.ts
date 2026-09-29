@@ -50,7 +50,7 @@ export interface GameEvents {
   /** Cartão de informação (examinar veículo...). */
   'ui:info': { title: string; lines: string[] };
   /** Abrir o mapa da cidade (item mapa). */
-  'ui:map': { annotated: boolean };
+  'ui:map': Record<string, never>;
   /** Pedido do menu "⋯" (botão ou tecla Q): a cena monta `session.options`. */
   'interaction:options': Record<string, never>;
   /** Escolha no menu "⋯". */

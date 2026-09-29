@@ -371,8 +371,8 @@ export class GameScene extends Phaser.Scene {
         light: () => this.lightLevel(),
         radioHeard: () => (this.loop.radioDay = this.clock.day),
         time: () => ({ minuteOfDay: this.clock.minuteOfDay, day: this.clock.day }),
-        show: (kind, data) => {
-          if (kind === 'mapa') s.bus.emit('ui:map', { annotated: !!(data as { annotated?: boolean } | undefined)?.annotated });
+        show: (kind) => {
+          if (kind === 'mapa') s.bus.emit('ui:map', {});
         },
         craft: (id) => this.crafting.start(id),
         craftReady: (id) => {

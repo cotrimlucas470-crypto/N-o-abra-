@@ -365,17 +365,33 @@ try {
     await page.evaluate(() => window.__TDR__.scene.game.scene.getScenes(true).find((x) => x.sys.settings.key.toLowerCase().includes('hud')).character.hide());
     const mini = await page.evaluate(() => window.__TDR__.scene.game.scene.getScenes(true).find((x) => x.sys.settings.key.toLowerCase().includes('hud')).minimap.ready);
     check(mini, 'minimapa aparece na tela');
-    await page.evaluate(() => {
+    // O mapa começa sem nenhuma marcação do jogo (nada de base pronta).
+    const clean = await page.evaluate(() => { const m = window.__TDR__.scene.s.session.marks; return !m.home && m.marks.length === 0; });
+    check(clean, 'mapa começa sem moradia nem marcadores pré-definidos');
+    const at0 = await page.evaluate(() => {
       const sc = window.__TDR__.scene;
       sc.s.bus.emit('ui:fullmap', {});
       const hud = sc.game.scene.getScenes(true).find((x) => x.sys.settings.key.toLowerCase().includes('hud'));
-      hud.fullMap.select({ x: sc.player.x, y: sc.player.y });
+      const p = hud.fullMap.toScreen(sc.s.session.player.x, sc.s.session.player.y);
+      return { x: p.x + 30, y: p.y + 20 };
     });
     await sleep(400);
-    check(await hudBtn('DEFINIR COMO MORADIA'), 'mapa: tocar num ponto oferece DEFINIR COMO MORADIA');
+    // Tocar e SEGURAR o dedo num lugar já visto → MARCAR LOCAL.
+    await touch('touchStart', [{ x: at0.x, y: at0.y, id: 31 }]);
+    await sleep(900);
+    await touch('touchEnd', []);
+    await sleep(300);
+    check(await hudBtn('MARCAR LOCAL'), 'mapa: segurar o dedo num ponto oferece MARCAR LOCAL');
+    await sleep(300);
+    const chips = await page.evaluate(() => [...document.querySelectorAll('button[data-cat]')].map((b) => b.textContent));
+    check(chips.length === 5 && chips.some((c) => c.includes('Moradia')) && chips.some((c) => c.includes('Água')), `MARCAR LOCAL: nome e categoria (${chips.join(' ')})`);
+    await page.click('button[data-cat="moradia"]');
+    await page.fill('form input', 'Casa da esquina');
+    await page.screenshot({ path: OUT + '07d0-marcar.png' });
+    await page.click('form button[type="submit"]');
     await sleep(300);
     const home = await page.evaluate(() => { const m = window.__TDR__.scene.s.session.marks; return m.home ? { name: m.home.name, target: m.target } : null; });
-    check(!!home && home.target === 0, `moradia definida e guiando até ela (${home?.name})`);
+    check(!!home && home.name === 'Casa da esquina' && home.target === 0, `moradia marcada pelo jogador e guiando até ela (${home?.name})`);
     await page.screenshot({ path: OUT + '07d-mapa.png' });
     // Resumo da moradia (botão MORADIA ao tocar nela) e preparação de expedição até um marcador.
     await page.evaluate(() => {
@@ -397,7 +413,7 @@ try {
       const sc = window.__TDR__.scene;
       const hud = sc.game.scene.getScenes(true).find((x) => x.sys.settings.key.toLowerCase().includes('hud'));
       hud.card.close();
-      const m = sc.s.session.marks.add(sc.player.x + 1800, sc.player.y + 300, 'Farmácia', 'hospital');
+      const m = sc.s.session.marks.add(sc.player.x + 1800, sc.player.y + 300, 'Poço', 'agua');
       sc.s.bus.emit('ui:expedition', { target: m.id });
       const d = hud.card.data;
       return { open: hud.card.isOpen, title: d?.title ?? '', labels: d?.rows.map((r) => r.label) ?? [] };
