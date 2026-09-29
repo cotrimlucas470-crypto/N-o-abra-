@@ -30,6 +30,10 @@ O que cada etapa entregou, como foi testado e o que ficou pendente. A ordem das 
   `save.slot1.mapa1` e o título avisa; nunca é apagado.
 - Impressão digital do mapa (`interaction.test.ts`) atualizada de propósito. 484 testes.
 
+### Correção: nada atrás da parede
+- Encostado numa parede por fora, o jogador via, destacava e abria recipientes e itens do outro lado (a grade de visão ignora a célula onde o jogador está, e a parede fica nela).
+- Agora o `InteractionSystem` só oferece o que não tem parede, janela inteira ou porta fechada entre o jogador e o alvo (`WorldState.wallBetween`, geometria exata). Vale para recipientes, itens, móveis, carros, escadas e desmontar. Nome e destaque também somem. A porta continua oferecida. Cerca baixa não conta; janela quebrada é vão.
+
 ### Improvisação (primeira fatia)
 - **Fita adesiva no batente** (menu "⋯" de qualquer porta fechada): gasta 1 fita, soma resistência (`IMPROVISE_TUNING.doorTapeHp`) até 25% acima da máxima; não tranca. Salva junto com a vida da porta.
 - Falta (só existe `config/ImproviseTuning.ts`): fita/pano em janela, móveis contra porta, alarme de latas, rádio de distração, lanterna na cabeça, corda na janela, mochila escondida, carro.

@@ -39,3 +39,38 @@ describe('casa inicial: itens melhores, sorteados a cada jogo novo', () => {
     expect(total / 12).toBeGreaterThan(3);
   });
 });
+
+describe('nada atrás da parede', () => {
+  it('de fora da casa não se vê nem se abre o que está lá dentro; por dentro sim', async () => {
+    const { EventBus } = await import('../src/game/core/EventBus');
+    const { ContainerInteractions } = await import('../src/game/interaction/ContainerInteractions');
+    const { InteractionSystem } = await import('../src/game/interaction/InteractionSystem');
+    const model = new WorldModel(buildStarterDistrict());
+    const state = new WorldState(model);
+    const bus = new EventBus();
+    const open = new InteractionSystem([new ContainerInteractions(state, bus)]);
+    const shut = new InteractionSystem([new ContainerInteractions(state, bus)], (ax, ay, bx, by) => !state.wallBetween(ax, ay, bx, by));
+    const b = model.map.buildings.find((x) => x.id === 'abrigo')!;
+    const inside = (x: number, y: number) => x > b.bounds.x && x < b.bounds.x + b.bounds.w && y > b.bounds.y && y < b.bounds.y + b.bounds.h;
+    const who = (x: number, y: number) => ({ x, y, radius: 15, facing: 0 });
+    let leaks = 0;
+    let seenInside = 0;
+    for (const { ref } of state.loot.refsNear(b.bounds.x + b.bounds.w / 2, b.bounds.y + b.bounds.h / 2, 900)) {
+      if (!inside(ref.x, ref.y) || model.floors?.spaceAt(ref.x, ref.y)) continue;
+      // Por dentro, ao lado do móvel: continua aparecendo.
+      if (shut.scan(who(ref.x, ref.y + 40))?.key === `recipiente:${ref.id}` || shut.scan(who(ref.x + 40, ref.y))?.key === `recipiente:${ref.id}`) seenInside++;
+      // Por fora, colado na parede: o sistema sem filtro oferece; o com filtro, nunca um recipiente de dentro.
+      for (let a = 0; a < 360; a += 15) {
+        const px = ref.x + Math.cos((a * Math.PI) / 180) * 55;
+        const py = ref.y + Math.sin((a * Math.PI) / 180) * 55;
+        if (inside(px, py)) continue;
+        if (open.scan(who(px, py))?.kind === 'container') {
+          const t = shut.scan(who(px, py));
+          if (t?.kind === 'container' && inside(t.x, t.y)) leaks++;
+        }
+      }
+    }
+    expect(leaks).toBe(0);
+    expect(seenInside).toBeGreaterThan(0);
+  });
+});

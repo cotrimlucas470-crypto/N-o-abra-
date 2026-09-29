@@ -492,7 +492,7 @@ export class GameScene extends Phaser.Scene {
           return { ok: true };
         },
       }),
-    ]);
+    ], (ax, ay, bx, by) => !this.state.wallBetween(ax, ay, bx, by));
     this.interaction.add(tools);
     this.interaction.add(windows);
     this.interaction.add(

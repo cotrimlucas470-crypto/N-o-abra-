@@ -63,7 +63,14 @@ export class InteractionSystem {
   private readonly candidates: InteractionCandidate[] = [];
   private best: InteractionCandidate | null = null;
 
-  constructor(private readonly providers: InteractionProvider[]) {}
+  constructor(
+    private readonly providers: InteractionProvider[],
+    /**
+     * Vista livre entre dois pontos (parede e porta fechada bloqueiam). Sem ela nada é filtrado.
+     * Atrás de parede não se acha, não se destaca e não se abre nada: nem o nome aparece.
+     */
+    private readonly seen?: (ax: number, ay: number, bx: number, by: number) => boolean,
+  ) {}
 
   /** Provedor novo (etapas seguintes). */
   add(p: InteractionProvider): void {
@@ -78,6 +85,15 @@ export class InteractionSystem {
   scan(who: Interactor): InteractionTarget | null {
     this.candidates.length = 0;
     for (const p of this.providers) p.collect(who, this.candidates);
+    if (this.seen) {
+      // A porta É a parede (o vão): continua oferecida. O resto precisa de vista livre até o alvo.
+      const seen = this.seen;
+      let n = 0;
+      for (const c of this.candidates) {
+        if (c.target.kind === 'door' || seen(who.x, who.y, c.target.x, c.target.y)) this.candidates[n++] = c;
+      }
+      this.candidates.length = n;
+    }
     let best: InteractionCandidate | null = null;
     let bestScore = Infinity;
     const fx = Math.cos(who.facing);

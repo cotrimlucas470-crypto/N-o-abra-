@@ -514,6 +514,28 @@ export class WorldState {
   }
 
   /**
+   * Tem parede (ou janela inteira, ou porta fechada) entre os dois pontos? Conta a geometria
+   * exata, não a grade de visão: encostado na parede o jogador está dentro da mesma célula dela.
+   * Cerca baixa não conta (dá para alcançar por cima); janela quebrada é vão.
+   */
+  wallBetween(ax: number, ay: number, bx: number, by: number): boolean {
+    const map = this.model.map;
+    const a = chunkOf(Math.min(ax, bx), Math.min(ay, by));
+    const b = chunkOf(Math.max(ax, bx), Math.max(ay, by));
+    for (let cy = a.cy - 1; cy <= b.cy + 1; cy++) {
+      for (let cx = a.cx - 1; cx <= b.cx + 1; cx++) {
+        for (const i of this.model.index.get(chunkKey(cx, cy))?.walls ?? []) {
+          const w = map.walls[i]!;
+          if (w.kind === 'fence') continue;
+          if (w.kind === 'window' && this.brokenWindows.has(WorldState.windowId(w))) continue;
+          for (const p of this.wallPieces(i)) if (segmentHitsRect(ax, ay, bx, by, p)) return true;
+        }
+      }
+    }
+    return this.closedDoorBetween(ax, ay, bx, by);
+  }
+
+  /**
    * Alguma porta FECHADA corta o segmento A→B? Serve para o que a SightGrid
    * não pega: porta de vidro fechada deixa ver, mas não deixa passar a mão.
    * (Segmentos curtos: olha só os chunks das pontas e vizinhos.)
