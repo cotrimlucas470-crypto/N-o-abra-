@@ -36,10 +36,10 @@ describe('mapa expandido preservado', () => {
   // Portas e itens NÃO entram: são camadas novas por cima do mesmo mapa.
   // Se um dia o mapa mudar DE PROPÓSITO, atualize estes valores no mesmo commit.
   const FROZEN: [number, number, number, string][] = [
-    [1337, 3, 3, '921084530-3613928651-412103'],
-    [90210, 3, 3, '3480679881-2820778737-413327'],
-    [4242, 2, 4, '1972651309-2826438151-370269'],
-    [1337, 1, 1, '1634556890-733842999-58613'],
+    [1337, 3, 3, '368369304-776154409-592351'],
+    [90210, 3, 3, '2311120098-310158137-581912'],
+    [4242, 2, 4, '3047935230-2177410881-520975'],
+    [1337, 1, 1, '579262123-2531637243-74450'],
   ];
   for (const [seed, sx, sy, fp] of FROZEN) {
     it(`cidade ${sx}x${sy} semente ${seed} tem o mesmo traçado`, () => {

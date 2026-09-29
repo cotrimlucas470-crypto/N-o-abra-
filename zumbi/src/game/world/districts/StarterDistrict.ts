@@ -12,8 +12,9 @@
  * ruas vem de SectorRoads.ts, igual à dos outros setores.
  */
 import { Ground, type MapData } from '../MapTypes';
-import { CORNER_STORE, GARAGE, HOUSE_SMALL, SHELTER } from '../buildings/templates';
 import type { PlacedBuilding } from '../MapBuilder';
+import { floorSpots, placeGenerated } from './genBuildings';
+import type { GenResult } from '../buildings/gen/generate';
 import { buildCity } from './CityGenerator';
 import type { SectorBuilder } from './SectorBuilder';
 import { AV_Y, ROAD, SECTOR_H, SECTOR_W, ST_X } from './SectorLayout';
@@ -28,8 +29,18 @@ export function buildStarterDistrict(seed = STARTER_DISTRICT_SEED): MapData {
   return buildCity({ seed, sectorsX: 1, sectorsY: 1 });
 }
 
+/** Prédios gerados deste setor (os itens soltos vão no chão livre deles). */
+const PLACED = new Map<string, { placed: PlacedBuilding; gen: GenResult }>();
+
+function place(b: SectorBuilder, p: Parameters<typeof placeGenerated>[1]): ReturnType<typeof placeGenerated> {
+  const r = placeGenerated(b, p);
+  PLACED.set(p.id, r);
+  return r;
+}
+
 /** Conteúdo do setor inicial (a malha de ruas e as cercas de fundo já foram feitas). */
 export function buildStarterSector(b: SectorBuilder): void {
+  PLACED.clear();
   northWest(b);
   northEast(b);
   southWest(b);
@@ -71,14 +82,15 @@ function northWest(b: SectorBuilder): void {
   b.scatterDecals(['leaves'], 8, 1, 2, 30, 9, [0.7, 1.2], [0.5, 0.9]);
 
   // Casa + garagem aberta (entrada de carro)
-  const house = b.building(HOUSE_SMALL, 3, 12, { id: 'casa-no', roof: 'shingle-a' });
+  const { placed: house } = place(b, { arch: 'casaMedia', x: 3, y: 12, W: 10, H: 8, id: 'casa-no', front: 's', roof: 'shingle-a' });
   pathFromDoor(b, house, 0, AV_Y - 2);
   b.fill(14, 14, 2, 10, Ground.Concrete);
   b.prop('car', 15, 18.2, 90, 0);
   b.decal('oil', 15, 21.3, 30, 0.8, 0.7);
 
   // Abrigo do jogador
-  const shelter = b.building(SHELTER, 19, 13, { id: 'abrigo', roof: 'shingle-b' });
+  // Casa onde o jogador acorda: uma casa como qualquer outra (nada de base pronta).
+  const { placed: shelter, gen } = place(b, { arch: 'casaSimples', x: 19, y: 13, W: 9, H: 8, id: 'abrigo', front: 's', roof: 'shingle-b', gen: { kind: 'shelter', spawn: true, extra: [{ t: 'crate', a: 'wall', n: [1, 2] }] } });
   pathFromDoor(b, shelter, 0, AV_Y - 2);
   b.prop('drum', 18.3, 21.9);
   b.prop('crate', 29, 21.4, -8);
@@ -92,7 +104,7 @@ function northWest(b: SectorBuilder): void {
   b.prop('hedge', 26.5, AV_Y - 2.65);
   b.prop('hedge', 28.6, AV_Y - 2.65);
 
-  b.setSpawn(19 + 4.25, 13 + 6.4);
+  b.setSpawn(19 + gen.spawn![0], 13 + gen.spawn![1]);
 }
 
 function northEast(b: SectorBuilder): void {
@@ -120,7 +132,7 @@ function northEast(b: SectorBuilder): void {
   b.decal('debris', 55.9, 18.6);
 
   // Casa espelhada
-  const house = b.building(HOUSE_SMALL, 59, 13, { id: 'casa-ne', flipX: true, roof: 'shingle-b' });
+  const { placed: house } = place(b, { arch: 'casaMadeira', x: 59, y: 13, W: 10, H: 8, id: 'casa-ne', front: 's', flipX: true, roof: 'shingle-b' });
   pathFromDoor(b, house, 0, AV_Y - 2);
   b.prop('treeLarge', 62, 6);
   b.prop('treeSmall', 68.5, 9.5);
@@ -157,7 +169,7 @@ function southWest(b: SectorBuilder): void {
   b.decal('bloodTrail', 20.3, 39.1, 15, 1, 0.8);
 
   // Mercadinho
-  const store = b.building(CORNER_STORE, 9, 43, { id: 'mercadinho' });
+  const { placed: store } = place(b, { arch: 'mercadinho', x: 9, y: 43, W: 14, H: 10, id: 'mercadinho', front: 'n' });
   void store;
   b.prop('dumpster', 25.6, 51.2, 90);
   b.prop('trashBags', 24.6, 53.2);
@@ -178,15 +190,15 @@ function southWest(b: SectorBuilder): void {
 
 function southEast(b: SectorBuilder): void {
   // Oficina com pátio
-  const garage = b.building(GARAGE, 44, 36, { id: 'oficina' });
+  const { placed: garage } = place(b, { arch: 'oficina', x: 44, y: 36, W: 12, H: 9, id: 'oficina', front: 'n' });
   b.fill(44, 34, 7, 2, Ground.Concrete);
-  pathFromDoor(b, garage, 1, 58);
+  pathFromDoor(b, garage, 0, AV_Y + ROAD + 2);
   b.prop('tireStack', 51.6, 35.1);
   b.prop('drum', 43.3, 35.2);
   b.decal('oil', 47, 34.8, undefined, 1, 0.7);
 
   // Casa virada para a avenida (girada 180°)
-  const house = b.building(HOUSE_SMALL, 59, 36, { id: 'casa-se', rot: 180, roof: 'shingle-a' });
+  const { placed: house } = place(b, { arch: 'casaMedia', x: 59, y: 36, W: 10, H: 8, id: 'casa-se', front: 'n', roof: 'shingle-a' });
   pathFromDoor(b, house, 0, AV_Y + ROAD + 2);
   b.prop('bush', 60, 34.8);
   b.prop('bush', 68.8, 34.9);
@@ -219,28 +231,26 @@ function southEast(b: SectorBuilder): void {
  * pegou, acabou. Coordenadas em tiles locais; não mexem no traçado do setor.
  */
 function starterItems(b: SectorBuilder): void {
-  // Abrigo: o básico que alguém deixou para trás.
-  b.item('agua', 21.95, 15.0, 2);
-  b.item('biscoito', 21.9, 15.5);
-  b.item('martelo', 20.2, 20.2);
-  b.item('pregos', 21.0, 20.15, 24);
-  b.item('atadura', 23.2, 13.7, 2);
-  b.item('lanterna', 24.4, 20.3);
+  const put = (id: string, rooms: readonly string[], list: readonly (readonly [string, number])[]) => {
+    const g = PLACED.get(id)!;
+    const spots = floorSpots(g.placed, g.gen, rooms, list.length);
+    list.forEach(([item, n], i) => {
+      const at = spots[i];
+      if (at) b.item(item, at[0], at[1], n);
+    });
+  };
+  // Casa onde se acorda: o básico que alguém deixou para trás.
+  put('abrigo', ['Cozinha', 'Sala'], [['agua', 2], ['biscoito', 1]]);
+  put('abrigo', ['Sala'], [['martelo', 1], ['pregos', 24], ['lanterna', 1]]);
+  put('abrigo', ['Banheiro', 'Quarto'], [['atadura', 2]]);
   // Casa (noroeste): cozinha e banheiro.
-  b.item('feijao', 12.3, 17.0, 2);
-  b.item('faca', 12.3, 17.8);
-  b.item('analgesico', 12.2, 14.3);
-  // Mercadinho: o que sobrou nas prateleiras.
-  b.item('refrigerante', 11.8, 46.05, 3);
-  b.item('biscoito', 13.6, 46.75, 2);
-  b.item('agua', 18.2, 47.95);
-  b.item('feijao', 19.6, 48.65);
-  b.item('pilhas', 12.6, 44.3, 4);
-  b.item('fita', 14.2, 51.2);
+  put('casa-no', ['Cozinha'], [['feijao', 2], ['faca', 1]]);
+  put('casa-no', ['Banheiro'], [['analgesico', 1]]);
+  // Mercadinho: o que sobrou no chão da loja.
+  put('mercadinho', ['Salão'], [['refrigerante', 3], ['biscoito', 2], ['agua', 1], ['feijao', 1], ['pilhas', 4]]);
+  put('mercadinho', ['Estoque', 'Depósito', 'Escritório'], [['fita', 1]]);
   // Oficina.
-  b.item('chaveFenda', 47.0, 44.15);
-  b.item('peDeCabra', 50.4, 36.7);
-  b.item('tabua', 45.0, 42.8, 2);
+  put('oficina', ['Oficina', 'Garagem'], [['chaveFenda', 1], ['peDeCabra', 1], ['tabua', 2]]);
 }
 
 // ---------------------------------------------------------------- abandono

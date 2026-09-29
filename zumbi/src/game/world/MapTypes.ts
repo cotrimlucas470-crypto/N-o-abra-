@@ -115,7 +115,51 @@ export interface ResourcePlacement {
 }
 
 /** Tipo da construção — define identidade e, na Fase 4, as tabelas de loot. */
-export type BuildingKind = 'house' | 'store' | 'garage' | 'shelter' | 'pharmacy' | 'restaurant' | 'clothing' | 'warehouse';
+export type BuildingKind =
+  | 'house'
+  | 'apartment'
+  | 'shelter'
+  | 'store'
+  | 'pharmacy'
+  | 'restaurant'
+  | 'bakery'
+  | 'bar'
+  | 'clothing'
+  | 'hardware'
+  | 'laundry'
+  | 'gym'
+  | 'garage'
+  | 'factory'
+  | 'warehouse'
+  | 'office'
+  | 'clinic'
+  | 'school'
+  | 'church';
+
+/** Família do prédio: decide porta (vidro/metal), andares de cima e o loot padrão. */
+export type BuildingFamily = 'casa' | 'loja' | 'trabalho' | 'servico';
+
+export const BUILDING_FAMILY: Record<BuildingKind, BuildingFamily> = {
+  house: 'casa',
+  apartment: 'casa',
+  shelter: 'casa',
+  store: 'loja',
+  pharmacy: 'loja',
+  restaurant: 'loja',
+  bakery: 'loja',
+  bar: 'loja',
+  clothing: 'loja',
+  hardware: 'loja',
+  laundry: 'loja',
+  gym: 'servico',
+  garage: 'trabalho',
+  factory: 'trabalho',
+  warehouse: 'trabalho',
+  office: 'servico',
+  clinic: 'servico',
+  school: 'servico',
+  church: 'servico',
+};
 export type RoofStyle = 'shingle-a' | 'shingle-b' | 'flat';
 
 export interface RoomData {

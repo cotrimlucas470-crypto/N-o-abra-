@@ -13,11 +13,12 @@
  * comércios da cidade viram prédios de 4 pavimentos.
  */
 import { TILE } from '../../config/GameConfig';
+import { PLAYER_TUNING } from '../../config/PlayerTuning';
 import { Random, hashString } from '../../core/Random';
 import { CHUNK_TILES } from '../../sim/ChunkGrid';
 import { MapBuilder } from '../MapBuilder';
 import { PROP_DEFS } from '../PropCatalog';
-import { VOID_GROUND, type BuildingData, type FloorData, type GroundId, type MapData, type StairPlacement } from '../MapTypes';
+import { BUILDING_FAMILY, VOID_GROUND, type BuildingData, type FloorData, type GroundId, type MapData, type StairPlacement } from '../MapTypes';
 import { floorPlan, type FloorUse, type LocalRect } from './FloorPlans';
 
 export const FLOOR_TUNING = {
@@ -30,7 +31,8 @@ export const FLOOR_TUNING = {
   gapChunks: 2,
 } as const;
 
-const SHOPS = new Set(['store', 'pharmacy', 'restaurant', 'clothing']);
+/** Comércio de rua: apartamento ou escritório em cima (e os maiores viram prédio alto). */
+const isShop = (b: BuildingData) => BUILDING_FAMILY[b.kind] === 'loja';
 
 interface Rect {
   x: number;
@@ -54,16 +56,30 @@ function levelsFor(b: BuildingData, rng: Random): number {
   const W = b.bounds.w / TILE;
   const H = b.bounds.h / TILE;
   if (W < 8 || H < 7 || b.kind === 'shelter') return 0;
-  if (b.kind === 'house') return rng.chance(0.5) ? 1 : 0;
-  if (SHOPS.has(b.kind)) return rng.chance(0.65) ? (rng.chance(0.3) ? 2 : 1) : 0;
-  if (b.kind === 'garage') return rng.chance(0.4) ? 1 : 0;
-  if (b.kind === 'warehouse') return rng.chance(0.3) ? 1 : 0;
-  return 0;
+  switch (b.kind) {
+    case 'house':
+      return rng.chance(0.5) ? 1 : 0;
+    case 'apartment':
+      return W >= 12 ? rng.int(2, 3) : rng.chance(0.7) ? 1 : 0;
+    case 'office':
+      return rng.int(1, 2);
+    case 'clinic':
+    case 'school':
+      return rng.chance(0.4) ? 1 : 0;
+    case 'garage':
+    case 'factory':
+      return rng.chance(0.4) ? 1 : 0;
+    case 'warehouse':
+      return rng.chance(0.3) ? 1 : 0;
+    default:
+      return isShop(b) ? (rng.chance(0.65) ? (rng.chance(0.3) ? 2 : 1) : 0) : 0;
+  }
 }
 
 function useFor(b: BuildingData, level: number, rng: Random): FloorUse {
   if (b.kind === 'house') return 'casa';
-  if (b.kind === 'garage' || b.kind === 'warehouse') return 'escritorio';
+  if (b.kind === 'apartment') return 'apartamento';
+  if (!isShop(b)) return 'escritorio';
   // Loja: apartamento em cima; prédio alto mistura escritórios.
   return level === 1 || rng.chance(0.6) ? 'apartamento' : 'escritorio';
 }
@@ -132,6 +148,7 @@ export function findStair(city: MapData, b: BuildingData, buckets: Buckets = new
   }
   const doors = city.doors.filter((d) => d.buildingId === b.id).map((d) => ({ x: d.x / T, y: d.y / T, r: d.length / T / 2 + 1.2 }));
   const rooms = b.rooms.map((r) => ({ name: r.name, x: r.rect.x / T, y: r.rect.y / T, w: r.rect.w / T, h: r.rect.h / T }));
+  const reach = reachInside(area, walls, boxes, city.doors.filter((d) => d.buildingId === b.id && d.exterior).map((d) => [d.x / T, d.y / T] as const));
   let best: { r: LocalRect; score: number } | null = null;
   const { stairW, stairL } = FLOOR_TUNING;
   for (const [w, h] of [[stairW, stairL], [stairL, stairW]] as const) {
@@ -145,6 +162,8 @@ export function findStair(city: MapData, b: BuildingData, buckets: Buckets = new
         const cy = r.y + h / 2;
         const room = rooms.find((rm) => cx > rm.x && cx < rm.x + rm.w && cy > rm.y && cy < rm.y + rm.h);
         if (!room) continue;
+        // Canto livre mas cercado por móveis não serve: o corpo precisa chegar da rua até ela.
+        if (!reach(cx, cy)) continue;
         // Encostada numa parede pelo lado comprido: parece escada de verdade.
         const long = w > h;
         const edgeA: Rect = long ? { x: r.x, y: r.y - 0.3, w, h: 0.3 } : { x: r.x - 0.3, y: r.y, w: 0.3, h };
@@ -160,6 +179,57 @@ export function findStair(city: MapData, b: BuildingData, buckets: Buckets = new
   return best?.r ?? null;
 }
 
+/**
+ * Por onde o CORPO do jogador anda dentro do prédio, a partir das portas da
+ * rua (grade de 1/4 de tile; móveis como caixas, um pouco mais que o real).
+ */
+function reachInside(area: Rect, walls: readonly Rect[], boxes: readonly Rect[], doors: readonly (readonly [number, number])[]): (x: number, y: number) => boolean {
+  const C = 0.25;
+  const R = PLAYER_TUNING.bodyRadius / TILE;
+  const cols = Math.ceil(area.w / C);
+  const rows = Math.ceil(area.h / C);
+  const free = new Uint8Array(cols * rows);
+  const solids = [...walls, ...boxes];
+  for (let j = 0; j < rows; j++) {
+    for (let i = 0; i < cols; i++) {
+      const x = area.x + (i + 0.5) * C;
+      const y = area.y + (j + 0.5) * C;
+      if (!solids.some((s) => distRect(s, { x, y, w: 0, h: 0 }) < R)) free[j * cols + i] = 1;
+    }
+  }
+  const seen = new Uint8Array(cols * rows);
+  const stack: number[] = [];
+  for (const [dx, dy] of doors) {
+    // A porta fica na linha da parede: entra pela célula livre mais perto dela.
+    for (let j = Math.floor((dy - area.y) / C) - 2; j <= Math.floor((dy - area.y) / C) + 2; j++) {
+      for (let i = Math.floor((dx - area.x) / C) - 2; i <= Math.floor((dx - area.x) / C) + 2; i++) {
+        if (i < 0 || j < 0 || i >= cols || j >= rows || !free[j * cols + i] || seen[j * cols + i]) continue;
+        seen[j * cols + i] = 1;
+        stack.push(j * cols + i);
+      }
+    }
+  }
+  while (stack.length) {
+    const k = stack.pop()!;
+    const i = k % cols;
+    const j = (k / cols) | 0;
+    for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      const ni = i + di;
+      const nj = j + dj;
+      if (ni < 0 || nj < 0 || ni >= cols || nj >= rows) continue;
+      const q = nj * cols + ni;
+      if (!free[q] || seen[q]) continue;
+      seen[q] = 1;
+      stack.push(q);
+    }
+  }
+  return (x, y) => {
+    const i = Math.floor((x - area.x) / C);
+    const j = Math.floor((y - area.y) / C);
+    return i >= 0 && j >= 0 && i < cols && j < rows && seen[j * cols + i] === 1;
+  };
+}
+
 /** Cidade + andares. A cidade (traçado, ids, chão) fica igual. */
 export function addUpperFloors(city: MapData): MapData {
   const T = TILE;
@@ -172,7 +242,7 @@ export function addUpperFloors(city: MapData): MapData {
   }
   // Os dois maiores comércios viram prédios de 4 pavimentos.
   const big = city.buildings
-    .filter((b) => SHOPS.has(b.kind) && b.bounds.w >= 10 * T && b.bounds.h >= 8 * T)
+    .filter((b) => (isShop(b) || b.kind === 'apartment' || b.kind === 'office') && b.bounds.w >= 10 * T && b.bounds.h >= 8 * T)
     .sort((a, b) => b.bounds.w * b.bounds.h - a.bounds.w * a.bounds.h || (a.id < b.id ? -1 : 1))
     .slice(0, 2);
   for (const b of big) {

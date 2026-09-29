@@ -25,6 +25,17 @@ const PER_100_TILES: Record<BuildingKind, number> = {
   clothing: 2.1,
   garage: 1.3,
   warehouse: 1.1,
+  apartment: 1.5,
+  bakery: 2.2,
+  bar: 2.4,
+  hardware: 1.6,
+  laundry: 1.4,
+  gym: 1.8,
+  factory: 1.2,
+  office: 1.6,
+  clinic: 2.4,
+  school: 2.6,
+  church: 1.8,
   shelter: 0,
 };
 /** Na rua: por 100 tiles de chão livre fora dos prédios. */

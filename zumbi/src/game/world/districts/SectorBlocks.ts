@@ -15,15 +15,15 @@
 import type { Random } from '../../core/Random';
 import { Ground, type GroundId, type RoofStyle } from '../MapTypes';
 import type { PropType } from '../PropCatalog';
-import type { BuildingTemplate } from '../buildings/BuildingTemplate';
-import { CORNER_STORE, GARAGE, HOUSE_SMALL, HOUSE_TINY, WAREHOUSE, shopTemplate } from '../buildings/templates';
+import { ARCHETYPES, type ArchetypeId } from '../buildings/gen/archetypes';
 import type { SectorBuilder } from './SectorBuilder';
+import { placeGenerated, sizeFor } from './genBuildings';
 import type { BlockArea } from './SectorLayout';
 
 export type BlockZone = 'residential' | 'commercial' | 'industrial' | 'park';
 
 interface Candidate {
-  tpl: BuildingTemplate;
+  arch: ArchetypeId;
   weight: number;
   roofs?: RoofStyle[];
 }
@@ -85,23 +85,26 @@ function placeRow(
   b: SectorBuilder,
   area: BlockArea,
   candidates: Candidate[],
-  opts: { setback: number; gap: [number, number]; idPrefix: string; keep: Keepout; pathGround: GroundId; flip: boolean; maxX?: number },
+  opts: { setback: number; gap: [number, number]; idPrefix: string; keep: Keepout; pathGround: GroundId; flip: boolean; maxX?: number; backYard?: number },
 ): { placed: Placed[]; endX: number } {
   const rng = b.rng;
   const placed: Placed[] = [];
   const limit = opts.maxX ?? area.x1 - 1;
+  // Fundo máximo do prédio: sobra quintal/pátio atrás.
+  const maxDepth = area.y1 - area.y0 - opts.setback - (opts.backYard ?? 3);
   let x = area.x0 + rng.int(1, 2);
   let n = 0;
   for (;;) {
-    const fits = candidates.filter((c) => x + c.tpl.w <= limit);
+    const fits = candidates.filter((c) => x + ARCHETYPES[c.arch].w[0] <= limit && ARCHETYPES[c.arch].h[0] <= maxDepth);
     const c = pick(rng, fits);
     if (!c) break;
-    const t = c.tpl;
+    const size = sizeFor(b, c.arch, limit - x, maxDepth);
+    if (!size) break;
+    const t = { w: size.W, h: size.H };
     const y = area.front === 's' ? area.y1 - opts.setback - t.h : area.y0 + opts.setback;
-    const rot = t.front === area.front ? 0 : 180;
     const flipX = opts.flip && rng.chance(0.5);
     const roof = c.roofs ? rng.pick(c.roofs) : undefined;
-    const pb = b.building(t, x, y, { id: `${opts.idPrefix}-${n++}`, rot, flipX, ...(roof ? { roof } : {}) });
+    const { placed: pb } = placeGenerated(b, { arch: c.arch, x, y, W: t.w, H: t.h, id: `${opts.idPrefix}-${n++}`, front: area.front, flipX, ...(roof ? { roof } : {}) });
     // caminho da porta principal até a calçada
     const main = pb.doors.find((d) => d.side === area.front) ?? pb.doors[0];
     if (main) {
@@ -158,8 +161,14 @@ function residential(b: SectorBuilder, area: BlockArea, idPrefix: string): void 
     b,
     area,
     [
-      { tpl: HOUSE_SMALL, weight: 5, roofs: ['shingle-a', 'shingle-b'] },
-      { tpl: HOUSE_TINY, weight: 3, roofs: ['shingle-a', 'shingle-b'] },
+      { arch: 'barraco', weight: 1 },
+      { arch: 'casaSimples', weight: 4 },
+      { arch: 'casaMadeira', weight: 2 },
+      { arch: 'casaMedia', weight: 4 },
+      { arch: 'sobrado', weight: 2 },
+      { arch: 'casaRica', weight: 1 },
+      { arch: 'kitnet', weight: 0.8 },
+      { arch: 'pensao', weight: 0.5 },
     ],
     { setback, gap: [3, 5], idPrefix, keep, pathGround: Ground.Concrete, flip: true },
   );
@@ -228,10 +237,23 @@ function commercial(b: SectorBuilder, area: BlockArea, idPrefix: string): void {
     b,
     area,
     [
-      { tpl: CORNER_STORE, weight: 2 },
-      { tpl: shopTemplate('pharmacy'), weight: 2 },
-      { tpl: shopTemplate('restaurant'), weight: 2 },
-      { tpl: shopTemplate('clothing'), weight: 2 },
+      { arch: 'mercadinho', weight: 2 },
+      { arch: 'supermercado', weight: 0.8 },
+      { arch: 'conveniencia', weight: 1 },
+      { arch: 'farmacia', weight: 2 },
+      { arch: 'lanchonete', weight: 1.5 },
+      { arch: 'restaurante', weight: 1 },
+      { arch: 'padaria', weight: 1.5 },
+      { arch: 'bar', weight: 1.5 },
+      { arch: 'lojaRoupas', weight: 1.5 },
+      { arch: 'ferragem', weight: 1.2 },
+      { arch: 'lavanderia', weight: 0.8 },
+      { arch: 'escritorio', weight: 1 },
+      { arch: 'academia', weight: 0.8 },
+      { arch: 'predio', weight: 1 },
+      { arch: 'postoSaude', weight: 0.5 },
+      { arch: 'igreja', weight: 0.4 },
+      { arch: 'escola', weight: 0.4 },
     ],
     { setback, gap: [2, 3], idPrefix, keep, pathGround: Ground.Concrete, flip: true, maxX: area.x1 - 1 },
   );
@@ -290,8 +312,10 @@ function industrial(b: SectorBuilder, area: BlockArea, idPrefix: string): void {
     b,
     area,
     [
-      { tpl: WAREHOUSE, weight: 3 },
-      { tpl: GARAGE, weight: 2 },
+      { arch: 'galpao', weight: 3 },
+      { arch: 'oficina', weight: 2.5 },
+      { arch: 'borracharia', weight: 1.2 },
+      { arch: 'serralheria', weight: 2 },
     ],
     { setback, gap: [2, 4], idPrefix, keep, pathGround: Ground.Concrete, flip: true },
   );

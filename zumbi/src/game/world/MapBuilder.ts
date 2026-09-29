@@ -7,6 +7,7 @@
 import { TILE } from '../config/GameConfig';
 import { Random, hashString } from '../core/Random';
 import type { DecalType } from './DecalCatalog';
+import { BUILDING_FAMILY } from './MapTypes';
 import type {
   BuildingData,
   BuildingKind,
@@ -44,7 +45,6 @@ export const WALL_THICKNESS: Record<WallKind, number> = {
 const SINGLE_MAX = 1.6;
 const DOUBLE_MAX = 2.6;
 const INTERIOR_PASSAGE_MIN = 1.8;
-const SHOP_KINDS: readonly BuildingKind[] = ['store', 'pharmacy', 'restaurant', 'clothing'];
 
 export interface Opening {
   /** Distância (tiles) desde o ponto inicial da parede. */
@@ -377,8 +377,9 @@ export class MapBuilder {
       if (!exterior && lenTiles >= INTERIOR_PASSAGE_MIN) continue;
       let material: DoorMaterial = 'wood';
       const style: DoorStyle = d.style;
-      if (kind === 'garage' || kind === 'warehouse') material = exterior ? 'metal' : 'wood';
-      else if (SHOP_KINDS.includes(kind) && exterior) material = style === 'double' ? 'glass' : 'metal';
+      const fam = BUILDING_FAMILY[kind];
+      if (fam === 'trabalho') material = exterior ? 'metal' : 'wood';
+      else if ((fam === 'loja' || (fam === 'servico' && kind !== 'church')) && exterior) material = style === 'double' ? 'glass' : 'metal';
       // Da rua: abre para dentro. Interna: lado fixo por id (determinístico, sem sorteio).
       const inward = d.vertical ? Math.sign(cx - tx) : Math.sign(cy - ty);
       const swing: 1 | -1 = exterior ? (inward >= 0 ? 1 : -1) : hashString(d.id) % 2 === 0 ? 1 : -1;

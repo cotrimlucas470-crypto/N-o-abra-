@@ -13,7 +13,10 @@
 import type { Random } from '../../core/Random';
 import { door, win, type BuildingTemplate, type TemplateWall } from '../buildings/BuildingTemplate';
 import { Ground, type BuildingKind, type GroundId } from '../MapTypes';
-import { PROP_DEFS, type PropType } from '../PropCatalog';
+import { PROP_DEFS } from '../PropCatalog';
+import { furnishRoom, type Placed, type Span } from '../buildings/gen/furnish';
+import { openForNav } from '../buildings/gen/navcheck';
+import { ROOMS, type RoomKind } from '../buildings/gen/rooms';
 
 /** Retângulo em tiles, local ao prédio (0,0 = canto das paredes externas). */
 export interface LocalRect {
@@ -25,22 +28,9 @@ export interface LocalRect {
 
 export type FloorUse = 'casa' | 'apartamento' | 'escritorio';
 
-/** Margem entre a linha da parede e o móvel encostado (tiles). */
-const M = 0.13;
-/** Raio do corpo (tiles) na conferência da passagem. */
-const BODY = 0.3;
-const CELL = 0.25;
-
 interface Room extends LocalRect {
   name: string;
   hall: boolean;
-}
-
-interface Placed {
-  type: PropType;
-  at: [number, number];
-  angle: number;
-  box: LocalRect;
 }
 
 const ROOM_GROUND: Record<string, GroundId> = {
@@ -52,20 +42,6 @@ const ROOM_GROUND: Record<string, GroundId> = {
   Escritório: Ground.WoodFloor,
   Depósito: Ground.Concrete,
 };
-
-/** Móveis por cômodo (em ordem de importância; os primeiros quase sempre entram). */
-const FURNITURE: Record<string, readonly (PropType | readonly PropType[])[]> = {
-  Quarto: [['bedDouble', 'bedSingle'], 'wardrobe', 'nightstand', ['desk', 'cabinet'], 'rug'],
-  Banheiro: ['toilet', 'bathSink', 'bathtub', 'cabinet'],
-  Cozinha: ['fridge', 'stove', 'kitchenCounter', 'cabinet', 'diningTable'],
-  Sala: ['sofa', 'tvStand', 'armchair', 'coffeeTable', 'cabinet', 'rug'],
-  Corredor: ['cabinet'],
-  Escritório: ['desk', 'desk', 'cabinet', 'boxes', 'desk', 'chair'],
-  Depósito: ['boxes', 'crate', 'box', 'toolShelf', 'crate', 'boxes'],
-};
-
-/** No meio do cômodo (não encostam). */
-const CENTER = new Set<PropType>(['rug', 'coffeeTable', 'diningTable', 'chair']);
 
 const NAMES: Record<FloorUse, readonly string[]> = {
   casa: ['Quarto', 'Banheiro', 'Quarto', 'Escritório', 'Quarto', 'Sala'],
@@ -80,10 +56,6 @@ export function floorKind(use: FloorUse): BuildingKind {
 
 function crosses(v: number, lo: number, hi: number, pad: number): boolean {
   return v > lo - pad && v < hi + pad;
-}
-
-function overlaps(a: LocalRect, b: LocalRect, pad = 0): boolean {
-  return a.x < b.x + b.w + pad && a.x + a.w + pad > b.x && a.y < b.y + b.h + pad && a.y + a.h + pad > b.y;
 }
 
 /** Cortes num intervalo [0, len]: pedaços de ~4 a 6 tiles, evitando a faixa proibida. */
@@ -244,8 +216,8 @@ export function floorPlan(W: number, H: number, use: FloorUse, stair: LocalRect,
   walls.push({ a: [0, 0], b: [0, H], openings: windows(H, sideJ, rng, smallOn('x', 0.1)) });
   walls.push({ a: [W, 0], b: [W, H], openings: windows(H, sideJ, rng, smallOn('x', W - 0.1)) });
 
-  const props = furnish(rooms, stair, doorsAt, rng);
-  return {
+  const props = furnish(rooms, stair, doorsAt, windowSpans(walls), rng);
+  const tpl: BuildingTemplate = {
     kind: floorKind(use),
     name,
     w: W,
@@ -257,139 +229,50 @@ export function floorPlan(W: number, H: number, use: FloorUse, stair: LocalRect,
     props: props.map((p) => ({ type: p.type, at: p.at, angle: p.angle })),
     doors: [],
   };
+  // Zumbi sobe pela escada: todo cômodo alcançável a partir dela na grade deles.
+  return openForNav(tpl, doorsAt, [stair.x + stair.w / 2, stair.y + stair.h / 2]);
 }
 
 // ------------------------------------------------------------------ móveis
 
-function size(type: PropType, angle: number): [number, number] {
-  const d = PROP_DEFS[type];
-  const w = d.width / 64;
-  const h = d.height / 64;
-  return Math.abs(angle) === 90 ? [h, w] : [w, h];
-}
-
-/** Grade do cômodo: a passagem entre portas (e a escada) continua aberta? */
-function passable(room: Room, blocks: LocalRect[], goals: [number, number][]): boolean {
-  const cols = Math.max(1, Math.round(room.w / CELL));
-  const rows = Math.max(1, Math.round(room.h / CELL));
-  const free = new Uint8Array(cols * rows);
-  const edge = M + BODY * 0.7;
-  for (let j = 0; j < rows; j++) {
-    for (let i = 0; i < cols; i++) {
-      const x = room.x + (i + 0.5) * CELL;
-      const y = room.y + (j + 0.5) * CELL;
-      if (x < room.x + edge || x > room.x + room.w - edge || y < room.y + edge || y > room.y + room.h - edge) continue;
-      let ok = true;
-      for (const b of blocks) {
-        const dx = Math.max(b.x - x, 0, x - (b.x + b.w));
-        const dy = Math.max(b.y - y, 0, y - (b.y + b.h));
-        if (dx * dx + dy * dy < BODY * BODY) {
-          ok = false;
-          break;
-        }
-      }
-      if (ok) free[j * cols + i] = 1;
-    }
-  }
-  const cellOf = ([x, y]: [number, number]) => {
-    // O alvo (porta na borda) cai na célula livre mais perto.
-    let best = -1;
-    let bd = Infinity;
-    for (let j = 0; j < rows; j++) {
-      for (let i = 0; i < cols; i++) {
-        if (!free[j * cols + i]) continue;
-        const d = (room.x + (i + 0.5) * CELL - x) ** 2 + (room.y + (j + 0.5) * CELL - y) ** 2;
-        if (d < bd) {
-          bd = d;
-          best = j * cols + i;
-        }
-      }
-    }
-    return bd <= 1.0 ? best : -1;
-  };
-  const cells = goals.map(cellOf);
-  if (cells.some((c) => c < 0)) return false;
-  if (cells.length < 2) return true;
-  const seen = new Uint8Array(cols * rows);
-  const stack = [cells[0]!];
-  seen[cells[0]!] = 1;
-  while (stack.length) {
-    const c = stack.pop()!;
-    const i = c % cols;
-    const j = (c - i) / cols;
-    for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
-      const ni = i + di;
-      const nj = j + dj;
-      if (ni < 0 || nj < 0 || ni >= cols || nj >= rows) continue;
-      const n = nj * cols + ni;
-      if (!free[n] || seen[n]) continue;
-      seen[n] = 1;
-      stack.push(n);
-    }
-  }
-  return cells.every((c) => seen[c]);
-}
-
-function furnish(rooms: Room[], stair: LocalRect, doorsAt: [number, number][], rng: Random): Placed[] {
+/**
+ * Mesmo mobiliador dos prédios do térreo (regras por cômodo, passagem
+ * reservada entre as portas e até a escada): andar de cima sem cômodo vazio.
+ */
+function furnish(rooms: Room[], stair: LocalRect, doorsAt: [number, number][], windows: Span[], rng: Random): Placed[] {
   const out: Placed[] = [];
   const stairKeep: LocalRect = { x: stair.x - 0.7, y: stair.y - 0.7, w: stair.w + 1.4, h: stair.h + 1.4 };
+  const wealth = rng.int(0, 2);
   for (const room of rooms) {
-    const list = FURNITURE[room.name] ?? [];
-    // Portas deste cômodo (pontos na borda) e a escada: precisam continuar alcançáveis.
-    const goals: [number, number][] = doorsAt.filter(([x, y]) => x >= room.x - 0.05 && x <= room.x + room.w + 0.05 && y >= room.y - 0.05 && y <= room.y + room.h + 0.05);
-    if (room.hall) goals.push([stair.x + stair.w / 2, stair.y + stair.h / 2]);
-    const blocks: LocalRect[] = room.hall ? [stair] : [];
-    const placed: LocalRect[] = [];
-    const budget = Math.max(1, Math.floor((room.w * room.h) / 5));
-    let count = 0;
-    for (const entry of list) {
-      if (count >= budget) break;
-      const type = typeof entry === 'string' ? entry : rng.pick(entry as readonly PropType[]);
-      const floorOnly = PROP_DEFS[type].layer === 'floor';
-      let done = false;
-      for (let tries = 0; tries < 14 && !done; tries++) {
-        let angle = 0;
-        let cx: number;
-        let cy: number;
-        if (CENTER.has(type)) {
-          const [w, h] = size(type, 0);
-          if (w > room.w - 1.2 || h > room.h - 1.2) break;
-          cx = room.x + room.w / 2 + (rng.next() - 0.5) * Math.max(0, room.w - w - 1.4);
-          cy = room.y + room.h / 2 + (rng.next() - 0.5) * Math.max(0, room.h - h - 1.4);
-        } else {
-          const side = rng.int(0, 3);
-          angle = [0, 90, 180, -90][side]!;
-          const [w, h] = size(type, angle);
-          // Encostado: sobra passagem na frente.
-          const depth = side % 2 === 0 ? h : w;
-          const across = side % 2 === 0 ? room.h : room.w;
-          if (across - depth < 1.3) continue;
-          const along = side % 2 === 0 ? room.w : room.h;
-          const span = side % 2 === 0 ? w : h;
-          if (span > along - 2 * M) continue;
-          const t = M + span / 2 + rng.next() * Math.max(0, along - span - 2 * M);
-          if (side === 0) [cx, cy] = [room.x + t, room.y + M + h / 2];
-          else if (side === 2) [cx, cy] = [room.x + t, room.y + room.h - M - h / 2];
-          else if (side === 1) [cx, cy] = [room.x + room.w - M - w / 2, room.y + t];
-          else [cx, cy] = [room.x + M + w / 2, room.y + t];
-        }
-        const [w, h] = size(type, angle);
-        const box = { x: cx - w / 2, y: cy - h / 2, w, h };
-        if (box.x < room.x + 0.05 || box.y < room.y + 0.05 || box.x + box.w > room.x + room.w - 0.05 || box.y + box.h > room.y + room.h - 0.05) continue;
-        if (overlaps(box, stairKeep)) continue;
-        if (placed.some((p) => overlaps(p, box, floorOnly ? -0.2 : 0.06))) continue;
-        // Nem tapete tapa porta.
-        if (doorsAt.some(([dx, dy]) => Math.hypot(Math.max(box.x - dx, 0, dx - (box.x + box.w)), Math.max(box.y - dy, 0, dy - (box.y + box.h))) < 1.25)) continue;
-        if (!floorOnly && !passable(room, [...blocks, box], goals)) continue;
-        placed.push(box);
-        if (!floorOnly) blocks.push(box);
-        out.push({ type, at: [Math.round(cx * 1000) / 1000, Math.round(cy * 1000) / 1000], angle, box });
-        count++;
-        done = true;
-      }
-    }
+    const doors: (readonly [number, number])[] = doorsAt.filter(([x, y]) => x >= room.x - 0.05 && x <= room.x + room.w + 0.05 && y >= room.y - 0.05 && y <= room.y + room.h + 0.05);
+    // A escada é a "porta" do andar: o caminho até ela fica livre.
+    if (room.hall) doors.unshift([stair.x + stair.w / 2, stair.y + stair.h / 2]);
+    const def = ROOMS[(room.name in ROOMS ? room.name : 'Quarto') as RoomKind];
+    const inside = windows.filter((w) => {
+      const mx = (w.x0 + w.x1) / 2;
+      const my = (w.y0 + w.y1) / 2;
+      return mx >= room.x - 0.05 && mx <= room.x + room.w + 0.05 && my >= room.y - 0.05 && my <= room.y + room.h + 0.05;
+    });
+    out.push(...furnishRoom({ rect: room, def, doors, windows: inside, keepOut: [stairKeep], wealth, keep: 1 }, rng));
   }
   // Tapete por baixo: vai primeiro na lista (desenho).
   out.sort((a, b) => Number(PROP_DEFS[b.type].layer === 'floor') - Number(PROP_DEFS[a.type].layer === 'floor'));
+  return out;
+}
+
+/** Trechos de janela das paredes (tiles locais). */
+function windowSpans(walls: readonly TemplateWall[]): Span[] {
+  const out: Span[] = [];
+  for (const w of walls) {
+    const horizontal = w.a[1] === w.b[1];
+    const len = horizontal ? Math.abs(w.b[0] - w.a[0]) : Math.abs(w.b[1] - w.a[1]);
+    const dir = horizontal ? Math.sign(w.b[0] - w.a[0]) : Math.sign(w.b[1] - w.a[1]);
+    for (const o of w.openings ?? []) {
+      if (o.type !== 'window' || o.at + o.len > len + 1e-6) continue;
+      const p0 = (horizontal ? w.a[0] : w.a[1]) + dir * o.at;
+      const p1 = p0 + dir * o.len;
+      out.push(horizontal ? { x0: Math.min(p0, p1), y0: w.a[1], x1: Math.max(p0, p1), y1: w.a[1] } : { x0: w.a[0], y0: Math.min(p0, p1), x1: w.a[0], y1: Math.max(p0, p1) });
+    }
+  }
   return out;
 }

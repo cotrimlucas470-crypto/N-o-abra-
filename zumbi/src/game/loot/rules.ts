@@ -3,14 +3,17 @@
  * cômodo e zona da cidade. É aqui que "armário" vira despensa na cozinha,
  * farmácia na farmácia e ferramentas na oficina.
  */
-import type { BuildingKind } from '../world/MapTypes';
+import { BUILDING_FAMILY, type BuildingKind } from '../world/MapTypes';
 import type { WorldModel } from '../world/WorldModel';
 import type { PropType } from '../world/PropCatalog';
 import type { ContainerKind, LootContext, ZoneKind } from './LootTypes';
 import type { LootTableId } from './tables';
 
-const SHOPS: readonly BuildingKind[] = ['store', 'pharmacy', 'restaurant', 'clothing'];
-const WORK: readonly BuildingKind[] = ['garage', 'warehouse'];
+/** Comércio e serviço (escritório, posto, escola) guardam coisa de loja; oficina/galpão/fábrica, de trabalho. */
+const isShop = (b: BuildingKind | null): b is BuildingKind => !!b && (BUILDING_FAMILY[b] === 'loja' || BUILDING_FAMILY[b] === 'servico');
+const isWork = (b: BuildingKind | null): b is BuildingKind => !!b && BUILDING_FAMILY[b] === 'trabalho';
+/** Cozinha de comércio (restaurante, padaria, bar). */
+const isFood = (b: BuildingKind | null) => b === 'restaurant' || b === 'bakery' || b === 'bar';
 
 export function tableFor(kind: ContainerKind, ctx: LootContext, prop?: PropType): LootTableId | null {
   const b = ctx.building;
@@ -20,15 +23,18 @@ export function tableFor(kind: ContainerKind, ctx: LootContext, prop?: PropType)
     case 'corpo':
       return null;
     case 'geladeira':
-      return b === 'restaurant' ? 'geladeira-restaurante' : 'geladeira-casa';
+      return isFood(b) ? 'geladeira-restaurante' : 'geladeira-casa';
     case 'fogao':
       return 'fogao';
     case 'armarioCozinha':
-      return b === 'restaurant' ? 'despensa-restaurante' : 'despensa';
+      return isFood(b) ? 'despensa-restaurante' : 'despensa';
     case 'armario':
       if (b === 'pharmacy') return 'farmacia-balcao';
-      if (b && WORK.includes(b)) return room === 'Escritório' ? 'escritorio-trabalho' : 'oficina-prateleira';
-      if (b && SHOPS.includes(b)) return 'armario-loja';
+      if (b === 'clinic') return room === 'Recepção' ? 'escritorio-trabalho' : 'hospital-armario';
+      if (b === 'gym' && room === 'Vestiário') return 'guarda-roupa';
+      if (isWork(b)) return room === 'Escritório' ? 'escritorio-trabalho' : 'oficina-prateleira';
+      if (b === 'office' || b === 'school') return 'escritorio-trabalho';
+      if (isShop(b)) return 'armario-loja';
       if (room === 'Cozinha') return 'despensa';
       if (room === 'Banheiro') return 'banheiro';
       return 'armario-casa';
@@ -39,15 +45,18 @@ export function tableFor(kind: ContainerKind, ctx: LootContext, prop?: PropType)
     case 'armarioBanheiro':
       return 'banheiro';
     case 'escrivaninha':
-      return b && (WORK.includes(b) || SHOPS.includes(b)) ? 'escritorio-trabalho' : 'escrivaninha';
+      return isWork(b) || isShop(b) ? 'escritorio-trabalho' : 'escrivaninha';
     case 'rack':
       return 'rack';
     case 'prateleira':
       if (b === 'store') return 'mercado-prateleira';
       if (b === 'pharmacy') return 'farmacia-prateleira';
-      if (b === 'clothing') return 'loja-roupas';
-      if (b === 'restaurant') return 'despensa-restaurante';
-      if (b && WORK.includes(b)) return 'galpao-prateleira';
+      if (b === 'clinic') return 'farmacia-prateleira';
+      if (b === 'clothing' || b === 'laundry') return 'loja-roupas';
+      if (isFood(b)) return 'despensa-restaurante';
+      if (b === 'hardware') return 'oficina-prateleira';
+      if (isWork(b)) return 'galpao-prateleira';
+      if (isShop(b)) return 'armario-loja';
       return 'armario-casa';
     case 'geladeiraVitrine':
       return 'mercado-geladeira';
@@ -68,15 +77,29 @@ export function tableFor(kind: ContainerKind, ctx: LootContext, prop?: PropType)
         case 'clothing':
           return 'estoque-roupas';
         case 'restaurant':
+        case 'bakery':
+        case 'bar':
           return 'despensa-restaurante';
         case 'garage':
+        case 'factory':
+        case 'hardware':
           return 'oficina-caixas';
         case 'warehouse':
           return 'galpao-caixas';
         case 'shelter':
           return 'abrigo-caixas';
         case 'house':
+        case 'apartment':
+        case 'church':
           return 'armario-casa';
+        case 'clinic':
+          return 'farmacia-estoque';
+        case 'laundry':
+          return 'estoque-roupas';
+        case 'office':
+        case 'school':
+        case 'gym':
+          return 'armario-loja';
         default:
           return ctx.zone === 'industrial' ? 'galpao-caixas' : ctx.zone === 'comercial' ? 'lixo-comercial' : 'caixote-quintal';
       }
@@ -95,8 +118,8 @@ export function tableFor(kind: ContainerKind, ctx: LootContext, prop?: PropType)
     case 'tambor':
       return 'tambor-industrial';
     case 'chao':
-      if (b && SHOPS.includes(b)) return 'chao-loja';
-      if (b && WORK.includes(b)) return 'chao-trabalho';
+      if (isShop(b)) return 'chao-loja';
+      if (isWork(b)) return 'chao-trabalho';
       return b ? 'chao-casa' : null;
   }
 }
