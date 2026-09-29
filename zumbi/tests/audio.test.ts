@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Rng } from '../src/game/audio/dsp';
-import { bulletSound, objectSound } from '../src/game/audio/GameAudio';
+import { bulletSound, objectSound, zombieVoiceOf } from '../src/game/audio/GameAudio';
 import { GAITS, SURFACES } from '../src/game/audio/recipes/steps';
 import { SOUNDS, soundDef, variantSeed } from '../src/game/audio/SoundCatalog';
 import { gaitFor, gunClassFor, soundForContainer, soundForNoise, surfaceFor, swingWeight } from '../src/game/audio/SoundMap';
@@ -131,6 +131,8 @@ describe('sons: o que toca para cada coisa', () => {
     // Motor ligado e gerador são contínuos (laço ao vivo), não um som solto a cada pulso.
     expect(soundForNoise('motor', 'motor', 700)).toBeNull();
     expect(soundForNoise('gerador', 'gerador', 900)).toBeNull();
+    // Gemido: a voz sai pelo gancho do zumbi (cada um com a sua), não pelo barulho.
+    expect(soundForNoise('gemido', 'zumbi', 300)).toBeNull();
   });
 
   it('todo chão × andar tem passo', () => {
@@ -338,5 +340,25 @@ describe('sons: ambiente ao vivo', () => {
     expect(f.live.get('amb.motor')!.rate).toBeCloseTo(engineRpm(50) / 1000, 1);
     run(f, { ...base, engine: { kmh: 0, stalled: true } });
     expect(f.gain('amb.motor')).toBe(0);
+  });
+});
+
+describe('sons: zumbis e corpo', () => {
+  it('cada zumbi tem a sua voz (fixa pela identidade) e as vozes variam entre eles', () => {
+    const v1 = zombieVoiceOf('z-123');
+    expect(zombieVoiceOf('z-123')).toEqual(v1);
+    const voices = new Set<string>();
+    for (let i = 0; i < 200; i++) {
+      const v = zombieVoiceOf(`z-${i}`);
+      expect(v.a).not.toBe(v.b);
+      expect(v.rate).toBeGreaterThanOrEqual(0.84);
+      expect(v.rate).toBeLessThanOrEqual(1.16);
+      voices.add(`${v.a}-${v.b}-${Math.round(v.rate * 50)}`);
+    }
+    expect(voices.size).toBeGreaterThan(150);
+  });
+
+  it('todos os sons de zumbi e do corpo existem', () => {
+    for (const id of ['zumbi.gemido', 'zumbi.rosnado', 'zumbi.ataque', 'zumbi.morte', 'zumbi.mordida', 'zumbi.agarrao', 'zumbi.passo', 'zumbi.rastejar', 'corpo.dor', 'corpo.respira', 'corpo.coracao', 'corpo.comer', 'corpo.beber', 'ui.ziper', 'ui.pegar']) expect(SOUNDS.has(id), id).toBe(true);
   });
 });

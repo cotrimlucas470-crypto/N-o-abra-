@@ -61,7 +61,7 @@ export function soundForNoise(source: string, _kind: NoiseKind | undefined, radi
     ['escada', { id: 'passo.escada.passo', repeat: 3, every: 0.22 }],
     ['alarme', { id: 'carro.alarme' }],
     ['trovão', { id: 'clima.trovao' }],
-    ['gemido', { id: 'zumbi.gemido' }],
+    // 'gemido': a voz sai pelo gancho do zumbi (cada um com a sua), não pelo barulho.
     // 'gerador' (motor ligado, pulsos a cada poucos segundos): o som é o laço ao vivo.
   ];
   for (const [k, v] of table) if (s.includes(k)) return v;

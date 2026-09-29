@@ -5,6 +5,7 @@
  * só decide QUE som toca, ONDE e com que variação.
  */
 import type { AttackResult } from '../combat/Combat';
+import type { AttackOutcome } from '../zombies/Assault';
 import type { EventBus, GameEvents } from '../core/EventBus';
 import type { ItemDef } from '../items/ItemTypes';
 import type { Material as PropMaterial } from '../world/PropDurability';
@@ -30,6 +31,20 @@ export interface AudioWorld {
   containerSound(id: string): string | null;
   /** Clima, hora, fogos, geradores e carro para o ambiente ao vivo. */
   ambience?(): AmbienceState | null;
+  /** Zumbis andando perto (passos arrastados). */
+  zombies?(): readonly { id: string; x: number; y: number; speed: number; crawler: boolean }[];
+  /** Corpo do jogador (0..1): fôlego curto e coração quando está mal. */
+  body?(): { health: number; stamina: number; dead: boolean; asleep: boolean };
+}
+
+/** A voz de um zumbi: duas variações e uma altura só dele (pela identidade, sempre as mesmas). */
+export function zombieVoiceOf(id: string): { a: number; b: number; rate: number } {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
+  h >>>= 0;
+  const a = h % 8;
+  const b = (a + 1 + ((h >>> 3) % 7)) % 8;
+  return { a, b, rate: 0.84 + (((h >>> 8) % 1000) / 1000) * 0.32 };
 }
 
 /** Quando o golpe "chega" depois do começo do deslocamento de ar (s). */
@@ -46,6 +61,14 @@ export class GameAudio {
   private readonly amb: Ambience;
   private ambT = 0;
   private ambState: AmbienceState | null = null;
+  /** Próximo passo de cada zumbi perto (s). */
+  private readonly steps = new Map<string, number>();
+  private near3: readonly { id: string; x: number; y: number; speed: number; crawler: boolean }[] = [];
+  private bodyT = 0;
+  private breathT = 0;
+  private heartT = 0;
+  private lastHealth = -1;
+  private painT = 0;
 
   constructor(
     private readonly engine: AudioEngine,
@@ -69,6 +92,7 @@ export class GameAudio {
         if (id) this.near(id);
       }),
       bus.on('sound:play', (e) => (e.x !== undefined && e.y !== undefined ? this.at(e.id, e.x, e.y, e) : this.near(e.id, e))),
+      bus.on('loot:take', () => this.near('ui.pegar')),
       bus.on('game:paused', () => engine.duck(true)),
       bus.on('game:resumed', () => engine.duck(false)),
     ];
@@ -90,6 +114,10 @@ export class GameAudio {
       this.ambState = this.world.ambience?.() ?? null;
     }
     if (this.ambState && !this.engine.muted) this.amb.update(dt, this.ambState);
+    if (!this.engine.muted) {
+      this.zombieSteps(dt);
+      this.bodySounds(dt);
+    }
     this.warmT -= dt;
     if (this.warmT > 0) return;
     this.warmT = 1.5;
@@ -197,8 +225,6 @@ export class GameAudio {
       const c = r.creature;
       const id = gun ? 'acerto.carne.perfuracao' : !def?.melee ? 'acerto.soco' : def.melee.kind === 'corte' ? 'acerto.carne.corte' : def.melee.kind === 'perfuracao' ? 'acerto.carne.perfuracao' : 'acerto.carne.contundente';
       this.at(id, c.x, c.y, { delay: gun ? 0.015 : delay, ...(c.killed ? { gain: 1.1 } : {}) });
-      // Caiu de vez: o corpo no chão.
-      if (c.killed) this.at('corpo.queda', c.x, c.y, { delay: delay + 0.35 + Math.random() * 0.2 });
     }
     if (r.hit && r.hit.material !== 'vidro') {
       const h = r.hit;
@@ -211,6 +237,80 @@ export class GameAudio {
         const door = /porta|port[aã]o/i.test(h.name);
         this.at(door ? 'porta.arrombar' : h.material === 'metal' ? 'obra.desmonte' : 'obra.tabuas', h.x, h.y, { delay: delay + 0.06 });
       }
+    }
+  }
+
+  // ---------------------------------------------------------------- zumbis
+
+  /** Gemido, rosnado ou bote: com a voz daquele zumbi. */
+  zombieVoice(id: string, what: 'gemido' | 'rosnado' | 'ataque', x: number, y: number): void {
+    const v = zombieVoiceOf(id);
+    this.at(`zumbi.${what}`, x, y, { variant: Math.random() < 0.5 ? v.a : v.b, rate: v.rate });
+  }
+
+  /** Caiu de vez: o último ar (nem sempre: tiro na cabeça cala) e o corpo no chão. */
+  zombieDied(id: string, x: number, y: number): void {
+    const v = zombieVoiceOf(id);
+    if (Math.random() < 0.65) this.at('zumbi.morte', x, y, { variant: v.a, rate: v.rate, delay: 0.05 });
+    this.at('corpo.queda', x, y, { delay: 0.3 + Math.random() * 0.25 });
+  }
+
+  /** Um ataque de zumbi chegou ao jogador. */
+  zombieHit(out: AttackOutcome, zx: number): void {
+    if (!out.landed) return;
+    // Do lado de onde o zumbi veio.
+    const pan = Math.sign(zx - this.world.listener().x) * 0.3;
+    if (out.kind === 'bite' || out.wound === 'mordida') this.near('zumbi.mordida', { pan });
+    else if (out.grab) this.near('zumbi.agarrao', { pan });
+    else this.near('acerto.soco', { gain: out.blocked ? 0.45 : 0.8, rate: 0.9 });
+    if (out.knockdown) this.near('corpo.queda', { delay: 0.12 });
+  }
+
+  /** Pés arrastando dos zumbis perto (um passo a cada ~55 px andados). */
+  private zombieSteps(dt: number): void {
+    this.bodyT -= dt;
+    if (this.bodyT <= 0) {
+      this.bodyT = 0.1;
+      this.near3 = this.world.zombies?.() ?? [];
+      const alive = new Set(this.near3.map((z) => z.id));
+      for (const id of this.steps.keys()) if (!alive.has(id)) this.steps.delete(id);
+    }
+    for (const z of this.near3) {
+      if (z.speed < 8) continue;
+      const t = (this.steps.get(z.id) ?? Math.random() * 0.5) - dt;
+      if (t > 0) {
+        this.steps.set(z.id, t);
+        continue;
+      }
+      this.steps.set(z.id, (z.crawler ? 45 : 55) / z.speed);
+      this.at(z.crawler ? 'zumbi.rastejar' : 'zumbi.passo', z.x, z.y, { gain: Math.min(1, 0.6 + z.speed / 200) });
+    }
+  }
+
+  /** Dor quando a vida cai; fôlego curto cansado; coração batendo forte quando está mal. */
+  private bodySounds(dt: number): void {
+    const b = this.world.body?.();
+    if (!b || b.dead) {
+      this.lastHealth = -1;
+      return;
+    }
+    this.painT -= dt;
+    if (this.lastHealth >= 0 && this.lastHealth - b.health > 0.02 && this.painT <= 0) {
+      this.painT = 0.8;
+      this.near('corpo.dor', { gain: Math.min(1, 0.6 + (this.lastHealth - b.health) * 6) });
+    }
+    this.lastHealth = b.health;
+    if (b.asleep) return;
+    this.breathT -= dt;
+    if (b.stamina < 0.35 && this.breathT <= 0) {
+      this.breathT = 0.85 + b.stamina * 1.6;
+      this.near('corpo.respira', { gain: 0.5 + (0.35 - b.stamina) * 1.4 });
+    }
+    this.heartT -= dt;
+    if (b.health < 0.35 && this.heartT <= 0) {
+      const bpm = 80 + (0.35 - b.health) * 150;
+      this.heartT = 60 / bpm;
+      this.near('corpo.coracao', { gain: 0.45 + (0.35 - b.health) * 1.5 });
     }
   }
 

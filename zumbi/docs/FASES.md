@@ -60,12 +60,58 @@ variação anterior: o mesmo passo nunca soa igual duas vezes.
 - `dev/audiocheck.mjs` toca os 108 sons no navegador e mede o sinal que sai no mestre: nenhum mudo,
   nenhum erro. Com o jogo pausado, o sinal medido é 0.
 
-### Pendências (próximas etapas de som)
-- **S2**: chuva (no telhado quando se está dentro), vento, trovão com atraso pela distância,
-  pássaros, grilos e corvos por estação e hora, fogo, gerador ligado, alarme de carro, ronco do motor
-  pela velocidade.
-- **S3**: zumbis (voz própria de cada um: gemido, rosnado, ataque, mordida, morte), passos arrastados,
-  o corpo do jogador (respiração, coração, dor, comer, beber) e a interface.
+### S2: clima e ambiente ao vivo (`audio/Ambience.ts`, `recipes/ambience.ts`)
+- **Laços sem emenda** (`loopify`), que o diretor mexe ao vivo:
+  - chuva: garoa e temporal se misturam pela força;
+  - debaixo de teto: batucada no telhado e pingos na calha, com a chuva de fora abafada;
+  - vento: rajadas ao vivo e assobio no vento forte;
+  - grilos em noite quente (pela janela, se estiver dentro);
+  - chama da fogueira e gerador ligado: com lugar, parede e distância;
+  - motor do carro: o giro sobe em cada marcha e cai na troca, e fica mais cheio acelerando.
+- **Sons soltos**:
+  - trovão: perto é rasgo e estrondo, longe é ronco rolando; chega depois do clarão, pela
+    distância, e a trovoada fraca ronca sozinha de vez em quando;
+  - pássaros com 4 jeitos de cantar: coro de manhã, quase nenhum no inverno;
+  - corvos, mais no frio;
+  - estalos da lenha;
+  - alarme de carro: 4 padrões, e o mesmo carro toca sempre o mesmo.
+- Com tempo acelerado (dormindo, ação demorada) não tocam bichos nem estalos.
+
+### S3: zumbis, corpo e mochila (`recipes/zombie.ts`, `recipes/body.ts`)
+- **Voz de zumbi** por fonte e filtro (glote e boca), com a garganta estragada: rouca, quebrada,
+  com ar demais e gorgolejo. Há quatro tipos: gemido (parado), rosnado (viu você), bote (antes do
+  golpe) e último ar (morte).
+- **Cada zumbi tem a sua voz**: duas variações e uma altura fixas pela identidade.
+- A IA ganhou um gancho opcional `voice`, só para o som. O barulho que os outros zumbis ouvem
+  continua igual.
+- **Passos arrastados** dos zumbis perto, um a cada ~55 px andados; o rastejante arrasta o corpo.
+- **Ataques no jogador**:
+  - mordida: dentes, carne rasgando e o molhado;
+  - agarrão: a roupa sendo puxada;
+  - pancada: mais leve quando a roupa segurou;
+  - derrubada: o corpo caindo.
+- **Corpo do jogador**:
+  - dor quando a vida cai, por qualquer causa;
+  - fôlego curto abaixo de 35% de fôlego;
+  - coração acelerando abaixo de 35% de vida;
+  - comer (crocante ou mole) e beber (goles).
+- **Mochila**: zíper ao abrir o inventário, e som de pegar (do chão ou do recipiente).
+
+### Testes (S2 e S3)
+- `tests/audio.test.ts` (23 testes), que agora também confere:
+  - a emenda dos laços;
+  - chuva lá fora × no telhado;
+  - grilos e pássaros pela hora e estação;
+  - vento, fogo e gerador;
+  - o giro do motor;
+  - a voz fixa e variada de cada zumbi.
+- `dev/ambcheck.mjs` e `dev/zombiecheck.mjs` rodam no navegador. Conferem que:
+  - cada laço toca com sinal real;
+  - o trovão chega ~1 s depois do raio a 1.500 px;
+  - os zumbis gemem com vozes diferentes e arrastam os pés;
+  - não há nenhum erro.
+- Banco de sons (`dev/soundboard.ts`): 138 sons e 812 variações, com lugar (perto, longe, atrás da
+  parede) e eco (rua ou casa).
 
 ---
 

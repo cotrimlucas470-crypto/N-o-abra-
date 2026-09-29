@@ -187,6 +187,8 @@ export class InventoryPanel {
     this.offInventory?.();
     this.offInventory = null;
     if (v) {
+      // Abrir a mochila: o zíper.
+      this.s.bus.emit('sound:play', { id: 'ui.ziper' });
       this.offInventory = this.s.session.inventory?.onChange(() => this.refresh()) ?? null;
       this.relayout();
     } else {

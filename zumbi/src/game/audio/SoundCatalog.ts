@@ -14,6 +14,8 @@ import { carGlass, glassKnock, windowBreak } from './recipes/glass';
 import { bulletImpact, casing, dryFire, GUN_CLASSES, gunshot, jam, reload } from './recipes/guns';
 import { footstep, GAITS, SURFACES } from './recipes/steps';
 import { crash, engineStart, horn, runOver, starter, tireBlow } from './recipes/vehicles';
+import { zombieBite, zombieCrawl, zombieGrab, zombieStep, zombieVoice } from './recipes/zombie';
+import { breath, drink, eat, heartbeat, pain, pickup, zipper } from './recipes/body';
 import { bird, carAlarm, carEngine, crickets, crow, fireCrackle, fireRoar, generator, rain, roofRain, thunder, wind, windWhistle } from './recipes/ambience';
 import { axe, cabinet, demolish, dismantle, drawer, fridge, hammer, pickaxe, planks, rummage, sheetMetal } from './recipes/work';
 
@@ -137,6 +139,28 @@ add('bicho.passaro', bird, { cat: 'amb', variants: 8, range: 1400, reverb: 0.5, 
 add('bicho.corvo', crow, { cat: 'amb', sr: 22050, variants: 4, range: 1800, reverb: 0.6, pitch: 0.05, maxVoices: 2, gain: 0.6 });
 add('fogo.estalo', fireCrackle, { cat: 'amb', variants: 8, range: 460, reverb: 0.2, pitch: 0.1, maxVoices: 4, gain: 0.55 });
 add('carro.alarme', carAlarm, { cat: 'sfx', sr: 22050, variants: 4, range: 1800, reverb: 0.8, pitch: 0, maxVoices: 3, gain: 0.8 });
+
+// ---------------------------------------------------------------- zumbis
+// A voz de cada zumbi: o diretor escolhe as variações e a altura pelo indivíduo (pitch 0 aqui).
+const VOZ = { cat: 'voz' as SoundCategory, sr: 24000, variants: 8, pitch: 0, reverb: 0.5, maxVoices: 4 };
+add('zumbi.gemido', zombieVoice('gemido'), { ...VOZ, range: 700, gain: 0.7 });
+add('zumbi.rosnado', zombieVoice('rosnado'), { ...VOZ, range: 950, gain: 0.85 });
+add('zumbi.ataque', zombieVoice('ataque'), { ...VOZ, range: 550, gain: 0.8, maxVoices: 3 });
+add('zumbi.morte', zombieVoice('morte'), { ...VOZ, variants: 6, range: 650, gain: 0.8, maxVoices: 3 });
+add('zumbi.mordida', zombieBite, { variants: 5, range: 420, gain: 1, reverb: 0.2, maxVoices: 2 });
+add('zumbi.agarrao', zombieGrab, { variants: 5, range: 420, gain: 0.9, reverb: 0.2, maxVoices: 2 });
+add('zumbi.passo', zombieStep, { sr: 24000, variants: 8, range: 430, gain: 0.45, reverb: 0.3, pitch: 0.08, maxVoices: 6 });
+add('zumbi.rastejar', zombieCrawl, { sr: 24000, variants: 5, range: 380, gain: 0.5, reverb: 0.3, maxVoices: 3 });
+
+// ---------------------------------------------------------------- corpo do jogador e mochila
+const CORPO = { cat: 'voz' as SoundCategory, range: 300, reverb: 0.15, maxVoices: 1, pitch: 0.03 };
+add('corpo.dor', pain, { ...CORPO, variants: 8, gain: 0.8 });
+add('corpo.respira', breath, { ...CORPO, sr: 24000, variants: 6, gain: 0.35, reverb: 0.05 });
+add('corpo.coracao', heartbeat, { ...CORPO, sr: 16000, variants: 3, gain: 0.6, reverb: 0, pitch: 0.02 });
+add('corpo.comer', eat, { ...CORPO, variants: 5, gain: 0.6 });
+add('corpo.beber', drink, { ...CORPO, variants: 4, gain: 0.6 });
+add('ui.ziper', zipper, { cat: 'ui', variants: 5, range: 200, gain: 0.5, reverb: 0.1, maxVoices: 1, pitch: 0.06 });
+add('ui.pegar', pickup, { cat: 'ui', variants: 6, range: 200, gain: 0.55, reverb: 0.1, maxVoices: 2, pitch: 0.08 });
 
 export function soundDef(id: string): SoundDef | undefined {
   return SOUNDS.get(id);

@@ -45,6 +45,8 @@ export interface ZombieHooks {
   killed?(z: Zombie): void;
   /** Socando o carro onde o jogador está (lataria, vidro, agarrar pela janela). */
   vehicleBang?(z: Zombie): void;
+  /** A voz do zumbi (só para o som; o barulho que os outros ouvem continua em `noise`). */
+  voice?(z: Zombie, what: 'gemido' | 'rosnado' | 'ataque'): void;
 }
 
 /** O jogador sob ataque: quem agarra, caído, registro para explicar a morte. */
@@ -469,6 +471,7 @@ export class ZombieSystem {
     if (z.lod !== 0 || z.mind.moan > 0) return;
     z.mind.moan = T.moanIdle * (0.5 + this.rng());
     this.hooks.noise(z.x, z.y, 'zumbi', 150, 'gemido');
+    this.hooks.voice?.(z, 'gemido');
   }
 
   private idle(z: Zombie, dt: number): void {
@@ -718,6 +721,7 @@ export class ZombieSystem {
     const windup = (T.windupMax - (T.windupMax - T.windupMin) * clamp(z.traits.aggression, 0, 1)) * (kind === 'lunge' ? 0.7 : kind === 'bite' ? 0.6 : 1) * (0.85 + this.rng() * 0.3);
     this.setState(z, 'ATTACK');
     m.attack = { kind, t: 0, windup };
+    this.hooks.voice?.(z, 'ataque');
   }
 
   private attack(z: Zombie, dt: number): void {
@@ -1146,6 +1150,7 @@ export class ZombieSystem {
   private moan(z: Zombie, scale: number): void {
     z.mind.moan = T.moanChase * scale * (0.6 + this.rng() * 0.8);
     this.hooks.noise(z.x, z.y, 'zumbi', undefined, 'gemido');
+    this.hooks.voice?.(z, 'rosnado');
   }
 
   // ================================================================ andares

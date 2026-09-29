@@ -93,7 +93,7 @@ import { difficultyFrom } from '../zombies/Difficulty';
 import { generatePopulation } from '../zombies/Population';
 import { resolveAttack, type AttackKind, type AttackOutcome, type PlayerDefense } from '../zombies/Assault';
 import type { LightEnv, PlayerSense } from '../zombies/Senses';
-import type { Zombie } from '../zombies/Zombie';
+import { isCrawler, type Zombie } from '../zombies/Zombie';
 import type { ZombieStoreSave } from '../zombies/ZombieStore';
 import { bodyRadius } from '../zombies/ZombieMotion';
 import { PART_NAME } from '../zombies/Wounding';
@@ -384,7 +384,9 @@ export class GameScene extends Phaser.Scene {
     this.zombies = new ZombieSystem(this.model, this.state, this.noise, diff, {
       attack: (z, kind) => this.zombieAttack(z, kind),
       noise: (x, y, kind, radius, source) => s.bus.emit('world:noise', { x, y, radius: radius ?? NOISE_RADIUS[kind], source: source ?? kind, kind }),
+      voice: (z, what) => this.sfx?.zombieVoice(z.id, what, z.x, z.y),
       killed: (z) => {
+        this.sfx?.zombieDied(z.id, z.x, z.y);
         this.registerCorpse(z);
         // Qualquer morte (golpe, tiro, atropelo): estouro de sangue e pedaços.
         this.combatFx?.kill(z.x, z.y, z.corpseAngle ?? 0);
@@ -552,7 +554,11 @@ export class GameScene extends Phaser.Scene {
       s.bus.on('ui:container-open', (e) => this.openContainer(e.id)),
       s.bus.on('ui:container-close', () => (s.session.openContainer = null)),
       s.bus.on('loot:take', (e) => this.itemResult(e.all ? this.lootActions.takeAll(this.openId()) : this.lootActions.take(this.openId(), e.index))),
-      s.bus.on('item:action', (e) => this.itemResult(this.itemUse.run(e.action, e.loc))),
+      s.bus.on('item:action', (e) => {
+        const r = this.itemUse.run(e.action, e.loc);
+        if (r.ok && (e.action === 'comer' || e.action === 'beber')) s.bus.emit('sound:play', { id: e.action === 'comer' ? 'corpo.comer' : 'corpo.beber' });
+        this.itemResult(r);
+      }),
       s.bus.on('interaction:options', () => this.requestOptions()),
       s.bus.on('interaction:option', (e) => this.chooseOption(e.index)),
       s.bus.on('action:cancel', () => this.loop.cancelAction()),
@@ -833,6 +839,18 @@ export class GameScene extends Phaser.Scene {
             generators,
             engine: this.drive && d ? { kmh: d.kmh, stalled: this.drive.stalled || d.fuel <= 0 } : null,
           };
+        },
+        zombies: () => {
+          const out: { id: string; x: number; y: number; speed: number; crawler: boolean }[] = [];
+          for (const z of this.zombies.store.near(this.player.x, this.player.y, 460)) {
+            if (z.dead || z.lod !== 0) continue;
+            out.push({ id: z.id, x: z.x, y: z.y, speed: Math.hypot(z.vx, z.vy), crawler: isCrawler(z) });
+          }
+          return out;
+        },
+        body: () => {
+          const st = this.player.stats;
+          return { health: st.health / Math.max(1, st.maxHealth), stamina: st.stamina / Math.max(1, st.maxStamina), dead: this.dead, asleep: this.loop.sleeping };
         },
         containerSound: (id) => {
           const name = this.state.loot.ref(id)?.name ?? id;
@@ -1262,6 +1280,7 @@ export class GameScene extends Phaser.Scene {
   private zombieAttack(z: Zombie, kind: AttackKind): AttackOutcome | null {
     if (this.dead) return null;
     const out = resolveAttack(z, kind, this.defense(z), this.zombies.diff);
+    this.sfx?.zombieHit(out, z.x);
     // A roupa daquela parte segurou (ou não): gasta e, com azar, rasga.
     let torn: string | null = null;
     if (out.landed && out.part && (out.blocked || out.wound)) {
@@ -1460,7 +1479,9 @@ export class GameScene extends Phaser.Scene {
       this.stopDriving();
       return;
     }
+    const kind = this.interaction.current?.kind;
     const r = this.interaction.perform(this.syncInteractor());
+    if (r?.ok && kind === 'item') this.s.bus.emit('sound:play', { id: 'ui.pegar' });
     this.s.session.interaction = this.interaction.current;
     this.highlight.set(this.interaction.current);
     if (r?.message) this.s.bus.emit('player:feedback', { text: r.message, tone: r.ok ? 'ok' : 'warn' });
