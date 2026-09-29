@@ -1,2 +1,2 @@
 Toque de Recolher v0.7.0
-Gerado de dist/ com 8 arquivos.
+Gerado de dist/ com 9 arquivos.
