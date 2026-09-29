@@ -23,6 +23,51 @@ export interface PlayOptions {
   rate?: number;
   /** Segundos até tocar. */
   delay?: number;
+  /** Variação exata (ex.: o mesmo carro sempre com o mesmo alarme). */
+  variant?: number;
+}
+
+/** Som contínuo (chuva, vento, fogo, motor): o diretor mexe no volume, giro e abafado ao vivo. */
+export class LoopVoice {
+  private stopped = false;
+  constructor(
+    private readonly ctx: AudioContext,
+    private readonly src: AudioBufferSourceNode,
+    private readonly out: GainNode,
+    private readonly lp: BiquadFilterNode,
+    private readonly panner: StereoPannerNode,
+    private readonly send: GainNode,
+    private readonly onEnd: () => void,
+  ) {}
+
+  /** Muda devagar (tau em s) para não estalar. */
+  set(o: { gain?: number; rate?: number; cutoff?: number; pan?: number; wet?: number }, tau = 0.2): void {
+    if (this.stopped) return;
+    const now = this.ctx.currentTime;
+    if (o.gain !== undefined) this.out.gain.setTargetAtTime(Math.max(0, o.gain), now, tau);
+    if (o.rate !== undefined) this.src.playbackRate.setTargetAtTime(Math.max(0.05, o.rate), now, tau);
+    if (o.cutoff !== undefined) this.lp.frequency.setTargetAtTime(Math.max(60, Math.min(o.cutoff, this.ctx.sampleRate / 2 - 100)), now, tau);
+    if (o.pan !== undefined) this.panner.pan.setTargetAtTime(Math.max(-1, Math.min(1, o.pan)), now, tau);
+    if (o.wet !== undefined) this.send.gain.setTargetAtTime(Math.max(0, Math.min(1, o.wet)), now, tau);
+  }
+
+  get alive(): boolean {
+    return !this.stopped;
+  }
+
+  stop(fade = 0.5): void {
+    if (this.stopped) return;
+    this.stopped = true;
+    const now = this.ctx.currentTime;
+    this.out.gain.cancelScheduledValues(now);
+    this.out.gain.setTargetAtTime(0, now, fade / 4);
+    try {
+      this.src.stop(now + fade + 0.05);
+    } catch {
+      /* já parou */
+    }
+    this.onEnd();
+  }
 }
 
 interface Voice {
@@ -50,6 +95,7 @@ export class AudioEngine {
   private readonly entries = new Map<string, Entry>();
   private readonly queue: { id: string; v: number }[] = [];
   private voices: Voice[] = [];
+  private readonly loops = new Set<LoopVoice>();
   private readonly rng = new Rng((Date.now() ^ 0x5eed) >>> 0);
   private bytes = 0;
   private volume = 1;
@@ -176,7 +222,7 @@ export class AudioEngine {
       ready.push(0);
       this.warm(id);
     }
-    const v = pickVariant(ready, e.last, () => this.rng.next());
+    const v = o.variant !== undefined && e.buffers[o.variant % e.def.variants] ? o.variant % e.def.variants : pickVariant(ready, e.last, () => this.rng.next());
     e.last = v;
     const buf = e.buffers[v]!;
     const jit = playVariation(() => this.rng.next(), e.def.pitch);
@@ -228,6 +274,46 @@ export class AudioEngine {
       }
     };
     this.voices.push(voice);
+  }
+
+  /**
+   * Começa um som contínuo (volume 0: o diretor sobe). Se a variação ainda não
+   * está pronta, pede para gerar e devolve null (tenta de novo depois): um laço
+   * de vários segundos não é gerado na hora, para o jogo não engasgar.
+   */
+  loop(id: string, o: PlayOptions = {}): LoopVoice | null {
+    const e = this.entry(id);
+    if (!e || this.ctx.state !== 'running') return null;
+    e.used = this.ctx.currentTime;
+    const v = (o.variant ?? 0) % e.def.variants;
+    const buf = e.buffers[v];
+    if (!buf) {
+      if (!this.queue.some((q) => q.id === id && q.v === v)) this.queue.unshift({ id, v });
+      return null;
+    }
+    const ctx = this.ctx;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    src.playbackRate.value = o.rate ?? 1;
+    const out = ctx.createGain();
+    out.gain.value = 0;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = Math.min(o.cutoff ?? 20000, ctx.sampleRate / 2 - 100);
+    lp.Q.value = 0.5;
+    const pn = ctx.createStereoPanner();
+    pn.pan.value = o.pan ?? 0;
+    src.connect(out).connect(lp).connect(pn).connect(this.buses.get(e.def.cat)!);
+    const send = ctx.createGain();
+    send.gain.value = o.wet ?? 0;
+    pn.connect(send).connect(this.sends.get(o.room ?? 'rua')!);
+    // Começa num ponto sorteado: dois laços iguais não andam juntos.
+    src.start(ctx.currentTime, this.rng.next() * buf.duration);
+    const lv: LoopVoice = new LoopVoice(ctx, src, out, lp, pn, send, () => this.loops.delete(lv));
+    this.loops.add(lv);
+    if (o.gain !== undefined) lv.set({ gain: o.gain }, 0.3);
+    return lv;
   }
 
   /**
@@ -288,6 +374,7 @@ export class AudioEngine {
   }
 
   stopAll(): void {
+    for (const l of [...this.loops]) l.stop(0.2);
     for (const v of this.voices) {
       try {
         v.src.stop();
@@ -329,7 +416,8 @@ export class AudioEngine {
 
   /** Memória cheia: esquece as variações do som menos usado (menos a primeira). */
   private evict(keep: string): void {
-    const list = [...this.entries.values()].filter((x) => x.def.id !== keep && x.buffers.some((b) => b)).sort((a, b) => a.used - b.used);
+    // Laço tocando não sai da memória (o buffer está em uso).
+    const list = [...this.entries.values()].filter((x) => x.def.id !== keep && !x.def.loop && x.buffers.some((b) => b)).sort((a, b) => a.used - b.used);
     for (const e of list) {
       e.buffers.forEach((b, v) => {
         if (b && !this.voices.some((x) => x.src.buffer === b)) {

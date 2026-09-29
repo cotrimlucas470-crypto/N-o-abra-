@@ -14,6 +14,7 @@ import { carGlass, glassKnock, windowBreak } from './recipes/glass';
 import { bulletImpact, casing, dryFire, GUN_CLASSES, gunshot, jam, reload } from './recipes/guns';
 import { footstep, GAITS, SURFACES } from './recipes/steps';
 import { crash, engineStart, horn, runOver, starter, tireBlow } from './recipes/vehicles';
+import { bird, carAlarm, carEngine, crickets, crow, fireCrackle, fireRoar, generator, rain, roofRain, thunder, wind, windWhistle } from './recipes/ambience';
 import { axe, cabinet, demolish, dismantle, drawer, fridge, hammer, pickaxe, planks, rummage, sheetMetal } from './recipes/work';
 
 export type SoundCategory = 'sfx' | 'voz' | 'ui' | 'amb';
@@ -30,6 +31,8 @@ export interface SoundDef {
   pitch: number;
   cat: SoundCategory;
   maxVoices: number;
+  /** Som contínuo (laço sem emenda): chuva, vento, fogo, motor. */
+  loop?: boolean;
 }
 
 const DEF = { variants: 6, sr: 32000, gain: 1, range: 900, reverb: 0.5, pitch: 0.05, cat: 'sfx' as SoundCategory, maxVoices: 4 };
@@ -115,6 +118,25 @@ add('carro.pneu', tireBlow, { range: 1100, gain: 1, variants: 3 });
 add('carro.arranque', starter, { range: 700, gain: 0.8, variants: 4, maxVoices: 1 });
 add('carro.partida', engineStart, { range: 900, gain: 0.9, variants: 4, maxVoices: 1 });
 add('carro.atropelo', runOver, { range: 700, gain: 0.95 });
+
+// ---------------------------------------------------------------- clima e ambiente
+// Laços: 2 variações (são longos), taxa menor (economiza memória), sem eco próprio.
+const LOOP = { loop: true, variants: 2, cat: 'amb' as SoundCategory, reverb: 0, pitch: 0, maxVoices: 2, range: 1200 };
+add('amb.chuvaFraca', rain(0), { ...LOOP, sr: 22050 });
+add('amb.chuvaForte', rain(1), { ...LOOP, sr: 22050 });
+add('amb.chuvaTelhado', roofRain, { ...LOOP, sr: 22050 });
+add('amb.vento', wind, { ...LOOP, sr: 16000 });
+add('amb.ventoAssobio', windWhistle, { ...LOOP, sr: 16000 });
+add('amb.grilos', crickets, { ...LOOP, sr: 22050 });
+add('amb.fogo', fireRoar, { ...LOOP, sr: 22050, range: 520, reverb: 0.2 });
+add('amb.gerador', generator, { ...LOOP, sr: 22050, range: 1000, reverb: 0.4 });
+add('amb.motor', carEngine, { ...LOOP, sr: 22050 });
+add('clima.trovao', thunder(false), { cat: 'amb', sr: 22050, variants: 4, range: 8000, reverb: 0.2, pitch: 0.06, maxVoices: 2 });
+add('clima.trovaoPerto', thunder(true), { cat: 'amb', sr: 22050, variants: 3, range: 8000, reverb: 0.3, pitch: 0.04, maxVoices: 2 });
+add('bicho.passaro', bird, { cat: 'amb', variants: 8, range: 1400, reverb: 0.5, pitch: 0.04, maxVoices: 3, gain: 0.5 });
+add('bicho.corvo', crow, { cat: 'amb', sr: 22050, variants: 4, range: 1800, reverb: 0.6, pitch: 0.05, maxVoices: 2, gain: 0.6 });
+add('fogo.estalo', fireCrackle, { cat: 'amb', variants: 8, range: 460, reverb: 0.2, pitch: 0.1, maxVoices: 4, gain: 0.55 });
+add('carro.alarme', carAlarm, { cat: 'sfx', sr: 22050, variants: 4, range: 1800, reverb: 0.8, pitch: 0, maxVoices: 3, gain: 0.8 });
 
 export function soundDef(id: string): SoundDef | undefined {
   return SOUNDS.get(id);

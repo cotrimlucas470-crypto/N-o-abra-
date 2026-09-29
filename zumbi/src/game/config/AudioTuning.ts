@@ -38,5 +38,34 @@ export const AUDIO_TUNING = {
   room: { seconds: 0.55, decay: 0.16, hfDecay: 0.08, predelay: 0.004, level: 0.5 },
 } as const;
 
+/** Ambiente ao vivo (audio/Ambience.ts): volumes dos laços e frequência dos sons soltos. */
+export const AMBIENCE_TUNING = {
+  /** Ajusta os laços a cada tantos segundos (não precisa ser todo quadro). */
+  updateEvery: 0.1,
+  rainLight: 0.55,
+  rainHeavy: 0.75,
+  /** Chuva de fora ouvida de dentro (abafada) e a batucada no telhado. */
+  rainThroughRoof: 0.18,
+  roof: 0.6,
+  wind: 0.55,
+  whistle: 0.3,
+  crickets: 0.32,
+  fire: 0.7,
+  generator: 0.85,
+  engine: 0.7,
+  /** Em média, quantos por segundo (sorteio de Poisson). */
+  birdsPerSec: 0.12,
+  crowsPerSec: 0.02,
+  cracklesPerSec: 2.5,
+  /** Trovoada fraca: um ronco a cada ~tantos segundos (divide pela força). */
+  thunderEvery: 22,
+  /** Motor: marcha lenta, faixa de giro de cada marcha e as velocidades das trocas (km/h). */
+  idleRpm: 850,
+  shiftLow: 1400,
+  shiftHigh: 3600,
+  maxRpm: 4200,
+  gears: [0, 22, 42, 65, 95],
+} as const;
+
 /** Passos do volume no botão SOM (pausa). */
 export const VOLUME_STEPS = [1, 0.6, 0.3, 0] as const;

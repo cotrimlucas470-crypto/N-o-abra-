@@ -6,6 +6,9 @@ import { SOUNDS, soundDef, variantSeed } from '../src/game/audio/SoundCatalog';
 import { gaitFor, gunClassFor, soundForContainer, soundForNoise, surfaceFor, swingWeight } from '../src/game/audio/SoundMap';
 import { pickVariant, placeSound, playVariation } from '../src/game/audio/spatial';
 import { nextVolume, volumeLabel } from '../src/game/audio/Volume';
+import { Ambience, engineRpm, type AmbienceState } from '../src/game/audio/Ambience';
+import type { AudioEngine } from '../src/game/audio/AudioEngine';
+import { AMBIENCE_TUNING } from '../src/game/config/AudioTuning';
 import { VOLUME_STEPS } from '../src/game/config/AudioTuning';
 import { allItems } from '../src/game/items/ItemCatalog';
 import { Ground as G } from '../src/game/world/MapTypes';
@@ -31,7 +34,9 @@ describe('sons: receitas', () => {
           peak = Math.max(peak, Math.abs(x));
         }
         const sec = a.length / d.sr;
-        if (!finite || peak > 1 || peak < 0.05 || sec < 0.02 || sec > 4) bad.push(`${id}#${v}: pico ${peak.toFixed(3)}, ${sec.toFixed(2)} s${finite ? '' : ', NaN'}`);
+        // Laços e trovão são longos de propósito; o resto é curto.
+        const max = d.loop || id.startsWith('clima.') ? 9 : 4;
+        if (!finite || peak > 1 || peak < 0.05 || sec < 0.02 || sec > max) bad.push(`${id}#${v}: pico ${peak.toFixed(3)}, ${sec.toFixed(2)} s${finite ? '' : ', NaN'}`);
       }
     }
     expect(bad).toEqual([]);
@@ -51,9 +56,20 @@ describe('sons: receitas', () => {
     }
   });
 
+  it('laços dão a volta sem emenda (sem estalo na virada)', () => {
+    for (const d of SOUNDS.values()) {
+      if (!d.loop) continue;
+      const a = render(d.id, 0);
+      let maxStep = 0;
+      for (let i = 1; i < a.length; i++) maxStep = Math.max(maxStep, Math.abs(a[i]! - a[i - 1]!));
+      const seam = Math.abs(a[0]! - a[a.length - 1]!);
+      expect(seam, d.id).toBeLessThanOrEqual(maxStep + 1e-6);
+    }
+  });
+
   it('cada som tem várias variações e limites de voz', () => {
     for (const d of SOUNDS.values()) {
-      expect(d.variants, d.id).toBeGreaterThanOrEqual(3);
+      expect(d.variants, d.id).toBeGreaterThanOrEqual(d.loop ? 2 : 3);
       expect(d.maxVoices, d.id).toBeGreaterThanOrEqual(1);
       expect(d.range, d.id).toBeGreaterThan(100);
     }
@@ -100,6 +116,7 @@ describe('sons: o que toca para cada coisa', () => {
       ['escada', 170],
       ['partida do gerador', 420],
       ['barricada caiu', 800],
+      ['alarme de carro', 950],
     ];
     const missing = sources.filter(([s, r]) => !has(soundForNoise(s, undefined, r)?.id)).map(([s]) => s);
     expect(missing).toEqual([]);
@@ -111,8 +128,9 @@ describe('sons: o que toca para cada coisa', () => {
 
   it('passo, golpe e tiro não tocam pelo barulho (saem direto, com mais detalhe)', () => {
     for (const s of ['passos', 'golpe', 'tiro']) expect(soundForNoise(s, undefined, 300)).toBeNull();
-    // Motor ligado é contínuo (ao vivo), não um som solto a cada pulso.
+    // Motor ligado e gerador são contínuos (laço ao vivo), não um som solto a cada pulso.
     expect(soundForNoise('motor', 'motor', 700)).toBeNull();
+    expect(soundForNoise('gerador', 'gerador', 900)).toBeNull();
   });
 
   it('todo chão × andar tem passo', () => {
@@ -221,5 +239,104 @@ describe('sons: espaço', () => {
     expect(seen).toEqual([1, 0.6, 0.3, 0, 1]);
     expect(volumeLabel(0)).toBe('SOM: DESLIGADO');
     expect(volumeLabel(0.6)).toBe('SOM: 60%');
+  });
+});
+
+describe('sons: ambiente ao vivo', () => {
+  function fake() {
+    const live = new Map<string, { gain: number; rate: number; alive: boolean }>();
+    const shots: string[] = [];
+    const engine = {
+      muted: false,
+      loop: (id: string) => {
+        const v = { gain: 0, rate: 1, alive: true };
+        live.set(id, v);
+        return {
+          get alive() {
+            return v.alive;
+          },
+          set: (o: { gain?: number; rate?: number }) => {
+            if (o.gain !== undefined) v.gain = o.gain;
+            if (o.rate !== undefined) v.rate = o.rate;
+          },
+          stop: () => {
+            v.alive = false;
+            v.gain = 0;
+          },
+        };
+      },
+    } as unknown as AudioEngine;
+    let seed = 7;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const amb = new Ambience(
+      engine,
+      {
+        listener: () => ({ x: 0, y: 0 }),
+        place: () => ({ gain: 0.8, pan: 0, cutoff: 8000, wet: 0.2, room: 'rua' }),
+        at: (id) => shots.push(id),
+        near: (id) => shots.push(id),
+      },
+      rnd,
+    );
+    const gain = (id: string) => (live.get(id)?.alive ? live.get(id)!.gain : 0);
+    return { amb, gain, live, shots };
+  }
+  const base: AmbienceState = { rain: 0, snow: 0, wind: 0, thunder: 0, temp: 22, minuteOfDay: 600, dayHours: 12, winter: 0, summer: 0.6, sheltered: false, busy: false, fires: [], generators: [], engine: null };
+  const run = (f: ReturnType<typeof fake>, st: AmbienceState, sec = 2) => {
+    for (let t = 0; t < sec; t += 0.05) f.amb.update(0.05, st);
+  };
+
+  it('chuva lá fora x no telhado (dentro de casa)', () => {
+    const f = fake();
+    run(f, { ...base, rain: 0.9 });
+    expect(f.gain('amb.chuvaForte')).toBeGreaterThan(0.3);
+    expect(f.gain('amb.chuvaTelhado')).toBe(0);
+    run(f, { ...base, rain: 0.9, sheltered: true });
+    expect(f.gain('amb.chuvaTelhado')).toBeGreaterThan(0.3);
+    expect(f.gain('amb.chuvaForte')).toBeLessThan(0.2);
+    // Garoa usa o laço de gotas soltas, não o do temporal.
+    const g = fake();
+    run(g, { ...base, rain: 0.15 });
+    expect(g.gain('amb.chuvaFraca')).toBeGreaterThan(0);
+    expect(g.gain('amb.chuvaForte')).toBe(0);
+  });
+
+  it('grilos só em noite quente; pássaros de dia; nada com tempo acelerado', () => {
+    const night = fake();
+    run(night, { ...base, minuteOfDay: 1380 });
+    expect(night.gain('amb.grilos')).toBeGreaterThan(0.05);
+    const cold = fake();
+    run(cold, { ...base, minuteOfDay: 1380, temp: 4, winter: 0.9 });
+    expect(cold.gain('amb.grilos')).toBe(0);
+    const day = fake();
+    run(day, { ...base, minuteOfDay: 420 }, 120);
+    expect(day.shots.filter((s) => s === 'bicho.passaro').length).toBeGreaterThan(5);
+    const busy = fake();
+    run(busy, { ...base, minuteOfDay: 420, busy: true }, 120);
+    expect(busy.shots.filter((s) => s === 'bicho.passaro').length).toBe(0);
+  });
+
+  it('vento forte assobia; fogo e gerador perto tocam', () => {
+    const f = fake();
+    run(f, { ...base, wind: 0.95, fires: [{ x: 100, y: 0, power: 1 }], generators: [{ x: 300, y: 0 }] }, 6);
+    expect(f.gain('amb.vento')).toBeGreaterThan(0);
+    expect(f.live.has('amb.ventoAssobio')).toBe(true);
+    expect(f.gain('amb.fogo')).toBeGreaterThan(0.2);
+    expect(f.gain('amb.gerador')).toBeGreaterThan(0.2);
+    expect(f.shots.filter((s) => s === 'fogo.estalo').length).toBeGreaterThan(3);
+  });
+
+  it('motor: giro sobe na marcha, cai na troca, nunca passa do máximo', () => {
+    expect(engineRpm(0)).toBe(AMBIENCE_TUNING.idleRpm);
+    expect(engineRpm(15)).toBeGreaterThan(engineRpm(5));
+    const g = AMBIENCE_TUNING.gears;
+    expect(engineRpm(g[1]! + 1)).toBeLessThan(engineRpm(g[1]! - 1));
+    for (let v = 0; v < 200; v += 5) expect(engineRpm(v)).toBeLessThanOrEqual(AMBIENCE_TUNING.maxRpm);
+    const f = fake();
+    run(f, { ...base, engine: { kmh: 50, stalled: false } });
+    expect(f.gain('amb.motor')).toBeGreaterThan(0.2);
+    expect(f.live.get('amb.motor')!.rate).toBeCloseTo(engineRpm(50) / 1000, 1);
+    run(f, { ...base, engine: { kmh: 0, stalled: true } });
+    expect(f.gain('amb.motor')).toBe(0);
   });
 });

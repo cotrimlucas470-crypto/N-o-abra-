@@ -447,6 +447,31 @@ export function finish(buf: Float32Array, sr: number, peak = 0.9): Float32Array 
   return buf;
 }
 
+/**
+ * Som que dá a volta sem emenda (chuva, vento, motor): gera `seconds` + `fade`
+ * e funde o fim no começo com fade de potência igual.
+ */
+export function loopify(buf: Float32Array, sr: number, fade: number): Float32Array {
+  const x = Math.min(Math.round(fade * sr), Math.floor(buf.length / 3));
+  const n = buf.length - x;
+  const out = buf.slice(0, n);
+  for (let i = 0; i < x; i++) {
+    const t = i / x;
+    out[i] = buf[i]! * Math.sin((t * Math.PI) / 2) + buf[n + i]! * Math.cos((t * Math.PI) / 2);
+  }
+  return out;
+}
+
+/** Normaliza pelo pico sem cortar o fim (laços: `finish` faria fade na emenda). */
+export function normalize(buf: Float32Array, sr: number, peak = 0.8): Float32Array {
+  new Biquad(sr, 'highpass', 25, 0.7).run(buf);
+  let m = 0;
+  for (let i = 0; i < buf.length; i++) m = Math.max(m, Math.abs(buf[i]!));
+  const k = m > 1e-6 ? peak / m : 0;
+  for (let i = 0; i < buf.length; i++) buf[i] = buf[i]! * k;
+  return buf;
+}
+
 /** Corta o silêncio do fim (economiza memória). */
 export function trim(buf: Float32Array, sr: number, floor = 0.0015): Float32Array {
   let end = buf.length;

@@ -62,7 +62,7 @@ export function soundForNoise(source: string, _kind: NoiseKind | undefined, radi
     ['alarme', { id: 'carro.alarme' }],
     ['trovão', { id: 'clima.trovao' }],
     ['gemido', { id: 'zumbi.gemido' }],
-    ['gerador', { id: 'gerador.pulso' }],
+    // 'gerador' (motor ligado, pulsos a cada poucos segundos): o som é o laço ao vivo.
   ];
   for (const [k, v] of table) if (s.includes(k)) return v;
   // Motor ligado (pulso de barulho a cada ~1 s) vira o ronco ao vivo, não um som solto.

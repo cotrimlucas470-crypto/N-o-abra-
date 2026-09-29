@@ -11,7 +11,8 @@ import type { Material as PropMaterial } from '../world/PropDurability';
 import type { AudioEngine, PlayOptions } from './AudioEngine';
 import { soundDef } from './SoundCatalog';
 import { gaitFor, gunClassFor, soundForNoise, swingWeight } from './SoundMap';
-import { placeSound } from './spatial';
+import { placeSound, type Placement } from './spatial';
+import { Ambience, type AmbienceState } from './Ambience';
 import type { Surface } from './recipes/steps';
 import type { GunClass } from './recipes/guns';
 
@@ -27,6 +28,8 @@ export interface AudioWorld {
   surface(x: number, y: number): Surface;
   /** Som de abrir um recipiente (null = sem som próprio, ex.: compartimento de carro). */
   containerSound(id: string): string | null;
+  /** Clima, hora, fogos, geradores e carro para o ambiente ao vivo. */
+  ambience?(): AmbienceState | null;
 }
 
 /** Quando o golpe "chega" depois do começo do deslocamento de ar (s). */
@@ -40,6 +43,9 @@ const HARD: ReadonlySet<Surface> = new Set(['asfalto', 'calcada', 'garagem', 'ce
 export class GameAudio {
   private readonly offs: (() => void)[];
   private warmT = 0;
+  private readonly amb: Ambience;
+  private ambT = 0;
+  private ambState: AmbienceState | null = null;
 
   constructor(
     private readonly engine: AudioEngine,
@@ -49,6 +55,12 @@ export class GameAudio {
   ) {
     engine.duck(false);
     for (const id of COMMON) engine.warm(id);
+    this.amb = new Ambience(engine, {
+      listener: () => this.world.listener(),
+      place: (id, x, y) => this.placement(id, x, y),
+      at: (id, x, y, o) => this.at(id, x, y, o),
+      near: (id, o) => this.near(id, o),
+    });
     this.offs = [
       bus.on('world:noise', (e) => this.noise(e)),
       bus.on('player:footstep', (e) => this.footstep(e.x, e.y, e.loudness)),
@@ -64,12 +76,20 @@ export class GameAudio {
 
   destroy(): void {
     this.offs.forEach((u) => u());
+    this.amb.stop();
     this.engine.stopAll();
   }
 
   /** Um quadro: gera variações na fila; de tempos em tempos deixa pronto o que vai tocar logo. */
   update(dt: number): void {
     this.engine.update();
+    // O estado do ambiente muda devagar: lido 10 vezes por segundo.
+    this.ambT -= dt;
+    if (this.ambT <= 0) {
+      this.ambT = 0.1;
+      this.ambState = this.world.ambience?.() ?? null;
+    }
+    if (this.ambState && !this.engine.muted) this.amb.update(dt, this.ambState);
     this.warmT -= dt;
     if (this.warmT > 0) return;
     this.warmT = 1.5;
@@ -87,14 +107,20 @@ export class GameAudio {
 
   // ---------------------------------------------------------------- tocar
 
-  /** Som num ponto do mundo: distância, lado, parede e eco. */
-  at(id: string, x: number, y: number, o: PlayOptions = {}): void {
+  /** Onde um som em (x, y) fica para quem ouve (null = não chega). */
+  private placement(id: string, x: number, y: number): Placement | null {
     const def = soundDef(id);
-    if (!def || this.engine.muted) return;
+    if (!def) return null;
     const l = this.world.listener();
     const src = this.world.locate(x, y, def.range);
-    if (!src) return;
-    const p = placeSound({ dx: src.x - l.x, dy: src.y - l.y, range: def.range, walls: src.walls, reverb: def.reverb, indoor: l.indoor });
+    if (!src) return null;
+    return placeSound({ dx: src.x - l.x, dy: src.y - l.y, range: def.range, walls: src.walls, reverb: def.reverb, indoor: l.indoor });
+  }
+
+  /** Som num ponto do mundo: distância, lado, parede e eco. */
+  at(id: string, x: number, y: number, o: PlayOptions = {}): void {
+    if (this.engine.muted) return;
+    const p = this.placement(id, x, y);
     if (!p) return;
     this.engine.play(id, { ...o, gain: p.gain * (o.gain ?? 1), pan: p.pan, cutoff: p.cutoff, wet: p.wet, room: p.room });
   }
@@ -110,10 +136,32 @@ export class GameAudio {
   // ---------------------------------------------------------------- eventos
 
   private noise(e: GameEvents['world:noise']): void {
+    if (e.source.includes('trovão')) {
+      this.bolt(e.x, e.y);
+      return;
+    }
     const s = soundForNoise(e.source, e.kind, e.radius, e.sound);
     if (!s || !this.engine.has(s.id)) return;
+    // O mesmo carro toca sempre o mesmo alarme.
+    const variant = s.id === 'carro.alarme' ? (Math.floor(e.x / 64) * 73856093) ^ (Math.floor(e.y / 64) * 19349663) : undefined;
     const n = s.repeat ?? 1;
-    for (let i = 0; i < n; i++) this.at(s.id, e.x, e.y, { delay: i * (s.every ?? 0), ...(s.rate ? { rate: s.rate } : {}) });
+    for (let i = 0; i < n; i++) this.at(s.id, e.x, e.y, { delay: i * (s.every ?? 0), ...(s.rate ? { rate: s.rate } : {}), ...(variant !== undefined ? { variant: Math.abs(variant) } : {}) });
+  }
+
+  /**
+   * Raio que caiu: o trovão chega depois do clarão (o som anda devagar);
+   * perto é estalo e estrondo, longe só o ronco. Dentro de casa, abafado.
+   */
+  private bolt(x: number, y: number): void {
+    const l = this.world.listener();
+    const d = Math.hypot(x - l.x, y - l.y);
+    const close = d < 1900;
+    this.near(close ? 'clima.trovaoPerto' : 'clima.trovao', {
+      delay: 0.5 + Math.max(0, d - 1300) / 450,
+      gain: close ? 1 : 0.85,
+      pan: d > 0 ? ((x - l.x) / d) * 0.6 : 0,
+      ...(l.indoor ? { cutoff: 650 } : {}),
+    });
   }
 
   private footstep(x: number, y: number, loudness: number): void {

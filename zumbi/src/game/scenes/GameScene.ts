@@ -58,7 +58,8 @@ import { VehicleViews } from '../world/render/VehicleViews';
 import { StructureViews } from '../world/render/StructureViews';
 import { FireSystem } from '../build/FireSystem';
 import { PowerSystem } from '../build/PowerSystem';
-import { POWER_TUNING } from '../build/Power';
+import { isRunning, POWER_TUNING } from '../build/Power';
+import { isBurning, strength as fireStrength } from '../build/Fire';
 import { CraftService } from '../crafting/CraftService';
 import { RECIPE_BY_ID } from '../crafting/Recipes';
 import { StructureInteractions } from '../interaction/StructureInteractions';
@@ -806,6 +807,32 @@ export class GameScene extends Phaser.Scene {
             wet: Math.max(g.wet, this.loop.weather.rain * 0.6),
             upstairs: !!this.floor,
           });
+        },
+        ambience: () => {
+          const w = this.loop.weather;
+          const now = this.clock.minutes;
+          const season = this.loop.weatherModel.seasonAt(now);
+          const near = this.state.structures.near(this.player.x, this.player.y, 1100);
+          const fires = near.filter((st) => STRUCTURE_DEFS[st.type].fire && isBurning(st, now)).map((st) => ({ x: st.x, y: st.y, power: fireStrength(st, now) }));
+          const generators = near.filter((st) => st.type === 'gerador' && isRunning(st, now)).map((st) => ({ x: st.x, y: st.y }));
+          const d = s.session.driving;
+          return {
+            rain: w.rain,
+            snow: w.snow,
+            wind: w.wind,
+            thunder: w.thunder,
+            temp: w.temp,
+            minuteOfDay: this.clock.minuteOfDay,
+            dayHours: season.dayHours,
+            winter: season.winter,
+            summer: season.summer,
+            sheltered: this.loop.sheltered || !!this.floor,
+            // Dormindo ou em tempo acelerado: sem bicho nem estalo (seriam dezenas por segundo real).
+            busy: this.loop.sleeping || (this.loop.runner.active && this.clock.timeScale > this.clock.userScale * 2),
+            fires,
+            generators,
+            engine: this.drive && d ? { kmh: d.kmh, stalled: this.drive.stalled || d.fuel <= 0 } : null,
+          };
         },
         containerSound: (id) => {
           const name = this.state.loot.ref(id)?.name ?? id;
