@@ -478,9 +478,8 @@ export class HudScene extends Phaser.Scene {
     this.character.layout(w, h, k);
     this.fullMap.layout(w, h, k);
     this.card.layout(w, h, k);
-    // Minimapa: deitado, ao lado do status (esquerda); em pé, embaixo do status.
-    if (w > h) this.minimap.layout(ins.left + 12, ins.top + 10 + 128 * k, k);
-    else this.minimap.layout(ins.left + 12, ins.top + 74 * k, k);
+    // Minimapa: no alto, colado à direita do painel de status (largura do painel = 208 * k).
+    this.minimap.layout(ins.left + 12 + 218 * k, ins.top + 10, k);
     this.hearing.layout(w, h);
     this.inventory.layout(w, h, ins, k);
     this.promptKey = '';
