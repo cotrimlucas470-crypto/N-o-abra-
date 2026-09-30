@@ -53,7 +53,7 @@ export class TouchControls {
   readonly fullscreen: TouchButton;
   /** Volante e pedais (só dirigindo). */
   readonly car: DriveControls;
-  private layoutData: ControlsLayoutData = loadLayout();
+  layoutData: ControlsLayoutData = loadLayout();
   private touchMode: boolean;
   private enabled = true;
   private cssW = 0;
@@ -142,6 +142,13 @@ export class TouchControls {
     const f = at('fullscreen');
     this.fullscreen.setLayout(f.x, f.y, f.radius);
     this.car.setLayout(at('wheel'), at('gas'), at('brake'), scale);
+  }
+
+  /** Controles que o editor de HUD pode mover agora (a pé ou dirigindo). */
+  editIds(): ControlId[] {
+    const top: ControlId[] = canFullscreen() ? ['pause', 'fullscreen'] : ['pause'];
+    if (this.driving) return ['wheel', 'gas', 'brake', 'interact', 'attack', ...top];
+    return ['moveStick', 'aimStick', 'sprint', 'interact', 'options', 'attack', 'reload', 'inventory', 'shove', 'sneak', ...top];
   }
 
   setPointerBlocker(fn: ((x: number, y: number) => boolean) | null): void {

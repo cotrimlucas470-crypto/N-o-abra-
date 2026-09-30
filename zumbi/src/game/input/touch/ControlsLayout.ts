@@ -21,7 +21,7 @@ export interface ControlPlacement {
 }
 
 /** Controles existentes hoje. Ataque, recarregar etc. entram aqui nas próximas etapas. */
-export type ControlId = 'moveStick' | 'aimStick' | 'sprint' | 'interact' | 'options' | 'attack' | 'reload' | 'inventory' | 'pause' | 'fullscreen' | 'shove' | 'sneak' | 'wheel' | 'gas' | 'brake';
+export type ControlId = 'moveStick' | 'aimStick' | 'sprint' | 'interact' | 'options' | 'attack' | 'reload' | 'inventory' | 'pause' | 'fullscreen' | 'shove' | 'sneak' | 'wheel' | 'gas' | 'brake' | 'status' | 'minimap';
 
 export interface ControlsLayoutData {
   version: 1;
@@ -49,6 +49,9 @@ export const DEFAULT_LAYOUT: ControlsLayoutData = {
     wheel: { anchor: 'bottom-left', x: 130, y: 120, size: 70 },
     gas: { anchor: 'bottom-right', x: 70, y: 112, size: 56 },
     brake: { anchor: 'bottom-right', x: 172, y: 84, size: 40 },
+    // Painéis (canto superior esquerdo do painel; size 50 = tamanho normal, vira escala).
+    status: { anchor: 'top-left', x: 12, y: 10, size: 50 },
+    minimap: { anchor: 'top-left', x: 230, y: 10, size: 50 },
   },
   portrait: {
     sprint: { anchor: 'bottom-right', x: 70, y: 250, size: 32 },

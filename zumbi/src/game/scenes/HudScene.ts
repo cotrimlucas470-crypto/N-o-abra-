@@ -7,7 +7,9 @@ import { GAME_VERSION, SCENES } from '../config/GameConfig';
 import { DEBUG } from '../core/Debug';
 import { services, type GameServices } from '../core/Services';
 import { TEX } from '../assets/AssetKeys';
-import { uiScaleFor } from '../input/touch/ControlsLayout';
+import { placementFor, resolvePlacement, uiScaleFor, type ControlId } from '../input/touch/ControlsLayout';
+import { MAP_TUNING } from '../config/MapTuning';
+import { HudEditor, type HudRect } from '../ui/HudEditor';
 import { TouchControls } from '../input/touch/TouchControls';
 import { toggleFullscreen } from '../systems/fullscreen';
 import { ActionBar } from '../ui/ActionBar';
@@ -68,6 +70,8 @@ export class HudScene extends Phaser.Scene {
   private menuBtn!: UiButton;
   /** Volume do jogo (100% → 60% → 30% → desligado), salvo no aparelho. */
   private soundBtn!: UiButton;
+  private editBtn!: UiButton;
+  private editor!: HudEditor;
   private hudTimer = 0;
   private fullMap!: FullMap;
   private minimap!: Minimap;
@@ -121,7 +125,7 @@ export class HudScene extends Phaser.Scene {
       for (const sc of this.game.scene.getScenes(true)) if (sc.input.keyboard) sc.input.keyboard.enabled = on;
     };
     this.fullMap = new FullMap(this, this.s, dpr, setKeyboard);
-    this.minimap = new Minimap(this, this.s, dpr, () => this.s.bus.emit('ui:fullmap', {}));
+    this.minimap = new Minimap(this, this.s, dpr, () => !this.editor.isOpen && this.s.bus.emit('ui:fullmap', {}));
     this.infoCard = new InfoCard(this, dpr);
     this.character = new CharacterScreen(this, this.s, s.assets!, dpr);
     this.sleepPicker = new SleepPicker(this, dpr, (place, hours) => this.s.bus.emit('body:sleep', { place, hours }));
@@ -202,6 +206,11 @@ export class HudScene extends Phaser.Scene {
       .setPadding(10, 6, 10, 6);
 
     this.buildPauseLayer(dpr);
+    this.editor = new HudEditor(this, s, dpr, this.controls, {
+      rectOf: (id) => this.hudRect(id),
+      relayout: () => this.layout(),
+      done: () => this.pauseLayer.setVisible(this.paused),
+    });
 
     if (DEBUG.enabled) {
       this.debugText = this.add.text(0, 0, '', textStyle(11, '#9fe39f', '600')).setDepth(200).setResolution(dpr);
@@ -347,7 +356,7 @@ export class HudScene extends Phaser.Scene {
     this.soundBtn = new UiButton(
       this,
       volumeLabel(loadVolume()),
-      308,
+      180,
       42,
       () => {
         const v = nextVolume(loadVolume());
@@ -358,7 +367,19 @@ export class HudScene extends Phaser.Scene {
       false,
       dpr,
     );
-    this.pauseLayer = this.add.container(0, 0, [this.pauseDim, this.pauseTitle, this.pauseHint, this.resumeBtn, this.saveBtn, this.menuBtn, this.soundBtn]);
+    this.editBtn = new UiButton(
+      this,
+      'EDITAR HUD',
+      180,
+      42,
+      () => {
+        this.pauseLayer.setVisible(false);
+        this.editor.setOpen(true);
+      },
+      false,
+      dpr,
+    );
+    this.pauseLayer = this.add.container(0, 0, [this.pauseDim, this.pauseTitle, this.pauseHint, this.resumeBtn, this.saveBtn, this.menuBtn, this.soundBtn, this.editBtn]);
     this.pauseLayer.setDepth(150).setVisible(false);
     // Bloqueia toques no que está por baixo enquanto pausado.
     this.pauseDim.setInteractive();
@@ -428,6 +449,7 @@ export class HudScene extends Phaser.Scene {
     this.paused = paused;
     this.s.session.paused = paused;
     this.controls.setEnabled(!paused);
+    if (!paused) this.editor.setOpen(false);
     this.pauseLayer.setVisible(paused);
     if (paused) this.inventory.setOpen(false);
     if (paused) this.sleepPicker.close();
@@ -458,12 +480,13 @@ export class HudScene extends Phaser.Scene {
     cam.setSize(this.scale.width, this.scale.height).setZoom(s.viewport.dpr);
 
     this.vignette.setDisplaySize(w, h);
-    this.status.setPosition(ins.left + 12, ins.top + 10, k);
+    // Painéis: posição e tamanho vêm do layout editável (EDITAR HUD na pausa).
+    const st = this.hudSpot('status');
+    this.status.setPosition(st.x, st.y, st.k);
     // A faixa de necessidades cresce o painel: relógio e pílulas descem junto.
-    const extra = 22 * k;
-    this.clockText.setPosition(ins.left + 16, ins.top + 10 + 56 * k + extra).setScale(k);
-    this.pills.setPosition(ins.left + 14, ins.top + 10 + 94 * k + extra, k, Math.min(360 * k, w * 0.45));
-    this.savedText.setPosition(ins.left + 12 + 216 * k, ins.top + 14 * k).setScale(k);
+    this.clockText.setPosition(st.x + 4 * st.k, st.y + 78 * st.k).setScale(st.k);
+    this.pills.setPosition(st.x + 2 * st.k, st.y + 116 * st.k, st.k, Math.min(360 * st.k, w * 0.45));
+    this.savedText.setPosition(st.x + 216 * st.k, st.y + 4 * st.k).setScale(st.k);
     this.actionBar.layout(w, h, h * (s.viewport.isPortrait ? 0.42 : 0.3), k);
     // Barra do modo construir: no alto, no meio, abaixo do nome da região (em pé, abaixo do relógio).
     this.buildBar.layout(w / 2, s.viewport.isPortrait ? ins.top + 176 * k : ins.top + 78 * k, w - 32, k);
@@ -472,14 +495,14 @@ export class HudScene extends Phaser.Scene {
     this.controls.layout(w, h);
     this.keyboardHint.setPosition(w / 2, h - 10 - ins.bottom);
     this.feedback.setPosition(w / 2, h * 0.64, k);
-    this.threat.setPosition(w / 2, h * (s.viewport.isPortrait ? 0.5 : 0.72), k, ins.left + 14, ins.top + 10 + 128 * k);
+    this.threat.setPosition(w / 2, h * (s.viewport.isPortrait ? 0.5 : 0.72), k, st.x + 2 * st.k, st.y + 128 * st.k);
     this.death.layout(w, h, k);
     this.sleepPicker.layout(w, h, k);
     this.character.layout(w, h, k);
     this.fullMap.layout(w, h, k);
     this.card.layout(w, h, k);
-    // Minimapa: no alto, colado à direita do painel de status (largura do painel = 208 * k).
-    this.minimap.layout(ins.left + 12 + 218 * k, ins.top + 10, k);
+    const mm = this.hudSpot('minimap');
+    this.minimap.layout(mm.x, mm.y, mm.k);
     this.hearing.layout(w, h);
     this.inventory.layout(w, h, ins, k);
     this.promptKey = '';
@@ -491,12 +514,27 @@ export class HudScene extends Phaser.Scene {
     this.resumeBtn.setPosition(w / 2, h * 0.58).setScale(k);
     this.saveBtn.setPosition(w / 2 - 82 * k, h * 0.58 + 58 * k).setScale(k);
     this.menuBtn.setPosition(w / 2 + 82 * k, h * 0.58 + 58 * k).setScale(k);
-    this.soundBtn.setPosition(w / 2, h * 0.58 + 108 * k).setScale(k);
+    this.soundBtn.setPosition(w / 2 - 95 * k, h * 0.58 + 108 * k).setScale(k);
+    this.editBtn.setPosition(w / 2 + 95 * k, h * 0.58 + 108 * k).setScale(k);
+    this.editor.layout(w, h, k);
 
     const portraitPhone = s.viewport.isPortrait && this.controls.isTouchMode;
     // Em pé: aviso no meio-alto da tela, longe do nome do local (topo) e dos controles (base).
     this.rotateHint.setVisible(portraitPhone).setPosition(w / 2, h * 0.3).setScale(Math.min(k, (w * 0.92) / Math.max(1, this.rotateHint.width)));
     this.debugText?.setPosition(ins.left + 12, ins.top + 150 * k);
+  }
+
+  /** Canto e escala de um painel (status/minimapa) pelo layout salvo; nunca fora da tela. */
+  private hudSpot(id: ControlId): { x: number; y: number; k: number } {
+    const { cssWidth: w, cssHeight: h, insets: ins } = this.s.viewport;
+    const k = uiScaleFor(w, h);
+    const p = resolvePlacement(placementFor(this.controls.layoutData, id, h > w), w, h, ins, k);
+    return { x: Math.max(ins.left, Math.min(p.x, w - ins.right - 40)), y: Math.max(ins.top, Math.min(p.y, h - ins.bottom - 40)), k: p.radius / 50 };
+  }
+
+  private hudRect(id: 'status' | 'minimap'): HudRect {
+    const p = this.hudSpot(id);
+    return id === 'status' ? { x: p.x, y: p.y, w: 208 * p.k, h: 74 * p.k } : { x: p.x, y: p.y, w: MAP_TUNING.miniSize * p.k, h: MAP_TUNING.miniSize * p.k };
   }
 
   private showOptions(): void {

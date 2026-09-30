@@ -76,7 +76,8 @@ describe('layout dos controles', () => {
   it('nenhum controle sai da tela nem se sobrepõe em telas comuns', () => {
     for (const [w, h] of [[640, 360], [844, 390], [915, 412], [1280, 800], [390, 844], [360, 740]] as const) {
       const scale = uiScaleFor(w, h);
-      const ids = Object.keys(DEFAULT_LAYOUT.controls) as (keyof typeof DEFAULT_LAYOUT.controls)[];
+      // status e minimap são painéis (retângulos editáveis), não botões redondos.
+      const ids = (Object.keys(DEFAULT_LAYOUT.controls) as (keyof typeof DEFAULT_LAYOUT.controls)[]).filter((id) => id !== 'status' && id !== 'minimap');
       const all = ids.map((id) => ({ id, ...resolvePlacement(placementFor(DEFAULT_LAYOUT, id, h > w), w, h, insets, scale) }));
       // A pé e dirigindo são telas diferentes: volante e pedais só aparecem no carro (com SAIR, BUZINA, pausa).
       const car = new Set(['wheel', 'gas', 'brake']);
