@@ -17,7 +17,6 @@ import { InventoryPanel } from '../ui/InventoryPanel';
 import { OptionsMenu } from '../ui/OptionsMenu';
 import { FullMap } from '../ui/FullMap';
 import { Minimap } from '../ui/Minimap';
-import { MAP_TUNING } from '../config/MapTuning';
 import { DriveHud } from '../ui/DriveHud';
 import { InfoCard } from '../ui/InfoCard';
 import { SleepPicker } from '../ui/SleepPicker';
@@ -479,10 +478,9 @@ export class HudScene extends Phaser.Scene {
     this.character.layout(w, h, k);
     this.fullMap.layout(w, h, k);
     this.card.layout(w, h, k);
-    // Minimapa: deitado, à esquerda da coluna de botões do alto; em pé, embaixo deles.
-    const mini = MAP_TUNING.miniSize * k;
-    if (w > h) this.minimap.layout(w - ins.right - 128 * k - mini, ins.top + 8, k);
-    else this.minimap.layout(w - ins.right - mini - 12, ins.top + 74 * k, k);
+    // Minimapa: deitado, ao lado do status (esquerda); em pé, embaixo do status.
+    if (w > h) this.minimap.layout(ins.left + 12, ins.top + 10 + 128 * k, k);
+    else this.minimap.layout(ins.left + 12, ins.top + 74 * k, k);
     this.hearing.layout(w, h);
     this.inventory.layout(w, h, ins, k);
     this.promptKey = '';
